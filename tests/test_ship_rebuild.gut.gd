@@ -80,3 +80,17 @@ func test_only_your_own_ship_flies_and_it_stays_yours() -> void:
 	WorldState.new_game(WorldState.FREEPLAY)
 	assert_true(ShipPilot.berth_open({}, 1), "freeplay keys as today")
 	assert_false(ShipSalesman.needs_rebuild())
+
+
+func test_the_wreck_looks_it_until_rebuilt() -> void:
+	var ship := Node3D.new()
+	add_child_autofree(ship)
+	var mi := MeshInstance3D.new()
+	mi.mesh = BoxMesh.new()
+	ship.add_child(mi)
+	WreckLook.apply(ship)
+	assert_not_null(mi.material_overlay, "grime over the hull")
+	assert_true(ship.get_children().any(func(c): return c is Decal), "scorch marks")
+	WreckLook.remove(ship)
+	assert_null(mi.material_overlay, "rebuilt: as it was")
+	assert_false(ship.get_children().any(func(c): return c is Decal and not c.is_queued_for_deletion()))
