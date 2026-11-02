@@ -175,3 +175,91 @@ func test_the_cockpit_view_has_the_lamp_but_not_the_text() -> void:
 	hud.set_cockpit(false)
 	hud.set_seeker_warning(true, true)
 	assert_true(hud.warn_label.visible, "the chase view shows the text")
+
+
+# ---- on the planet, with or without a space fight ---------------------------------
+
+const TownDemo := preload("res://scenes/town_demo.gd")
+const DT := 1.0 / 60.0
+
+
+## A stolen ship in the air over the port, the Remnant interceptor up and hunting.
+func _hunted() -> Node:
+	GameFlow.reset()
+	WorldState.reset()
+	WorldState.set_flag("ships_unlocked")
+	var t = TownDemo.new()
+	t.use_look = false
+	t.nav_async = false
+	add_child_autofree(t)
+	await wait_physics_frames(2)
+	var i := -1
+	for k in t.pilot.berths.size():
+		if str(t.pilot.berths[k].get("outpost", "")) == "remnant_outpost_near":
+			i = k
+	var v: Node3D = t.pilot.berths[i].visual
+	t._player.global_position = v.global_position + Vector3(6, -float(t.pilot.berths[i].clearance), 0)
+	t.pilot.board()
+	t.pilot.takeoff()
+	_fly(t, 8.0, { "throttle": 0.4 })
+	# It may already have launched on its own; start from clean air and no lock.
+	for b in get_tree().get_nodes_in_group("bolts"):
+		if is_instance_valid(b) and "seek" in b and b.seek == t.pilot.hull:
+			b.queue_free()
+	t.interceptor.lock.reset()
+	await wait_physics_frames(2)
+	t.pilot.seeker_warning.reset()
+	t.pilot._seeker_step(DT)
+	return t
+
+
+func _fly(t, secs: float, cmd: Dictionary = {}) -> void:
+	t.pilot.set_physics_process(false)
+	t.interceptor.set_physics_process(false)
+	if not cmd.is_empty():
+		t.pilot.set_external_command(cmd)
+	for i in int(secs / DT):
+		t.pilot._physics_process(DT)
+		t.interceptor.step(DT)
+
+
+func test_the_interceptor_s_lock_sets_the_warning_off_on_the_planet() -> void:
+	var t = await _hunted()
+	var f: AtmoFighter = t.interceptor
+	assert_eq(f.mode, AtmoFighter.Mode.HUNTING)
+	assert_null(t.pilot.fight, "no space fight: this is the planet")
+	assert_false(t.pilot.seeker_warning.sounding)
+	f.lock.target_id = 1
+	f.lock.progress = f.lock.lock_time
+	assert_eq(int(f.seekers_on_player().locks), 1)
+	t.pilot._seeker_step(DT)
+	assert_true(t.pilot.seeker_warning.sounding, "the lock sounds the alarm")
+	assert_true(t.pilot.hud.warn_label.visible, "and shows the text in the chase view")
+	f.lock.reset()
+	t.pilot._seeker_step(DT)
+	assert_false(t.pilot.seeker_warning.sounding, "it stops when the lock goes")
+
+
+func test_a_seeker_in_the_air_at_your_ship_sets_it_off_too() -> void:
+	var t = await _hunted()
+	var f: AtmoFighter = t.interceptor
+	var spawns: Array = f.guns.fire(DT, f.atmo.transform(), Vector3.ZERO, false, true, 1)
+	var made := 0
+	var before := f.seekers
+	for s in spawns:
+		if str(s.kind) == "missile":
+			f._launch_seeker(s)
+			made += 1
+	assert_eq(made, 1, "its rack launched one")
+	assert_eq(f.seekers, before + 1)
+	await wait_physics_frames(2)
+	assert_eq(int(f.seekers_on_player().missiles), 1, "the seeker is after your hull")
+	t.pilot._seeker_step(DT)
+	assert_true(t.pilot.seeker_warning.sounding, "missiles inbound")
+
+
+func test_it_is_data_whether_the_interceptor_uses_seekers() -> void:
+	var content := CoreContent.new()
+	content.load_from()
+	assert_true(bool(content.get_pilot("remnant_hunter").get("missile_use", false)))
+	assert_gt(float(content.get_ship("remnant_interceptor").scramble.get("seeker_gap_s", 0.0)), 0.0)

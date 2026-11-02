@@ -1123,12 +1123,19 @@ func _engine_step() -> void:
 
 
 ## The seeker warning: while an enemy has a lock on her or a seeker in flight at her
-## in a fight, the alarm sounds for a few seconds, the text shows, and (in the cockpit
+## (in a space fight, or down on the planet from the Remnant interceptor, whether or
+## not the space dogfight is on), the alarm sounds for a few seconds, the text shows, and (in the cockpit
 ## view) the dash lamp flashes. SeekerWarning decides when; this plays it.
 func _seeker_step(dt: float) -> void:
 	var threat := false
 	if _fight_flying() and fight.running():
 		var on_her: Dictionary = fight.df.seekers_on_player()
+		threat = int(on_her.locks) + int(on_her.missiles) > 0
+	# Down on the planet too, fight or no fight (the dogfight toggle does not matter):
+	# the Remnant interceptor's lock and its seekers in the air.
+	var foe = _air_foe()
+	if not threat and piloting and foe != null and foe.has_method("seekers_on_player"):
+		var on_her: Dictionary = foe.seekers_on_player()
 		threat = int(on_her.locks) + int(on_her.missiles) > 0
 	var was := seeker_warning.sounding
 	seeker_warning.update(dt, threat)
