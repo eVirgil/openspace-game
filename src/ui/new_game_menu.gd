@@ -5,6 +5,9 @@ extends CanvasLayer
 ## headless run. Picking one starts that game in its own save slot
 ## (DevSettingsPanel.new_game) and the town reloads. Later new games, and playing
 ## the other save, are in F11 > Game.
+##
+## It starts on Story: Enter (or Space) picks the lit choice, Up/W and Down/S
+## move it, a click picks one. The menu reads the keys itself, like DroidMenu.
 
 const CHOICES := [
 	[WorldState.STORY, "Story",
@@ -14,7 +17,9 @@ const CHOICES := [
 ]
 
 var settings: DevSettingsPanel
-var _first: Button
+var selected := 0                 ## the choice Enter picks: Story to start
+var _buttons: Array[Button] = []
+var _lit: StyleBoxFlat
 
 
 ## Show it if the town found no save. Returns the menu, or null.
@@ -72,7 +77,9 @@ func _open() -> void:
 		b.text = c[1]
 		b.add_theme_font_size_override("font_size", 22)
 		b.custom_minimum_size = Vector2(200, 48)
+		b.focus_mode = Control.FOCUS_NONE        # the keys are this menu's, not the focus system's
 		b.pressed.connect(pick.bind(c[0]))
+		b.mouse_entered.connect(_select.bind(_buttons.size()))
 		var about := Label.new()
 		about.text = c[2]
 		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -84,17 +91,46 @@ func _open() -> void:
 		row.add_child(b)
 		row.add_child(about)
 		v.add_child(row)
-		if _first == null:
-			_first = b
+		_buttons.append(b)
+	_lit = sb.duplicate()
+	_lit.bg_color = Color("#c9a35e", 0.3)
+	_lit.set_content_margin_all(8)
+	_select(0)
 	visible = true
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_first.grab_focus()
+
+
+## _input, not _unhandled_input: the menu is modal, and nothing behind it may
+## take Enter or the arrow keys first.
+func _input(event: InputEvent) -> void:
+	if not visible or not (event is InputEventKey) or not event.pressed:
+		return
+	var k := (event as InputEventKey).keycode
+	if k in [KEY_UP, KEY_W, KEY_DOWN, KEY_S]:
+		_select(posmod(selected + (-1 if k in [KEY_UP, KEY_W] else 1), CHOICES.size()))
+	elif k in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE] and not event.echo:
+		pick(CHOICES[selected][0])
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+
+## Light choice `i`: the one Enter picks.
+func _select(i: int) -> void:
+	selected = i
+	for j in _buttons.size():
+		if j == i:
+			for st in ["normal", "hover", "pressed"]:
+				_buttons[j].add_theme_stylebox_override(st, _lit)
+		else:
+			for st in ["normal", "hover", "pressed"]:
+				_buttons[j].remove_theme_stylebox_override(st)
 
 
 ## Start a new game in `mode` (the town reloads).
 func pick(mode: String) -> void:
-	if not is_inside_tree():
+	if not is_inside_tree() or is_queued_for_deletion():
 		return
 	settings.new_game(mode)
 	queue_free()
