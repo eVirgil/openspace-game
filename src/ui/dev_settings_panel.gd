@@ -14,7 +14,8 @@ extends CanvasLayer
 ##   Standing  faction standing, each individual's trust / mood / tab, and every
 ##             world flag the content reads
 ##   Options   the HUD's colour (issue #52) and text size (issue #71), volume
-##             (issue #16), the AI characters' brain (issue #80) and every key
+##             (issue #16), indirect light, the AI characters' brain (issue #80)
+##             and every key
 ##
 ## Everything writes to the same places the game does (WorldState, the npc's
 ## Relationship, the look), so the cantina owner, rumors and checkpoint react as if
@@ -119,6 +120,7 @@ func _build_tabs() -> void:
 	var options := _tab("Options")
 	_hud_page(options)
 	_sound_page(options)
+	_graphics_page(options)
 	_llm_page(options)
 	_keys_page(options)
 	tabs.add_child(options.get_parent())
@@ -1135,6 +1137,25 @@ func _sound_page(v: VBoxContainer) -> void:
 		s.value_changed.connect(func(x): Sound.set_volume(bus[0], x / 100.0))
 		_row(v, bus[1], s)
 		_refreshers.append(func(): s.set_value_no_signal(roundf(Sound.volume(bus[0]) * 100.0)))
+
+
+## Lower it if near things (the hands in first person, a ship's interior) look far
+## too bright: some Windows GPUs overdo the bounce light (LookEnvironment.indirect_level).
+func _graphics_page(v: VBoxContainer) -> void:
+	_section(v, "Graphics")
+	var s := _slider(0, 100)
+	s.value = roundf(LookEnvironment.indirect_level() * 100.0)
+	s.value_changed.connect(func(x):
+		if demo != null and demo.look != null:
+			demo.look.set_indirect(x / 100.0)
+		else:
+			LookEnvironment.save_indirect_level(x / 100.0))
+	_row(v, "Indirect light", s)
+	var note := Label.new()
+	note.text = "Turn down if hands or ship interiors look washed out or glow."
+	note.add_theme_font_size_override("font_size", 12)
+	v.add_child(note)
+	_refreshers.append(func(): s.set_value_no_signal(roundf(LookEnvironment.indirect_level() * 100.0)))
 
 
 func _set_hud_color(c: Color) -> void:
