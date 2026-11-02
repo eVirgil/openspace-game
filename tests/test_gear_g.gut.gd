@@ -152,3 +152,25 @@ func test_menu_rows_follow_what_you_own_and_wear() -> void:
 	for r in gear.menu.rows:
 		assert_string_contains(str(r), "Take off")
 		assert_false(str(r).contains("Put on"))
+
+
+## The move keys go up for 5 seconds once a run, the first time you are free on
+## foot: not while a talk or a menu has you, and after a toast already up.
+func test_the_move_hint_shows_once_when_you_are_free() -> void:
+	GearController.move_hint_shown = false
+	player.locked = true
+	gear._tick_move_hint(2.0)
+	assert_false(GearController.move_hint_shown, "a talk has you: not yet")
+	player.locked = false
+	gear._tick_move_hint(0.2)
+	assert_false(GearController.move_hint_shown, "free a moment: still settling")
+	gear.hud.toast("The general's hint", 5.0)
+	gear._tick_move_hint(0.4)
+	assert_true(GearController.move_hint_shown)
+	assert_eq(gear.hud.toast_label.text, "The general's hint", "it waits for the toast already up")
+	gear.hud._process(5.1)
+	assert_eq(gear.hud.toast_label.text, "WASD or arrow keys to move")
+	assert_eq(gear.hud._toast_left, GearController.MOVE_HINT_SECS, "for 5 seconds")
+	gear.hud.toast_label.text = ""
+	gear._tick_move_hint(1.0)
+	assert_eq(gear.hud.toast_label.text, "", "once a run")
