@@ -138,8 +138,10 @@
         ]
       }
     },
-    "interceptor_dark": {"frame": "dart", "scene": "res://assets/vehicles/interceptor.glb", "length": 9.0, "span": 7.6, "height": 1.6, "hull": "#2e3034", "trim": "#6b1e1e", "dark": "#2a2c33", "canopy": "#1f7a78", "engine": "#8fd8ff", "flames_at": [[-0.82, -0.48, 4.38, 0.28], [0.79, -0.48, 4.38, 0.28]], "darken": {"body_mul": 0.34, "accent_mul": 0.5, "glow": 0.15}},
-    "freighter_dark": {"frame": "hauler", "scene": "res://assets/vehicles/freighter.glb", "length": 9.0, "span": 8.0, "height": 2.4, "hull": "#2e3034", "trim": "#6b1e1e", "dark": "#2a2c33", "canopy": "#1f2a33", "engine": "#8fd8ff", "flames_at": [[-0.86, 0.05, 4.3, 0.3], [0.85, 0.05, 4.3, 0.3], [-0.03, -0.4, 4.45, 0.27]], "darken": {"body_mul": 0.34, "accent_mul": 0.5, "glow": 0.15}}
+    "interceptor_dark": {"frame": "dart", "scene": "res://assets/vehicles/interceptor.glb", "length": 9.0, "span": 7.6, "height": 1.6, "hull": "#2e3034", "trim": "#6b1e1e", "dark": "#2a2c33", "canopy": "#1f7a78", "engine": "#8fd8ff", "flames_at": [[-0.82, -0.48, 4.38, 0.28], [0.79, -0.48, 4.38, 0.28]], "darken": {"body_mul": 0.34, "accent_mul": 0.5, "glow": 0.15}, "locals": "interceptor_locals"},
+    "freighter_dark": {"frame": "hauler", "scene": "res://assets/vehicles/freighter.glb", "length": 9.0, "span": 8.0, "height": 2.4, "hull": "#2e3034", "trim": "#6b1e1e", "dark": "#2a2c33", "canopy": "#1f2a33", "engine": "#8fd8ff", "flames_at": [[-0.86, 0.05, 4.3, 0.3], [0.85, 0.05, 4.3, 0.3], [-0.03, -0.4, 4.45, 0.27]], "darken": {"body_mul": 0.34, "accent_mul": 0.5, "glow": 0.15}, "locals": "freighter_locals"},
+    "interceptor_locals": {"frame": "dart", "scene": "res://assets/vehicles/interceptor.glb", "length": 9.0, "span": 7.6, "height": 1.6, "hull": "#c9c2b4", "trim": "#3f8a4a", "dark": "#2a2c33", "canopy": "#1f7a78", "engine": "#8fd8ff", "flames_at": [[-0.82, -0.48, 4.38, 0.28], [0.79, -0.48, 4.38, 0.28]], "recolor": {"swap": {"#062ea8": "locals.band", "#fca80e": "#e6dcc4"}}},
+    "freighter_locals": {"frame": "hauler", "scene": "res://assets/vehicles/freighter.glb", "length": 9.0, "span": 8.0, "height": 2.4, "hull": "#d8cfbf", "trim": "#3f8a4a", "dark": "#2a2c33", "canopy": "#1f2a33", "engine": "#8fd8ff", "flames_at": [[-0.86, 0.05, 4.3, 0.3], [0.85, 0.05, 4.3, 0.3], [-0.03, -0.4, 4.45, 0.27]], "recolor": {"tint": "#8fc79a"}}
   },
   "bolts": {
     "player": {

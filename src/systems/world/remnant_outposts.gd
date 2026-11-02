@@ -231,6 +231,7 @@ func swap(o: Dictionary, side: String) -> void:
 	swaps += 1
 	if demo.use_look:
 		demo._flat_mats().repaint(side, id)      # issue #393: the band, door frame, lamps and banner
+		_repaint_ship(o, side)                   # and the ship parked beside it
 	if side == Territory.LOCALS:
 		var posts: Dictionary = Territory.cfg().get("outposts", {}).get("posts", {})
 		var mine: Array = []
@@ -261,6 +262,15 @@ func swap(o: Dictionary, side: String) -> void:
 	if demo.droids != null:
 		demo.droids.clear_outpost_units(id)
 		demo.droids.build_outpost_units(id)
+
+
+## The outpost's ship in `side`'s paint (the locals': the same model, a little green).
+func _repaint_ship(o: Dictionary, side: String) -> void:
+	var ship = o.get("ship", null)
+	if ship == null or not is_instance_valid(ship) or not o.has("look"):
+		return
+	var kit := ShipKit.new()
+	kit.repaint(ship, kit.look_for(str(o.look), side))
 
 
 ## One body leaves outpost `id` for good.
@@ -616,14 +626,17 @@ func _prop_look(parent: Node3D, pr: Dictionary, xf: Transform3D, mats: LookMater
 ## what you bump into); boarding it sets off this outpost's alarm.
 func _park_ship(o: Dictionary) -> void:
 	var ship_id := str(o.cfg.get("ship", ""))
-	var look_id := str(_cc.get_ship(ship_id).get("look", ""))
-	if look_id == "":
+	var remnant_look := str(_cc.get_ship(ship_id).get("look", ""))
+	if remnant_look == "":
 		return
+	o["look"] = remnant_look
+	var kit := ShipKit.new()
+	var look_id := kit.look_for(remnant_look, str(o.side))      # painted for whoever holds it now
 	var at := point(o, "ship")
 	var b: Basis = (o.xf as Transform3D).basis * Basis(Vector3.UP, PI * 0.5)
 	var ship: Node3D
 	if demo.use_look:
-		ship = ShipKit.new().build(look_id)
+		ship = kit.build(look_id)
 		add_child(ship)
 		# Measured upright at the origin, then stood on the sand in the outpost's frame.
 		var a := TownDecor.visual_aabb(ship)

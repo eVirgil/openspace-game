@@ -120,3 +120,55 @@ func test_ship_node_follows_the_flight_model() -> void:
 	assert_almost_eq((-node.global_transform.basis.z).dot(f.forward()), 1.0, 0.0001, "facing copied")
 	node.sync(f, false)
 	assert_false(node.visible, "a destroyed ship is hidden")
+
+
+## The locals' ships are the Remnant's models in a small colour change: no new render.
+func test_locals_hold_their_own_paint_of_the_dark_ships() -> void:
+	assert_eq(kit.look_for("interceptor_dark", "locals"), "interceptor_locals")
+	assert_eq(kit.look_for("freighter_dark", "locals"), "freighter_locals")
+	assert_eq(kit.look_for("interceptor_dark", "remnant"), "interceptor_dark", "the Remnant keep theirs")
+	assert_eq(kit.look_for("courier", "locals"), "courier", "a look with no locals' paint stays")
+	for id in ["interceptor_locals", "freighter_locals"]:
+		assert_eq(kit.looks[id].scene, kit.looks[id.replace("_locals", "")].scene, "%s is the player's model, repainted" % id)
+
+
+func _accent_colours(ship: Node3D) -> Array:
+	var out: Array = []
+	for mi in _meshes(ship):
+		for i in mi.mesh.get_surface_count():
+			var m := (mi.get_surface_override_material(i) if mi.get_surface_override_material(i) != null else mi.mesh.surface_get_material(i)) as BaseMaterial3D
+			if m != null:
+				out.append(m.albedo_color)
+	return out
+
+
+func test_the_locals_interceptor_turns_the_blue_and_saffron_green_and_bone() -> void:
+	var plain := kit.build("interceptor")
+	var locals := kit.build("interceptor_locals")
+	add_child_autofree(plain)
+	add_child_autofree(locals)
+	var green := LookMaterials.faction_color("locals", "band")
+	var a := _accent_colours(plain)
+	var b := _accent_colours(locals)
+	assert_eq(a.size(), b.size())
+	var cobalt := Color("#062ea8")
+	var turned := 0
+	for i in a.size():
+		if kit._near(a[i], cobalt):
+			assert_almost_eq(b[i].g, green.g, 0.01, "cobalt parts are the locals' green")
+			turned += 1
+		elif not kit._near(a[i], Color("#fca80e")):
+			assert_eq(b[i], a[i], "the silver hull, glass and glow are untouched")
+	assert_gt(turned, 0, "the interceptor has cobalt parts to turn")
+
+
+func test_repainting_an_outpost_ship_keeps_its_place_and_follows_the_holder() -> void:
+	var ship := kit.build("interceptor_dark")
+	add_child_autofree(ship)
+	ship.position = Vector3(3, 2, 1)
+	kit.repaint(ship, kit.look_for("interceptor_dark", "locals"))
+	assert_eq(ship.get_meta("look_id"), "interceptor_locals")
+	assert_eq(ship.position, Vector3(3, 2, 1))
+	assert_not_null(ship.get_node_or_null("Model"))
+	kit.repaint(ship, kit.look_for("interceptor_dark", "remnant"))
+	assert_eq(ship.get_meta("look_id"), "interceptor_dark")

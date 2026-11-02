@@ -103,7 +103,8 @@ func _ready() -> void:
 func _build_visual() -> void:
 	var look_id := str(cfg.get("look", ""))
 	if demo.use_look and look_id != "":
-		visual = ShipKit.new(demo._flat_mats()).build(look_id)
+		var kit := ShipKit.new(demo._flat_mats())
+		visual = kit.build(kit.look_for(look_id, Territory.owner(Territory.BARRACKS)))
 	else:
 		visual = Node3D.new()
 	visual.name = "Ship"
@@ -127,6 +128,15 @@ func _build_visual() -> void:
 	hull.add_child(cs)
 	visual.add_child(hull)
 	hull.on_damage = _on_hit
+
+
+## The barracks changed hands: the interceptor on its pad takes the holder's paint
+## (the locals': the same model, a little green).
+func repaint(owner: String) -> void:
+	var look_id := str(cfg.get("look", ""))
+	if visual != null and look_id != "" and demo.use_look:
+		var kit := ShipKit.new(demo._flat_mats())
+		kit.repaint(visual, kit.look_for(look_id, owner))
 
 
 func p(key: String, fallback: float) -> float:

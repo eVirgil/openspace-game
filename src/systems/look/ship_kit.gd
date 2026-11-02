@@ -76,6 +76,8 @@ func build(look_id: String) -> Node3D:
 		model.name = "Model"
 		if p.get("darken") is Dictionary:
 			darken(model, p.darken, _c(p, "trim", "#6b1e1e"))     # issue #76: the Remnant's dark ships
+		if p.get("recolor") is Dictionary:
+			recolor(model, p.recolor)                              # the locals' ships: the same paint, a little green
 		root.add_child(model)
 		root.add_child(engines)
 		for n in p.get("flames_at", []):
@@ -102,6 +104,17 @@ func build(look_id: String) -> Node3D:
 	throttle_flames(root, 0.0)
 	root.set_meta("source", "kit")
 	return root
+
+
+## The look a ship wears for whoever holds the place it stands at: a look's "locals"
+## names its locals' paint (interceptor_dark -> interceptor_locals); any other look,
+## or the Remnant's, stays as it is.
+func look_for(look_id: String, owner: String) -> String:
+	if owner == Territory.LOCALS:
+		var held := str(looks.get(look_id, {}).get("locals", ""))
+		if held != "" and looks.has(held):
+			return held
+	return look_id
 
 
 ## Swap a built ship's model for look `look_id`'s: the same airframe in another paint
@@ -253,6 +266,41 @@ static func darken(model: Node3D, d: Dictionary, accent: Color) -> void:
 			mi.set_surface_override_material(i, m)
 		if textured:
 			PlayerAvatar._darken(mi, d)
+
+
+## A model in a small colour change, no new render. d.swap: { "#from": colour } turns
+## each flat material close to `from` into the colour (a hex, or "locals.band": a
+## faction colour, town_styles.json "factions"); d.tint multiplies the colour of a
+## textured part (a model painted by its texture). Everything else stays.
+static func recolor(model: Node3D, d: Dictionary) -> void:
+	var swap: Dictionary = d.get("swap", {})
+	var tint := Color(str(d.tint)) if d.has("tint") else Color.WHITE
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i) as BaseMaterial3D
+			if src == null:
+				continue
+			var m := src.duplicate() as BaseMaterial3D
+			if src.albedo_texture != null:
+				m.albedo_color = src.albedo_color * tint
+			else:
+				var hit := false
+				for from in swap:
+					if _near(src.albedo_color, Color(str(from))):
+						var to := str(swap[from])
+						var c := LookMaterials.faction_color(to.get_slice(".", 0), to.get_slice(".", 1)) if to.contains(".") else Color(to)
+						m.albedo_color = Color(c.r, c.g, c.b, src.albedo_color.a)
+						hit = true
+						break
+				if not hit:
+					continue
+			mi.set_surface_override_material(i, m)
+
+
+static func _near(a: Color, b: Color) -> bool:
+	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) < 0.12
 
 
 func _load_model(path: String) -> Node3D:
