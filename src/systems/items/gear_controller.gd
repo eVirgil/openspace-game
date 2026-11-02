@@ -43,6 +43,12 @@ const SLOT_ARMOUR := "armour"
 const SLOT_BLADE := "blade"
 const G_SLOTS := [SLOT_BACK, SLOT_ARMOUR]   ## the slots [G] puts on and takes off
 const FALL_MARGIN := 20.0       ## metres below the lowest floor before a rescue
+const MOVE_HINT_SECS := 5.0
+const MOVE_HINT_SETTLE := 0.5   ## free on foot this long first (a talk that opens as you step out wins)
+
+## The move keys go up once a run, the first time you are on your feet and free.
+static var move_hint_shown := false
+var _free_for := 0.0
 
 var content
 var town                        ## TownLayout (marker_pos, boxes)
@@ -323,10 +329,21 @@ func _physics_process(dt: float) -> void:
 			toggle_gear()
 	sync_gear()                 # cheap; catches a body attached later or a save loaded
 	_update_worn_view()
+	if DisplayServer.get_name() != "headless":
+		_tick_move_hint(dt)     # tests and traces read the toasts they make
 	var jet = player.jetpack
 	if worn != null:
 		ItemKit.set_flames(worn, jet != null and jet.thrusting, 1.0)
 	_guard_fall()
+
+
+func _tick_move_hint(dt: float) -> void:
+	if move_hint_shown or hud == null:
+		return
+	_free_for = 0.0 if player.locked or menu.is_open() else _free_for + dt
+	if _free_for >= MOVE_HINT_SETTLE:
+		move_hint_shown = true
+		hud.toast_after(_l("move_hint"), MOVE_HINT_SECS)     # after a toast already up (the general's hint)
 
 
 func _find_focus() -> Dictionary:

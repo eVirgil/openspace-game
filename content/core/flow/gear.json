@@ -7,6 +7,7 @@
     "note": "The player's backpack (Inventory.slots_used). The pistol always holds the first slot; each other kind of item you own takes one (a stack is one slot): the rifle, a saber, food, quartz, every contraband good. The jetpack and the armour take one too, but not while they are activated (worn: listed as '(activated)'). Picking up, buying, trading, unloading a cargo droid and taking gear off all need a free slot."
   },
   "labels": {
+    "move_hint": "WASD or arrow keys to move",
     "pick_up": "[E]  Pick up %s",
     "picked_up": "Picked up: %s",
     "attached": "%s attached.  Hold Space in the air to fly.  [G] takes it off",
