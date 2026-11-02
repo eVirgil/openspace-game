@@ -101,21 +101,42 @@ func test_mouse_does_nothing_while_closed() -> void:
 	assert_eq(w.pointer, Vector2.ZERO)
 
 
-func test_an_empty_slot_can_not_be_picked() -> void:
+func test_an_empty_slot_can_not_be_picked_with_the_mouse() -> void:
 	_open(w)
-	w.push_keys(Vector2(0, 1))
+	w.move_mouse(Vector2(0, 140))
 	assert_eq(w.highlighted(), 4)
 	assert_false(w.selectable(4))
-	assert_eq(w.release(), "")
+	assert_eq(w.release(), "", "the mouse may rest on a dimmed slot; letting go there does nothing")
 
 
-func test_a_weapon_the_player_may_not_draw_can_not_be_picked() -> void:
+func test_a_key_at_an_empty_slot_jumps_to_the_nearest_weapon() -> void:
+	_open(w)
+	w.push_keys(Vector2(0, 1))
+	assert_eq(w.highlighted(), 2, "down is empty: the sword is two steps away, the pistol four")
+	assert_eq(w.choice(), "energy_blade")
+	w.push_keys(Vector2(-1, 0))
+	assert_eq(w.highlighted(), 0, "left is empty: the pistol is two steps away, the sword four")
+	assert_eq(w.release(), "pistol_blaster")
+
+
+func test_a_key_tie_goes_to_the_lower_slot() -> void:
+	assert_eq(w.nearest_selectable(5), 0, "slot 6 is three steps from the sword and three from the pistol")
+
+
+func test_a_weapon_the_player_may_not_draw_is_skipped_by_the_keys() -> void:
 	w.can_draw = func(id): return id == "pistol_blaster"
 	_open(w)
 	w.push_keys(Vector2(1, 0))
-	assert_eq(w.choice(), "", "the sword is dimmed")
-	w.push_keys(Vector2(0, -1))
+	assert_eq(w.choice(), "pistol_blaster", "the sword is dimmed, so right lands on the pistol")
+	w.push_keys(Vector2(0, 1))
 	assert_eq(w.choice(), "pistol_blaster")
+
+
+func test_keys_with_no_weapon_to_land_on_pick_nothing() -> void:
+	w.can_draw = func(_id): return false
+	_open(w)
+	w.push_keys(Vector2(1, 0))
+	assert_eq(w.choice(), "")
 
 
 func test_cancel_closes_without_a_pick() -> void:

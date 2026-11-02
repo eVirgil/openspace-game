@@ -125,7 +125,33 @@ func move_mouse(relative: Vector2) -> void:
 		pointer = pointer.normalized()
 
 
-## WASD / arrows: a held direction (y down). Zero changes nothing.
+## WASD / arrows: a held direction (y down). Zero changes nothing. A key that
+## points at a slot you can not pick (empty, or a weapon you may not draw) jumps to
+## the nearest one you can, so the keys always land on a weapon. The mouse is
+## free to rest on a dimmed slot.
 func push_keys(dir: Vector2) -> void:
-	if is_open and dir != Vector2.ZERO:
-		pointer = dir.normalized()
+	if not is_open or dir == Vector2.ZERO:
+		return
+	pointer = dir.normalized()
+	var i := slot_at(pointer, dead_zone)
+	if selectable(i):
+		return
+	var near := nearest_selectable(i)
+	if near >= 0:
+		pointer = slot_dir(near)
+
+
+## The slot you can pick that is fewest steps round the wheel from slot i (either
+## way); the lower slot wins a tie. -1 when nothing can be picked.
+func nearest_selectable(i: int) -> int:
+	var best := -1
+	var best_d := SLOTS
+	for j in SLOTS:
+		if not selectable(j):
+			continue
+		var d := absi(j - i)
+		d = mini(d, SLOTS - d)
+		if d < best_d:
+			best = j
+			best_d = d
+	return best

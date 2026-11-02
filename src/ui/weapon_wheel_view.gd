@@ -6,13 +6,16 @@ extends Control
 
 const INK := Color(0.95, 0.92, 0.85, 0.95)
 const AMBER := Color("#e0a050")
+const ICON_DIR := "res://assets/ui/weapon_icons/"      ## white silhouettes, tools/lookdev/weapon_icons.gd
+const ICON_BOX := Vector2(104, 42)                       ## the most an icon takes of a slot
 
 var wheel: WeaponWheel
 var info: Callable = Callable()     ## (id) -> { name: String, detail: String }
 var current_id := ""
-var radius := 190.0
-var inner := 70.0
+var radius := 230.0
+var inner := 80.0
 var gap := 0.045                    ## radians left between wedges
+var _icons: Dictionary = {}         ## id -> Texture2D, or null when there is none
 
 
 func _ready() -> void:
@@ -42,7 +45,7 @@ func _draw() -> void:
 		if live:
 			col = Color(0.3, 0.22, 0.12, 0.8)
 		if i == hot and live:
-			col = Color(0.88, 0.63, 0.31, 0.92)
+			col = Color(0.66, 0.44, 0.17, 0.94)         # dark enough for white ink
 		elif i == hot:
 			col = Color(0.35, 0.18, 0.16, 0.7)
 		var a0 := step * i - step * 0.5 + gap
@@ -52,15 +55,14 @@ func _draw() -> void:
 			draw_polyline(_arc(mid, radius - 3.0, a0, a1), AMBER, 3.0)
 		var at := mid + WeaponWheel.slot_dir(i) * (inner + radius) * 0.5
 		var text_col := INK if live else Color(INK, 0.3)
-		if i == hot and live:
-			text_col = Color(0.1, 0.07, 0.04)
-		_text(font, str(i + 1), at + Vector2(0, -16), 15, text_col)
+		_text(font, str(i + 1), at + Vector2(0, -56), 14, text_col)
 		if id != "":
 			var d: Dictionary = info.call(id) if info.is_valid() else {}
-			_text(font, str(d.get("name", id)), at + Vector2(0, 6), 14, text_col)
+			_icon(id, at + Vector2(0, -28), Color.WHITE if live else Color(1, 1, 1, 0.3))
+			_text(font, str(d.get("name", id)), at + Vector2(0, 12), 14, text_col)
 			var det := str(d.get("detail", ""))
 			if det != "":
-				_text(font, det, at + Vector2(0, 24), 13, text_col)
+				_text(font, det, at + Vector2(0, 30), 13, text_col)
 	# The middle: what letting go would do.
 	draw_circle(mid, inner - 8.0, Color(0, 0, 0, 0.5))
 	var pick := wheel.choice()
@@ -73,6 +75,20 @@ func _draw() -> void:
 	_text(font, name, mid + Vector2(0, 12), 14, INK)
 	# The pointer.
 	draw_circle(mid + wheel.pointer * (inner - 20.0), 5.0, AMBER)
+
+
+## A weapon's silhouette, fitted into ICON_BOX round `centre`.
+func _icon(id: String, centre: Vector2, tint: Color) -> void:
+	if not _icons.has(id):
+		var path := ICON_DIR + id + ".png"
+		_icons[id] = load(path) if ResourceLoader.exists(path) else null
+	var tex: Texture2D = _icons[id]
+	if tex == null:
+		return
+	var sz := tex.get_size()
+	var k := minf(ICON_BOX.x / sz.x, ICON_BOX.y / sz.y)
+	var box := sz * k
+	draw_texture_rect(tex, Rect2(centre - box * 0.5, box), false, tint)
 
 
 func _wedge(mid: Vector2, a0: float, a1: float) -> PackedVector2Array:

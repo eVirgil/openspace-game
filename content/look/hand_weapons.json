@@ -69,8 +69,8 @@
     "hold_time": 0.2,
     "dead_zone": 0.3,
     "mouse_pixels": 140,
-    "radius": 190,
-    "inner": 70
+    "radius": 230,
+    "inner": 80
   },
   "bolt": { "length": 0.9, "radius": 0.035, "energy": 5.0 },
   "recoil": { "back": 0.05, "up_deg": 7.0, "recover_s": 0.12 },
