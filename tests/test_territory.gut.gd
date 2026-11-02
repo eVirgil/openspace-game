@@ -184,3 +184,39 @@ func test_driving_them_off_again_still_hands_the_locals_the_town() -> void:
 		Territory.take(str(id))
 	assert_eq(Territory.owner(Territory.BARRACKS), Territory.LOCALS)
 	assert_true(Territory.remnant_dead().is_empty(), "the tally goes with them")
+
+
+func test_running_short_offers_a_resupply_quest_again_and_again() -> void:
+	var q := Territory.quest_id(NEAR)
+	Territory.take(NEAR)
+	assert_eq(Quests.state(q), "", "not while the hold is full")
+	Territory.tick(Territory.n("hold_s", 900.0) - Territory.n("supply_warn_s", 420.0) + 1.0)
+	assert_eq(Quests.state(q), "open", "offered once they run short")
+	assert_eq(str(Quests.cfg(q).target), "outpost:" + NEAR, "pointed at the outpost")
+	assert_string_contains(str(Quests.cfg(q).title), Story.outpost_label(NEAR))
+	assert_true(WorldState.accept_job(Territory.SUPPLY_JOB))
+	Territory.deliver(NEAR)
+	assert_eq(Quests.state(q), "done", "done when the supplies get there")
+	Territory.tick(Territory.n("hold_s", 900.0) - Territory.n("supply_warn_s", 420.0) + 1.0)
+	assert_eq(Quests.state(q), "open", "offered again next time")
+	Territory.tick(Territory.n("supply_warn_s", 420.0))
+	assert_eq(Quests.state(q), "failed", "failed when the Remnant take it back")
+
+
+func test_the_supply_job_goes_where_your_quest_points() -> void:
+	var far := "remnant_outpost_far"
+	Territory.take(NEAR)
+	Territory.tick(100.0)
+	Territory.take(far)
+	Territory.tick(Territory.n("hold_s", 900.0) - Territory.n("supply_warn_s", 420.0) + 1.0)
+	assert_eq(Territory.supply_target(), NEAR, "shortest on time first")
+	assert_true(Quests.toggle_waypoint(Territory.quest_id(far)))
+	assert_eq(Territory.supply_target(), far, "unless you are pointed at another")
+
+
+func test_a_held_outpost_has_a_clock() -> void:
+	assert_eq(Territory.hold_frac(NEAR), -1.0)
+	Territory.take(NEAR)
+	assert_almost_eq(Territory.hold_frac(NEAR), 1.0, 0.001)
+	Territory.tick(Territory.n("hold_s", 900.0) * 0.5)
+	assert_almost_eq(Territory.hold_frac(NEAR), 0.5, 0.001)

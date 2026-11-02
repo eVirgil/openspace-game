@@ -41,9 +41,17 @@ Plain English, newest on top. One entry per milestone.
 - **On the F11 Map, an outpost the locals have taken is green**, and the port goes
   green once the locals hold the barracks (the fleet beaten, or the Remnant driven
   off). It turns back to its Remnant colour when they take it back.
-- **While the locals' supplies at an outpost run short the pin turns yellow-green**,
-  the same warning the F1 screen gives, so you can see which outpost needs a supply
-  run from Oda.
+- **A ring round each outpost the locals hold drains as their hold runs down.**
+  Once their supplies run short the pin turns yellow-green and "Resupply needed"
+  shows under it.
+- **The Remnant take outposts back five times slower**: the locals hold one for
+  about 100 minutes of play (was 20), and run short with about 40 left. A lazy
+  round of the desert still saves most of them.
+- **Resupplying is an optional quest.** When an outpost runs short, "Resupply the
+  ... outpost" turns up in the Ledger, pointed at the outpost. It is done when Oda's
+  supplies get there, fails if the Remnant take it back first, and comes round
+  again the next time that outpost runs short. With a quest's waypoint on, Oda's
+  supply job goes to that outpost instead of the one shortest on time.
 - **Hover (or a waypoint on) a held place** and its tag says who holds it and how
   long the hold has left. The legend has two new lines for the colours.
 - Colours are in `content/look/map.json` (`owners`), the lines in

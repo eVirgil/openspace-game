@@ -11,6 +11,13 @@ extends RefCounted
 ## the ground from the port (PlanetSphere), so a pin sits exactly where the
 ## landmark is built.
 ##
+## Who holds a place (Territory): the Remnant's outposts and the port's barracks
+## also carry { owner, short, hold, status }. The globe draws what the locals hold
+## green (yellow-green and "Resupply needed" while their supplies run short), a
+## ring round a held outpost for the time left (`hold`, 0..1, -1 = none), and
+## `status` joins the name on hover. Read when the pins are built, which the page
+## does each time it opens.
+##
 ## Off planet: every planet you can fly to from here (SpaceTravel's bodies) and
 ## the Remnant cruiser when this world has one, as { id, kind, label, target }.
 ##
@@ -205,6 +212,7 @@ static func _stamp_owner(pin: Dictionary, place: String) -> void:
 	var is_short := place != Territory.BARRACKS and Territory.short(place)
 	pin["owner"] = who
 	pin["short"] = is_short
+	pin["hold"] = Territory.hold_frac(place)
 	pin["status"] = ""
 	if who != Territory.LOCALS:
 		return
