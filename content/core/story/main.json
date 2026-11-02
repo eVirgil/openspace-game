@@ -185,7 +185,8 @@
     "ledger_wrecked": "shot to pieces: back on the pit pad when you wake, for T-89's fee",
     "ledger_map": "WAYPOINT ON THE MAP"
   },
-  "standing_names": { "imperial_remnant": "Remnant", "locals": "Locals", "smuggler": "Smuggler" },
+  "standing_names_note": "The factions whose standing changes show as a toast (src/ui/standing_toast.gd), and what the toast calls them. A faction not listed here (the smugglers) never shows one.",
+  "standing_names": { "imperial_remnant": "Remnant", "locals": "Locals" },
   "quest_news_note": "The big banner in the middle of the screen (src/systems/flow/quest_news.gd, src/ui/quest_banner.gd): a few words when a quest or job starts, moves on, or ends, with a sound (content/look/sound.json). Each key is what a system pushes: head (shown in capitals), sound, and an optional hint line under the subtitle.",
   "quest_news": {
     "quest_new":          { "head": "New Quest", "sound": "quest_start", "hint": "Press \"I\" to see new quest" },

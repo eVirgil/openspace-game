@@ -1,12 +1,12 @@
 class_name StandingToast
 extends Control
 ## The standing toast (StandingNews): when a faction's standing moves, a small
-## panel under the quest banner reads "Remnant standing +10", the change green
+## panel high on the screen, under the top banner, reads "Remnant standing +10", the change green
 ## for up and red for down, over a gauge from -100 to +100. The gauge has a tick
 ## every 25, and a finer tick for every point the standing moved, drawn in the
 ## change's colour as the marker sweeps from where it was to where it is.
-## Each faction has its own row, so a fight that moves three at once shows
-## three together; a second change to a faction whose row is still up adds to
+## Each faction has its own row (the Remnant and the locals; the smugglers
+## are not shown), so a fight that moves both shows two side by side; a second change to a faction whose row is still up adds to
 ## it and holds it a while longer. Under the arrival titles' line, over the
 ## world, never takes the mouse.
 
@@ -15,14 +15,14 @@ const RED := Color("#e0584f")
 const INK := Color(0.95, 0.92, 0.85, 0.95)
 const BAND := Color(0.05, 0.04, 0.03, 0.6)
 const EDGE := Color(0.88, 0.63, 0.31, 0.6)
-const Y := 0.36                        ## the stack's top, as a share of the screen's height
+const Y := 0.07                        ## the stack's top, as a share of the screen's height: just under the top banner
 const IN := 0.15                       ## seconds to come up
 const HOLD := 2.6                      ## seconds fully up
 const OUT := 0.45                      ## seconds to fade
 const SWEEP := 0.6                     ## seconds the marker takes to move
-const GAUGE := Vector2(280, 22)
+const GAUGE := Vector2(250, 16)
 
-var stack: VBoxContainer
+var stack: HBoxContainer
 var rows: Dictionary = {}              ## faction -> Row
 
 
@@ -33,7 +33,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	stack = VBoxContainer.new()
+	stack = HBoxContainer.new()
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_theme_constant_override("separation", 6)
 	add_child(stack)
@@ -80,7 +80,6 @@ class Row extends PanelContainer:
 	var shown := 0.0                    ## where the marker is, on its way to to_v
 	var title: Label
 	var amount: Label
-	var caption: Label
 	var gauge: Control
 	var _t := 0.0                       ## seconds since it came up, or since the last change
 
@@ -96,8 +95,8 @@ class Row extends PanelContainer:
 		sb.set_border_width_all(1)
 		sb.content_margin_left = 18
 		sb.content_margin_right = 18
-		sb.content_margin_top = 8
-		sb.content_margin_bottom = 8
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 6
 		add_theme_stylebox_override("panel", sb)
 		var box := VBoxContainer.new()
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -107,9 +106,9 @@ class Row extends PanelContainer:
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_constant_override("separation", 10)
 		box.add_child(line)
-		title = _label(20, StandingToast.INK)
+		title = _label(18, StandingToast.INK)
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		amount = _label(22, StandingToast.GREEN)
+		amount = _label(20, StandingToast.GREEN)
 		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		line.add_child(title)
 		line.add_child(amount)
@@ -118,9 +117,6 @@ class Row extends PanelContainer:
 		gauge.custom_minimum_size = GAUGE
 		gauge.draw.connect(_draw_gauge)
 		box.add_child(gauge)
-		caption = _label(14, Color(StandingToast.INK, 0.75))
-		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(caption)
 		modulate.a = 0.0
 		_paint()
 
@@ -161,7 +157,6 @@ class Row extends PanelContainer:
 		title.text = "%s standing" % StandingNews.faction_name(faction)
 		amount.text = "%+d" % delta()
 		amount.add_theme_color_override("font_color", change_color())
-		caption.text = "%d  %s" % [to_v, WorldState.standing_label(to_v)]
 
 	func change_color() -> Color:
 		return StandingToast.GREEN if delta() >= 0 else StandingToast.RED

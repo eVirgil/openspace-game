@@ -20,8 +20,15 @@ func test_a_standing_change_is_news() -> void:
 func test_no_move_is_no_news() -> void:
 	WorldState.standing.locals = 100
 	WorldState.change_standing("locals", 5)         # already at the limit
-	WorldState.change_standing("smuggler", 0)
+	WorldState.change_standing("locals", 0)
 	assert_true(StandingNews.queue.is_empty())
+
+
+func test_the_smugglers_are_not_news() -> void:
+	WorldState.change_standing("smuggler", 5)
+	assert_true(StandingNews.queue.is_empty())
+	assert_false(StandingNews.shown("smuggler"))
+	assert_true(StandingNews.shown("imperial_remnant"))
 
 
 func test_the_limit_clamps_the_news() -> void:
@@ -58,7 +65,7 @@ func test_a_characters_trust_is_not_standing_news() -> void:
 
 func test_names_come_from_the_story_data() -> void:
 	assert_eq(StandingNews.faction_name("imperial_remnant"), "Remnant")
-	assert_eq(StandingNews.faction_name("dune_nomads"), "Dune Nomads", "no entry: made from the id")
+	assert_eq(StandingNews.faction_name("locals"), "Locals")
 
 
 func test_the_toast_reads_name_and_change_and_colours_it() -> void:
@@ -81,8 +88,8 @@ func test_the_toast_reads_name_and_change_and_colours_it() -> void:
 func test_the_marker_sweeps_and_the_row_clears() -> void:
 	var t := StandingToast.new()
 	add_child_autofree(t)
-	t.show_change("smuggler", 20, 30)
-	var r: StandingToast.Row = t.rows.smuggler
+	t.show_change("locals", 20, 30)
+	var r: StandingToast.Row = t.rows.locals
 	assert_eq(r.shown, 20.0)
 	t._process(StandingToast.SWEEP * 0.5)
 	assert_between(r.shown, 20.1, 29.9)
