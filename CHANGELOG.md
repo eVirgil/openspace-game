@@ -2,6 +2,19 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Map: places the locals hold turn green (2026-11-01)
+
+- **On the F11 Map, an outpost the locals have taken is green**, and the port goes
+  green once the locals hold the barracks (the fleet beaten, or the Remnant driven
+  off). It turns back to its Remnant colour when they take it back.
+- **While the locals' supplies at an outpost run short the pin turns yellow-green**,
+  the same warning the F1 screen gives, so you can see which outpost needs a supply
+  run from Oda.
+- **Hover (or a waypoint on) a held place** and its tag says who holds it and how
+  long the hold has left. The legend has two new lines for the colours.
+- Colours are in `content/look/map.json` (`owners`), the lines in
+  `content/core/flow/map.json`. The pins read Territory each time the page opens.
+
 ## Settings: set up an AI brain with a link or a prompt (2026-11-01)
 
 - **Ollama, the local server (llama.cpp) and the cloud each get two buttons** beside

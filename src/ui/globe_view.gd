@@ -241,6 +241,8 @@ func _draw() -> void:
 		var s := project(pins[named].map)
 		if s.z > 0.0:
 			var text := str(pins[named].label)
+			if str(pins[named].get("status", "")) != "":
+				text += " - " + str(pins[named].status)
 			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			var at := Vector2(clampf(s.x - w * 0.5, 4.0, size.x - w - 4.0), maxf(s.y - 14.0, fs + 4.0))
 			draw_rect(Rect2(at + Vector2(-4, -fs - 1), Vector2(w + 8, fs + 7)), Color(0, 0, 0, 0.7))
@@ -283,12 +285,23 @@ func _draw_grid(col: Color) -> void:
 
 func _draw_pin(at: Vector2, pin: Dictionary, hot: bool) -> void:
 	var lk := GlobeMap.look()
+	var p := pin_look(pin)
+	var size_px := float(lk.get("pin_size", 6.0)) * (1.35 if hot else 1.0)
+	draw_shape(self, at, str(p.get("shape", "circle")), Color(str(p.get("color", "#f2e2b0"))), size_px)
+
+
+## A pin's look (content/look/map.json): its kind's shape and colour, recoloured
+## when the locals hold the place (green, or yellow-green while their supplies run short).
+static func pin_look(pin: Dictionary) -> Dictionary:
+	var lk := GlobeMap.look()
 	var key := str(pin.kind)
 	if key == "camp" and bool(pin.get("hostile", false)):
 		key = "camp_hostile"
 	var p: Dictionary = lk.get("pins", {}).get(key, {})
-	var size_px := float(lk.get("pin_size", 6.0)) * (1.35 if hot else 1.0)
-	draw_shape(self, at, str(p.get("shape", "circle")), Color(str(p.get("color", "#f2e2b0"))), size_px)
+	if str(pin.get("owner", "")) == Territory.LOCALS:
+		p = p.duplicate()
+		p["color"] = lk.get("owners", {}).get("short" if bool(pin.get("short", false)) else "locals", p.get("color", "#f2e2b0"))
+	return p
 
 
 ## The index of the pin the waypoint is at, at this zoom (-1 = none): the F11
@@ -323,10 +336,7 @@ func _draw_flash(at: Vector2, pin: Dictionary) -> void:
 	var gl: Dictionary = lk.get("goal", {})
 	var col := Color(str(gl.get("color", "#ffd84a")))
 	draw_arc(at, 9.0 + 9.0 * (1.0 - t), 0.0, TAU, 32, Color(col, 0.25 + 0.6 * t), 2.0, true)
-	var key := str(pin.kind)
-	if key == "camp" and bool(pin.get("hostile", false)):
-		key = "camp_hostile"
-	var p: Dictionary = lk.get("pins", {}).get(key, {})
+	var p := pin_look(pin)
 	var base := Color(str(p.get("color", "#f2e2b0")))
 	draw_shape(self, at, str(p.get("shape", "circle")), base.lerp(Color.WHITE, t), float(lk.get("pin_size", 6.0)) * (1.2 + 0.3 * t))
 
