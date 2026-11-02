@@ -161,6 +161,9 @@ static func chapter_objective() -> Dictionary:
 		mine = cfg().get("chapters", {}).get(DarkPact.QUEST, mine)
 		return { "text": DarkPact.fill(str(mine.get("text", ""))), "target": str(mine.get("target", "")) }
 	var told := bool(WorldState.story.get("told", false)) or str(c.get("teller", "")) != "cantina_owner"
+	var step := Story.current_step(c) if told else {}
+	if not step.is_empty():
+		return { "text": Story.fill_step(str(step.get("text", ""))), "target": str(step.get("target", "")) }
 	var o: Dictionary = mine if told and not mine.is_empty() else cfg().get("teller", {})
 	return { "text": str(o.get("text", "")), "target": str(o.get("target", "")) } if str(o.get("text", "")) != "" else {}
 
@@ -217,8 +220,13 @@ static func log_entries() -> Array:
 			say = str(chapter_objective().get("text", ""))
 		if say == "":
 			say = str(chapter_objective().get("text", ""))
+		var title := line("log_story")
+		if str(c.get("title", "")) != "":
+			title += ": " + str(c.title).to_upper()
+		if not Story.steps(c).is_empty() and bool(WorldState.story.get("told", false)):
+			say = step_list(c)
 		if say != "":
-			out.append({ "title": line("log_story"), "text": say, "key": "story" })
+			out.append({ "title": title, "text": say, "key": "story" })
 	var drop := WorldState.smuggle_drop()
 	if WorldState.carrying_contraband():
 		out.append({ "title": run_line("log_smuggle"), "text": line("general_log_carry") if for_general() else line("log_carry"), "key": "smuggle" })
@@ -240,6 +248,14 @@ static func log_entries() -> Array:
 	if out.is_empty():
 		out.append({ "title": "", "text": line("log_none"), "key": "" })
 	return out
+
+
+## A chapter's steps, one a line, the done ones ticked.
+static func step_list(c: Dictionary) -> String:
+	var rows: Array = []
+	for s in Story.steps(c):
+		rows.append(line("step_done" if Story.step_done(c, s) else "step_open") + Story.fill_step(str(s.get("text", ""))))
+	return "\n".join(rows)
 
 
 ## "Runs sold: 3    Bounties paid: 1"

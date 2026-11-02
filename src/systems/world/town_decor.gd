@@ -105,15 +105,15 @@ func material_for(town, b: Dictionary) -> Material:
 			if zone == "barracks":                 # issue #237: the drill yard, packed earth
 				return mats.flat(Color("#8a7458"), 0.95)
 		"wall", "ring":
-			if zone == "perimeter":
-				return mats.plaster(0.0, 5.2, LookMaterials.REMNANT_OXBLOOD.darkened(0.1))
+			if zone == "perimeter":                # issue #393: the wall wears the town's owner
+				return mats.faction_plaster(0.0, 5.2, "wall")
 			if zone == "spaceport":
 				return mats.plaster(-6.0, -1.0, LookMaterials.CLOTH_SAFFRON)
 			if zone == "cantina":
 				return mats.plaster(0.0, 3.6, LookMaterials.CLOTH_TEAL)
 		"overhead", "roof":
 			if zone == "perimeter":              # issue #45: the gate lintel, like its walls
-				return mats.plaster(0.0, 5.2, LookMaterials.REMNANT_OXBLOOD.darkened(0.1))
+				return mats.faction_plaster(0.0, 5.2, "wall")
 			if zone == "cantina":
 				return mats.plaster(0.0, 3.6, LookMaterials.CLOTH_TEAL)
 			if zone == "residential_e" or zone == "barracks":
@@ -124,7 +124,7 @@ func material_for(town, b: Dictionary) -> Material:
 			if zone == "market":
 				return mats.plaster(0.0, 1.4, LookMaterials.CLOTH_SAFFRON)
 			if zone == "barracks" or zone == "perimeter":      # issue #237: the round port's gate towers
-				return mats.plaster(0.0, 2.0, LookMaterials.REMNANT_OXBLOOD)
+				return mats.faction_plaster(0.0, 2.0, "band")
 		"ship":
 			return mats.hull(-6.0, 4.0)
 		"pad":                                       # issue #58: the empty pad's plate
@@ -667,10 +667,10 @@ func _add_lamps(town) -> void:
 # ---------------------------------------------------------------- banners
 
 ## Copied from beauty_corner.gd `_banner`. Hangs a cloth strip from `top`.
-func _banner(parent: Node3D, top: Vector3, facing: float, w: float, h: float, color: Color) -> MeshInstance3D:
+func _banner(parent: Node3D, top: Vector3, facing: float, w: float, h: float, color: Color, mat: Material = null) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	m.mesh = LookMeshKit.cloth(w, h, 0.5)
-	m.material_override = mats.cloth(color)
+	m.material_override = mat if mat != null else mats.cloth(color)
 	m.position = top
 	parent.add_child(m)
 	m.rotation.y = -facing + PI * 0.5
@@ -679,7 +679,8 @@ func _banner(parent: Node3D, top: Vector3, facing: float, w: float, h: float, co
 	return m
 
 
-## Two torn remnant banners on the watchtower: the only cloth in this pass.
+## Two torn remnant banners on the watchtower: the only cloth in this pass. Issue
+## #393: the same torn cloth in the locals' green once they hold the town.
 func _add_banners(town) -> void:
 	var t: Dictionary = town.get_box("watchtower")
 	if t.is_empty():
@@ -691,10 +692,11 @@ func _add_banners(town) -> void:
 	var mx := _v3(t.max)
 	var y := mx.y - 0.5
 	var c := (mn + mx) * 0.5
+	var cloth := mats.faction_cloth("band")
 	# Toward the gate (+X): full length.
-	_banner(root, Vector3(mx.x + 0.05, y, c.z), 0.0, 2.4, 7.0, LookMaterials.REMNANT_OXBLOOD)
+	_banner(root, Vector3(mx.x + 0.05, y, c.z), 0.0, 2.4, 7.0, LookMaterials.REMNANT_OXBLOOD, cloth)
 	# Toward main street (-Z): torn short.
-	_banner(root, Vector3(c.x, y, mn.z - 0.05), -PI * 0.5, 2.4, 4.0, LookMaterials.REMNANT_OXBLOOD)
+	_banner(root, Vector3(c.x, y, mn.z - 0.05), -PI * 0.5, 2.4, 4.0, LookMaterials.REMNANT_OXBLOOD, cloth)
 
 
 # ---------------------------------------------------------------- parked ships

@@ -55,6 +55,7 @@ var _inside: Node3D                    ## its interior lights (off from far away
 var _layer: CanvasLayer
 var _label: Label
 var _was_aboard := false
+var _stairs_reached := false           ## the fleet chapter's "infiltrate" step was reported
 var _last_aboard := Vector3.INF
 var _mats: Dictionary = {}
 var _flames: Array = []                ## the engines' flame nodes (Node3D), to flicker
@@ -144,9 +145,19 @@ func escort_id() -> String:
 	return str(cfg.get("escort", ""))
 
 
-## Where the objective arrow points: the bay from outside, the general once aboard.
-func objective_point(from: Vector3) -> Vector3:
-	if general != null and is_instance_valid(general) and not general.dead and aboard(from):
+## Where the objective arrow points: the bay from outside, the general once aboard;
+## or `part` by name: "bay" (the dock pad), "stairs" (the foot of the ramp stack),
+## "general" (him alive, else his place on the bridge).
+func objective_point(from: Vector3, part: String = "") -> Vector3:
+	var alive := general != null and is_instance_valid(general) and not general.dead
+	match part:
+		"bay":
+			return frame * (CruiserHull.dock_pad().get("at", Vector3.ZERO) as Vector3)
+		"stairs":
+			return frame * CruiserHull.stairs_foot()
+		"general":
+			return general.global_position if alive else frame * WorldGround._v3(cfg.get("general", {}).get("at", [0, 58, 219]))
+	if alive and aboard(from):
 		return general.global_position
 	if aboard(from):
 		return frame * WorldGround._v3(cfg.get("general", {}).get("at", [0, 58, 219]))
@@ -180,6 +191,7 @@ func _physics_process(_dt: float) -> void:
 		g.process_mode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
 	crew = crew.filter(func(g): return is_instance_valid(g))
 	_fall_guard(p)
+	_steps(p)
 	if demo.look != null:
 		demo.look.set_shadow_cap(float(cfg.get("aboard_shadow_distance", 0.0)) if aboard(at) else 0.0)
 
@@ -187,6 +199,17 @@ func _physics_process(_dt: float) -> void:
 func _exit_tree() -> void:
 	if demo != null and demo.look != null:
 		demo.look.set_shadow_cap(0.0)
+
+
+## The fleet chapter's steps (Story "steps"): on foot aboard is "landed", once; in
+## the ramp shaft is "infiltrated", once a session (the story ignores repeats).
+func _steps(p: Node3D) -> void:
+	if p.get("piloting") == true or _stairs_reached:
+		return
+	var local := inv * p.global_position
+	if CruiserHull.aboard(local) and CruiserHull.at_stairs(local):
+		_stairs_reached = true
+		Story.event("cruiser_infiltrated")
 
 
 ## Fallen out of the cruiser (through the bay's mouth, off the hull): back aboard
@@ -197,6 +220,8 @@ func _fall_guard(p: Node3D) -> void:
 		return
 	var here := aboard(p.global_position)
 	if here:
+		if not _was_aboard:
+			Story.event("cruiser_landed")      # on foot aboard: the fleet chapter's first step
 		_was_aboard = true
 		_last_aboard = p.global_position
 		return

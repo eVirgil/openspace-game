@@ -218,6 +218,10 @@ func _physics_process(dt: float) -> void:
 	for ev in combo.update(sdt):
 		if str(ev).begins_with("swing:"):
 			_on_swing_started()
+		elif str(ev) == "block_broken":
+			# Out of stamina: let go of the toggle, or the guard goes straight back
+			# up the moment the cooldown ends and stamina never gets to recover.
+			_alt_on = false
 	if cur == "energy_blade" and combo.is_active():
 		_sword_hits()
 	else:
@@ -266,6 +270,8 @@ func _on_holder_event(ev: String) -> void:
 	var parts := ev.split(":")
 	match parts[0]:
 		"drawing":
+			if parts[1] == "energy_blade":
+				_alt_on = false     # an aim toggled on with a gun is not a block
 			_play("blade_on" if parts[1] == "energy_blade" else "swap")
 			_show_name(str(cfg.get(parts[1], {}).get("label", parts[1])))
 		"holstered":

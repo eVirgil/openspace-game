@@ -117,6 +117,7 @@ them by id. Tuning a preset means editing JSON and re-shooting, never editing co
 | Smuggler (player option) | Wide hat, long flared duster, low gun belt | Sand leather, dark trousers, teal scarf | Goggles over a dark face wrap, coil pistol, bandolier |
 | Duelist | Lean, wide stance; asymmetric rust mantle | Charcoal wraps, rust, madder sash | Sculpted pale mask with one slit; **yellow energy sword** |
 | Local | Loose and draped: head scarf, linen shirt, linen trousers | Sand, or a dye per part (darker, lighter, blue, red, yellow) | Scarf and goggles with black lenses, no face; parts mix and match |
+| Local guard (issue #393) | The trooper's plated slab, recoloured | Bone-white plate (never pure white), green trim and visor, sand cloth | Reads as the locals' at a glance next to a gunmetal trooper; the places they hold turn green where the Remnant painted red |
 
 - **Faces are covered.** Helmets, goggles, wraps and masks. It avoids the uncanny
   valley and saves months.

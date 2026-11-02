@@ -30,6 +30,14 @@ static func push(key: String, sub: String = "") -> void:
 		queue.pop_front()
 
 
+## Take back a banner still waiting (not shown yet): the one with this key and
+## subtitle, if it is queued.
+static func retract(key: String, sub: String) -> void:
+	for i in range(queue.size() - 1, -1, -1):
+		if queue[i].key == key and queue[i].sub == sub:
+			queue.remove_at(i)
+
+
 ## The next banner to show, or {}.
 static func take() -> Dictionary:
 	return queue.pop_front() if not queue.is_empty() else {}

@@ -77,12 +77,18 @@
     },
     {
       "id": "fleet",
+      "title": "Destroy the fleet",
       "teller": "cantina_owner",
       "done_on": "cruiser_taken",
       "done_flag": "cruiser_taken",
+      "steps": [
+        { "id": "land", "done_on": "cruiser_landed", "text": "Land in the Remnant cruiser's bay, far east in orbit", "target": "cruiser:bay" },
+        { "id": "infiltrate", "done_on": "cruiser_infiltrated", "text": "Infiltrate the cruiser: follow the corridor aft to the stairs", "target": "cruiser:stairs" },
+        { "id": "kill", "done_on": "cruiser_taken", "text": "Kill %s on the bridge", "target": "cruiser:general" }
+      ],
       "skipped": { "flags": ["cruiser_taken", "remnant_fleet_beaten", "locals_hero"], "counters": { "generals_killed": 1 }, "credits": 20000,
         "standing": { "imperial_remnant": -40, "locals": 60, "smuggler": 15 } },
-      "note": "Issue #64/#193: the space mission is the general on the Remnant cruiser's bridge, far out east in orbit. The fleet's fighters (the cruiser's escort) meet you on the way up; beating them is not the mission.",
+      "note": "Issue #64/#193: the space mission is the general on the Remnant cruiser's bridge, far out east in orbit. The fleet's fighters (the cruiser's escort) meet you on the way up; beating them is not the mission. 'title' is the quest banner when Oda tells it. 'steps': the chapter's objective one step at a time, each with its own waypoint (Objective.chapter_objective; the pointer words are in 'objectives'): a step ends on its 'done_on' event (Story.event flags '<chapter>_<step>' and the banner says the next; an event further on counts the steps before it too), and the last step's is the chapter's own. '%s' in a step's text is the general's name (Story.cruiser_general_name).",
       "intro": "That made noise. The Remnant has its fleet up in orbit now, round a star cruiser way out east, and the general who runs every Remnant on this rock never leaves its bridge. The locals will pay twenty thousand to see him dead. Take your own ship up, land in the cruiser's bay and kill him. Expect fighters on the way up. If you haven't got a ship, T-89 in the pit will see you right.",
       "remind": "The general's still up there on the cruiser's bridge, far out east past the curve. Take your own ship up, land in its bay and kill him. Expect fighters on the way."
     },
@@ -119,7 +125,7 @@
     "button": "Carry on"
   },
   "objectives": {
-    "note": "The HUD's objective pointer and the job log on I (src/systems/flow/objective.gd). 'chapters' is what each story chapter wants once Oda has told it; until she has, the pointer says 'teller'. 'target' is where the arrow points: npc:<marker> (a live body, else its marker), marker:<town marker>, drop:<area marker> (issue #251: a spot within 15 m of the smuggling drop, the area's marker until it is placed), range, remote (the sparring droid), pad (the pit), outpost:<location id>, fence (the town's contraband buyer), cruiser (issue #193: its bay from outside, its general once aboard), droid_post (issue #212: the nearest desert droid merchant's post). The jobs' lines take the job's own words (%s). Issue #251: a 'general_' line is the smuggling-run line in the general's words, while his run (contraband inside the town, handed to him) is on.",
+    "note": "The HUD's objective pointer and the job log on I (src/systems/flow/objective.gd). 'chapters' is what each story chapter wants once Oda has told it; until she has, the pointer says 'teller'. 'target' is where the arrow points: npc:<marker> (a live body, else its marker), marker:<town marker>, drop:<area marker> (issue #251: a spot within 15 m of the smuggling drop, the area's marker until it is placed), range, remote (the sparring droid), pad (the pit), outpost:<location id>, fence (the town's contraband buyer), cruiser (issue #193: its bay from outside, its general once aboard), cruiser:bay, cruiser:stairs and cruiser:general (the fleet chapter's steps: the dock pad, the foot of the ramp stack, the general on the bridge), droid_post (issue #212: the nearest desert droid merchant's post). The jobs' lines take the job's own words (%s). Issue #251: a 'general_' line is the smuggling-run line in the general's words, while his run (contraband inside the town, handed to him) is on.",
     "teller": { "text": "Talk to Oda at the cantina", "target": "npc:cantina_owner" },
     "chapters": {
       "general": { "text": "Answer the Remnant general", "target": "npc:general" },
@@ -130,7 +136,7 @@
       "smuggle_1": { "text": "Ask Oda about the drop", "target": "npc:cantina_owner" },
       "droid_merchant": { "text": "Take cargo droids to the nearest droid merchant's post", "target": "droid_post" },
       "bounty": { "text": "Ask Oda about the bounty", "target": "npc:cantina_owner" },
-      "fleet": { "text": "Fly to the Remnant cruiser, far east in orbit, and kill the general on its bridge", "target": "cruiser" },
+      "fleet": { "text": "Land in the Remnant cruiser's bay, far east in orbit", "target": "cruiser:bay" },
       "debrief": { "text": "Go back to Oda at the cantina", "target": "npc:cantina_owner" },
       "dark_oath": { "text": "Clear the local guards from the barracks of {town}", "target": "marker:trooper_yard_a" },
       "free": { "text": "Ask Oda for work", "target": "npc:cantina_owner" }
@@ -143,6 +149,10 @@
     "hunt_away": "Fly home: %s is at %s",
     "collect": "Collect the bounty on %s from the fence",
     "log_title": "STORY & JOBS",
+    "log_steps_note": "A chapter with steps lists them in the log, one a line: done ones under step_done, the rest under step_open. general_unknown stands in for the general's name when the name engine has none.",
+    "step_done": "[x] ",
+    "step_open": "[ ] ",
+    "general_unknown": "the Remnant general",
     "log_story": "STORY",
     "log_smuggle": "SMUGGLING RUN",
     "log_drop": "Somebody left %s %s. Keep it away from the gate.",

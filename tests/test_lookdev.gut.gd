@@ -101,3 +101,31 @@ func test_beauty_corner_builds_headless_with_every_review_shot() -> void:
 	for preset in ["golden", "noon", "dusk"]:
 		scene.set_preset(preset)
 		assert_eq(scene.look.current, preset)
+
+
+## Issue #393: the Remnant's red marks repaint in the locals' colours, in place, by
+## group: the town with the barracks, each outpost on its own; the homes keep their red.
+func test_faction_materials_repaint_with_the_owner() -> void:
+	var mats := LookMaterials.new()
+	var band := mats.faction_plaster(0.0, 2.0, "band")
+	var wall := mats.faction_plaster(0.0, 5.2, "wall")
+	var cloth := mats.faction_cloth("band")
+	var home := mats.plaster(0.0, 2.0, LookMaterials.CLOTH_MADDER)
+	var mark := mats.faction_flat("mark", "remnant_outpost_near", 0.6, 0.2)
+	var lamp := mats.faction_glow("lamp", "remnant_outpost_near")
+	var red := LookMaterials.faction_color("remnant", "band")
+	var green := LookMaterials.faction_color("locals", "band")
+	assert_ne(red, green, "town_styles.json factions has both sides")
+	assert_eq(band.get_shader_parameter("band_color"), red, "built Remnant red")
+	assert_eq(mats.repaint("locals"), 3, "band, wall and banner cloth are the town's group")
+	assert_eq(band.get_shader_parameter("band_color"), green)
+	assert_eq(wall.get_shader_parameter("band_color"), LookMaterials.faction_color("locals", "wall"))
+	assert_eq(cloth.albedo_color, green)
+	assert_eq(home.get_shader_parameter("band_color"), LookMaterials.CLOTH_MADDER, "the homes keep their red")
+	assert_eq(mark.albedo_color, LookMaterials.faction_color("remnant", "mark"), "an outpost is its own group")
+	assert_eq(mats.repaint("locals", "remnant_outpost_near"), 2)
+	assert_eq(mark.albedo_color, LookMaterials.faction_color("locals", "mark"))
+	assert_eq(lamp.emission, LookMaterials.faction_color("locals", "lamp"))
+	mats.repaint("remnant")
+	assert_eq(band.get_shader_parameter("band_color"), red, "and back")
+	assert_eq(mark.albedo_color, LookMaterials.faction_color("locals", "mark"), "the outpost is not the town")

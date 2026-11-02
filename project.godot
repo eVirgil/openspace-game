@@ -12,6 +12,7 @@ config_version=5
 
 config/name="Desert Spaceport Slice"
 run/main_scene="res://scenes/town_demo.tscn"
+config/icon="res://assets/icon/openspace_icon.png"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [audio]

@@ -5,6 +5,8 @@ extends GutTest
 ## the town changing hands; free roam; the friends-of-the-Remnant perks; and his
 ## sword fight (BladeFighter).
 
+const CoreScript := preload("res://src/systems/dataload/core_content.gd")
+
 var _saves: Array = []
 
 
@@ -251,6 +253,104 @@ func test_the_town_name_fills_his_lines() -> void:
 	assert_string_contains(DarkPact.line("joined"), "Dustfall")
 	DarkPact.town_label = ""
 	assert_string_contains(DarkPact.line("joined"), "the port")
+
+
+# ------------------------------------------------------------------ his blade, and his talk
+
+class FakePlayer extends CharacterBody3D:
+	var is_downed := false
+	var piloting := false
+	var locked := false
+
+
+## Just enough of the town's ConversationHost to see whom the post registers.
+class FakeHost extends ConversationHost:
+	var added: Array = []
+	func add_spot(s: TalkSpot) -> void:
+		added.append(s)
+		spots.append(s)
+
+
+func _his_body() -> NpcBody:
+	var cc = CoreScript.new()
+	cc.load_from()
+	var n := NpcBody.new()
+	n.setup(cc.get_soldier("dark_master"), Vector3.ZERO, 0.0, LookMaterials.new())
+	add_child_autofree(n)
+	return n
+
+
+func test_his_blade_hangs_dark_on_his_hip_until_he_draws_it() -> void:
+	var n := _his_body()
+	var sword := n.hold_blade(Color("#ff1e1e"), "", -1.0, null, false)
+	assert_not_null(sword, "a sword on the body")
+	var bl := sword.get_node("Blade") as Node3D
+	assert_eq(n.blade_out, 0.0, "holstered from the start")
+	assert_false(bl.visible, "dark")
+	assert_eq(n.hold_pose_weight(), 0.0, "arms at ease, not the guard")
+	var hip := (n.joints.l_hip as Node3D).global_position
+	var hand := n._blade_hand_xf().origin
+	assert_lt(sword.global_position.distance_to(hip), 0.35, "the hilt at his left hip")
+	assert_gt(sword.global_position.distance_to(hand), 0.3, "not in his hand")
+	n.blade_drawn = true
+	for i in 6:
+		n._tick_blade(0.1)
+		n._place_blade()
+	assert_eq(n.blade_out, 1.0, "drawn")
+	assert_true(bl.visible, "lit")
+	assert_almost_eq(bl.scale.y, 1.0, 0.001)
+	assert_eq(n.hold_pose_weight(), 1.0, "and the guard is up")
+	assert_lt(sword.global_position.distance_to(n._blade_hand_xf().origin), 0.01, "in the fist")
+	n.blade_drawn = false
+	n._tick_blade(0.1)
+	n._place_blade()
+	assert_eq(n.blade_extent(), 0.5, "going back: the blade shortens first")
+	for i in 5:
+		n._tick_blade(0.1)
+	n._place_blade()
+	assert_false(bl.visible, "and the hilt hangs dark again")
+
+
+func test_hold_blade_still_starts_lit_in_the_hand_by_default() -> void:
+	var n := _his_body()
+	var sword := n.hold_blade(Color("#ff1e1e"))
+	assert_eq(n.blade_out, 1.0)
+	assert_true((sword.get_node("Blade") as Node3D).visible)
+
+
+func test_the_blade_comes_out_when_he_is_hostile_and_the_fight_is_on() -> void:
+	var post := DarkMasterPost.new()
+	post.cfg = DarkPact.cfg()
+	var p := FakePlayer.new()
+	add_child_autofree(p)
+	var b := NpcBody.new()
+	add_child_autofree(b)
+	p.global_position = Vector3(5, 0, 0)
+	assert_false(post.blade_wanted(false, b), "at ease: on the hip")
+	post.player = p
+	assert_true(post.blade_wanted(true, b), "hostile, five metres off: drawn")
+	p.is_downed = true
+	assert_false(post.blade_wanted(true, b), "you are down: he hangs it up")
+	p.is_downed = false
+	p.global_position = Vector3(200, 0, 0)
+	assert_false(post.blade_wanted(true, b), "you are long gone: hung up")
+	post.free()
+
+
+## He joins the host through add_spot, as the general does: that gives his brain
+## the AI service and the host's reply handlers. Appended to the host's list by
+## hand, every answer was canned with AI on and the box locked after your first line.
+func test_he_joins_the_host_through_add_spot() -> void:
+	_story_at_kill()
+	var post := DarkMasterPost.new()
+	post.cfg = DarkPact.cfg()
+	var h := FakeHost.new()
+	h.autosave = false
+	add_child_autofree(h)
+	post.attach_host(h)
+	assert_eq(h.added, [post.spot], "registered with the host")
+	assert_true(post.spot.brain.line_done.is_connected(post._on_line), "his own line handler after the host's")
+	post.free()
 
 
 # ------------------------------------------------------------------ his answer (no scene)

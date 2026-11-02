@@ -481,7 +481,7 @@ func _map_marks(sphere: PlanetSphere) -> void:
 		return
 	var target := str(now.get("target", ""))
 	var hud = demo.get("objective_hud")
-	if target == "" or target.begins_with("planet:") or target == "cruiser" or hud == null:
+	if target == "" or target.begins_with("planet:") or target.begins_with("cruiser") or hud == null:
 		return
 	var pos: Vector3 = hud.where(target)
 	if pos == Vector3.INF:

@@ -9,6 +9,20 @@ Plain English, newest on top. One entry per milestone.
   just fired still read as hostile, so the troopers coming back to their posts shot
   on sight. At 100 they wave you through. Number: `standing.retaken` in
   `content/core/npcs/dark_master.json`.
+## The dark master: blade on his hip until he fights, and his talk works with AI on (2026-11-01)
+
+- **His red blade hangs dark on his left hip while he is at ease**, in story and
+  free roam alike: in the cruiser's bay while he makes his offer, and on the
+  barracks roof while you are sworn to him. The moment he is hostile and the fight
+  is on he draws it, the hilt swinging to his fist and the blade igniting as his
+  guard comes up (0.4 s), and he hangs it up again if he gives up on you (you are
+  down, or gone past his give-up distance). Built mid-fight (free roam, or back
+  after you refused him) it is already out.
+- **His offer talk no longer locks the box with AI characters on.** His talk spot
+  joined the host's list by hand instead of through `add_spot`, so his brain never
+  got the AI service (every answer was a written line) and the host never heard his
+  reply: after your first typed line the box stayed locked, and Esc only repeated
+  "is not finished with you". He now registers as the general does.
 
 ## Settings: set up an AI brain with a link or a prompt (2026-11-01)
 

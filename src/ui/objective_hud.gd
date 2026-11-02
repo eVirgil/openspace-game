@@ -148,9 +148,10 @@ func where(target: String) -> Vector3:
 			if not demo.pads.is_empty() and is_instance_valid(demo.pads[0]):
 				return demo.pads[0].global_position
 		"cruiser":
-			# Issue #193: its bay from outside, its general (or the bridge) once aboard.
+			# Issue #193: its bay from outside, its general (or the bridge) once aboard;
+			# or one part of it by name: the bay, the stairs, the general.
 			if demo.get("cruiser") != null:
-				return demo.cruiser.objective_point(_player_pos())
+				return demo.cruiser.objective_point(_player_pos(), id)
 		"droid_post":
 			# Issue #212: the nearest desert droid merchant's post.
 			var posts = demo.get("droid_merchant_outposts")

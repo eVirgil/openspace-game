@@ -58,7 +58,48 @@ func test_the_pointer_follows_the_story() -> void:
 	assert_eq(_target(), "remote", "then the sparring droid")
 	Story.skip_to("fleet")
 	WorldState.story.told = true
-	assert_eq(_target(), "cruiser", "the fleet: the general on the cruiser")
+	assert_eq(_target(), "cruiser:bay", "the fleet: first land in the cruiser's bay")
+
+
+## The fleet chapter is three steps, each with its own waypoint: land in the bay,
+## reach the stairs, kill the general; the log lists them and ticks them off.
+func test_the_fleet_is_three_steps_with_their_own_waypoints() -> void:
+	Story.skip_to("fleet")
+	assert_eq(_target(), "npc:cantina_owner", "untold: go and see Oda")
+	Story.beat("cantina_owner")
+	assert_eq(_target(), "cruiser:bay", "first land in its bay")
+	assert_string_contains(_text(), "bay")
+	assert_true(Story.event("cruiser_landed"), "landing is a step")
+	assert_eq(Story.chapter(), "fleet", "a step is not the chapter")
+	assert_eq(_target(), "cruiser:stairs", "then find the stairs")
+	assert_string_contains(_text(), "stairs")
+	assert_true(Story.event("cruiser_infiltrated"))
+	assert_eq(_target(), "cruiser:general", "then the general")
+	var who := Story.cruiser_general_name()
+	assert_ne(who, "", "the general has a name before you meet him")
+	assert_string_contains(_text(), who, "by name")
+	assert_string_contains(_log_text(), "DESTROY THE FLEET", "the log names the quest")
+	assert_string_contains(_log_text(), Objective.line("step_done") + "Land", "and ticks the steps done")
+	assert_string_contains(_log_text(), Objective.line("step_open") + "Kill")
+	assert_false(Story.event("cruiser_landed"), "a step done is done")
+	WorldState.on_cruiser_taken(who, {})
+	assert_eq(Story.chapter(), "debrief", "the general ends the chapter as before")
+
+
+func test_reaching_the_stairs_counts_the_landing_too() -> void:
+	Story.skip_to("fleet")
+	Story.beat("cantina_owner")
+	Story.event("cruiser_infiltrated")
+	assert_eq(_target(), "cruiser:general")
+	assert_true(WorldState.has_flag("fleet_land"))
+
+
+func test_the_steps_survive_a_save() -> void:
+	Story.skip_to("fleet")
+	Story.beat("cantina_owner")
+	Story.event("cruiser_landed")
+	WorldState.from_save(WorldState.to_save())
+	assert_eq(_target(), "cruiser:stairs")
 
 
 func test_a_smuggling_run_points_at_the_drop_area_then_the_fence() -> void:

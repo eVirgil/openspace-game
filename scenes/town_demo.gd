@@ -981,6 +981,7 @@ func _return_town_remnant() -> void:
 	if (_player != null and _player.piloting):
 		return
 	_town_withdrawn = false
+	_repaint_town(Territory.REMNANT)
 	for post in barracks_locals:
 		var n = barracks_locals[post]
 		if n == null or not is_instance_valid(n):
@@ -1007,6 +1008,7 @@ func _return_town_remnant() -> void:
 ## Issue #187: the locals move into the barracks: their guards on the posts the
 ## Remnant left (territory.json "barracks").
 func _locals_take_barracks() -> void:
+	_repaint_town(Territory.LOCALS)
 	if not npc_brains or not with_npcs:
 		return
 	for m in town.markers():
@@ -1018,6 +1020,15 @@ func _locals_take_barracks() -> void:
 			townsfolk.add_member(locals.back())
 	if gear != null and gear.hud != null:
 		gear.hud.toast(Territory.line("barracks"), 5.0)
+
+
+## Issue #393: the Remnant's red marks on the barracks, the gate, the wall and the
+## towers (and the watchtower banners) are painted for whoever holds the barracks.
+## Called with the guard swap, so it happens out of sight like the people. Look only:
+## the greybox has no decor and nothing to repaint.
+func _repaint_town(owner: String) -> void:
+	if decor != null and decor.mats != null:
+		decor.mats.repaint(owner)
 
 
 ## Issue #42: Skrugs's speeder stall outside the back gate. Skrugs joins the bar's

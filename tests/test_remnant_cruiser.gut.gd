@@ -86,6 +86,15 @@ func test_six_flights_climb_from_the_deck_to_the_bridge() -> void:
 	assert_lt(rad_to_deg(atan2(CruiserHull.FLIGHT_RISE, run)), 30.0, "each flight is walkable")
 
 
+func test_the_stairs_foot_is_aboard_on_the_deck_in_the_shaft() -> void:
+	var foot := CruiserHull.stairs_foot()
+	assert_true(CruiserHull.aboard(foot), "walkable")
+	assert_true(CruiserHull.at_stairs(foot))
+	assert_eq(foot.y, CruiserHull.DECK_Y, "on the deck")
+	assert_false(CruiserHull.at_stairs(CruiserHull.dock_pad().at), "the bay is not the stairs")
+	assert_false(CruiserHull.at_stairs(Vector3(0, CruiserHull.BRIDGE_Y, 240)), "nor the bridge")
+
+
 func test_the_bay_has_two_interceptors_a_frigate_and_an_empty_pad() -> void:
 	var pads := CruiserHull.pads()
 	assert_eq(pads.filter(func(p): return p.ship == "remnant_interceptor").size(), 2)

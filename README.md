@@ -1,10 +1,46 @@
-# Desert Spaceport — Vertical Slice
+# Desert Spaceport
 
-The smallest playable build that proves the concept: a frontier desert spaceport
-days after an empire collapses. Land, roam a port district, talk to locals, take a
-contract into the desert, fight, return, get paid. Multiple LLM-driven NPCs, like the cantina owner who pushes the plot like a a boomer pushes conspiracy theories.
+**Status: playable.** Download the build and play it now (see [Play it](#play-it)).
 
-This is a **vertical slice**, not the full game.
+## The story
+
+An empire has just collapsed, and its desert frontier is up for grabs. You are a
+smuggler who lands at a lawless spaceport days after the fall. The imperial
+remnant still holds the gates, the locals plan to outlast everyone, and the
+desert nomads want the outsiders gone. A droid in the pit points you toward Oda,
+the cantina owner, who knows every rumor in town and pushes the plot on you
+whether you ask or not. From there you take contracts, run contraband past the
+guards, fight on foot and in the cockpit, and work your way up to a star cruiser
+in orbit and the dark master who answers to it.
+
+## Key features
+
+- **Open space flight.** Board your ship in the pit, lift off, fly over the town
+  and the dunes, climb until the sky goes dark, and drop into space. Dogfight
+  with fixed guns and lock-on seekers, fly to other worlds such as Grit Station,
+  and dive back into the atmosphere to land anywhere.
+- **AI NPCs.** The cantina owner is driven by a live language model (local or
+  cloud, with a canned fallback), with memory, trust tiers, secrets and rumors
+  true to the world state. Guards, pilots and natives think for themselves:
+  they patrol, see and hear you, challenge you at checkpoints, take cover and
+  raise the alarm.
+- **Status tracking with different groups.** Every faction keeps its own opinion
+  of you: the imperial remnant, the port locals, the smugglers and each native
+  pack. Standing changes what guards do (wave you through, ask for papers,
+  search you, or open fire), what bribes cost, and what people say about you.
+- **Planets from a config file.** Sand, snow, red desert, water, lava, gas and
+  asteroid worlds, with towns from one cantina up to a hundred buildings.
+- **On foot, too.** Blaster pistol, rifle, energy sword with blocks and timed
+  deflection, a jetpack, and a smuggling economy with a fence and a cache.
+
+## Play it
+
+Download the latest build from the shared folder:
+
+**[Download the game (Google Drive)](https://drive.google.com/drive/folders/1nJtlYMXnEM33q5tRZ0B1J47N1FofbV5i?usp=drive_link)**
+
+Builds are packaged by `./scripts/package.sh` (see `docs/SHARING.md`). To run
+from source instead, see [How to run](#how-to-run-macos-apple-silicon) below.
 
 ## Promo
 
@@ -41,14 +77,12 @@ exits non-zero if anything fails. That non-zero exit is the merge gate.
 
 To run the game on screen and record the 3-minute gameplay clip, see `LAUNCH.md`.
 
-## What exists now (M0)
+## What exists now
 
-- IP-neutral **data layer** (`content/core/`) loaded at runtime by `core_content.gd`.
-- Every name/faction/weapon/dialogue lives in data files and is referenced by id.
-- Tests for the data layer, the IP-neutrality guard, and the CI smoke path.
-- Three living docs: `DECISIONS.md`, `CHANGELOG.md`, `KNOWN_ISSUES.md`.
-
-No gameplay yet. M1 adds movement and the camera toggle.
+The game is playable end to end: land, roam the port, talk to locals, take
+contracts, fight, fly to space and back, and get paid. The milestone-by-milestone
+list, with status, is in `PLAN.md`; what shipped is in `CHANGELOG.md`; what is
+faked or outstanding is in `KNOWN_ISSUES.md`.
 
 ## IP-neutrality rule
 

@@ -2,6 +2,28 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-01 — Places repaint for whoever holds them (issue #393)
+
+- **Repaint the materials in place, never rebuild the meshes.** The Remnant's
+  red marks (the barracks' bands, the gate towers, the lintel, the wall, the
+  watchtower banners, an outpost's band, door frame and lamps) are made through
+  `LookMaterials.faction_*`, which remembers each material and its role, and
+  `repaint(owner, group)` sets the colour on the material the meshes already
+  share. Alternative: re-dress the barracks and the outposts on a swap.
+  Rejected: the town's buildings are batched into MultiMeshes and the swap
+  happens out of sight anyway; a parameter change is free and cannot leave a
+  half-built block.
+- **The town is one group, each outpost its own.** The town follows the
+  barracks' owner with the guard swap (`_locals_take_barracks`,
+  `_return_town_remnant`); an outpost follows `RemnantOutposts.swap`. An
+  outpost's flats are duplicated out of the shared cache so one outpost can be
+  green while the next is red.
+- **Colours are data by role** (`content/look/town_styles.json` `factions`:
+  `band`, `wall`, `mark`, `lamp`), so the holo table or the F1 screen can read
+  the same two colours later. The locals' guard is the trooper kit recoloured
+  (`guard:locals`: bone plate, green trim), not white: the art direction keeps
+  white armour out.
+
 ## 2026-11-01 — A story save and a free roam save, side by side
 
 - **One file per mode** (`SaveSlots`: `save_story.json`, `save_freeplay.json`),

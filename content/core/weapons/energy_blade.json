@@ -4,7 +4,7 @@
   "label": "Energy Blade",
   "light_damage": 100,
   "heavy_damage": 100,
-  "block_cost_stamina": 8,
+  "block_cost_stamina": 5,
   "deflect_window": 0.18,
   "deflect_refund_stamina": 6,
   "blade_color": "#3aa0ff",
