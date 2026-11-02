@@ -18,7 +18,7 @@ const AMBER := Color("#e0a050")
 const JOB_GREEN := Color("#6ee07a")   ## coloured, so RetroSkin leaves it be
 const PANEL_W := 600.0             ## narrower on a small screen (or a big text size)
 const LIST_MAX_H := 330.0          ## rows past this scroll (less on a short screen)
-const KEY_W := 20.0                ## the cursor mark's column
+const MARK_W := 20.0               ## the cursor mark's column (not KEY_W: in here that would hide the W key)
 
 var panel: PanelContainer
 var title_label: Label
@@ -115,7 +115,7 @@ func open(title: String, opts: Array, pick: Callable, body: String = "", keep_cu
 		var line := HBoxContainer.new()
 		box.add_child(line)
 		var key := _row_label("")
-		key.custom_minimum_size.x = KEY_W
+		key.custom_minimum_size.x = MARK_W
 		key.size_flags_vertical = Control.SIZE_SHRINK_BEGIN     # level with the first line
 		line.add_child(key)
 		var text := _row_label(str(options[i].text))
@@ -162,7 +162,7 @@ func _fit() -> void:
 	var widths := [inner, inner, inner]
 	for r in _rows:
 		wraps.append(r.text)
-		widths.append(inner - 16.0 - KEY_W - 12.0)     # less the scroll bar, the cursor mark, the gaps
+		widths.append(inner - 16.0 - MARK_W - 12.0)     # less the scroll bar, the cursor mark, the gaps
 	for i in wraps.size():
 		var l: Label = wraps[i]
 		l.custom_minimum_size.x = widths[i]

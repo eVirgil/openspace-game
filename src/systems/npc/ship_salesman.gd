@@ -32,6 +32,7 @@ extends Node3D
 
 const CFG_PATH := "res://content/core/npcs/t89.json"
 const CARD_PATH := "res://content/core/npcs/t89_card.json"
+const PIT_RIM_Y := -0.5              ## above this you are up out of the pit (the street is 0)
 const MET_FLAG := "met_t89"          ## saved: he has said his first hello to this player
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 
@@ -50,6 +51,8 @@ var body: StaticBody3D               ## T-89 himself
 var pos := Vector3.INF
 var in_reach := false
 var page := -1                       ## the tutorial page showing, -1 = none
+var card: TutorialCard               ## the tutorial's page: a small card you walk about under
+var pit_rect := Rect2()              ## the sunken floor he stands on (x, z); empty = no pit found
 var story_page := -1                 ## his Remnant story's page showing, -1 = none
 var bought_ship: Node3D              ## your ship on the spare pad (model, or a stand-in in the greybox)
 var said := ""                       ## his last line, for tests
@@ -78,6 +81,10 @@ func _ready() -> void:
 	menu = DroidMenu.new()
 	add_child(menu)
 	menu.option_selected.connect(_on_option_selected)
+	card = TutorialCard.new()
+	add_child(card)
+	card.next_pressed.connect(advance_tutorial)
+	card.end_pressed.connect(skip_tutorial)
 	_build_body()
 	park_owned()
 	if not greeted and DisplayServer.get_name() != "headless":
@@ -109,6 +116,7 @@ func _build_body() -> void:
 		push_warning("ShipSalesman: no marker " + mk)
 		return
 	pos = town.marker_pos(mk)
+	pit_rect = _pit_under(town, pos)
 	body = StaticBody3D.new()
 	body.name = "T89"
 	var cs := CollisionShape3D.new()
@@ -129,6 +137,25 @@ func _build_body() -> void:
 	var m: Dictionary = town.get_marker(mk)
 	if m.has("face"):
 		_face(Vector3(float(m.face[0]), float(m.face[1]), float(m.face[2])) - pos)
+
+
+## The pit he stands in: the sunken floor box under his marker (x, z), or an empty
+## rect when the town has none (the tutorial then lets go at "tutorial_leash" metres).
+static func _pit_under(town, at: Vector3) -> Rect2:
+	for b in town.boxes():
+		if str(b.kind) != "floor" or float(b.max[1]) >= -0.1:
+			continue
+		var r := Rect2(float(b.min[0]), float(b.min[2]), float(b.max[0]) - float(b.min[0]), float(b.max[2]) - float(b.min[2]))
+		if r.has_point(Vector2(at.x, at.z)):
+			return r
+	return Rect2()
+
+
+## Still in the pit: on its floor or up its ramps, not yet over the rim.
+func in_pit(p: Vector3) -> bool:
+	if pit_rect.has_area():
+		return pit_rect.has_point(Vector2(p.x, p.z)) and p.y < PIT_RIM_Y
+	return _flat_dist(p, pos) <= float(cfg.get("tutorial_leash", 32.0))
 
 
 ## How tall he stands: his kind's height (the assassin frame's 2.3 m).
@@ -184,6 +211,18 @@ func _physics_process(dt: float) -> void:
 		var want := atan2(-to.x, -to.z)
 		body.rotation.y = lerp_angle(body.rotation.y, want, minf(1.0, dt * 4.0))
 	_tick_focus()
+	_tick_tutorial()
+
+
+## The tutorial runs while you walk about the pit. It ends when you leave the pit,
+## or when something else takes you: his menu, a talk, a ship, the general.
+func _tick_tutorial() -> void:
+	if page < 0:
+		return
+	if _busy():
+		end_tutorial("busy")
+	elif not in_pit(player.global_position):
+		end_tutorial("left")
 
 
 ## Something else has the player: flying, a menu, a conversation, the general
@@ -265,6 +304,7 @@ func _repair_line() -> String:
 
 
 func _open(text: String, opts: Array, pick: Callable) -> void:
+	end_tutorial("busy")     # his menu has you now
 	said = text
 	menu.open(_l("menu_title") % [npc_name(), WorldState.credits], opts, pick, text)
 	if body != null:
@@ -298,26 +338,53 @@ func start_tutorial() -> void:
 	_show_page()
 
 
+## One page on the small card. Nothing is locked: you can walk the pit while it
+## is up, and try what it says.
 func _show_page() -> void:
 	var pages := tutorial_pages()
 	if page < 0 or page >= pages.size():
 		page = -1
 		return
 	var last := page == pages.size() - 1
-	var opts := [{ "id": "done", "text": _l("done") }] if last \
-		else [{ "id": "next", "text": _l("next") }, { "id": "skip", "text": _l("skip") }]
-	_open("(%d/%d)  %s" % [page + 1, pages.size(), str(pages[page])], opts, _on_page)
+	said = str(pages[page])
+	var keys := "[Enter]  %s" % _l("done" if last else "next")
+	if not last:
+		keys += "\n[Backspace]  %s" % _l("skip")
+	card.show_page("%s   (%d/%d)" % [npc_name(), page + 1, pages.size()], said, keys)
+	if body != null:
+		NpcVoice.stop(body)
+		NpcVoice.speak(said, NpcVoice.profile_for_npc("t89", {}), "calm", body)
 
 
-func _on_page(id: String) -> void:
-	if id == "next":
+## Enter: the next page, or the end of the last one.
+func advance_tutorial() -> void:
+	if page < 0:
+		return
+	if page >= tutorial_pages().size() - 1:
+		end_tutorial("done")
+	else:
 		page += 1
 		_show_page()
+
+
+## Backspace: skip the rest.
+func skip_tutorial() -> void:
+	end_tutorial("skip")
+
+
+## Put the card away. why: "done" (thanked him), "skip" (backspace), "left" (out of
+## the pit), "busy" (something else has you: no word from him).
+func end_tutorial(why: String) -> void:
+	if page < 0:
 		return
-	var finished := id == "done"
 	page = -1
-	if not finished:
+	card.close()
+	if why == "skip":
 		_say(_line("skipped"))
+	elif why == "left":
+		_say(_line("tutorial_left"))
+	elif body != null and why != "done":
+		NpcVoice.stop(body)
 
 
 # ------------------------------------------------------------------ shop
