@@ -202,8 +202,10 @@ func _physics_process(dt: float) -> void:
 	if _greet_left >= 0.0:
 		_greet_left -= dt
 		if _greet_left < 0.0:
-			if _busy() or (WorldState.story_mode() and not Story.reached("t89")):
-				_greet_left = 0.25        # wait until nothing else has the player (issue #203: the general first)
+			if WorldState.story_mode():
+				_greet_left = -1.0        # the story's waypoint after the general: you walk over and [E]
+			elif _busy():
+				_greet_left = 0.25        # wait until nothing else has the player
 			else:
 				greet()
 	if _flat_dist(player.global_position, pos) < 10.0:
@@ -282,8 +284,12 @@ func _on_offer(id: String) -> void:
 		_say(_line("skipped"))
 
 
-## [E] beside him: his top menu.
+## [E] beside him: his top menu. In the story he never calls out first, so the
+## first [E] is his hello and the tutorial offer.
 func talk() -> void:
+	if not greeted and not WorldState.has_flag(MET_FLAG):
+		greet()
+		return
 	_beep()
 	_open(_line("hello_again") + _repair_line() + _story_line(), top_options(), _on_top)
 
