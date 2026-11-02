@@ -2,6 +2,7 @@
   "id": "remnant_interceptor",
   "class": "starfighter",
   "label": "Kaldor VX-88 Kestrel (Remnant)",
+  "locals_label": "Kaldor VX-88 Kestrel (Local)",
   "faction": "imperial_remnant",
   "look": "interceptor_dark",
   "pilot": "remnant_hunter",
@@ -77,7 +78,7 @@
     "body_radius": 2.0,
     "clearance": 1.0
   },
-  "note": "Issue #76: the Remnant's own interceptor, painted dark: the same airframe and guns as the port's (interceptor.json). One sits beside each desert outpost (flyable: taking it sets off that outpost's alarm and scrambles the barracks interceptor), and one dark interceptor stands on the barracks pad and hunts you in the air (src/systems/flight/atmo_fighter.gd). 'scramble' (interceptor only) is how that one behaves.",
+  "note": "Issue #76: the Remnant's own interceptor, painted dark: the same airframe and guns as the port's (interceptor.json). One sits beside each desert outpost (flyable: taking it sets off that outpost's alarm and scrambles the barracks interceptor), and one dark interceptor stands on the barracks pad and hunts you in the air (src/systems/flight/atmo_fighter.gd). 'scramble' (interceptor only) is how that one behaves. 'locals_label': its name while the locals hold its outpost (ShipPilot.berth_label).",
   "naming": {
     "kind": "person_drift",
     "callsign": true,
