@@ -182,8 +182,15 @@ reasons are in `DECISIONS.md`.
 Match the issues already in the repo (#272, #276, #291 are good ones). Plain
 English, short sentences, the player's view first.
 
+**Every issue comes down to what the user wanted.** The body opens with their
+words: a quote from the chat when you have one, otherwise a one-sentence
+paraphrase of the ask in the player's terms, marked as a paraphrase. A builder
+reads that line, then checks the rest against it.
+
 ```markdown
 <Title: Thing: what the player sees, in a few words>
+
+> "I want a bounty hunter in the cantina."   (the user, or: paraphrased from the chat)
 
 Part of #N. / Follows #N. / Split out of #N.   (when it has one)
 

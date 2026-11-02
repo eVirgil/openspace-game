@@ -31,6 +31,9 @@ needs `windows_release_x86_64.exe` from it, the Mac build `macos.zip`.
 
 The version in the names and in the builds' file info is `config/version` in
 `project.godot`; bump it there.
+A feature demo keeps the version and adds a label:
+`./scripts/package.sh all "Weapon Wheel"` gives `OpenSpace V1.3 - Weapon Wheel`.
+The `build-share-files` skill (`.claude/skills/`) is the whole routine.
 
 `builds/` is git-ignored. Send the zip for the player's machine.
 
