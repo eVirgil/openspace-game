@@ -1015,9 +1015,11 @@ func _seat_arriving() -> void:
 ## view) does anything until she is down; then E gets you out (exit_ship), and
 ## the story moves on ("landed"). The pad's "opening" sets where she starts.
 ## It is filmed in the cinematic view; the story's "opening_cinematic_secs" in, the
-## prompt says V changes it.
+## prompt says V changes it and J the radio, which comes on to the story's
+## "opening_radio" station (the desert cantina mix).
 func opening_landing() -> void:
 	_seat_arriving()
+	Sound.lib().set_radio(str(Story.data().get("opening_radio", "")))
 	var o: Dictionary = pad.get("opening", {})
 	var bearing := deg_to_rad(float(o.get("bearing_deg", pad.get("reentry_bearing_deg", 200.0))))
 	var dist := float(o.get("distance", 700.0))

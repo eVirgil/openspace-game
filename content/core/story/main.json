@@ -221,7 +221,8 @@
       "text": "Clear the local guards from the barracks of {town}. They still think you're on their side. Going back to Oda first breaks the oath." }
   ],
   "ship_locked": "Locked. The keys aren't yours to take yet.",
-  "opening_view": "Press V to switch views",
+  "opening_view": "Press V to switch views    Press J to change radio",
+  "opening_radio": "dust_lounge",
   "opening_cinematic_secs": 8,
   "opening_exit": "E: get out",
   "free_roam_kit": ["rifle_blaster", "energy_blade"],
