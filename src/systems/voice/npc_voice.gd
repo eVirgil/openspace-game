@@ -152,8 +152,10 @@ static func bundled_path(text: String, voice_id: String) -> String:
 ## `live_line`: a fresh LLM line, spoken at the player's speed setting. Canned
 ## lines (barks, menus, the tutorial) always render at normal speed so their
 ## cached clips survive a change of the speed slider and are generated once.
+## `near`: heard at full volume however far off the speaker is (still from
+## their side), as if the player stood beside them.
 func speak(text: String, profile_name: String, mood: String, target: Node3D, shout: bool = false,
-		live_line: bool = false) -> void:
+		live_line: bool = false, near: bool = false) -> void:
 	if text.strip_edges() == "" or target == null or not is_instance_valid(target):
 		return
 	# Avoid accidental web requests from headless tests and server processes.
@@ -166,7 +168,7 @@ func speak(text: String, profile_name: String, mood: String, target: Node3D, sho
 	var bundled := bundled_path(text, voice_id)
 	if ResourceLoader.exists(bundled):
 		stop(target)
-		_play_stream(target, load(bundled) as AudioStream)
+		_play_stream(target, load(bundled) as AudioStream, near)
 		return
 
 	var mood_map: Dictionary = _profiles.get("mood_tags", {})
@@ -181,7 +183,7 @@ func speak(text: String, profile_name: String, mood: String, target: Node3D, sho
 	var token := int(_tokens.get(target_id, 0))
 
 	if FileAccess.file_exists(cache_path):
-		_play_bytes(target, FileAccess.get_file_as_bytes(cache_path))
+		_play_bytes(target, FileAccess.get_file_as_bytes(cache_path), near)
 		return
 	var key_value := api_key()
 	if key_value == "":
@@ -193,7 +195,7 @@ func speak(text: String, profile_name: String, mood: String, target: Node3D, sho
 	_requests[target_id] = request
 	request.request_completed.connect(
 		func(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-			_request_finished(target, target_id, token, cache_path, request, result, response_code, body)
+			_request_finished(target, target_id, token, cache_path, request, result, response_code, body, near)
 	)
 	var headers := PackedStringArray([
 		"xi-api-key: " + key_value,
@@ -221,7 +223,7 @@ func stop(target: Node3D) -> void:
 
 
 func _request_finished(target: Node3D, target_id: int, token: int, cache_path: String,
-		request: HTTPRequest, result: int, response_code: int, body: PackedByteArray) -> void:
+		request: HTTPRequest, result: int, response_code: int, body: PackedByteArray, near: bool = false) -> void:
 	if _requests.get(target_id) == request:
 		_requests.erase(target_id)
 	if is_instance_valid(request):
@@ -236,16 +238,16 @@ func _request_finished(target: Node3D, target_id: int, token: int, cache_path: S
 	file.close()
 	if not is_instance_valid(target) or int(_tokens.get(target_id, 0)) != token:
 		return
-	_play_bytes(target, body)
+	_play_bytes(target, body, near)
 
 
-func _play_bytes(target: Node3D, bytes: PackedByteArray) -> void:
+func _play_bytes(target: Node3D, bytes: PackedByteArray, near: bool = false) -> void:
 	if bytes.is_empty() or target == null or not is_instance_valid(target):
 		return
-	_play_stream(target, AudioStreamMP3.load_from_buffer(bytes))
+	_play_stream(target, AudioStreamMP3.load_from_buffer(bytes), near)
 
 
-func _play_stream(target: Node3D, stream: AudioStream) -> void:
+func _play_stream(target: Node3D, stream: AudioStream, near: bool = false) -> void:
 	if stream == null or target == null or not is_instance_valid(target):
 		return
 	var player := target.get_node_or_null("ElevenLabsVoicePlayer") as AudioStreamPlayer3D
@@ -255,8 +257,9 @@ func _play_stream(target: Node3D, stream: AudioStream) -> void:
 		player.position = Vector3(0.0, 1.4, 0.0)
 		player.volume_db = -3.0
 		player.unit_size = 8.0
-		player.max_distance = 55.0
 		player.bus = "SFX"
 		target.add_child(player)
+	player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED if near else AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+	player.max_distance = 0.0 if near else 55.0
 	player.stream = stream
 	player.play()

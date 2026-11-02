@@ -397,6 +397,7 @@ func _begin_meeting() -> void:
 	_meet_lines = 0
 	if spot != null:
 		spot.hold_line = _line("hold") % npc_name()
+		spot.near_voice = true          # the talk opens a few steps off: heard as if beside him
 		spot.brain.builder.extra_actions = ["let_go", "search"]
 
 
@@ -451,6 +452,7 @@ func decide(kind: String, close: bool = true, why: String = "") -> bool:
 	verdict = kind
 	if spot != null:
 		spot.hold_line = ""
+		spot.near_voice = false
 		spot.brain.builder.extra_actions = []
 	var st: Dictionary = _meet_cfg().get("standing", {})
 	WorldState.change_standing("imperial_remnant", int(st.get(why if why != "" else kind, 0)),
