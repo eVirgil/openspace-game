@@ -78,3 +78,47 @@ func test_nothing_outside_a_watched_root_is_touched() -> void:
 	await wait_process_frames(3)
 	assert_eq(mi.visibility_range_end, 0.0)
 	free.queue_free()
+
+
+## Low graphics shortens every range given out (now and later) by draw_scale, keeps
+## ranges a system set itself, and turning it off gives the rule's back. The
+## setting is saved to the player's graphics.cfg, so the file is put back after.
+func test_low_graphics_shortens_the_ranges_and_gives_them_back() -> void:
+	var path := LookEnvironment.SETTINGS_PATH
+	var had := FileAccess.file_exists(path)
+	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
+	var was_low := LookEnvironment.low_graphics()
+	var k := float(LookEnvironment.low_cfg()["draw_scale"])
+	var small := _box(1.0)
+	var own := _box(1.0)
+	own.visibility_range_end = 55.0
+	var lamp := OmniLight3D.new()
+	lamp.omni_range = 9.0
+	root.add_child(lamp)
+	LookEnvironment.save_low_graphics(false)
+	dd.apply_low_graphics()
+	dd.watch("outdoor", [root])
+
+	LookEnvironment.save_low_graphics(true)
+	dd.apply_low_graphics()
+	assert_almost_eq(small.visibility_range_end, 220.0 * k, 0.01)
+	assert_almost_eq(small.visibility_range_end_margin, 220.0 * k * dd.fade_margin, 0.01)
+	assert_almost_eq(lamp.distance_fade_begin, 300.0 * k, 0.01)
+	assert_eq(own.visibility_range_end, 55.0, "a range set by its own system stays")
+	var later := _box(1.0)
+	await wait_process_frames(3)
+	assert_almost_eq(later.visibility_range_end, 220.0 * k, 0.01, "built later, shortened too")
+
+	LookEnvironment.save_low_graphics(false)
+	dd.apply_low_graphics()
+	assert_eq(small.visibility_range_end, 220.0)
+	assert_eq(later.visibility_range_end, 220.0)
+	assert_eq(lamp.distance_fade_begin, 300.0)
+
+	LookEnvironment.save_low_graphics(was_low)
+	if had:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(saved)
+		f.close()
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

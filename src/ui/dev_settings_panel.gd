@@ -1162,11 +1162,13 @@ func _graphics_page(v: VBoxContainer) -> void:
 	low.toggled.connect(func(on):
 		if demo != null and demo.look != null:
 			demo.look.set_low_graphics(on)
+			if demo.draw_distance != null:
+				demo.draw_distance.apply_low_graphics()
 		else:
 			LookEnvironment.save_low_graphics(on))
 	_row(v, "Low graphics", low)
 	var low_note := Label.new()
-	low_note.text = "Faster on slower PCs: no bounce light, fog volumes or soft shadows in corners,\nshorter sun shadows, a lower 3D resolution and less blowing sand."
+	low_note.text = "Faster on slower PCs: no bounce light, fog volumes or soft shadows in corners,\nshorter sun shadows, a lower 3D resolution, less blowing sand and small things\ndrawn less far off."
 	low_note.add_theme_font_size_override("font_size", 12)
 	v.add_child(low_note)
 	_refreshers.append(func(): low.set_pressed_no_signal(LookEnvironment.low_graphics()))

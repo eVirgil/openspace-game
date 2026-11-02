@@ -15,9 +15,11 @@ GPU time per frame 2.5-3.2 ms with everything on, 0.8-1.1 ms with Low graphics
   warms the shade a little; it cannot warm reflections.
 - **Timing on this Mac is noisy:** single runs had 3-5 ms stretches in either
   mode (CPU time rose with them). Compare medians over several runs.
-- **Draw distances are the same in both modes:** low graphics is GPU-side
-  only. Scaling DrawDistance's ranges (world.json "draw_distance") down in low
-  graphics would be the next step for a slow CPU.
+- **Draw distances shrink to 0.6 in low graphics** (time_of_day.json
+  "draw_scale"): a crate stops drawing at 132 m, not 220. Checked headless in
+  the town (10,345 ranged meshes and lights, rescaled both ways), not watched
+  on screen for popping. The barge, the wreck field and the camps keep the
+  ranges they set themselves.
 
 ## After the draw distance rules (2026-11-02)
 
