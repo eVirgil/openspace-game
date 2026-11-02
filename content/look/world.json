@@ -1,5 +1,17 @@
 {
   "note": "Colours for the world around the port (M14): the planet skirt beyond the desert, the outpost placeholder, and the sky in space. Read by src/systems/world/world_scenery.gd and src/systems/world/altitude_sky.gd.",
+  "draw_distance": {
+    "note": "Less to draw the further it is from the camera: the ground-level partner of the altitude tiers (content/core/worlds/<id>.json 'detail'). Read by src/systems/look/draw_distance.gd for the systems scenes/town_demo.gd watches. Each rule maps a mesh's size (metres corner to corner, world scale) to the distance it stops being drawn: [under_m, end_m] pairs, smallest first; a mesh as big as the last 'under' or bigger is always drawn (buildings, hulls, landforms). Its lights fade out from light_m (or reach_x times their reach, if that is further) over light_fade_m. outdoor: the numbers the camps (120 m trim, 220 m props) and the wreck field (1500 m for parts under 6 m) already used. interior: the barge's (props 140 m, lights 90 m), for rooms you only see from close by. person: anything that walks (NPCs, droids, animals), drawn as far as the outposts keep their soldiers awake (320 m). orbit: the cruiser, a landmark from the air with its lights inside. A mesh or light that already has its own range keeps it.",
+    "fade_margin": 0.1,
+    "light_fade_m": 20.0,
+    "reach_x": 4.0,
+    "rules": {
+      "outdoor":  { "sizes": [[0.5, 120.0], [2.5, 220.0], [6.0, 1500.0]], "light_m": 300.0 },
+      "interior": { "sizes": [[0.5, 120.0], [6.0, 140.0]], "light_m": 90.0 },
+      "person":   { "sizes": [[0.5, 120.0], [6.0, 320.0]], "light_m": 90.0 },
+      "orbit":    { "sizes": [[0.5, 120.0], [2.5, 220.0], [6.0, 1500.0]], "light_m": 90.0 }
+    }
+  },
   "terrain": {
     "skirt_color": "#b8916a"
   },

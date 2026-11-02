@@ -2,6 +2,20 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the draw distance rules (2026-11-02)
+
+**Checked:** headless, with the look on: a probe that boots the port and counts
+every light and mesh by system (lights fading 42 to 182 of 191, meshes with a range
+about 2,400 to 12,600), tests/test_draw_distance (4/4) and test_smoke. Frame times
+and draw calls were not measured on the Mac, and nothing was watched on screen.
+
+- **Things to look at:** small props fading in at 120 to 220 m while walking
+  across the plaza, people at 320 m, the town's lamps going out past 300 m at
+  night (from a ship, too), and the cruiser's bay lights past 120 m.
+- **NPCs are about 74 meshes each.** Ranges stop far ones being drawn, but a
+  crowd close by is still the heaviest thing on screen. Not looked at here.
+- **The space scene's nine lights and the player's own light have no fade.**
+
 ## After the side-by-side saves (2026-11-01)
 
 **Checked:** tests/test_save_slots.gut.gd (10/10), test_player_outfit (6/6),
