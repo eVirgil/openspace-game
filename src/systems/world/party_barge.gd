@@ -197,6 +197,7 @@ func _ready() -> void:
 		dressing.build(self)
 	else:
 		_flat_look()
+	_draw_range()
 	var club := str(demo.planet.get("cfg", {}).get("club", Sound.lib().cfg.get("club", {}).get("default", ""))) \
 		if demo != null and demo.get("planet") is Dictionary else ""
 	club = str(cfg.get("club", club))
@@ -475,6 +476,19 @@ func _build_below() -> void:
 		_box(Vector3(1.2, 1.0, 1.2), Vector3(-4.6, _y[0] + 0.5, -16.0 + i * 1.6), "crate")
 	for i in 4:
 		_box(Vector3(0.9, 0.08, 2.4), Vector3(-3.0 + i * 1.6, y1 - 1.0, -6.0), "awning", false, Basis(Vector3.FORWARD, 0.08 * (i % 2 * 2 - 1)))
+
+
+## The hull and decks (the big merged meshes, which the look's own pass leaves
+## drawn at any distance) stop being drawn past draw_m, fading over the last tenth,
+## so the barge is not drawn from the town. Small props keep their own, shorter range.
+func _draw_range() -> void:
+	var end := float(cfg.get("draw_m", 1500.0))
+	for n in look.find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		if gi.visibility_range_end <= 0.0:
+			gi.visibility_range_end = end
+			gi.visibility_range_end_margin = end * 0.1
+			gi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
 ## Without the look layer: every finish in one flat colour.
