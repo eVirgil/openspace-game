@@ -23,6 +23,11 @@ extends Node
 ## "merchant" (holds a stall). Numbers: content/core/soldiers/local_*.json and
 ## the town's "locals" block; barks: content/core/dialogue/locals_lines.json.
 ##
+## The locals' gate guards (role "gate", while they hold the barracks) are not
+## run here: they work the front gate checkpoint in a garrison of their own
+## (Garrison, the locals' faction). The two alarms go up together (alarm_up,
+## join_alarm), so a fight at the gate is a fight with the port and back.
+##
 ## They know the planet's beast (PlanetBeast): calm, a local you walk close by now
 ## and then says something about it, by name (its "lore" in the planet's file).
 
@@ -57,6 +62,9 @@ var _last_key_t := -100.0
 var _beast_cfg: Dictionary = {}   ## PlanetBeast.config of this planet ({} if it has no beast)
 var _beast_next := 0.0            ## game seconds before a local may talk of the beast again
 
+## The alarm went up here (any cause): the locals' gate joins it (Garrison.join_alarm).
+signal alarm_up(at: Vector3)
+
 
 ## `all` = every local NpcBody in town.
 func setup(town_demo, all: Array) -> void:
@@ -71,10 +79,15 @@ func setup(town_demo, all: Array) -> void:
 	_beast_cfg = PlanetBeast.config(demo.get("planet") if demo.get("planet") is Dictionary else {})
 	_beast_next = float(_beast_cfg.get("locals_say_first_s", 6.0))
 	for g in members:
-		if not g.has_meta("outpost") or not is_same(members, demo.locals):
+		if (not g.has_meta("outpost") or not is_same(members, demo.locals)) and not runs_gate(g):
 			_adopt(g)              # (issue #187: the town's leaves the outposts' locals to theirs)
 	if player != null and player.has_signal("downed"):
 		player.downed.connect(_on_player_downed)
+
+
+## A local gate guard: the locals' gate garrison runs it, not this.
+static func runs_gate(g: NpcBody) -> bool:
+	return str(g.profile.get("role", "")) == "gate"
 
 
 func _adopt(g: NpcBody) -> void:
@@ -91,7 +104,7 @@ func _adopt(g: NpcBody) -> void:
 ## Issue #187: a local joins after setup (the locals' guards moving into the
 ## barracks or an outpost), and leaves (the Remnant take the outpost back).
 func add_member(g: NpcBody) -> void:
-	if g == null or brains.has(g):
+	if g == null or brains.has(g) or runs_gate(g):
 		return
 	if not members.has(g):
 		members.append(g)
@@ -162,6 +175,13 @@ func _raise(why: String) -> void:
 			"Someone opened fire on the port's own people.")
 
 
+## The locals' gate went up in arms: the port fights too. No standing here; the
+## gate already took it.
+func join_alarm(at: Vector3) -> void:
+	if alarm != null and alarm.raise("joined", at):
+		_handle(alarm.drain())
+
+
 func _handle(events: Array) -> void:
 	for e in events:
 		match str(e.type):
@@ -171,6 +191,7 @@ func _handle(events: Array) -> void:
 					g.perception.awareness = 1.0
 					g.perception.noticed = true
 				_say(_lead(_alive()), "alarm")
+				alarm_up.emit(alarm.last_known)
 			"standing":
 				if standing:
 					WorldState.change_standing("locals", int(e.delta), "Someone shot up the port's locals and got away.")

@@ -80,6 +80,7 @@ var club_look: ClubDressing           ## issue #261: the club's room and the ban
 var garrison: Garrison                ## M15: runs every trooper in town (null with npc_brains off)
 var locals: Array = []                ## NpcBody, one per marker whose profile is in the "locals" faction
 var townsfolk: Townsfolk              ## runs every local (null with npc_brains off)
+var locals_gate: Garrison             ## the locals' guards on the front gate checkpoint, while they hold the barracks (else null)
 var town_name := ""                   ## issue #15: this town's generated name ("" when its world names none)
 var planet_name := ""                 ## and the planet it is on
 var place_card: Label                 ## "<town>  ·  <planet>", shown for a few seconds on arrival
@@ -762,12 +763,30 @@ func _npc_brains() -> void:
 		if gear != null:
 			gear.vendor_open = townsfolk.vendor_open
 			gear.closed_line = townsfolk.closed_line
+		for n in locals:
+			_locals_gate_join(n)
 	if npc_brains and outposts != null:
 		# Issue #187: the locals at each outpost they hold have their own alarm.
 		for o in outposts.outposts:
 			var mine: Array = outposts.held_by.filter(func(g): return str(g.get_meta("outpost", "")) == str(o.id))
 			if not mine.is_empty():
 				outposts.folks[str(o.id)] = make_townsfolk("Locals_" + str(o.id), mine)
+
+
+## The locals hold the front gate as well as the barracks: their gate guards
+## (Townsfolk.runs_gate) work the same checkpoint as the Remnant's, in a garrison of
+## their own on the locals' standing, whose alarm goes up with the town's locals.
+func _locals_gate_join(n: NpcBody) -> void:
+	if not npc_brains or n == null or n.has_meta("outpost") or not Townsfolk.runs_gate(n):
+		return
+	if locals_gate != null and is_instance_valid(locals_gate):
+		locals_gate.add_member(n)
+		return
+	locals_gate = _make_garrison("LocalsGate", [n], false)
+	locals_gate.respawn_rule = Callable()   # a dead one stays dead (Territory.barracks_dead)
+	if townsfolk != null:
+		locals_gate.alarm_up.connect(townsfolk.join_alarm)
+		townsfolk.alarm_up.connect(locals_gate.join_alarm)
 
 
 ## Issue #187: a director for some of the port's locals (the town's, or one outpost's).
@@ -991,6 +1010,9 @@ func _return_town_remnant() -> void:
 		locals.erase(n)
 		n.queue_free()
 	barracks_locals.clear()
+	if locals_gate != null and is_instance_valid(locals_gate):
+		locals_gate.queue_free()     # the Remnant's garrison has the gate again
+	locals_gate = null
 	for m in town.markers():
 		if not _is_live_npc(m) or not _is_remnant_post(m):
 			continue
@@ -1018,6 +1040,7 @@ func _locals_take_barracks() -> void:
 		_build_npc(m)
 		if townsfolk != null and locals.size() > before:
 			townsfolk.add_member(locals.back())
+			_locals_gate_join(locals.back())
 	if gear != null and gear.hud != null:
 		gear.hud.toast(Territory.line("barracks"), 5.0)
 

@@ -2,6 +2,19 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The locals work the front gate like the Remnant did (2026-11-01)
+
+- **When the locals hold the barracks, their gate guards stop you at the front gate**,
+  in the same place and on the same rules as the Remnant's: waved through at 40 and
+  up, papers below that, papers and a search in poor standing, bribes, contraband and
+  warnings. It reads and moves your standing with the locals, not the Remnant.
+- A fight at the gate brings the town's locals in, and shooting a local in town
+  brings the gate guards in.
+- The gate barks no longer name the Remnant ("Remnant property now" is gone), so
+  both sides use the same lines.
+- New profile `content/core/soldiers/local_gate_guard.json` (it uses the Remnant gate
+  guard's checkpoint block); tests in `tests/test_locals_gate.gut.gd`.
+
 ## New version is 1.3 (2026-11-01)
 
 - Share builds are now **OpenSpace V1.3** (`OpenSpace V1.3.app`, `OpenSpace V1.3.exe`).

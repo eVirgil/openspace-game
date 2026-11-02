@@ -1,0 +1,8 @@
+{
+  "id": "local_gate_guard",
+  "base": "local_guard",
+  "label": "Local gate guard",
+  "role": "gate",
+  "checkpoint_of": "gate_guard",
+  "note": "The locals' guard on the front gate posts while they hold the barracks (territory.json \"barracks\"). Runs the front gate checkpoint exactly like the Remnant's gate guards: same place, same bands, papers, search, bribes and barks, on your standing with the locals. checkpoint_of: the profile whose checkpoint block it uses (one set of gate rules for whoever holds it); a checkpoint block here would win over it. Only the blocks below differ from local_guard.json."
+}

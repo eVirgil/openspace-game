@@ -24,6 +24,13 @@ extends Node
 ## a Checkpoint of their own, in zone mode, with the troopers there: walk in below
 ## the wave band and the nearest one walks up and the same card opens.
 ##
+## The locals hold the front gate too when they hold the barracks: their gate
+## guards (local_gate_guard) get a garrison of their own, the same checkpoint at
+## the same place on your standing with the locals (`faction`, from the gate
+## guards' profile). What is the Remnant's alone stays theirs: edgier for lost
+## outposts, shooting on sight once the fleet is beaten, the bounty on a trooper.
+## Its alarm and the town's locals' go up together (alarm_up, join_alarm).
+##
 ## It also owns: the choice card, subtitles and health bar (CheckpointHud), the
 ## alarm klaxon, confiscating what a search turns up, and what happens when the
 ## player is downed (knocked out, dragged to the pit, robbed a little).
@@ -73,6 +80,7 @@ var respawned := 0
 ## player being knocked out (and draws the health bar): handles_player.
 var handles_player := true
 var klaxon_at := Vector3.INF      ## INF = the town's klaxon marker
+var faction := "imperial_remnant" ## whose standing the checkpoint reads and moves (the gate guards' faction)
 var always_hostile := false       ## issue #193: the Remnant cruiser's crew shoot on sight, whatever your standing
 ## An outpost's garrison fights the player in a speeder or ship as on foot (set
 ## before setup). Out there the vehicle is no offence by itself: no "vehicle" alarm.
@@ -117,6 +125,10 @@ var _card_wait := 0.0
 var _face_g: NpcBody = null       ## the guard the player is turning to face
 var _face_left := 0.0
 
+## The alarm went up here (any cause). The locals' gate and the town's locals pass
+## it to each other (join_alarm).
+signal alarm_up(at: Vector3)
+
 
 ## `all` = every soldier NpcBody in town. Gate guards are those whose role is "gate".
 func setup(town_demo, all: Array) -> void:
@@ -130,6 +142,11 @@ func setup(town_demo, all: Array) -> void:
 	guards = members.filter(func(g): return str(g.profile.get("role", "gate")) == "gate")
 	_had_gate = not guards.is_empty()
 	profile = guards[0].profile if guards.size() > 0 else (members[0].profile if members.size() > 0 else {})
+	# One set of gate rules for whoever holds the gate (local_gate_guard: checkpoint_of).
+	var of := str(profile.get("checkpoint_of", ""))
+	if of != "" and not profile.has("checkpoint"):
+		profile = CoreContent._merge({ "checkpoint": content.get_soldier(of).get("checkpoint", {}) }, profile)
+	faction = str(profile.get("faction", faction))
 	checkpoint = Checkpoint.new(profile.get("checkpoint", {}))
 	var gcfg: Dictionary = town.data.get("garrison", {}) if town.data is Dictionary else {}
 	alarm = TownAlarm.new(gcfg.get("alarm", {}))
@@ -284,10 +301,10 @@ func _physics_process(dt: float) -> void:
 
 	# The gate. Issue #187: edgier for every outpost the Remnant have lost.
 	var gate_alive := alive.filter(func(g): return guards.has(g))
-	checkpoint.strict = Territory.gate_strict()
-	checkpoint.bribe_mult = Territory.bribe_mult()
+	checkpoint.strict = Territory.gate_strict() if remnant() else 0
+	checkpoint.bribe_mult = Territory.bribe_mult() if remnant() else 1.0
 	checkpoint.update(dt, {
-		"standing": int(WorldState.standing.get("imperial_remnant", 0)), "night": night,
+		"standing": int(WorldState.standing.get(faction, 0)), "night": night,
 		"credits": WorldState.credits, "player_pos": ppos, "gate_pos": gate_pos, "gate_x": gate_pos.x,
 		# Nobody asks a speeder for its papers: that is the alarm's business.
 		"noticed": gate_noticed and _ko_left <= 0.0 and vehicle == null,
@@ -335,17 +352,17 @@ func _tick_zones(dt: float, alive: Array, ppos: Vector3, night: bool, recent_sho
 	if zones.is_empty():
 		return
 	var asks: bool = _ko_left <= 0.0 and vehicle == null and player.get("piloting") != true \
-		and not (Story.remnant_hostile() or always_hostile)
+		and not _shoot_on_sight()
 	for z in zones:
 		var mine := alive.filter(func(g): return z.guards.has(g))
 		var noticed := false
 		for g in mine:
 			noticed = noticed or g.perception.noticed
 		var cp: Checkpoint = z.checkpoint
-		cp.strict = Territory.gate_strict()
-		cp.bribe_mult = Territory.bribe_mult()
+		cp.strict = Territory.gate_strict() if remnant() else 0
+		cp.bribe_mult = Territory.bribe_mult() if remnant() else 1.0
 		cp.update(dt, {
-			"standing": int(WorldState.standing.get("imperial_remnant", 0)), "night": night,
+			"standing": int(WorldState.standing.get(faction, 0)), "night": night,
 			"credits": WorldState.credits, "player_pos": ppos, "zone_out": zone_out(z.spec, ppos),
 			"noticed": noticed and asks,
 			"armed": player_armed.call() if player_armed.is_valid() else false,
@@ -358,9 +375,9 @@ func _tick_zones(dt: float, alive: Array, ppos: Vector3, night: bool, recent_sho
 ## Sentries and barracks troopers do not run the checkpoint, but they know a face
 ## the garrison remembers, and they know who is wanted on sight (by day).
 func _watch_for_trouble(dt: float, alive: Array, night: bool) -> void:
-	var standing := int(WorldState.standing.get("imperial_remnant", 0))
+	var standing := int(WorldState.standing.get(faction, 0))
 	# Issue #64: after the fleet is beaten, what is left of them shoots on sight.
-	var wanted := (checkpoint.base_band(standing) == "hostile" and not night) or Story.remnant_hostile() or always_hostile
+	var wanted := (checkpoint.base_band(standing) == "hostile" and not night) or _shoot_on_sight()
 	for g in alive:
 		if guards.has(g) or not bool(g.profile.get("alarm", {}).get("raise_on_hostile_sight", false)):
 			continue
@@ -391,7 +408,25 @@ func _raise(why: String) -> void:
 		var gcfg: Dictionary = town.data.get("garrison", {}).get("alarm", {})
 		WorldState.set_flag("gate_fight")
 		if WorldState.cooldown_ok("gate_fight", float(profile.get("checkpoint", {}).get("standing_cooldown_s", 120.0))):
-			WorldState.change_standing("imperial_remnant", int(gcfg.get("raise_standing", -10)), "The Remnant garrison sounded the alarm.")
+			WorldState.change_standing(faction, int(gcfg.get("raise_standing", -10)),
+				"The Remnant garrison sounded the alarm." if remnant() else "The locals' gate guards sounded the alarm.")
+
+
+## Another director's alarm went up (the town's locals for the locals' gate, and
+## back): this one fights too. It costs no standing here; that was paid there.
+func join_alarm(at: Vector3) -> void:
+	if alarm != null and alarm.raise("joined", at):
+		_handle(alarm.drain())
+
+
+## The Remnant's own garrisons (not the locals' gate).
+func remnant() -> bool:
+	return faction == "imperial_remnant"
+
+
+## Shoot on sight, whatever your standing: the Remnant once the fleet is beaten, the cruiser's crew.
+func _shoot_on_sight() -> bool:
+	return always_hostile or (remnant() and Story.remnant_hostile())
 
 
 func _order_brains() -> void:
@@ -584,7 +619,7 @@ func _handle(events: Array, post: Dictionary = {}) -> void:
 				var key := str(e.get("cooldown", ""))
 				var cd := float(profile.get("checkpoint", {}).get("standing_cooldown_s", 120.0))
 				if key == "" or WorldState.cooldown_ok(key, cd):
-					WorldState.change_standing("imperial_remnant", int(e.delta), str(e.get("why", "")))
+					WorldState.change_standing(faction, int(e.delta), str(e.get("why", "")))
 			"bribe":
 				WorldState.on_gate_bribe(int(e.price))
 				hud.toast("-%d cr" % int(e.price), 2.0)
@@ -606,6 +641,9 @@ func _handle(events: Array, post: Dictionary = {}) -> void:
 				for g in _alive():
 					g.perception.awareness = 1.0
 					g.perception.noticed = true
+				alarm_up.emit(alarm.last_known)
+				if str(e.get("why", "")) == "joined":
+					continue          # someone else's fight: they shouted for it
 				_say(_lead(_alive()), "alarm")
 				klaxon_left = float(NpcBody.sound_cfg().get("alarm", {}).get("seconds", 8.0))
 				klaxon_plays += 1
@@ -724,7 +762,10 @@ func _on_guard_died(g: NpcBody) -> void:
 	var left := _alive()
 	var delta := int(g.profile.get("checkpoint", profile.get("checkpoint", {})).get("standing", {}).get("guard_killed", -15))
 	# An outpost's garrison has no gate: its dead never take the checkpoint down.
-	WorldState.on_guard_killed(delta, handles_gate() and left.filter(func(x): return guards.has(x)).is_empty())
+	if remnant():
+		WorldState.on_guard_killed(delta, handles_gate() and left.filter(func(x): return guards.has(x)).is_empty())
+	elif _is_player(g.last_hit_by):
+		WorldState.change_standing(faction, delta, "One of the locals' gate guards was killed.")
 	# Issue #76: a Remnant soldier you killed is worth its kill_reward (20 cr).
 	var reward := int(g.profile.get("kill_reward", 0))
 	if reward > 0 and _is_player(g.last_hit_by):
@@ -828,6 +869,9 @@ func _wake_in_pit() -> void:
 	var folk = demo.get("townsfolk")
 	if folk != null and is_instance_valid(folk):
 		folk.forgive_player()
+	var lg = demo.get("locals_gate")
+	if lg != null and lg != self and is_instance_valid(lg):
+		lg.forgive_player()
 	if outs != null:
 		for tf in outs.folks.values():
 			if is_instance_valid(tf):
