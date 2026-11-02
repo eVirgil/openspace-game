@@ -23,6 +23,7 @@ const NO_USER := "user://test_ai_off_no_user_config.json"
 const KEYS := "user://test_ai_off_keys.cfg"
 
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
+const TownDemo := preload("res://scenes/town_demo.gd")
 
 var spy: ScriptedProvider             ## sits in the "local" slot: AI off, it must never hear a thing
 var _mock_pid := -1
@@ -489,3 +490,31 @@ func test_anthropic_failures_are_named() -> void:
 		assert_true(why.contains(c[2]), "%s: %s" % [c[0], why])
 		var test_line := LLMSettingsPanel.test_text({ "ok": false, "fell_back_from": t.fell_back_from, "error": t.error }, svc)
 		assert_true(test_line.contains(c[2]), "the Test button says it too: " + test_line)
+
+
+## AI off, a topic picked from the menu is off it for the rest of the talk, and
+## back on it the next time you talk.
+func test_a_picked_topic_leaves_the_menu_until_the_next_talk() -> void:
+	var t = TownDemo.new()
+	t.use_look = false
+	t.npc_brains = false
+	add_child_autofree(t)
+	t._build_bar([], "")
+	var bar: ConversationHost = t.bar
+	bar.llm.mode = "auto"
+	bar.llm.config = _cfg()
+	assert_false(bar.llm.ai_on(), "the shipped default: AI characters off")
+	var shown := func() -> Array:
+		return bar.panel._topics.get_children().filter(func(b): return not b.is_queued_for_deletion()).map(func(b): return str(b.name))
+	bar.start_talk()
+	var first: Array = shown.call()
+	assert_true(first.has("rumor"), "Oda's menu has rumours: %s" % [first])
+	bar.brain.busy = false
+	assert_true(bar.player_picks("rumor"))
+	assert_false(shown.call().has("rumor"), "picked: off the menu")
+	assert_eq(shown.call().size(), first.size() - 1, "the rest stay")
+	bar.end_talk()
+	bar.brain.busy = false
+	bar.start_talk()
+	assert_eq(shown.call(), first, "a new talk: the whole menu again")
+	bar.end_talk()

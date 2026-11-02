@@ -271,6 +271,7 @@ func set_topics(list: Array) -> void:
 		b.name = str(t.id)
 		b.text = str(t.label)
 		b.focus_mode = Control.FOCUS_NONE       # Enter stays the text field's
+		b.disabled = not _field.editable        # a menu put up mid-answer waits for it
 		b.add_theme_font_size_override("font_size", RetroUI.size("dialogue_topic", 22))
 		b.pressed.connect(func(): topic_picked.emit(str(t.id)))
 		_topics.add_child(b)

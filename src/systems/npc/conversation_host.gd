@@ -42,6 +42,7 @@ var talking := false
 var warmed := false
 var _warmed: Dictionary = {}          ## issue #328: provider id -> its warm-up turn id
 var _offline_told := false            ## issue #328: said why this conversation is canned
+var _topics_used: Array = []          ## topic ids picked in this talk: off the menu until the next one
 var _ai_state := ""                   ## "" | "loading" | "ready" (the status line)
 var _status_tween: Tween
 var reminders := 0                    ## issue #29: times the AI reminder was repeated (tests)
@@ -326,8 +327,10 @@ func answer_first_run(on: bool) -> void:
 
 
 ## The topic menu: with AI characters off, or once a turn in this talk was canned.
+## A topic picked in this talk is off it until the next talk.
 func _refresh_menu(s: TalkSpot) -> void:
-	panel.set_topics(s.brain.topics() if not llm.ai_on() or _offline_told else [])
+	var menu: Array = s.brain.topics().filter(func(t): return not _topics_used.has(str(t.id)))
+	panel.set_topics(menu if not llm.ai_on() or _offline_told else [])
 	panel.set_notice(Disclaimers.talk_text(s.display_name()) if llm.ai_on() else "")
 
 
@@ -355,6 +358,7 @@ func start_talk(s: TalkSpot = null) -> void:
 	active = s
 	talking = true
 	_offline_told = false
+	_topics_used.clear()
 	overlay.brain = s.brain
 	_prompt.visible = false
 	var p: CharacterBody3D = demo._player
@@ -457,7 +461,11 @@ func _on_topic(topic: String) -> bool:
 	for t in s.brain.topics():
 		if str(t.id) == topic:
 			_before_turn(s, str(t.say))
-			return s.brain.say_topic(topic)
+			var ok := s.brain.say_topic(topic)
+			if ok:
+				_topics_used.append(topic)
+				_refresh_menu(s)
+			return ok
 	return false
 
 
