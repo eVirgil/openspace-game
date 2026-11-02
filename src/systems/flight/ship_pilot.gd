@@ -310,6 +310,15 @@ func add_outpost_berth(v: Node3D, id: String, outpost_id: String) -> int:
 	return i
 
 
+## Berth `b`'s ship name: an outpost's ship goes by its "locals_label" while the
+## locals hold that outpost ("(Local)", not "(Remnant)").
+static func berth_label(b: Dictionary) -> String:
+	var cfg: Dictionary = b.get("cfg", {})
+	if b.has("outpost") and Territory.owner(str(b.outpost)) == Territory.LOCALS:
+		return str(cfg.get("locals_label", cfg.get("label", "")))
+	return str(cfg.get("label", ""))
+
+
 ## May the player board berth `i`? (berth_open: the rule.)
 func berth_flies(i: int) -> bool:
 	return berth_open(berths[i], i)
@@ -1201,7 +1210,7 @@ func _on_foot() -> void:
 		var cfg: Dictionary = berths[i].cfg
 		var vname := NameHooks.vessel(cfg, "vessel:player/" + str(berths[i].ship_id))
 		_foot_prompt.text = "%s  %s" % [GameFlow.label("board"), "  ·  ".join(
-			[vname, str(cfg.get("label", "")), ShipUpgrades.short(str(berths[i].ship_id))].filter(func(x): return x != ""))]
+			[vname, berth_label(berths[i]), ShipUpgrades.short(str(berths[i].ship_id))].filter(func(x): return x != ""))]
 		if not berth_flies(i):
 			_foot_prompt.text = "%s  ·  %s" % [vname, Story.line(locked_line(i))]
 	_foot_prompt.visible = near

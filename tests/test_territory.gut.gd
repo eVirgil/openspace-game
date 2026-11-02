@@ -220,3 +220,13 @@ func test_a_held_outpost_has_a_clock() -> void:
 	assert_almost_eq(Territory.hold_frac(NEAR), 1.0, 0.001)
 	Territory.tick(Territory.n("hold_s", 900.0) * 0.5)
 	assert_almost_eq(Territory.hold_frac(NEAR), 0.5, 0.001)
+
+
+func test_an_outposts_ship_goes_by_its_holders_name() -> void:
+	var cc = CoreScript.new()
+	cc.load_from()
+	var b := { "outpost": NEAR, "cfg": cc.get_ship("remnant_interceptor") }
+	assert_string_contains(ShipPilot.berth_label(b), "(Remnant)")
+	Territory.take(NEAR)
+	assert_string_contains(ShipPilot.berth_label(b), "(Local)", "the locals' once they hold the outpost")
+	assert_eq(ShipPilot.berth_label({ "cfg": { "label": "Pit ship" } }), "Pit ship", "a berth with no outpost keeps its label")
