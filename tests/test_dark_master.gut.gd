@@ -122,6 +122,7 @@ func test_clearing_the_barracks_on_the_oath_is_the_dark_ending() -> void:
 	assert_true(Territory.remnant_planet(), "and every outpost is theirs")
 	assert_true(DarkPact.on_roof(), "he stands on the barracks roof")
 	assert_false(DarkPact.hostile_at("barracks"), "your friend, until you strike him")
+	assert_eq(_remnant(), 100, "the Remnant who come back think the world of you")
 	EndCard.close()
 	assert_string_contains(str(Story.beat("cantina_owner").say), "barracks again", "Oda carries on, knowing")
 

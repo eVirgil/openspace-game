@@ -2,6 +2,13 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The Remnant love you when you clear the locals for the dark master (2026-11-01)
+
+- **On the dark master's oath, clearing the barracks' local guards now takes your
+  Remnant standing to 100.** It was 25 from joining, and an armed player who had
+  just fired still read as hostile, so the troopers coming back to their posts shot
+  on sight. At 100 they wave you through. Number: `standing.retaken` in
+  `content/core/npcs/dark_master.json`.
 ## The dark master: blade on his hip until he fights, and his talk works with AI on (2026-11-01)
 
 - **His red blade hangs dark on his left hip while he is at ease**, in story and
