@@ -47,6 +47,10 @@ Plain English, newest on top. One entry per milestone.
 - **The Remnant take outposts back five times slower**: the locals hold one for
   about 100 minutes of play (was 20), and run short with about 40 left. A lazy
   round of the desert still saves most of them.
+- **The cruiser's holo table shows who holds what (issue #325).** The port's pin
+  is coloured by who holds the barracks, and each of the seven outposts has a
+  pin: Remnant red, locals green, yellow-green when the locals run short. They
+  change colour while you watch, and an outpost that changes hands flashes.
 - **Resupplying is an optional quest.** When an outpost runs short, "Resupply the
   ... outpost" turns up in the Ledger, pointed at the outpost. It is done when Oda's
   supplies get there, fails if the Remnant take it back first, and comes round
