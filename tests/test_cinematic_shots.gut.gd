@@ -66,7 +66,7 @@ func test_a_wall_pulls_the_shot_in_front_of_it() -> void:
 	assert_lte(c.xform.origin.length(), 2.01, "the shot sits on the near side of the wall")
 
 
-func test_a_story_opens_in_the_cinematic_view_and_names_v_after_8s() -> void:
+func test_a_story_opens_in_the_cinematic_view_and_names_v_and_j_after_8s() -> void:
 	WorldState.new_game(WorldState.STORY)
 	var t = TownDemo.new()
 	t.use_look = false
@@ -78,11 +78,14 @@ func test_a_story_opens_in_the_cinematic_view_and_names_v_after_8s() -> void:
 	assert_true(pilot.chase.is_cinematic(), "filmed in the cinematic view")
 	assert_eq(pilot.hud.prompt.text, "", "nothing on screen for its first seconds")
 	assert_false(pilot.hud.sim.visible, "no reticle or ladder over a cinematic shot")
+	assert_eq(Sound.lib().radio, "dust_lounge", "the radio comes on to the desert cantina mix")
 	pilot.opening_t = float(Story.data().get("opening_cinematic_secs", 8.0))
 	pilot._physics_process(1.0 / 60.0)
-	assert_eq(pilot.hud.prompt.text, "Press V to switch views")
+	assert_eq(pilot.hud.prompt.text, "Press V to switch views    Press J to change radio")
 	pilot.chase.toggle_mode()
 	assert_false(pilot.chase.is_cinematic(), "V moves on to the chase view")
+	assert_eq(Sound.radio_next(), "salvage_rave", "J moves the radio on to the next station")
+	Sound.lib().set_radio("")
 	WorldState.reset()
 
 
