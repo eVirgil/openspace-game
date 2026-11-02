@@ -25,9 +25,12 @@ needs `windows_release_x86_64.exe` from it, the Mac build `macos.zip`.
 
 ```sh
 ./scripts/package.sh            # both
-./scripts/package.sh windows    # builds/OpenSpace-windows.zip
-./scripts/package.sh mac        # builds/OpenSpace-mac.zip
+./scripts/package.sh windows    # builds/OpenSpace V1.3 Windows.zip
+./scripts/package.sh mac        # builds/OpenSpace V1.3 Mac.zip
 ```
+
+The version in the names and in the builds' file info is `config/version` in
+`project.godot`; bump it there.
 
 `builds/` is git-ignored. Send the zip for the player's machine.
 
@@ -41,8 +44,8 @@ the zip.
 
 ## For the player (Windows)
 
-1. Unzip `OpenSpace-windows.zip` anywhere.
-2. Run `OpenSpace.exe`. Windows SmartScreen warns about an unknown app
+1. Unzip `OpenSpace V1.3 Windows.zip` anywhere.
+2. Run `OpenSpace V1.3.exe` in the `OpenSpace V1.3` folder. Windows SmartScreen warns about an unknown app
    because the build is not signed: click **More info**, then **Run anyway**.
 3. Set the key (below).
 
@@ -51,12 +54,12 @@ outside the game folder.
 
 ## For the player (Mac)
 
-1. Double-click `OpenSpace-mac.zip` and drag `OpenSpace.app` into
+1. Double-click `OpenSpace V1.3 Mac.zip` and drag `OpenSpace V1.3.app` into
    **Applications**.
 2. Open it. macOS says it cannot check the app for malware: click **Done**, open
    **System Settings > Privacy & Security**, scroll down, click **Open Anyway**
    next to OpenSpace, and confirm. Only the first launch asks.
-   (Or in Terminal: `xattr -dr com.apple.quarantine /Applications/OpenSpace.app`.)
+   (Or in Terminal: `xattr -dr com.apple.quarantine "/Applications/OpenSpace V1.3.app"`.)
 3. Set the key (below).
 
 The key is saved in
