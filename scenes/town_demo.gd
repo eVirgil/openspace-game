@@ -1025,10 +1025,13 @@ func _locals_take_barracks() -> void:
 ## Issue #393: the Remnant's red marks on the barracks, the gate, the wall and the
 ## towers (and the watchtower banners) are painted for whoever holds the barracks.
 ## Called with the guard swap, so it happens out of sight like the people. Look only:
-## the greybox has no decor and nothing to repaint.
+## the greybox has no decor and nothing to repaint. The interceptor on the barracks
+## pad takes the holder's paint with them.
 func _repaint_town(owner: String) -> void:
 	if decor != null and decor.mats != null:
 		decor.mats.repaint(owner)
+	if interceptor != null:
+		interceptor.repaint(owner)
 
 
 ## Issue #42: Skrugs's speeder stall outside the back gate. Skrugs joins the bar's

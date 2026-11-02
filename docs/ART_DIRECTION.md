@@ -153,6 +153,10 @@ on the ground:
   trooper's colours. The fighter is a hunched pod with forward-swept, drooping blade
   wings and a tall spine. The heavy is a wide armoured block with a wedge prow and
   two nacelles.
+- **Locals' ships (an outpost or the barracks pad when the locals hold it):** the same
+  models in a small colour change, not a new design. The interceptor keeps its silver
+  hull with green and bone trim (the guards' colours); the freighter takes a sage tint.
+  Still: `docs/lookdev/territory/locals_ships.png`.
 - **Bolts:** cyan for the player's side, red-orange for the remnant, warm white for
   seekers. Colour says whose fire it is before shape does.
 - **Backdrop:** high orbit over the desert world, near-black space, a warm sun low on
