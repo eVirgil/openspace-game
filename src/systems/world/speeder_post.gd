@@ -10,6 +10,8 @@ extends Node3D
 ##     garage (wall pieces you drive into) and its bench, and the sand ramp out past
 ##     the back gate (the "skrugs_ramp" landmark, with its sloped collider: a box
 ##     would be a wall),
+##     string lights and fuel canisters in and around the garage, and a hanging
+##     lamp over his counter (a real light, always on),
 ##   - Skrugs: an all-red local behind the counter, a TalkSpot on the town's
 ##     ConversationHost, run by the same NpcBrain as the Cantina Owner from his
 ##     own card (content/core/npcs/skrugs_card.json),
@@ -618,6 +620,123 @@ func _dress(loc: Dictionary) -> void:
 				if str(b.id).begins_with("garage_"):
 					# Issue #295: back wall, two side walls and a red roof; one side stands open.
 					_mesh(_box(s), red if str(b.id) == "garage_roof" else plaster, c + Vector3(0, s.y * 0.5, 0))
+	_dress_garage(mats, loc, metal)
+
+
+## String lights and fuel canisters in and around his garage, and a hanging lamp
+## (a real light) over his counter. Placed from the garage and stall boxes, so it
+## fits both layouts: the garage opens toward +x, its side walls run along x. Look
+## only: no colliders, nothing on the way into the bay or behind the counter.
+func _dress_garage(mats: LookMaterials, loc: Dictionary, metal: Material) -> void:
+	var box := {}
+	for b in loc.get("buildings", []):
+		box[str(b.id)] = { "c": WorldGround._v3(b.get("position", [0, 0, 0])), "s": WorldGround._v3(b.get("size", [1, 1, 1])) }
+	if not (box.has("garage_back") and box.has("garage_side_a") and box.has("garage_side_b") and box.has("garage_roof") and box.has("stall")):
+		return
+	var back: float = box.garage_back.c.x + box.garage_back.s.x * 0.5          # inside face of the back wall
+	var mouth: float = box.garage_side_a.c.x + box.garage_side_a.s.x * 0.5     # the open end
+	var za: float = box.garage_side_a.c.z
+	var zb: float = box.garage_side_b.c.z
+	var wall: float = box.garage_side_a.s.z * 0.5
+	var lo := minf(za, zb) + wall                                               # inside faces of the side walls
+	var hi := maxf(za, zb) - wall
+	var roof: float = box.garage_roof.c.y
+	var stall: Vector3 = box.stall.c
+	var ss: Vector3 = box.stall.s
+	# The side wall nearer the stall, and which way its outside faces.
+	var near_z := za if absf(stall.z - za) < absf(stall.z - zb) else zb
+	var out := signf(stall.z - near_z)
+	var out_face := near_z + out * wall
+
+	var strands: Array = [
+		# Inside: two runs under the roof, back wall to mouth, and one across the mouth.
+		[Vector3(back + 0.3, roof - 0.25, lo + 0.6), Vector3(mouth - 0.3, roof - 0.25, lo + 0.6), 0.3],
+		[Vector3(back + 0.3, roof - 0.25, hi - 0.6), Vector3(mouth - 0.3, roof - 0.25, hi - 0.6), 0.3],
+		[Vector3(mouth - 0.2, roof - 0.15, lo + 0.1), Vector3(mouth - 0.2, roof - 0.15, hi - 0.1), 0.35],
+		# Outside: along the mouth's lip, from its corner out to the stall's canopy,
+		# and along the canopy's low front edge over the customer.
+		[Vector3(mouth + 0.05, roof - 0.05, lo - 0.2), Vector3(mouth + 0.05, roof - 0.05, hi + 0.2), 0.45],
+		[Vector3(mouth + 0.05, roof - 0.05, out_face), stall + Vector3(0.45, 2.5, -out * ss.z * 0.5), 0.6],
+		[stall + Vector3(0.7, 2.42, -ss.z * 0.5 - 0.3), stall + Vector3(0.7, 2.42, ss.z * 0.5 + 0.3), 0.15],
+	]
+	var cable := mats.flat(Color("#2b2522"), 0.7)
+	var bulbs: Array[Vector3] = []
+	for st in strands:
+		var a: Vector3 = st[0]
+		var b: Vector3 = st[1]
+		var n := maxi(4, int(a.distance_to(b) / 0.6))
+		var pts := LookMeshKit.catenary(a, b, float(st[2]), n)
+		_mesh(LookMeshKit.tube(pts, 0.015, 4), cable, Vector3.ZERO)
+		for k in range(1, pts.size() - 1):
+			bulbs.append(pts[k] + Vector3(0, -0.08, 0))
+	var bulb := mats.glow(Color("#ffd27a"))
+	bulb.emission_energy_multiplier = 2.5         # always lit, as Dorrin's
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _ball(0.07)
+	mm.instance_count = bulbs.size()
+	for i in bulbs.size():
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, bulbs[i]))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "GarageBulbs"
+	mmi.multimesh = mm
+	mmi.material_override = bulb
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+	mmi.global_position = origin
+	mmi.rotation.y = yaw
+
+	# Canisters: along the back wall and the side walls' back halves inside (the
+	# bay's speeder stays clear), a stack by the mouth outside the wall nearer the
+	# stall, and two behind Skrugs. Seeded, so the yard looks the same every visit.
+	var paints := [CampTextures.canister(Color("#a8322a"), Color("#d8c2a0")), CampTextures.canister(Color("#3a8a8a"), Color("#d8c2a0")),
+		CampTextures.canister(Color("#c8a040"), Color("#2b2c30")), metal]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var spots: Array[Vector3] = []
+	for k in 5:
+		spots.append(Vector3(back + 0.4 + rng.randf_range(0.0, 0.25), 0, lerpf(lo + 0.7, hi - 0.7, k / 4.0)))
+	for z in [lo + 0.4, hi - 0.4]:
+		for k in 2:
+			spots.append(Vector3(back + 1.3 + k * 0.7, 0, z))
+	for k in 4:
+		spots.append(Vector3(mouth - 0.4 - k * 0.6, 0, out_face + out * (0.4 + (k % 2) * 0.35)))
+	for dz in [-ss.z * 0.5 + 0.2, ss.z * 0.5 - 0.2]:
+		spots.append(stall + Vector3(-1.6, 0, dz))
+	for i in spots.size():
+		var tall := rng.randf_range(0.55, 0.9)
+		var r := 0.22 if tall > 0.7 else 0.18
+		var can := _cyl(r, tall)
+		can.radial_segments = 12
+		var m := _mesh(can, paints[i % paints.size()], spots[i] + Vector3(0, tall * 0.5, 0))
+		m.rotation.y += rng.randf() * TAU
+		_mesh(_cyl(0.05, 0.08), metal, spots[i] + Vector3(r * 0.4, tall + 0.04, 0))     # the cap
+	# One knocked over by the outside stack.
+	var down := spots[spots.size() - 3] + Vector3(-0.9, 0.2, out * 0.2)
+	_mesh(_cyl(0.2, 0.7), paints[0], down, Vector3(90, 0, 0))
+
+	# The lamp: a shade and a glowing bulb hanging from the canopy over the counter,
+	# between Skrugs and the customer, and its light. Always on (not one of the
+	# town's dusk lamps): the stall is lit at any hour.
+	var at := stall + Vector3(0.1, 2.25, 0)
+	_mesh(_cyl(0.01, 0.3), cable, at + Vector3(0, 0.3, 0))
+	var shade := CylinderMesh.new()
+	shade.top_radius = 0.06
+	shade.bottom_radius = 0.2
+	shade.height = 0.18
+	shade.radial_segments = 12
+	_mesh(shade, mats.painted(Color("#2b2c30"), 0.5, 0.6), at + Vector3(0, 0.08, 0))
+	var glow := mats.glow(Color("#ffc070"))
+	glow.emission_energy_multiplier = 4.0
+	_mesh(_ball(0.08), glow, at)
+	var l := OmniLight3D.new()
+	l.name = "StallLamp"
+	l.light_color = Color("#ffb860")
+	l.light_energy = 2.6
+	l.omni_range = 7.0
+	l.shadow_enabled = false
+	add_child(l)
+	l.global_position = _world(at - Vector3(0, 0.15, 0))
 
 
 ## Issue #355: what Skrugs deals in, on his counter (`top`: the middle of its top,
@@ -670,6 +789,15 @@ func _mesh(mesh: Mesh, mat: Material, local: Vector3, rot_deg: Vector3 = Vector3
 	mi.global_position = origin + local.rotated(Vector3.UP, yaw)
 	mi.rotation_degrees = rot_deg + Vector3(0, rad_to_deg(yaw), 0)
 	return mi
+
+
+func _ball(r: float) -> SphereMesh:
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	s.radial_segments = 8
+	s.rings = 4
+	return s
 
 
 func _box(size: Vector3) -> BoxMesh:
