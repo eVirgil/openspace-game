@@ -579,7 +579,7 @@ func _speak(s: TalkSpot, text: String) -> void:
 	if s == null or text.strip_edges() == "":
 		return
 	var voice_profile := NpcVoice.profile_for_npc(s.id(), s.brain.card)
-	NpcVoice.speak(text, voice_profile, s.brain.rel.mood, s.body, false, true)
+	NpcVoice.speak(text, voice_profile, s.brain.rel.mood, s.body, false, true, s.near_voice)
 
 
 func _end_soon(_reason: String) -> void:
