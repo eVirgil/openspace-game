@@ -18,18 +18,18 @@ func test_voice_profiles_cover_guards_merchants_locals_and_t89() -> void:
 	assert_eq(voice.profile_for_npc("stall-01", { "role": "merchant" }), "man_laid_back")
 	assert_true(voice.profile_for_npc("resident-01", { "role": "local" }) in
 		["man_casual", "man_old", "man_southern", "woman_quirky", "woman_confident"])
-	assert_eq(voice.profile_for_npc("t89", {}), "robot_male")
+	assert_eq(voice.profile_for_npc("t89", {}), "robot_retro")
 	assert_eq(voice.profile_for_npc("cantina_owner", {}), "woman_relaxed")
 	assert_eq(voice.profile_for_npc("mechanic", {}), "man_southern")
 	assert_eq(voice.profile_for_npc("fence-01", { "role": "merchant", "voice_profile": "man_shady" }), "man_shady")
 
 
-## Issue #164: Skrugs is a goofy man, T-89 a robot, and the Odas off the home
+## Issue #164: Skrugs is a goofy man, T-89 a retro robot, and the Odas off the home
 ## planet each get a woman's voice instead of the male fallback.
 func test_issue_164_voice_picks() -> void:
 	var voice = _voice()
 	assert_eq(voice.voice_for(voice.profile_for_npc("skrugs", {})).label, "Man (goofy)")
-	assert_eq(voice.voice_for(voice.profile_for_npc("t89", {})).label, "Robot (male)")
+	assert_eq(voice.voice_for(voice.profile_for_npc("t89", {})).label, "Robot (retro)")
 	var odas := {}
 	for pid in ["dune_2", "ice_7", "jungle_3", "rock_9", "ocean_1"]:
 		var p: String = voice.profile_for_npc("cantina_owner_" + pid, { "voice_role": "planet_owner" })
@@ -102,3 +102,22 @@ func test_cache_key_changes_with_voice_speed_and_model() -> void:
 	assert_ne(baseline, VoiceScript.cache_key("hello", "voice-a", "eleven_v4", 0.9))
 	assert_ne(baseline, VoiceScript.cache_key("hello", "voice-a", "another-model", 1.0))
 	assert_ne(baseline, VoiceScript.cache_key("hello", "voice-a", "eleven_v4", 1.0, 0.8))
+
+
+## Scripted lines are recorded into the repo (tools/audio/make_voice_lines.py) so
+## they are voiced with no key: the gate guards' barks have clips that load.
+func test_scripted_lines_have_bundled_clips() -> void:
+	var voice = _voice()
+	var guard := str(voice.voice_for("man_serious").voice_id)
+	assert_eq(VoiceScript.bundled_path("  Papers.  ", guard), VoiceScript.bundled_path("Papers.", guard),
+		"edges do not change the clip")
+	var recorded := 0
+	var lines: Dictionary = VoiceScript._read_json("res://content/core/dialogue/gate_guard_lines.json").get("lines", {})
+	for key in lines:
+		for line in lines[key]:
+			var path: String = VoiceScript.bundled_path(str(line), guard)
+			if ResourceLoader.exists(path):
+				recorded += 1
+				assert_true(load(path) is AudioStream, "%s loads as audio" % line)
+	assert_gt(recorded, 0, "the guards' barks are recorded")
+	assert_false(ResourceLoader.exists(VoiceScript.bundled_path("never a scripted line", guard)))
