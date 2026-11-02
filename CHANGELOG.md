@@ -2,6 +2,13 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: the lookout's jetpack and blade sit on the floor, not in the middle (2026-11-01)
+
+- **In a story save the jetpack and the energy blade now lie on the cantina
+  lookout's floor on the pit side**: the jetpack 2 m from the middle toward the pit,
+  the blade a metre beside it. The blade used to sit in the middle, where the
+  stairwell and its column are. Same ids, flags and rings as before
+  (`content/core/pickups/port_town.json`).
 ## T-89's tutorial: walk the pit while it runs (2026-11-01)
 
 - **The tutorial no longer freezes you.** Each page is a small card on the left of
