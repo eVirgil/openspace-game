@@ -2,6 +2,12 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Settings: the controls list shows every control (2026-11-01)
+
+- **F11 > Options > Controls now lists all the controls**, in four groups: on foot,
+  weapons, flying, and the keys that work everywhere. It used to show eleven; the
+  walking, jetpack, gear, rest, weapon, flight, radio, missile, target, land and
+  eject keys were missing.
 ## G wears the armour too, and new gear tells you the key (2026-11-01)
 
 - **[G] now puts on and takes off the quantonium armour as well as the jetpack.**
