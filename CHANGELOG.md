@@ -2,6 +2,14 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: the lookout's jetpack and blade sit on the floor, not in the middle (2026-11-01)
+
+- **In a story save the jetpack and the energy blade now lie on the cantina
+  lookout's floor on the pit side**: the jetpack 2 m from the middle toward the pit,
+  the blade a metre beside it. The blade used to sit in the middle, where the
+  stairwell and its column are. Same ids, flags and rings as before
+  (`content/core/pickups/port_town.json`).
+
 ## Standing toast: every change in faction standing shows (2026-11-01)
 
 - **When your standing with a faction moves, a small panel comes up high on the

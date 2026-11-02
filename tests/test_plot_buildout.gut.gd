@@ -273,7 +273,7 @@ func test_story_jetpack_lies_on_the_cantina_tower() -> void:
 		var d := Vector3(float(jet.offset[0]), float(jet.offset[1]), float(jet.offset[2])) \
 			- Vector3(float(blade.offset[0]), float(blade.offset[1]), float(blade.offset[2]))
 		assert_almost_eq(d.y, 0.0, 0.01, "on the lookout floor with it (%s)" % layout)
-		assert_between(Vector2(d.x, d.z).length(), 2.9, 4.0, "on the floor ring beside it (%s)" % layout)
+		assert_almost_eq(d.length(), 1.0, 0.01, "a metre from it (%s)" % layout)
 	var free: Array = content.get_pickups("port_town", "port_round", WorldState.FREEPLAY).filter(func(e): return str(e.id) == "pit_jetpack")
 	assert_eq(str(free[0].get("inside", "")), "pit_hauler", "free play keeps it in the droid")
 	assert_true(WorldState.rumors("stranger", [], 99).any(func(r): return str(r.id) == "r_tower_jetpack"), "the story's rumor names the tower")

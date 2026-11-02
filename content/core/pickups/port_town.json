@@ -19,15 +19,15 @@
       "modes": {
         "story": {
           "marker": "cantina_owner",
-          "offset": [-5.4, 15.0, 10.3],
+          "offset": [0.0, 15.0, 10.3],
           "reach": 2.2,
           "inside": "",
           "layouts": {
             "port_round": {
-              "offset": [-7.59, 15.0, 14.19]
+              "offset": [-2.19, 15.0, 14.19]
             }
           },
-          "note": "A story save: the jetpack lies on the cantina's lookout floor, on the ring 3.4 m from the energy blade in the middle (tower_blade), not in the pit hauler (which roams empty). Same id and taken flag, so a save that took it from the droid keeps it taken."
+          "note": "A story save: the jetpack lies on the cantina's lookout floor, 2 m from the lookout's centre toward the pit, on the landing floor by the stairs, with the energy blade 1 m beside it (tower_blade), not in the pit hauler (which roams empty). Same id and taken flag, so a save that took it from the droid keeps it taken."
         }
       }
     },
@@ -57,7 +57,7 @@
       "id": "tower_blade",
       "item": "energy_blade",
       "marker": "cantina_owner",
-      "offset": [-2.0, 15.0, 10.3],
+      "offset": [0.0, 15.0, 9.3],
       "reach": 2.2,
       "story_only": true,
       "event": "blade_taken",
@@ -65,7 +65,7 @@
       "note": "Issue #210: an energy blade somebody stashed on top of the cantina's stair tower (its top is 15 m up). Story saves only. Oda tells you about it after the droid merchant chapter.",
       "layouts": {
         "port_round": {
-          "offset": [-4.19, 15.0, 14.19]
+          "offset": [-2.19, 15.0, 15.19]
         }
       }
     },

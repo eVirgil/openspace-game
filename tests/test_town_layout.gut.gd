@@ -137,7 +137,10 @@ func test_round_port_club_has_a_round_body() -> void:
 	for pk in cc.get_pickups("port_town", "port_round"):
 		if str(pk.id) == "tower_blade":
 			var at := t.marker_pos(str(pk.marker)) + Vector3(float(pk.offset[0]), float(pk.offset[1]), float(pk.offset[2]))
-			assert_almost_eq(Vector2(at.x, at.z).distance_to(tc), 0.0, 0.05, "the blade is over the tower")
+			# Off the middle (the stairwell and its column), out on the floor.
+			var off := Vector2(at.x, at.z).distance_to(tc)
+			assert_gt(off, float(tower.core) + 0.5, "the blade is not in the tower's column")
+			assert_lt(off, tr, "the blade is over the tower")
 			assert_almost_eq(at.y, float(tower.max[1]), 0.05, "on the lookout floor")
 
 
