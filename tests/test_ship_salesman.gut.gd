@@ -57,6 +57,24 @@ func test_tutorial_explains_the_weapons_the_player_already_has() -> void:
 
 # ---- hello and tutorial ------------------------------------------------------
 
+## In the story he is the waypoint after the general: he never calls out on his
+## own, and your first [E] is his hello and the tutorial offer.
+func test_story_waits_for_your_first_talk() -> void:
+	var t = _town()
+	var s: ShipSalesman = t.salesman
+	WorldState.mode = WorldState.STORY
+	assert_true(WorldState.story_mode())
+	s._greet_left = 0.01
+	await wait_physics_frames(3)
+	assert_false(ShipSalesman.greeted, "the timer runs out: no hello in the story")
+	assert_lt(s._greet_left, 0.0, "and he stops waiting to give one")
+	assert_false(s.menu.is_open())
+	s.talk()
+	assert_true(ShipSalesman.greeted, "the first [E] is his hello")
+	assert_true(s.said.begins_with(str(s.cfg.greeting)))
+	assert_eq(s.menu.options.size(), 2, "with the tutorial offer")
+
+
 func test_greets_once_and_runs_the_tutorial() -> void:
 	var t = _town()
 	var s: ShipSalesman = t.salesman
