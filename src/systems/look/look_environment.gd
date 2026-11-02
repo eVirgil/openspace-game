@@ -8,6 +8,29 @@ extends Node3D
 
 const PRESETS_PATH := "res://content/look/time_of_day.json"
 const SKY_SHADER := preload("res://src/systems/look/shaders/desert_sky.gdshader")
+const SETTINGS_PATH := "user://settings/graphics.cfg"
+
+## The player's "Indirect light" setting (F11 > Options), 0..1: scales the sky's
+## ambient fill, SDFGI's bounce light and SSIL. On some Windows GPUs these came out
+## far too bright on near things (the hands in first person, a ship's interior);
+## turning it down there tames them. 0 turns SDFGI off. Saved per machine.
+static var _indirect := -1.0
+
+
+static func indirect_level() -> float:
+	if _indirect < 0.0:
+		var f := ConfigFile.new()
+		_indirect = clampf(float(f.get_value("light", "indirect", 1.0)), 0.0, 1.0) if f.load(SETTINGS_PATH) == OK else 1.0
+	return _indirect
+
+
+static func save_indirect_level(level: float) -> void:
+	_indirect = clampf(level, 0.0, 1.0)
+	DirAccess.make_dir_recursive_absolute(SETTINGS_PATH.get_base_dir())
+	var f := ConfigFile.new()
+	f.load(SETTINGS_PATH)
+	f.set_value("light", "indirect", _indirect)
+	f.save(SETTINGS_PATH)
 
 var presets: Dictionary = {}
 var default_preset := "golden"
@@ -181,7 +204,15 @@ func set_space_level(level: float) -> void:
 
 
 func ambient_now() -> float:
-	return lerpf(_ambient_energy_base * ambient_energy_scale, _ambient_space, space_level)
+	return lerpf(_ambient_energy_base * ambient_energy_scale, _ambient_space, space_level) * indirect_level()
+
+
+## Set (and save) the Indirect light setting, and show it at once.
+func set_indirect(level: float) -> void:
+	save_indirect_level(level)
+	if env != null:
+		env.ambient_light_energy = ambient_now()
+	_apply_quality()
 
 
 func apply(preset_id: String = "") -> void:
@@ -359,9 +390,12 @@ func _apply_quality() -> void:
 	if env == null:
 		return
 	var on := func(k: String) -> bool: return bool(_wanted.get(k, true)) and not suppressed.has(k)
+	var indirect := indirect_level()
 	env.ssao_enabled = on.call("ssao")
-	env.ssil_enabled = on.call("ssil")
-	env.sdfgi_enabled = on.call("sdfgi")
+	env.ssil_enabled = on.call("ssil") and indirect > 0.0
+	env.ssil_intensity = indirect
+	env.sdfgi_enabled = on.call("sdfgi") and indirect > 0.0
+	env.sdfgi_energy = indirect
 	env.volumetric_fog_enabled = on.call("volumetric")
 	if sun != null:
 		sun.shadow_enabled = on.call("shadows")
