@@ -2,6 +2,19 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## G wears the armour too, and new gear tells you the key (2026-11-01)
+
+- **[G] now puts on and takes off the quantonium armour as well as the jetpack.**
+  With only one of them it just toggles it. With both it opens a small menu:
+  "Put on" or "Take off" for each, Enter to pick, Esc to walk away.
+- **New equipment says how to wear it.** Buying the armour from the fence (or taking
+  any jetpack or armour that does not go on by itself) toasts "New equipment: ...
+  Press [G] to put it on".
+- **A new weapon says how to change weapons.** Picking up or buying a gun or a
+  sword follows its toast with "Press [Tab] to change weapons - press & hold to see
+  all weapons".
+- Words are in `content/core/flow/gear.json`; tests in `tests/test_gear_g.gut.gd`.
+
 ## Bug fix: the lookout's jetpack and blade sit on the floor, not in the middle (2026-11-01)
 
 - **In a story save the jetpack and the energy blade now lie on the cantina
