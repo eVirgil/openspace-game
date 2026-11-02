@@ -355,6 +355,10 @@ func _map_tab() -> Control:
 	for kind in ["port", "remnant_outpost", "droid_merchant_outpost", "post", "camp", "wreck", "outpost", "spot"]:
 		var legend := str(GlobeMap.kind_cfg(kind).get("legend", GlobeMap.kind_cfg(kind).get("label", kind)))
 		side.add_child(_legend_row(pins_look.get(kind, {}), legend))
+	var owners: Dictionary = GlobeMap.look().get("owners", {})
+	for held in [["locals", "legend_held"], ["short", "legend_short"]]:
+		side.add_child(_legend_row(pins_look.get("remnant_outpost", {}), GlobeMap.line(held[1]), Color(str(owners.get(held[0], "#5fd35f")))))
+	side.add_child(_legend_row({ "shape": "ring" }, GlobeMap.line("legend_hold"), Color(str(owners.get("locals", "#5fd35f")))))
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	side.add_child(gap)

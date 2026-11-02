@@ -11,6 +11,13 @@ extends RefCounted
 ## the ground from the port (PlanetSphere), so a pin sits exactly where the
 ## landmark is built.
 ##
+## Who holds a place (Territory): the Remnant's outposts and the port's barracks
+## also carry { owner, short, hold, status }. The globe draws what the locals hold
+## green (yellow-green and "Resupply needed" while their supplies run short), a
+## ring round a held outpost for the time left (`hold`, 0..1, -1 = none), and
+## `status` joins the name on hover. Read when the pins are built, which the page
+## does each time it opens.
+##
 ## Off planet: every planet you can fly to from here (SpaceTravel's bodies) and
 ## the Remnant cruiser when this world has one, as { id, kind, label, target }.
 ##
@@ -56,7 +63,9 @@ static func kind_cfg(kind: String) -> Dictionary:
 ## already laid out for its town), `planet` the planet (its native packs),
 ## `town` the port's own stops (town_pins).
 static func pins(world: Dictionary, planet: Dictionary, town: Array = []) -> Array:
-	var out: Array = [_pin("port", "port", _kind_label("port"), Vector2.ZERO)]
+	var port := _pin("port", "port", _kind_label("port"), Vector2.ZERO)
+	_stamp_owner(port, Territory.BARRACKS)
+	var out: Array = [port]
 	var skip: Array = cfg().get("skip", [])
 	for lm in world.get("landmarks", []):
 		var id := str(lm.get("id", ""))
@@ -72,7 +81,10 @@ static func pins(world: Dictionary, planet: Dictionary, town: Array = []) -> Arr
 			continue             # the cruiser is off planet; anything unnamed is not a place
 		label = str(cfg().get("labels", {}).get(id, label if label != "" else _kind_label(kind)))
 		var at: Array = lm.at
-		out.append(_pin(id, kind, _cap(label), Vector2(float(at[0]), float(at[2]))))
+		var pin := _pin(id, kind, _cap(label), Vector2(float(at[0]), float(at[2])))
+		if Story.OUTPOSTS.has(id):
+			_stamp_owner(pin, id)
+		out.append(pin)
 	for pack in planet.get("natives", {}).get("packs", []):
 		var camp = pack.get("camp", null)
 		var at = camp.get("at", null) if camp is Dictionary else null
@@ -192,6 +204,24 @@ static func waypoint() -> Dictionary:
 
 
 # ------------------------------------------------------------------ helpers
+
+## Who holds `place` (an outpost id, or Territory.BARRACKS for the port): owner,
+## whether the locals' supplies there are short, and the hover line for it.
+static func _stamp_owner(pin: Dictionary, place: String) -> void:
+	var who := Territory.owner(place)
+	var is_short := place != Territory.BARRACKS and Territory.short(place)
+	pin["owner"] = who
+	pin["short"] = is_short
+	pin["hold"] = Territory.hold_frac(place)
+	pin["status"] = ""
+	if who != Territory.LOCALS:
+		return
+	if place == Territory.BARRACKS or WorldState.has_flag(Territory.DRIVEN_OFF):
+		pin["status"] = line("held")
+		return
+	var left := int(maxf(0.0, Territory.hold_left(place)))
+	pin["status"] = (line("short") if is_short else line("held_for")) % [left / 60, left % 60]
+
 
 static func _pin(id: String, kind: String, label: String, map: Vector2) -> Dictionary:
 	return { "id": id, "kind": kind, "label": label, "map": map,

@@ -23,8 +23,9 @@ extends RefCounted
 ##
 ## What it changes: who stands at each place (RemnantOutposts, the town scene and
 ## DroidController ask owner()), the gate checkpoint (gate_strict, bribe_mult),
-## the fence's prices (fence_mult), Oda's supply job, rumors (the flags below),
-## the objective pointer and the F1 screen (summary).
+## the fence's prices (fence_mult), Oda's supply job and a resupply quest per
+## outpost (quests), rumors (the flags below), the objective pointer, the F1
+## screen (summary) and the F11 map (GlobeMap).
 ##
 ## Numbers and lines: content/core/story/territory.json.
 
@@ -106,6 +107,8 @@ static func take(id: String) -> void:
 		WorldState.control.erase("remnant_dead")
 		_cancel_supply()
 		WorldState.log_event(line("driven_off"))
+		for o in Story.OUTPOSTS:
+			Quests.complete(quest_id(str(o)))     # nothing left to run short
 	_sync_flags()
 
 
@@ -119,6 +122,7 @@ static func retake(id: String) -> void:
 	WorldState.bump("outposts_retaken")
 	WorldState.set_flag("outpost_retaken")
 	WorldState.log_event(line("retaken") % Story.outpost_label(id))
+	Quests.fail(quest_id(id))
 	_sync_flags()
 
 
@@ -139,6 +143,7 @@ static func tick(dt: float) -> void:
 		c.hold = was - dt
 		if was > warn and float(c.hold) <= warn:
 			WorldState.log_event(line("warn") % Story.outpost_label(str(id)))
+			Quests.offer_again(quest_id(str(id)))
 		if float(c.hold) <= 0.0:
 			retake(str(id))
 	_sync_flags()
@@ -232,9 +237,13 @@ static func remnant_planet() -> bool:
 
 # ------------------------------------------------------------------ supply runs (Oda's j_supply)
 
-## The outpost a supply run would go to (the one shortest on time), or "".
+## The outpost a supply run would go to: the one whose resupply quest you are
+## pointed at, else the one shortest on time, or "".
 static func supply_target() -> String:
 	var best := ""
+	for id in Story.OUTPOSTS:
+		if short(str(id)) and bool(WorldState.quests.get(quest_id(str(id)), {}).get("waypoint", false)):
+			return str(id)
 	for id in Story.OUTPOSTS:
 		if short(str(id)) and (best == "" or hold_left(str(id)) < hold_left(best)):
 			best = str(id)
@@ -268,8 +277,33 @@ static func deliver(id: String) -> int:
 	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("supplied", 3)), "Supplies reached the locals.")
 	WorldState.log_event(line("supplied") % [Story.outpost_label(id), pay])
 	QuestNews.push("supplies_delivered", "+%d cr" % pay)
+	Quests.complete(quest_id(id))
 	_sync_flags()
 	return pay
+
+
+## The resupply quest for outpost `id`.
+static func quest_id(id: String) -> String:
+	return "resupply_" + id
+
+
+## One optional resupply quest per outpost, in Quests' shape (territory.json "quest").
+static func quests() -> Array:
+	var q: Dictionary = cfg().get("quest", {})
+	var out: Array = []
+	for id in Story.OUTPOSTS:
+		var label := Story.outpost_label(str(id))
+		out.append({ "id": quest_id(str(id)), "title": str(q.get("title", "%s")) % label,
+			"text": str(q.get("text", "%s")) % label, "target": "outpost:" + str(id) })
+	return out
+
+
+## Fraction of a full hold the locals have left at outpost `id` (0..1), or -1
+## when there is no clock (not theirs, or the Remnant are gone).
+static func hold_frac(id: String) -> float:
+	if owner(id) != LOCALS or WorldState.has_flag(DRIVEN_OFF) or not Story.OUTPOSTS.has(id):
+		return -1.0
+	return clampf(hold_left(id) / n("hold_s", 900.0), 0.0, 1.0)
 
 
 ## The job is open again (done, or its outpost is gone).

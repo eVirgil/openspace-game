@@ -50,6 +50,30 @@ Plain English, newest on top. One entry per milestone.
   got the AI service (every answer was a written line) and the host never heard his
   reply: after your first typed line the box stayed locked, and Esc only repeated
   "is not finished with you". He now registers as the general does.
+## Map: places the locals hold turn green (2026-11-01)
+
+- **On the F11 Map, an outpost the locals have taken is green**, and the port goes
+  green once the locals hold the barracks (the fleet beaten, or the Remnant driven
+  off). It turns back to its Remnant colour when they take it back.
+- **A ring round each outpost the locals hold drains as their hold runs down.**
+  Once their supplies run short the pin turns yellow-green and "Resupply needed"
+  shows under it.
+- **The Remnant take outposts back five times slower**: the locals hold one for
+  about 100 minutes of play (was 20), and run short with about 40 left. A lazy
+  round of the desert still saves most of them.
+- **The cruiser's holo table shows who holds what (issue #325).** The port's pin
+  is coloured by who holds the barracks, and each of the seven outposts has a
+  pin: Remnant red, locals green, yellow-green when the locals run short. They
+  change colour while you watch, and an outpost that changes hands flashes.
+- **Resupplying is an optional quest.** When an outpost runs short, "Resupply the
+  ... outpost" turns up in the Ledger, pointed at the outpost. It is done when Oda's
+  supplies get there, fails if the Remnant take it back first, and comes round
+  again the next time that outpost runs short. With a quest's waypoint on, Oda's
+  supply job goes to that outpost instead of the one shortest on time.
+- **Hover (or a waypoint on) a held place** and its tag says who holds it and how
+  long the hold has left. The legend has two new lines for the colours.
+- Colours are in `content/look/map.json` (`owners`), the lines in
+  `content/core/flow/map.json`. The pins read Territory each time the page opens.
 
 ## Settings: set up an AI brain with a link or a prompt (2026-11-01)
 
