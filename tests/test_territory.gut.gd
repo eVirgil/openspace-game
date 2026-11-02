@@ -65,7 +65,30 @@ func test_a_supply_run_from_oda_fills_the_hold() -> void:
 	assert_eq(WorldState.credits, cr + pay)
 	assert_almost_eq(Territory.hold_left(NEAR), Territory.n("hold_s", 900.0), 0.01)
 	assert_eq(Territory.supply_out(), "")
-	assert_false(WorldState.jobs_taken.has(Territory.SUPPLY_JOB), "and the job can come round again")
+	assert_false(WorldState.jobs_taken.has(Territory.SUPPLY_JOB))
+	assert_true(Territory.supplier(), "taken once, you are the locals' supplier")
+
+
+func test_after_one_supply_job_any_short_outpost_takes_supplies() -> void:
+	var far := "remnant_outpost_far"
+	Territory.take(NEAR)
+	Territory.take(far)
+	Territory.tick(Territory.n("hold_s", 900.0) - 60.0)
+	assert_false(Territory.short_shown(NEAR), "the maps keep quiet before you take the job")
+	assert_eq(Territory.deliver(far), 0, "and nobody takes supplies yet")
+	assert_true(WorldState.accept_job(Territory.SUPPLY_JOB))
+	var to := Territory.supply_out()
+	var other := far if to == NEAR else NEAR
+	assert_true(Territory.short_shown(other), "every short outpost shows once you have it")
+	assert_gt(Territory.deliver(other), 0, "an outpost the job was not for takes them too")
+	assert_eq(Territory.supply_out(), to, "and the job's own run is still on")
+	assert_gt(Territory.deliver(to), 0)
+	assert_false(Territory.can_deliver(to), "a full hold needs nothing")
+	Territory.tick(Territory.n("hold_s", 900.0) - 60.0)
+	assert_false(WorldState.open_jobs("confidant").any(func(j): return str(j.id) == Territory.SUPPLY_JOB),
+		"no job to take again")
+	assert_gt(Territory.deliver(NEAR), 0, "short again: just bring them a load")
+	assert_false(str(Quests.cfg(Territory.quest_id(NEAR)).text).contains("board"), "the quest stops sending you to Oda")
 
 
 func test_the_gate_and_the_fence_change_with_control() -> void:

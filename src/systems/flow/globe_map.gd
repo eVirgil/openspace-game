@@ -206,10 +206,11 @@ static func waypoint() -> Dictionary:
 # ------------------------------------------------------------------ helpers
 
 ## Who holds `place` (an outpost id, or Territory.BARRACKS for the port): owner,
-## whether the locals' supplies there are short, and the hover line for it.
+## whether the locals' supplies there are short (shown only once you have taken
+## Oda's supply run: Territory.supplier), and the hover line for it.
 static func _stamp_owner(pin: Dictionary, place: String) -> void:
 	var who := Territory.owner(place)
-	var is_short := place != Territory.BARRACKS and Territory.short(place)
+	var is_short := Territory.short_shown(place)
 	pin["owner"] = who
 	pin["short"] = is_short
 	pin["hold"] = Territory.hold_frac(place)

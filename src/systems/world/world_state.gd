@@ -372,7 +372,7 @@ static func open_jobs(tier: String) -> Array:
 			continue
 		if kind == "bounty" and not (bounty_ready() and (away or Story.bounties_open())):
 			continue
-		if kind == "supply" and (away or Territory.supply_target() == ""):
+		if kind == "supply" and (away or Territory.supply_target() == "" or Territory.supplier()):
 			continue
 		var req: Dictionary = j.get("requires", {})
 		if away and kind in ["smuggle", "bounty"]:
