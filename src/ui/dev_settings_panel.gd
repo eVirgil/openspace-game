@@ -1013,18 +1013,53 @@ func _llm_page(v: VBoxContainer) -> void:
 
 # ------------------------------------------------------------------ HUD (issue #52)
 
+## Every bound control (project.godot), by when it applies. Keep it in step with the input map.
 const KEYS := [
-	["F1", "Info: planet, town, time, credits, standing"],
-	["F3", "AI debug overlay"],
-	["F4", "Guard debug (what each guard sees and hears; free roam only)"],
-	["F10", "AI model settings: the AI brain under Options here (Shift+F10: next model)"],
-	["F11", "These settings"],
-	["M", "The map: click a place for a waypoint"],
-	["I", "What you carry and the job log"],
-	["E", "Interact: talk, board, ride, pick up"],
-	["L", "Cycle the lighting"],
-	["V", "First / third person"],
-	["Esc", "Free the mouse, close a panel"],
+	["On foot", [
+		["W A S D", "Walk (tap for steps, hold to run); arrows too"],
+		["Space", "Jump (hold for the jetpack)"],
+		["Right Shift", "Sprint: faster, gun down, spends stamina"],
+		["C", "Crouch"],
+		["V", "First / third person (mouse middle button too)"],
+		["E", "Interact: talk, board, ride, pick up"],
+		["G", "Put on / take off your gear"],
+		["Z", "Rest, at a tent"],
+		["I", "What you carry, the job log, and Call (your ship flies to you)"],
+	]],
+	["Weapons", [
+		["1 / 2 / 3", "Blaster / energy sword / rifle (same key again holsters)"],
+		["Q / H", "Last weapon / holster"],
+		["Tab or wheel", "Next weapon"],
+		["Left mouse", "Fire or swing"],
+		["Right mouse", "Aim (blaster) or block (sword), toggles"],
+		["R", "Reload"],
+	]],
+	["Flying", [
+		["W / S", "Pitch (W pushes the nose down); the mouse steers too"],
+		["A / D", "Turn"],
+		["Q / E", "Roll"],
+		["R / F", "Throttle up / down"],
+		["Shift", "Boost"],
+		["C", "Take off, and land on what is below"],
+		["Z", "Land in the bay when near it (again to take her back)"],
+		["Space or left mouse", "Guns"],
+		["X or right mouse", "Seeker missile, once locked"],
+		["T", "Next target"],
+		["J", "Radio: next station, then off"],
+		["V", "Chase / cockpit view"],
+		["Hold B", "Eject, in the air"],
+		["E", "Get out, once landed"],
+	]],
+	["Everywhere", [
+		["F1", "Info: planet, town, time, credits, standing"],
+		["F3", "AI debug overlay"],
+		["F4", "Guard debug (what each guard sees and hears; free roam only)"],
+		["F10", "AI model settings: the AI brain under Options here (Shift+F10: next model)"],
+		["F11", "These settings"],
+		["M", "The map: click a place for a waypoint"],
+		["L", "Cycle the lighting"],
+		["Esc", "Free the mouse, close a panel"],
+	]],
 ]
 
 
@@ -1070,16 +1105,21 @@ func _hud_page(v: VBoxContainer) -> void:
 
 
 func _keys_page(v: VBoxContainer) -> void:
-	_section(v, "Keys")
-	for k in KEYS:
-		var l := Label.new()
-		l.text = "[%s]" % k[0]
-		l.custom_minimum_size = Vector2(70, 0)
-		var h := _row(v, "", l)
-		h.get_child(0).custom_minimum_size = Vector2(0, 0)
-		var what := Label.new()
-		what.text = k[1]
-		h.add_child(what)
+	_section(v, "Controls")
+	for group in KEYS:
+		var head := Label.new()
+		head.text = group[0]
+		head.add_theme_color_override("font_color", Color("#d8b878"))
+		v.add_child(head)
+		for k in group[1]:
+			var l := Label.new()
+			l.text = "[%s]" % k[0]
+			l.custom_minimum_size = Vector2(150, 0)
+			var h := _row(v, "", l)
+			h.get_child(0).custom_minimum_size = Vector2(0, 0)
+			var what := Label.new()
+			what.text = k[1]
+			h.add_child(what)
 
 
 ## Issue #16: the music and the effects each get a volume, saved per machine.

@@ -2,6 +2,13 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Settings: the controls list shows every control (2026-11-01)
+
+- **F11 > Options > Controls now lists all the controls**, in four groups: on foot,
+  weapons, flying, and the keys that work everywhere. It used to show eleven; the
+  walking, jetpack, gear, rest, weapon, flight, radio, missile, target, land and
+  eject keys were missing.
+
 ## Settings: set up an AI brain with a link or a prompt (2026-11-01)
 
 - **Ollama, the local server (llama.cpp) and the cloud each get two buttons** beside
