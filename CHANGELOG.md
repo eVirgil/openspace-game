@@ -2,6 +2,21 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Scripted lines are voiced without an ElevenLabs key (2026-11-01)
+
+- **Non-AI lines now play recorded voices from the repo.** Every fixed line
+  (card greetings and canned replies, story beats, T-89, the general, the dark
+  master, guard and locals barks, the speeder shops) has a slot in
+  `assets/audio/voice/`, one clip per voice that can say it. `NpcVoice` plays the
+  bundled clip first, with or without a key; lines with a runtime fill (prices,
+  names) still go through the API.
+- **125 of the 808 clips are in so far.** They came free from the game's own
+  play cache. The rest need ElevenLabs credits:
+  `python3 tools/audio/make_voice_lines.py` records only what is missing (the
+  quick Flash model by default).
+- **T-89 speaks as the retro robot.** His old clips are gone, and his new ones
+  are recorded with the rest once credits are back.
+
 ## Bug fix: T-89's tutorial card shows its text again (2026-11-01)
 
 - **Saying yes to T-89's tutorial now shows the page.** The card measured its

@@ -3,6 +3,8 @@ extends Node
 ## failed requests, and uncached audio are all silent and never block a turn.
 ## The player supplies their own key in the existing settings panel. Keys are kept
 ## in user://llm/keys.cfg; generated MP3s stay in user://npc_voice_cache/.
+## Scripted (non-AI) lines are recorded into res://assets/audio/voice/ and play
+## first, key or no key.
 ## Issue #164: a profile name is a key in voice_library.json ("man_goofy",
 ## "robot_male"), a voice picked by description; voice_profiles.json says who uses which.
 
@@ -11,6 +13,7 @@ const PROFILES_PATH := "res://content/core/npcs/voice_profiles.json"
 const LIBRARY_PATH := "res://content/core/npcs/voice_library.json"
 const SETTINGS_PATH := "user://npc_voice_settings.cfg"
 const CACHE_DIR := "user://npc_voice_cache"
+const BUNDLE_DIR := "res://assets/audio/voice"
 const KEY_ID := "elevenlabs"
 const API_URL := "https://api.elevenlabs.io/v1/text-to-speech/"
 const FALLBACK_MODEL := "eleven_v4"
@@ -139,6 +142,13 @@ static func build_payload(text: String, voice: Dictionary, model_id: String,
 	}
 
 
+## The scripted line recorded into the repo for this voice (tools/audio/
+## make_voice_lines.py), so non-AI lines are voiced with no key. It may not exist:
+## lines with a runtime fill are never recorded ahead.
+static func bundled_path(text: String, voice_id: String) -> String:
+	return BUNDLE_DIR.path_join(("%s|%s" % [text.strip_edges(), voice_id]).sha256_text().left(16) + ".mp3")
+
+
 ## `live_line`: a fresh LLM line, spoken at the player's speed setting. Canned
 ## lines (barks, menus, the tutorial) always render at normal speed so their
 ## cached clips survive a change of the speed slider and are generated once.
@@ -152,6 +162,11 @@ func speak(text: String, profile_name: String, mood: String, target: Node3D, sho
 	var v := voice_for(profile_name)
 	var voice_id := str(v.get("voice_id", ""))
 	if voice_id == "":
+		return
+	var bundled := bundled_path(text, voice_id)
+	if ResourceLoader.exists(bundled):
+		stop(target)
+		_play_stream(target, load(bundled) as AudioStream)
 		return
 
 	var mood_map: Dictionary = _profiles.get("mood_tags", {})
@@ -227,8 +242,11 @@ func _request_finished(target: Node3D, target_id: int, token: int, cache_path: S
 func _play_bytes(target: Node3D, bytes: PackedByteArray) -> void:
 	if bytes.is_empty() or target == null or not is_instance_valid(target):
 		return
-	var stream := AudioStreamMP3.load_from_buffer(bytes)
-	if stream == null:
+	_play_stream(target, AudioStreamMP3.load_from_buffer(bytes))
+
+
+func _play_stream(target: Node3D, stream: AudioStream) -> void:
+	if stream == null or target == null or not is_instance_valid(target):
 		return
 	var player := target.get_node_or_null("ElevenLabsVoicePlayer") as AudioStreamPlayer3D
 	if player == null:

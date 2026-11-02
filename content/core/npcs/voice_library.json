@@ -34,7 +34,7 @@
       "name": "Sigma Centauri - AI Robot",
       "voice_id": "bAq8AI9QURijOtmeFFqT",
       "stability": 0.82,
-      "used_by": "T-89"
+      "used_by": ""
     },
     "man_southern": {
       "label": "Man (southern, warm)",
@@ -146,7 +146,7 @@
       "name": "Retro Robot",
       "voice_id": "ZEcx3Wdpj4EvM8PltzHY",
       "stability": 0.8,
-      "used_by": ""
+      "used_by": "T-89"
     }
   }
 }

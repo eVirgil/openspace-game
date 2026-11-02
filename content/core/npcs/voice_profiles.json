@@ -15,7 +15,7 @@
   "npc_profiles": {
     "cantina_owner": "woman_relaxed",
     "skrugs": "man_goofy",
-    "t89": "robot_male",
+    "t89": "robot_retro",
     "mechanic": "man_southern"
   },
   "mood_tags": {
