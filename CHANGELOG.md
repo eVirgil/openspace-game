@@ -10,12 +10,10 @@ Plain English, newest on top. One entry per milestone.
   `assets/audio/voice/`, one clip per voice that can say it. `NpcVoice` plays the
   bundled clip first, with or without a key; lines with a runtime fill (prices,
   names) still go through the API.
-- **125 of the 808 clips are in so far.** They came free from the game's own
-  play cache. The rest need ElevenLabs credits:
-  `python3 tools/audio/make_voice_lines.py` records only what is missing (the
-  quick Flash model by default).
-- **T-89 speaks as the retro robot.** His old clips are gone, and his new ones
-  are recorded with the rest once credits are back.
+- **All 808 clips are in** (22 MB): 125 copied free from the game's play cache,
+  683 recorded on ElevenLabs' quick Flash model. A new fixed line gets its voice
+  from `python3 tools/audio/make_voice_lines.py`, which records only what is missing.
+- **T-89 speaks as the retro robot**, every line of him re-recorded in it.
 
 ## Bug fix: T-89's tutorial card shows its text again (2026-11-01)
 
