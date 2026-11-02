@@ -34,6 +34,7 @@ const ShipDefense := preload("res://src/systems/flight/ship_defense.gd")
 const ShipLoadout := preload("res://src/systems/flight/ship_loadout.gd")
 const LeadSolver := preload("res://src/systems/flight/lead_solver.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
+const MissileLock := preload("res://src/systems/flight/missile_lock.gd")
 
 enum Mode { PARKED, LAUNCHING, HUNTING, RETURNING, DOWN }
 
@@ -69,6 +70,9 @@ var launches := 0
 var kills_of_player := 0
 var times_shot_down := 0
 var shots := 0
+var lock = MissileLock.new()      ## its seekers' lock on your ship (the cockpit's seeker warning reads it)
+var seekers := 0                  ## seekers it has launched at you (traces, tests)
+var _seeker_gap := 0.0            ## seconds before it may launch another
 var times_taken := 0
 var times_wrecked := 0
 var log_events: Array = []
@@ -273,15 +277,25 @@ func _hunt(dt: float) -> void:
 	var pc: Dictionary = guns.group_config("primary")
 	b.bolt_speed = float(pc.get("bolt_speed", 300.0))
 	b.weapon_range = float(pc.get("range", 900.0))
-	b.has_missiles = false
+	# Its seekers lock on your ship as yours do on it: held in the cone and range for
+	# lock_time, and it launches one (then every seeker_gap_s at most).
+	_seeker_gap = maxf(0.0, _seeker_gap - dt)
+	if up:
+		lock.update(dt, 1, atmo.flight.forward(), pilot.atmo.position() - atmo.position())
+	else:
+		lock.reset()
+	b.has_missiles = guns.has_group("secondary") and p("seekers", 1.0) > 0.0
+	b.missile_locked = lock.is_locked()
 	b.update(dt)
 	var cmd: Dictionary = b.command.duplicate()
 	var fire: bool = b.fire_primary and up
+	var seeker: bool = b.fire_secondary and up and _seeker_gap <= 0.0
 	if _keep_clear(cmd):
 		fire = false
+		seeker = false
 	atmo.set_command(cmd.pitch, cmd.yaw, cmd.roll, cmd.throttle, cmd.boost)
 	_events(atmo.step(dt))
-	_fire(dt, fire)
+	_fire(dt, fire, seeker)
 
 
 ## The space pilot does not know about the ground. Pull up when it is low now or
@@ -349,10 +363,13 @@ func _events(events: Array) -> void:
 					landed_home.emit()
 
 
-func _fire(dt: float, trigger: bool) -> void:
+func _fire(dt: float, trigger: bool, seeker := false) -> void:
 	var v: Vector3 = atmo.flight.velocity()
 	var volley := false
-	for s in guns.fire(dt, atmo.transform(), v, trigger, false):
+	for s in guns.fire(dt, atmo.transform(), v, trigger, seeker, 1 if seeker else -1):
+		if str(s.kind) == "missile":
+			_launch_seeker(s)
+			continue
 		if str(s.kind) != "bolt":
 			continue
 		var b := ShipPilot.ship_bolt(s, hull, content, pilot.ground, Color(str(sc.get("bolt_color", "#ff3020"))))
@@ -362,6 +379,38 @@ func _fire(dt: float, trigger: bool) -> void:
 		volley = true
 	if volley:
 		Sound.play("ship_cannon", atmo.position())
+
+
+## One seeker at your ship: a ship bolt that turns after your hull (ShipPilot's own
+## seekers, the other way round), and goes up where it lands, splash and all.
+func _launch_seeker(s: Dictionary) -> void:
+	var b := ShipPilot.ship_bolt(s, hull, content, pilot.ground, Color(str(sc.get("bolt_color", "#ff3020"))))
+	b.streak_length = 1.6
+	b.streak_radius = 0.15
+	b.seek = pilot.hull
+	b.turn_rate = float(s.get("turn_rate", 0.0))
+	b.blast_size = float(s.get("blast_size", 0.0))
+	demo.add_child(b)
+	b.global_position = s.origin
+	seekers += 1
+	_seeker_gap = p("seeker_gap_s", 10.0)
+	lock.reset()
+	Sound.play("ship_missile", s.origin)
+
+
+## What it has on your ship now: `locks` (1 while its seekers hold you) and
+## `missiles` (its seekers in the air turning after your hull). The cockpit's seeker
+## warning (SeekerWarning) goes off on either, with the space fight on or off.
+func seekers_on_player() -> Dictionary:
+	var out := { "locks": 0, "missiles": 0 }
+	if pilot == null or pilot.hull == null or not is_inside_tree():
+		return out
+	if mode == Mode.HUNTING and target_up() and lock.is_locked():
+		out.locks = 1
+	for b in get_tree().get_nodes_in_group("bolts"):
+		if is_instance_valid(b) and "seek" in b and b.seek == pilot.hull:
+			out.missiles += 1
+	return out
 
 
 # ------------------------------------------------------------------ damage
@@ -409,6 +458,9 @@ func _reset_home() -> void:
 	atmo.park(home, home_yaw)
 	defense = ShipDefense.new(cfg)
 	guns = ShipLoadout.new(cfg, content)
+	lock.configure(guns.group_config("secondary"))
+	lock.reset()
+	_seeker_gap = 0.0
 	mode = Mode.PARKED
 	hull.dead = false
 	respawn_left = -1.0

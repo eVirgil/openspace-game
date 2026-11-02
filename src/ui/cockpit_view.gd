@@ -34,7 +34,8 @@ const DashShader := preload("res://src/systems/look/shaders/cockpit_dash.gdshade
 const GLASS := Color(0.55, 0.75, 0.9, 0.06)
 const FRAME_METAL := Color(0.69, 0.74, 0.79, 1.0)  ## the frame's skin when the ship gives none
 const GRIP := Color(0.05, 0.045, 0.04, 1.0)   ## the yoke's rubber grips
-const YOKE_TURN := 28.0            ## degrees the yoke turns at full roll
+const SEEKER_LAMP := Color(1.0, 0.1, 0.06, 1.0)   ## the seeker warning's glareshield lamps, lit
+const YOKE_TURN := 28.0           ## degrees the yoke turns at full roll
 const YOKE_AHEAD := 0.5            ## m ahead of your eye, the yoke's hub
 const YOKE_SPAN := 0.12            ## m from the hub out to each horn
 const YOKE_RISE := 0.115           ## m from the hub up to the horns' tips
@@ -328,6 +329,21 @@ func _draw() -> void:
 	draw_line(Vector2(vp.x * 0.62, vp.y * 0.08), Vector2(vp.x * 0.7, vp.y * 0.3), Color(1, 1, 1, 0.05 + 0.04 * sun_ahead), 6.0)
 	draw_line(Vector2(vp.x * 0.66, vp.y * 0.06), Vector2(vp.x * 0.72, vp.y * 0.22), Color(1, 1, 1, 0.035 + 0.03 * sun_ahead), 3.0)
 	_draw_canopy_shine(vp, line)
+	_draw_seeker_lamps(vp, line)
+
+
+## The seeker warning's lamps: a pair of red lamps on the glareshield, either side of
+## the gunsight, that flash together (FlightHud's `seeker_lamp`) while the alarm
+## sounds. They sit above the dash's edge, clear of the HUD's frame over the dash.
+func _draw_seeker_lamps(vp: Vector2, line: PackedVector2Array) -> void:
+	if not bool(values.get("seeker_lamp", false)):
+		return
+	var r := maxf(3.0, vp.y * 0.006)
+	for x in [vp.x * 0.3, vp.x * 0.7]:
+		var at := Vector2(x, rim_y(line, x) - r * 4.0)
+		CockpitDash.halo(self, at, r * 4.5, Color(SEEKER_LAMP, 0.18))
+		draw_circle(at, r * 1.3, Color(0.1, 0.02, 0.02, 0.8))
+		draw_circle(at, r, SEEKER_LAMP)
 
 
 ## The sun and bolts ahead light the canopy faintly round where they are: a wide

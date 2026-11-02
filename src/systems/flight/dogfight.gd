@@ -229,6 +229,24 @@ func get_ship(id: int) -> Dictionary:
 	return {}
 
 
+## What an enemy has on the player's ship right now: `locks` (hostile ships holding a
+## seeker lock on her) and `missiles` (their seekers in flight at her). Nothing while
+## she is down, sheltered, or flying with no enemy about. The cockpit's seeker warning
+## (SeekerWarning) goes off on either.
+func seekers_on_player() -> Dictionary:
+	var out := { "locks": 0, "missiles": 0 }
+	var me := get_ship(player_id)
+	if me.is_empty() or not me.alive or player_sheltered:
+		return out
+	for s in ships:
+		if s.alive and s.team != me.team and s.lock.is_locked() and s.lock.target_id == player_id:
+			out.locks += 1
+	for p in projectiles.items:
+		if p.kind == "missile" and p.homing and p.team != me.team and p.target_id == player_id:
+			out.missiles += 1
+	return out
+
+
 func alive_on(team: String) -> Array:
 	var out: Array = []
 	for s in ships:

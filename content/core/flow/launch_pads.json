@@ -1,11 +1,14 @@
 {
-  "note": "Launch pads: stand on one and press E to fly the encounter it names. Read by src/systems/flow/game_flow.gd; the owning scene resolves 'town_box' (the pad sits on that box's footprint, at its base) and 'arrive_marker' (where the player lands back on foot, facing the pad) from its own layout data, so no coordinates live here or in code. Labels are here so code stays name-free. M14: the pit's ship is flown, not quick-launched: E boards it, and flying out of the atmosphere (the world's space_altitude) starts the pad's encounter. reentry_* place the ship back in the port's sky after space (altitude in metres, distance and bearing from the pad, nose pitch); reentry_delay is how long after a won fight before re-entry happens on its own. Issue #46: the pit's ship never leaves the town scene. Flying out of the atmosphere keeps you in the port's own sky; space_dogfight (on by default, F11 switches it) starts the pad's encounter right there (SpaceFight), and dropping space_exit_margin metres back below space_altitude breaks off a fight that is still running. reentry_* and reentry_delay now only apply to the stand-alone flight scene.",
+  "note": "Launch pads: stand on one and press E to fly the encounter it names. Read by src/systems/flow/game_flow.gd; the owning scene resolves 'town_box' (the pad sits on that box's footprint, at its base) and 'arrive_marker' (where the player lands back on foot, facing the pad) from its own layout data, so no coordinates live here or in code. Labels are here so code stays name-free. M14: the pit's ship is flown, not quick-launched: E boards it, and flying out of the atmosphere (the world's space_altitude) starts the pad's encounter. reentry_* place the ship back in the port's sky after space (altitude in metres, distance and bearing from the pad, nose pitch); reentry_delay is how long after a won fight before re-entry happens on its own. Issue #46: the pit's ship never leaves the town scene. Flying out of the atmosphere keeps you in the port's own sky; space_dogfight (on by default, F11 switches it) starts the pad's encounter right there (SpaceFight), and dropping space_exit_margin metres back below space_altitude breaks off a fight that is still running. reentry_* and reentry_delay now only apply to the stand-alone flight scene. seeker_alarm_secs: how long the cockpit's seeker warning (alarm, text, dash lamp) sounds when an enemy has a lock on you or a seeker in flight at you; seeker_alarm_rest: how long before it may go off again, if the threat is still there; seeker_lamp_hz: lamp flashes a second.",
   "flight_scene": "res://scenes/flight/dogfight_demo.tscn",
   "default_port_scene": "res://scenes/town_demo.tscn",
   "return_delay": 4.0,
   "fade_time": 0.6,
   "space_dogfight": true,
   "space_exit_margin": 250.0,
+  "seeker_alarm_secs": 5.0,
+  "seeker_alarm_rest": 1.0,
+  "seeker_lamp_hz": 2.0,
   "pads": {
     "town_pit": {
       "scene": "res://scenes/town_demo.tscn",
@@ -62,6 +65,7 @@
     "contact": "Contact! Raiders inbound.  [LMB / Space]  Guns    [RMB / X]  Seeker    [T]  Next target",
     "orbit_complete": "Sector clear, +%d credits. Dive toward the planet to land.",
     "orbit_broke_off": "You broke off the fight.",
+    "seeker_warning": "ENEMY LOCK - MISSILES INBOUND",
     "orbit_failed": "Fighter lost. Your ship is being towed back to the pad.",
     "call": "Call",
     "call_none": "No ship to call",
