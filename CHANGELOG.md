@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## T-89's tutorial: walk the pit while it runs (2026-11-01)
+
+- **The tutorial no longer freezes you.** Each page is a small card on the left of
+  the screen instead of a big menu in the middle, so you can walk, jump, aim and
+  try what it says while you read. Enter turns the page (the last one finishes it),
+  Backspace skips the rest.
+- **Leaving the pit ends it.** Up a ramp or over the rim and T-89 calls "off you
+  go": the card goes away. Opening his menu (E), a talk, a ship or the general's
+  meeting also ends it. The pit is the sunken floor under his marker; a town
+  without one lets go 32 m from him (`tutorial_leash` in `content/core/npcs/t89.json`).
+- **W works in the pick lists again.** In every menu (T-89, the fence, droid
+  merchants) only the Up arrow went up: a layout constant named `KEY_W` hid the W
+  key inside the menu. W and S now both move the cursor.
+
 ## Standing toast: every change in faction standing shows (2026-11-01)
 
 - **When your standing with a faction moves, a small panel comes up high on the

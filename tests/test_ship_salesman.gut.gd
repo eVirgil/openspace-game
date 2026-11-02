@@ -73,14 +73,55 @@ func test_greets_once_and_runs_the_tutorial() -> void:
 	var pages: int = s.tutorial_pages().size()
 	for i in pages - 1:
 		assert_eq(s.page, i)
-		assert_true(s.said.contains(str(s.tutorial_pages()[i])))
-		s.menu.choose("next")
+		assert_true(s.card.is_open(), "the page is on the small card, not a menu")
+		assert_false(s.menu.is_open())
+		assert_eq(s.card.body_label.text, str(s.tutorial_pages()[i]))
+		s.advance_tutorial()
 	assert_eq(s.page, pages - 1, "last page")
-	s.menu.choose("done")
+	s.advance_tutorial()
 	assert_eq(s.page, -1)
-	assert_false(s.menu.is_open())
+	assert_false(s.card.is_open())
 	await wait_physics_frames(2)
 	assert_false(t._player.locked, "free to walk again")
+
+
+func test_you_can_walk_the_pit_while_the_tutorial_runs() -> void:
+	var t = _town()
+	var s: ShipSalesman = t.salesman
+	s.greet()
+	s.menu.choose("yes")
+	await wait_physics_frames(3)
+	assert_eq(s.page, 0, "still on the first page")
+	assert_false(t._player.locked, "nothing holds the player")
+	t._player.global_position = s.pos + Vector3(8, 0.05, 6)     # across the pit
+	await wait_physics_frames(3)
+	assert_eq(s.page, 0, "still in the pit: the tutorial goes on")
+	assert_true(s.card.is_open())
+
+
+func test_leaving_the_pit_ends_the_tutorial() -> void:
+	var t = _town()
+	var s: ShipSalesman = t.salesman
+	assert_true(s.pit_rect.has_area(), "the pit is the sunken floor under him")
+	s.start_tutorial()
+	await wait_physics_frames(2)
+	assert_eq(s.page, 0)
+	t._player.global_position = Vector3(s.pit_rect.end.x + 3.0, 0.0, s.pit_rect.get_center().y)     # up the ramp, on the street
+	await wait_physics_frames(2)
+	assert_eq(s.page, -1, "the tutorial is over")
+	assert_false(s.card.is_open())
+	assert_eq(s.said, str(s.lines.tutorial_left))
+	assert_false(t._player.locked)
+
+
+func test_his_menu_takes_over_from_the_tutorial() -> void:
+	var t = _town()
+	var s: ShipSalesman = t.salesman
+	s.start_tutorial()
+	s.talk()
+	assert_eq(s.page, -1, "one thing at a time")
+	assert_false(s.card.is_open())
+	assert_true(s.menu.is_open())
 
 
 func test_a_player_he_has_met_gets_a_returning_line() -> void:
@@ -106,8 +147,10 @@ func test_skip_the_tutorial() -> void:
 	assert_true(s.menu.options.any(func(o): return o.id == "tutorial"), "he offers it again any time")
 	s.menu.choose("tutorial")
 	assert_eq(s.page, 0)
-	s.menu.choose("skip")
+	s.skip_tutorial()
 	assert_eq(s.page, -1)
+	assert_false(s.card.is_open())
+	assert_eq(s.said, str(s.lines.skipped))
 
 
 func test_nothing_hurts_him() -> void:
