@@ -127,3 +127,28 @@ func test_worn_gear_gets_no_new_equipment_tip() -> void:
 	gear._tips_for("jetpack")
 	gear.hud._process(2.0)
 	assert_false(gear.hud.toast_label.visible)
+
+
+func test_menu_rows_follow_what_you_own_and_wear() -> void:
+	# Neither worn: Put on for each, no Take off.
+	gear.toggle_gear()
+	assert_eq(gear.menu.rows.size(), 2)
+	for r in gear.menu.rows:
+		assert_string_contains(str(r), "Put on")
+		assert_false(str(r).contains("Take off"))
+	gear.menu.choose("")
+	# Jetpack worn: it offers Take off only, the armour Put on only.
+	WorldState.inventory.attach("jetpack", content.get_item("jetpack"))
+	gear.toggle_gear()
+	assert_eq(gear.menu.rows.size(), 2)
+	assert_string_contains(str(gear.menu.rows[0]), "Take off Jetpack")
+	assert_false(str(gear.menu.rows[0]).contains("Put on"))
+	assert_string_contains(str(gear.menu.rows[1]), "Put on Quantonium armour")
+	assert_false(str(gear.menu.rows[1]).contains("Take off"))
+	gear.menu.choose("")
+	# Both worn: Take off for each.
+	WorldState.inventory.attach("quantonium_armour", content.get_item("quantonium_armour"))
+	gear.toggle_gear()
+	for r in gear.menu.rows:
+		assert_string_contains(str(r), "Take off")
+		assert_false(str(r).contains("Put on"))
