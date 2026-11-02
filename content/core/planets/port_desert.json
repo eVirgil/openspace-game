@@ -99,10 +99,10 @@
     ]
   },
   "barge": {
-    "note": "Issue #269: this planet's party barge (content/core/barges/party_barge.json has the numbers every barge shares; any of them can be set here). name is the barge's, boss.name its owner's; home is a map point (metres along the ground from the port).",
+    "note": "Issue #269: this planet's party barge (content/core/barges/party_barge.json has the numbers every barge shares; any of them can be set here). name is the barge's, boss.name its owner's; home is a map point (metres along the ground from the port): 2.2 km out on the old bearing, about 2 km from the nearest edge of the town, so past the barge's draw_m from anywhere in it.",
     "name": "the Gilded Wallow",
     "boss": { "name": "Grubba Vosk" },
-    "home": [-420, 520]
+    "home": [-1382, 1712]
   },
   "beast": {
     "note": "The home planet's beast (content/core/hazards/beast.json has the numbers every beast shares; any of them can be set here too). name is what the locals call it; home is a map point (metres along the ground from the port); lore is what the locals say of it, in passing and to anyone who asks.",

@@ -2,6 +2,19 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-02 — The party barge parks out of the town's sight
+
+- **Its hull now has a draw distance, and its home is past it.** The barge's merged
+  hull and deck meshes (19 of them) were drawn at any distance, and the town's
+  camera draws to 12 km, so moving it alone would not have hidden it. They now stop
+  at `draw_m` (1500 m, the wreck field's range for small parts), fading over the
+  last 150 m. Home moved from (-420, 520) to (-1382, 1712) on the same bearing,
+  about 1.9 km from the nearest edge of the town, and well below its horizon on
+  the port's 5 km ball. Alternative: a shorter `draw_m` and a nearer home.
+  Rejected: a 45 m barge vanishing a few hundred metres off reads as a pop.
+- **The walk out is longer.** 2.1 km from the town's centre (was 670 m): a speeder
+  ride. The ridge droid post (1 km off) is the nearest place to it.
+
 ## 2026-11-02 — Draw distance: one set of rules for everything round the town
 
 - **The rules were already in the code, one system at a time.** The barge faded
