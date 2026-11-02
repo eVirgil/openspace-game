@@ -43,6 +43,13 @@
     "event_crate": "Opened a supply crate on a wrecked starcruiser: %s.",
     "wear": "Wear",
     "take_off": "Take off",
-    "no_room_to_take_off": "No free slot in your backpack to put the %s in."
+    "no_room_to_take_off": "No free slot in your backpack to put the %s in.",
+    "gear_title": "Gear",
+    "put_on_row": "Put on %s",
+    "take_off_row": "Take off %s",
+    "attached_armour": "%s on.  [G] takes it off",
+    "detached_armour": "%s off.  [G] puts it back on",
+    "new_equipment": "New equipment: %s.  Press [G] to put it on",
+    "weapon_tip": "Press [Tab] to change weapons - press & hold to see all weapons"
   }
 }
