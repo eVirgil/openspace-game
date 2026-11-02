@@ -2,6 +2,14 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: T-89's tutorial card shows its text again (2026-11-01)
+
+- **Saying yes to T-89's tutorial now shows the page.** The card measured its
+  height before its text had wrapped to the card's width, so it came out almost
+  3,000 px tall with the text above the top of the screen: an empty dark panel
+  down the left side. It now re-fits whenever its content's size changes, and
+  settles at the page's own height a frame after it opens (`src/ui/tutorial_card.gd`).
+
 ## The locals run checkpoints like the Remnant did (2026-11-01)
 
 - **Wherever the locals hold, their guards stop you like the Remnant's did.** That

@@ -45,6 +45,7 @@ func _ready() -> void:
 	box.add_child(body_label)
 	box.add_child(hint_label)
 	panel.visible = false
+	panel.minimum_size_changed.connect(_refit)
 
 
 func _label(size: int, color: Color) -> Label:
@@ -69,7 +70,6 @@ func show_page(title: String, body: String, hint: String) -> void:
 	hint_label.text = hint
 	_fit()
 	panel.visible = true
-	_refit()
 
 
 func close() -> void:
@@ -77,14 +77,14 @@ func close() -> void:
 		panel.visible = false
 
 
-## Once the labels have wrapped (and RetroSkin has swapped the font in), the height
-## the page needs is known.
+## The page's height is only known once the labels have wrapped at the card's
+## width (and RetroSkin has swapped the font in), which can take more than one
+## layout pass; until then the panel measures each label one word to a line, and
+## a card sized from that is taller than the screen with its text off the top.
+## So fit again every time the panel's minimum size changes.
 func _refit() -> void:
-	if not is_inside_tree():
-		return
-	await get_tree().process_frame
 	if is_open():
-		_fit()
+		_fit.call_deferred()
 
 
 ## Size to the screen: a fixed width on the left edge, as tall as the page needs,
