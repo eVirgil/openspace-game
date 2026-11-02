@@ -24,12 +24,13 @@ extends Node
 ## a Checkpoint of their own, in zone mode, with the troopers there: walk in below
 ## the wave band and the nearest one walks up and the same card opens.
 ##
-## The locals hold the front gate too when they hold the barracks: their gate
-## guards (local_gate_guard) get a garrison of their own, the same checkpoint at
-## the same place on your standing with the locals (`faction`, from the gate
-## guards' profile). What is the Remnant's alone stays theirs: edgier for lost
-## outposts, shooting on sight once the fleet is beaten, the bounty on a trooper.
-## Its alarm and the town's locals' go up together (alarm_up, join_alarm).
+## The locals work their checkpoints the same way: their guards on the barracks
+## posts (the front gate and the yard) and at each outpost they hold get a garrison
+## of their own, the same checkpoints in the same places on your standing with the
+## locals (`faction`, from the guards' profile; the rules from checkpoint_of).
+## What is the Remnant's alone stays theirs: edgier for lost outposts, shooting on
+## sight once the fleet is beaten, the bounty on a trooper. The barracks' alarm and
+## the town's locals' go up together (alarm_up, join_alarm).
 ##
 ## It also owns: the choice card, subtitles and health bar (CheckpointHud), the
 ## alarm klaxon, confiscating what a search turns up, and what happens when the
@@ -142,7 +143,7 @@ func setup(town_demo, all: Array) -> void:
 	guards = members.filter(func(g): return str(g.profile.get("role", "gate")) == "gate")
 	_had_gate = not guards.is_empty()
 	profile = guards[0].profile if guards.size() > 0 else (members[0].profile if members.size() > 0 else {})
-	# One set of gate rules for whoever holds the gate (local_gate_guard: checkpoint_of).
+	# One set of gate rules for whoever holds it (the locals' guards: checkpoint_of).
 	var of := str(profile.get("checkpoint_of", ""))
 	if of != "" and not profile.has("checkpoint"):
 		profile = CoreContent._merge({ "checkpoint": content.get_soldier(of).get("checkpoint", {}) }, profile)
@@ -409,7 +410,7 @@ func _raise(why: String) -> void:
 		WorldState.set_flag("gate_fight")
 		if WorldState.cooldown_ok("gate_fight", float(profile.get("checkpoint", {}).get("standing_cooldown_s", 120.0))):
 			WorldState.change_standing(faction, int(gcfg.get("raise_standing", -10)),
-				"The Remnant garrison sounded the alarm." if remnant() else "The locals' gate guards sounded the alarm.")
+				"The Remnant garrison sounded the alarm." if remnant() else "The locals' guards sounded the alarm.")
 
 
 ## Another director's alarm went up (the town's locals for the locals' gate, and
@@ -419,7 +420,7 @@ func join_alarm(at: Vector3) -> void:
 		_handle(alarm.drain())
 
 
-## The Remnant's own garrisons (not the locals' gate).
+## The Remnant's own garrisons (not the locals').
 func remnant() -> bool:
 	return faction == "imperial_remnant"
 
@@ -765,7 +766,7 @@ func _on_guard_died(g: NpcBody) -> void:
 	if remnant():
 		WorldState.on_guard_killed(delta, handles_gate() and left.filter(func(x): return guards.has(x)).is_empty())
 	elif _is_player(g.last_hit_by):
-		WorldState.change_standing(faction, delta, "One of the locals' gate guards was killed.")
+		WorldState.change_standing(faction, delta, "One of the locals' guards was killed.")
 	# Issue #76: a Remnant soldier you killed is worth its kill_reward (20 cr).
 	var reward := int(g.profile.get("kill_reward", 0))
 	if reward > 0 and _is_player(g.last_hit_by):
@@ -869,7 +870,7 @@ func _wake_in_pit() -> void:
 	var folk = demo.get("townsfolk")
 	if folk != null and is_instance_valid(folk):
 		folk.forgive_player()
-	var lg = demo.get("locals_gate")
+	var lg = demo.get("locals_garrison")
 	if lg != null and lg != self and is_instance_valid(lg):
 		lg.forgive_player()
 	if outs != null:

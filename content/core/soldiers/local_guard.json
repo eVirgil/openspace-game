@@ -5,7 +5,8 @@
   "archetype": "desert_guard",
   "role": "yard",
   "sidearm": false,
-  "note": "Issue #187: the locals' own soldiers, in desert armour with a rifle, posted wherever the locals hold (the barracks' gate and yard, content/core/story/territory.json). Run by Townsfolk like every local: they leave you alone until you hurt one of the port's people, then fight. As good as a Remnant trooper. Only the blocks below differ from local_resident.json.",
+  "checkpoint_of": "gate_guard",
+  "note": "Issue #187: the locals' own soldiers, in desert armour with a rifle, posted wherever the locals hold (the barracks' gate and yard, content/core/story/territory.json). Wherever they hold they work it like the Remnant did: the barracks guards and each outpost's run a garrison on the locals' side (the gate, the barracks yard, the ring round an outpost) with the gate guard's checkpoint rules (checkpoint_of) on your standing with the locals, and they know a face wanted on sight by day (alarm). As good as a Remnant trooper. Only the blocks below differ from local_resident.json.",
   "naming": {
     "kind": "person_dune",
     "nameplate_range": 8.0
@@ -44,5 +45,8 @@
     "pause_s": 5.0,
     "look_around_deg": 60.0,
     "look_every_s": 2.5
+  },
+  "alarm": {
+    "raise_on_hostile_sight": true
   }
 }
