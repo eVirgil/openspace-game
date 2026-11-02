@@ -61,6 +61,7 @@
     "cant_afford": "The %s is %d credits. You have %d. Come back richer!",
     "flying_it": "You are flying your %s right now. Land it before you sell it.",
     "skipped": "Suit yourself. I am right here if you need me.",
+    "tutorial_left": "Off you go, then! Come back and I will start the basics again any time.",
     "repair_quote": "That wreck you came down in is yours, pilot, and I can rebuild it: %d credits.",
     "repair_quote_comrade": "Your wreck is still waiting, comrade. %d credit, as promised.",
     "comrade": "Between us, pilot? I cannot stand them either. For a comrade, I will rebuild your ship for %d credit.",
