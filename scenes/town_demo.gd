@@ -88,6 +88,7 @@ var retro_hud: RetroHud               ## issue #52: banner, footer and the F1 in
 var objective_hud: ObjectiveHud       ## what to do next and an arrow to it (null in the CI greybox)
 var dev_settings: DevSettingsPanel    ## F11: time of day, standing, trust, player cheats
 var detail: AltitudeDetail            ## issue #46: less to draw and run the higher you fly
+var draw_distance: DrawDistance       ## and the further off it is (null in the CI greybox)
 var speeder_post: SpeederPost         ## issue #42: Skrugs's stall outside the back gate, and the speeders
 var mechanic: MechanicYard            ## issue #95: Dorrin's speeder yard out in the desert
 var harmful_surface: HarmfulSurface    ## issue #298: no air outside without armour (the asteroid)
@@ -164,6 +165,7 @@ func _ready() -> void:
 		staged.start()
 	else:
 		staged.run_all()
+		_register_draw_distance()      # the steps after "detail" (natives, cruiser...) are built by now
 		add_child(staged)
 	ready_ms = (Time.get_ticks_usec() - t0) / 1000.0
 
@@ -1217,6 +1219,10 @@ func _build_fence() -> void:
 func _build_detail() -> void:
 	detail = AltitudeDetail.new()
 	detail.setup(world.get("detail", {}), look)
+	if use_look:
+		draw_distance = DrawDistance.new()
+		draw_distance.setup()
+		add_child(draw_distance)
 	_register_detail()
 	add_child(detail)
 
@@ -1239,6 +1245,22 @@ func _register_detail() -> void:
 		detail.add_group("props", [landforms.get_node_or_null("Boulders")])
 	if dust != null:
 		detail.add_group("weather", [dust])
+	_register_draw_distance()
+
+
+## The distance rules (content/look/world.json "draw_distance") for everything
+## built in and round the town that is not a building, the ground, a landmark with
+## its own ranges (the wreck field, the barge) or a vehicle. Safe to call again,
+## like _register_detail(): each root is watched once.
+func _register_draw_distance() -> void:
+	if draw_distance == null:
+		return
+	var by_name := func(names: Array) -> Array: return names.map(func(n): return get_node_or_null(n))
+	draw_distance.watch("person", [cantina_owner])
+	draw_distance.watch("interior", by_name.call(["CantinaDressing"]) + [club_look])
+	draw_distance.watch("orbit", [cruiser])
+	draw_distance.watch("outdoor", by_name.call(["Markers", "Npcs", "TownDecor", "Gear", "Droids", "TrainingRange"])
+		+ [natives, outposts, droid_merchant_outposts, mechanic, speeder_post, salesman, beast])
 
 
 func npc(post_id: String) -> NpcBody:
