@@ -146,7 +146,7 @@ func _process(dt: float) -> void:
 func owner_color(id: String) -> Color:
 	var cols: Dictionary = spec.get("owner_colors", {})
 	var key := Territory.owner(id)
-	if key == Territory.LOCALS and id != Territory.BARRACKS and Territory.short(id):
+	if key == Territory.LOCALS and Territory.short_shown(id):
 		key = "short"
 	return Color(str(cols.get(key, spec.get("town_color", "#ffc23a"))))
 
@@ -157,7 +157,7 @@ func refresh_owners() -> void:
 	for id in places:
 		var p: Dictionary = places[id]
 		var who := Territory.owner(str(id))
-		var is_short := str(id) != Territory.BARRACKS and Territory.short(str(id))
+		var is_short := Territory.short_shown(str(id))
 		if who == p.owner and is_short == p.short:
 			continue
 		if who != p.owner:
@@ -169,7 +169,7 @@ func refresh_owners() -> void:
 
 func _place(id: String, pin: Dictionary) -> void:
 	pin["owner"] = Territory.owner(id)
-	pin["short"] = id != Territory.BARRACKS and Territory.short(id)
+	pin["short"] = Territory.short_shown(id)
 	pin["flash"] = 0.0
 	places[id] = pin
 

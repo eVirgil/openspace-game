@@ -7,7 +7,9 @@ extends RefCounted
 ##
 ##   an outpost    the Remnant's until every trooper there is dead (take), then the
 ##                 locals' for hold_s of play. A supply run from Oda (j_supply)
-##                 fills that up again; when it runs out, or the locals' guards
+##                 fills that up again (taken once, you are their supplier: the
+##                 map shows who is short and any of them takes supplies, with
+##                 no job to take again); when it runs out, or the locals' guards
 ##                 there are all dead, the Remnant take it back (retake).
 ##   the barracks  the Remnant's until the story is done (the fleet beaten) or the
 ##                 Remnant are driven off (every outpost held at once); then
@@ -36,6 +38,7 @@ const LOCALS := "locals"
 const DRIVEN_OFF := "remnant_driven_off"
 const RETAKEN := "town_retaken"
 const SUPPLY_JOB := "j_supply"
+const SUPPLIER := "supply_job_taken"
 
 static var _cfg: Dictionary = {}
 
@@ -237,6 +240,25 @@ static func remnant_planet() -> bool:
 
 # ------------------------------------------------------------------ supply runs (Oda's j_supply)
 
+## You have taken Oda's supply run at least once. Until then the F11 map does not
+## show which outposts are short; after it, it does, and any of them takes your
+## supplies when you get there (can_deliver), with no job to take again.
+static func supplier() -> bool:
+	return WorldState.has_flag(SUPPLIER) or WorldState.count("supplies_delivered") > 0 or supply_out() != ""
+
+
+## Do the maps (F11, the cruiser's hologram) mark outpost `id` as short? Only
+## once you are the supplier.
+static func short_shown(id: String) -> bool:
+	return id != BARRACKS and supplier() and short(id)
+
+
+## Would walking up to outpost `id` hand over supplies? Where the job sends you,
+## or, once you are the locals' supplier, any outpost of theirs running short.
+static func can_deliver(id: String) -> bool:
+	return owner(id) == LOCALS and (supply_out() == id or (supplier() and short(id)))
+
+
 ## The outpost a supply run would go to: the one whose resupply quest you are
 ## pointed at, else the one shortest on time, or "".
 static func supply_target() -> String:
@@ -261,16 +283,18 @@ static func start_supply() -> bool:
 		return false
 	WorldState.control["supply"] = to
 	WorldState.jobs_taken[SUPPLY_JOB] = "active"
+	WorldState.set_flag(SUPPLIER)
 	WorldState.log_event("Took the job: supplies for %s." % Story.outpost_label(to))
 	return true
 
 
 ## The player brought the supplies to outpost `id`. Returns the pay (0 = not theirs).
 static func deliver(id: String) -> int:
-	if supply_out() != id or owner(id) != LOCALS:
+	if not can_deliver(id):
 		return 0
 	WorldState.control[id].hold = n("hold_s", 900.0)
-	_cancel_supply()
+	if supply_out() == id:
+		_cancel_supply()
 	var pay := int(cfg().get("supply_pay", 120))
 	WorldState.credits += pay
 	WorldState.bump("supplies_delivered")
@@ -294,7 +318,7 @@ static func quests() -> Array:
 	for id in Story.OUTPOSTS:
 		var label := Story.outpost_label(str(id))
 		out.append({ "id": quest_id(str(id)), "title": str(q.get("title", "%s")) % label,
-			"text": str(q.get("text", "%s")) % label, "target": "outpost:" + str(id) })
+			"text": str(q.get("text_supplier" if supplier() else "text", "%s")) % label, "target": "outpost:" + str(id) })
 	return out
 
 

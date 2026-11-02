@@ -204,7 +204,7 @@ func _tick_control(dt: float, p: Node3D) -> void:
 					Territory.take(id)          # every trooper dead: the locals have it
 				else:
 					Territory.guards_lost(id)   # the locals' guards dead: the Remnant will be back
-			if o.side == Territory.LOCALS and Territory.supply_out() == id and away <= Territory.n("supply_reach", 25.0):
+			if o.side == Territory.LOCALS and Territory.can_deliver(id) and away <= Territory.n("supply_reach", 25.0):
 				var pay := Territory.deliver(id)
 				_toast(Territory.line("supplied") % [o.label, pay])
 			continue
