@@ -2,6 +2,23 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the Low graphics setting (2026-11-02)
+
+**Checked:** the new test in test_lookdev (21 asserts), test_smoke, a headless
+town boot, and rendered beauty-corner shots on the Mac at 1920x1080 (Vulkan):
+GPU time per frame 2.5-3.2 ms with everything on, 0.8-1.1 ms with Low graphics
+(golden and noon, three shots each). Not tried on a Windows PC or a slow GPU.
+
+- **Low graphics looks cooler and crisper than full.** The warm haze and the
+  sand's bounce light are what it drops, so metal (the wreck) and dark smoke
+  read grey and black, not sand-tinted. The sand-coloured fill (`bounce`)
+  warms the shade a little; it cannot warm reflections.
+- **Timing on this Mac is noisy:** single runs had 3-5 ms stretches in either
+  mode (CPU time rose with them). Compare medians over several runs.
+- **Draw distances are the same in both modes:** low graphics is GPU-side
+  only. Scaling DrawDistance's ranges (world.json "draw_distance") down in low
+  graphics would be the next step for a slow CPU.
+
 ## After the draw distance rules (2026-11-02)
 
 **Checked:** headless, with the look on: a probe that boots the port and counts

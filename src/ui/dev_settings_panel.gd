@@ -1156,6 +1156,20 @@ func _graphics_page(v: VBoxContainer) -> void:
 	note.add_theme_font_size_override("font_size", 12)
 	v.add_child(note)
 	_refreshers.append(func(): s.set_value_no_signal(roundf(LookEnvironment.indirect_level() * 100.0)))
+	# For slower PCs (LookEnvironment.low_graphics): what it turns off is in time_of_day.json.
+	var low := CheckBox.new()
+	low.button_pressed = LookEnvironment.low_graphics()
+	low.toggled.connect(func(on):
+		if demo != null and demo.look != null:
+			demo.look.set_low_graphics(on)
+		else:
+			LookEnvironment.save_low_graphics(on))
+	_row(v, "Low graphics", low)
+	var low_note := Label.new()
+	low_note.text = "Faster on slower PCs: no bounce light, fog volumes or soft shadows in corners,\nshorter sun shadows, a lower 3D resolution and less blowing sand."
+	low_note.add_theme_font_size_override("font_size", 12)
+	v.add_child(low_note)
+	_refreshers.append(func(): low.set_pressed_no_signal(LookEnvironment.low_graphics()))
 
 
 func _set_hud_color(c: Color) -> void:
