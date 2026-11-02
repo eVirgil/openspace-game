@@ -1222,6 +1222,7 @@ func _build_detail() -> void:
 	if use_look:
 		draw_distance = DrawDistance.new()
 		draw_distance.setup()
+		draw_distance.apply_low_graphics()
 		add_child(draw_distance)
 	_register_detail()
 	add_child(detail)

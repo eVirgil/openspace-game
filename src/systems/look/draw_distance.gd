@@ -12,14 +12,17 @@ extends Node
 ## Rules are data: the "draw_distance" block of content/look/world.json. A mesh or
 ## light that already set its own range (the barge, the wreck field, the camps'
 ## canisters) keeps it. Pure maths in end_for() and light_begin_for(), for tests.
+## Low graphics (apply_low_graphics) shortens every range it gave out by one scale.
 
 const LOOK_PATH := "res://content/look/world.json"
 const PERSON := "person"
+const BASE := "draw_distance_m"      ## meta: the range a node got, before `scale`
 
 var rules := {}                      ## name -> { sizes: [[under_m, end_m], ...], light_m }
 var fade_margin := 0.1               ## of the end distance, faded rather than cut
 var light_fade_m := 20.0
 var reach_x := 4.0                   ## a light reaching far fades from reach_x times its reach
+var scale := 1.0                     ## every range given out is this much of the rule's (Low graphics)
 var applied := 0                     ## meshes and lights given a range so far (tests, traces)
 var _roots := {}                     ## instance id -> rule name
 var _queue: Array = []
@@ -57,6 +60,25 @@ func watch(rule: String, nodes: Array) -> void:
 			var c: Node = stack.pop_back()
 			stack.append_array(c.get_children())
 			_apply(c)
+
+
+## Take the Low graphics setting (LookEnvironment.low_cfg "draw_scale"): every
+## range this has given out is set again at the new scale, and later ones follow it.
+func apply_low_graphics() -> void:
+	var s := float(LookEnvironment.low_cfg().get("draw_scale", 1.0)) if LookEnvironment.low_graphics() else 1.0
+	if is_equal_approx(s, scale):
+		return
+	scale = s
+	for id in _roots:
+		var r := instance_from_id(id) as Node
+		if r == null:
+			continue
+		var stack: Array = [r]
+		while not stack.is_empty():
+			var c: Node = stack.pop_back()
+			stack.append_array(c.get_children())
+			if c.has_meta(BASE):
+				_set_range(c, float(c.get_meta(BASE)))
 
 
 ## Where a mesh `size` metres corner to corner stops being drawn under `rule`
@@ -117,8 +139,8 @@ func _apply(n: Node) -> void:
 			return
 		var reach := (l as OmniLight3D).omni_range if l is OmniLight3D else ((l as SpotLight3D).spot_range if l is SpotLight3D else 0.0)
 		l.distance_fade_enabled = true
-		l.distance_fade_begin = light_begin_for(rule, reach)
 		l.distance_fade_length = light_fade_m
+		_set_range(l, light_begin_for(rule, reach))
 		applied += 1
 		return
 	var gi := n as GeometryInstance3D
@@ -130,7 +152,18 @@ func _apply(n: Node) -> void:
 	var end := end_for(rule, (gi.global_transform * box).size.length() if gi.is_inside_tree() else box.size.length())
 	if end <= 0.0:
 		return
-	gi.visibility_range_end = end
-	gi.visibility_range_end_margin = end * fade_margin
 	gi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	_set_range(gi, end)
 	applied += 1
+
+
+## A mesh's end or a light's fade start: `base` metres from the rule, times `scale`.
+func _set_range(n: Node, base: float) -> void:
+	n.set_meta(BASE, base)
+	var d := base * scale
+	if n is Light3D:
+		(n as Light3D).distance_fade_begin = d
+	else:
+		var gi := n as GeometryInstance3D
+		gi.visibility_range_end = d
+		gi.visibility_range_end_margin = d * fade_margin
