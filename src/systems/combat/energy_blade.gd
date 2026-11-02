@@ -35,9 +35,9 @@ var _since_exert := 999.0           ## issue #133: seconds since the sprint last
 # Tunable timing windows.
 var light_duration := 0.25
 var heavy_duration := 0.5
-var light_cost := 12.0
-var heavy_cost := 24.0
-var block_drain_per_sec := 8.0   ## stamina lost per second while blocking
+var light_cost := 8.0
+var heavy_cost := 16.0
+var block_drain_per_sec := 5.0   ## stamina lost per second while blocking
 var deflect_window := 0.18       ## block must have started within this window to deflect
 var deflect_refund := 6.0
 
@@ -47,7 +47,7 @@ func _init(cfg: Dictionary) -> void:
 	# Defaults so the blade is usable even with a bare config; override later.
 	max_stamina = float(cfg.get("max_stamina", 100.0))
 	stamina = max_stamina
-	block_drain_per_sec = float(cfg.get("block_cost_stamina", 8.0))
+	block_drain_per_sec = float(cfg.get("block_cost_stamina", 5.0))
 	deflect_window = float(cfg.get("deflect_window", 0.18))
 	deflect_refund = float(cfg.get("deflect_refund_stamina", 6.0))
 

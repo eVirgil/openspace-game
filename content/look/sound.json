@@ -8,6 +8,7 @@
     "speeder_engine": { "stream": "res://assets/audio/sfx/ship_engine.wav", "volume_db": -14.0, "unit_size": 8.0, "max_distance": 80.0 },
     "ship_laser":   { "stream": "res://assets/audio/sfx/ship_laser.wav", "volume_db": -10.0, "pitch": [0.92, 1.08], "unit_size": 30.0, "max_distance": 600.0 },
     "ship_missile": { "stream": "res://assets/audio/sfx/ship_missile.wav", "volume_db": -6.0, "pitch": [0.95, 1.05], "unit_size": 40.0, "max_distance": 800.0 },
+    "seeker_alarm": { "note": "The cockpit's seeker warning (SeekerWarning, played by ShipPilot): a 1 s loop of two beeps, on for 5 s while an enemy has a lock or a seeker on you.", "stream": "res://assets/audio/sfx/seeker_alarm.wav", "volume_db": -8.0 },
     "ship_hit":     { "stream": "res://assets/audio/sfx/ship_hit.wav", "volume_db": -6.0, "pitch": [0.85, 1.1], "unit_size": 40.0, "max_distance": 800.0 },
     "vehicle_boom": {
       "note": "Every ship, speeder, barge and seeker that goes up (ExplosionFx.big) plays this. CC0 (public domain, no attribution needed): 'explosions 4' by EZduzziteh on OpenGameArt.org, mixed to mono, lead-in silence trimmed, peaks at -1 dB.",

@@ -218,6 +218,7 @@ func _draw() -> void:
 		var at := Vector2(s.x, s.y)
 		if not Rect2(Vector2.ZERO, size).grow(10.0).has_point(at):
 			continue
+		_draw_hold(at, pin, font)
 		if i == flash:
 			_draw_flash(at, pin)
 		else:
@@ -241,6 +242,8 @@ func _draw() -> void:
 		var s := project(pins[named].map)
 		if s.z > 0.0:
 			var text := str(pins[named].label)
+			if str(pins[named].get("status", "")) != "":
+				text += " - " + str(pins[named].status)
 			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			var at := Vector2(clampf(s.x - w * 0.5, 4.0, size.x - w - 4.0), maxf(s.y - 14.0, fs + 4.0))
 			draw_rect(Rect2(at + Vector2(-4, -fs - 1), Vector2(w + 8, fs + 7)), Color(0, 0, 0, 0.7))
@@ -283,12 +286,45 @@ func _draw_grid(col: Color) -> void:
 
 func _draw_pin(at: Vector2, pin: Dictionary, hot: bool) -> void:
 	var lk := GlobeMap.look()
+	var p := pin_look(pin)
+	var size_px := float(lk.get("pin_size", 6.0)) * (1.35 if hot else 1.0)
+	draw_shape(self, at, str(p.get("shape", "circle")), Color(str(p.get("color", "#f2e2b0"))), size_px)
+
+
+## A held outpost's clock: a ring that drains clockwise from the top as the
+## locals' hold runs down, and "Resupply needed" under it once they run short.
+func _draw_hold(at: Vector2, pin: Dictionary, font: Font) -> void:
+	var frac := float(pin.get("hold", -1.0))
+	if frac < 0.0:
+		return
+	var ow: Dictionary = GlobeMap.look().get("owners", {})
+	var col := Color(str(pin_look(pin).get("color", "#5fd35f")))
+	var r := float(ow.get("ring_px", 11.0))
+	draw_arc(at, r, 0.0, TAU, 32, Color(0, 0, 0, 0.6), 4.0, true)
+	draw_arc(at, r, 0.0, TAU, 32, Color(col, float(ow.get("ring_back_alpha", 0.25))), 2.0, true)
+	if frac > 0.0:
+		draw_arc(at, r, -PI / 2.0, -PI / 2.0 + TAU * frac, maxi(4, int(32 * frac)), Color(col, float(ow.get("ring_alpha", 0.9))), 2.0, true)
+	if bool(pin.get("short", false)) and font != null:
+		var fs := 11
+		var text := GlobeMap.line("resupply")
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var p := Vector2(at.x - w * 0.5, at.y + r + fs + 2.0)
+		draw_rect(Rect2(p + Vector2(-3, -fs), Vector2(w + 6, fs + 4)), Color(0, 0, 0, 0.65))
+		draw_string(font, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+
+
+## A pin's look (content/look/map.json): its kind's shape and colour, recoloured
+## when the locals hold the place (green, or yellow-green while their supplies run short).
+static func pin_look(pin: Dictionary) -> Dictionary:
+	var lk := GlobeMap.look()
 	var key := str(pin.kind)
 	if key == "camp" and bool(pin.get("hostile", false)):
 		key = "camp_hostile"
 	var p: Dictionary = lk.get("pins", {}).get(key, {})
-	var size_px := float(lk.get("pin_size", 6.0)) * (1.35 if hot else 1.0)
-	draw_shape(self, at, str(p.get("shape", "circle")), Color(str(p.get("color", "#f2e2b0"))), size_px)
+	if str(pin.get("owner", "")) == Territory.LOCALS:
+		p = p.duplicate()
+		p["color"] = lk.get("owners", {}).get("short" if bool(pin.get("short", false)) else "locals", p.get("color", "#f2e2b0"))
+	return p
 
 
 ## The index of the pin the waypoint is at, at this zoom (-1 = none): the F11
@@ -323,10 +359,7 @@ func _draw_flash(at: Vector2, pin: Dictionary) -> void:
 	var gl: Dictionary = lk.get("goal", {})
 	var col := Color(str(gl.get("color", "#ffd84a")))
 	draw_arc(at, 9.0 + 9.0 * (1.0 - t), 0.0, TAU, 32, Color(col, 0.25 + 0.6 * t), 2.0, true)
-	var key := str(pin.kind)
-	if key == "camp" and bool(pin.get("hostile", false)):
-		key = "camp_hostile"
-	var p: Dictionary = lk.get("pins", {}).get(key, {})
+	var p := pin_look(pin)
 	var base := Color(str(p.get("color", "#f2e2b0")))
 	draw_shape(self, at, str(p.get("shape", "circle")), base.lerp(Color.WHITE, t), float(lk.get("pin_size", 6.0)) * (1.2 + 0.3 * t))
 

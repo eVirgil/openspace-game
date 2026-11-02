@@ -121,3 +121,38 @@ func test_off_planet_kinds_have_icons() -> void:
 	var pins: Dictionary = GlobeMap.look().get("pins", {})
 	for kind in ["planet", "cruiser"]:
 		assert_true(pins.has(kind), "an icon for " + kind)
+
+
+func test_pins_say_who_holds_the_outposts_and_the_port() -> void:
+	WorldState.new_game(WorldState.FREEPLAY)
+	var home := _home()
+	var pins := _by_id(GlobeMap.pins(home.world, home))
+	assert_eq(str(pins.remnant_outpost_near.owner), Territory.REMNANT, "the Remnant's to start")
+	assert_eq(str(pins.port.owner), Territory.REMNANT)
+	assert_eq(GlobeView.pin_look(pins.remnant_outpost_near).color, GlobeMap.look().pins.remnant_outpost.color, "not recoloured")
+	assert_false(pins.droid_post_wash.has("owner"), "only what Territory holds")
+	Territory.take("remnant_outpost_near")
+	pins = _by_id(GlobeMap.pins(home.world, home))
+	var near: Dictionary = pins.remnant_outpost_near
+	assert_eq(str(near.owner), Territory.LOCALS)
+	assert_eq(GlobeView.pin_look(near).color, GlobeMap.look().owners.locals, "green when the locals hold it")
+	assert_string_contains(str(near.status), "Held by the locals")
+	assert_almost_eq(float(near.hold), 1.0, 0.001, "a full ring on a fresh hold")
+	assert_eq(float(pins.remnant_outpost_mid.hold), -1.0, "no clock on the Remnant's")
+	assert_eq(str(pins.remnant_outpost_mid.owner), Territory.REMNANT, "the others stay")
+
+
+func test_a_short_hold_shows_and_the_town_goes_green() -> void:
+	WorldState.new_game(WorldState.FREEPLAY)
+	var home := _home()
+	Territory.take("remnant_outpost_near")
+	Territory.tick(Territory.n("hold_s", 900.0) - Territory.n("supply_warn_s", 420.0) + 1.0)
+	var pins := _by_id(GlobeMap.pins(home.world, home))
+	assert_true(pins.remnant_outpost_near.short)
+	assert_eq(GlobeView.pin_look(pins.remnant_outpost_near).color, GlobeMap.look().owners.short)
+	assert_string_contains(str(pins.remnant_outpost_near.status), "Resupply needed")
+	assert_between(float(pins.remnant_outpost_near.hold), 0.0, 0.5, "the ring has drained past half")
+	WorldState.set_flag("remnant_fleet_beaten")
+	pins = _by_id(GlobeMap.pins(home.world, home))
+	assert_eq(str(pins.port.owner), Territory.LOCALS, "the barracks are the locals' once the fleet is beaten")
+	assert_eq(GlobeView.pin_look(pins.port).color, GlobeMap.look().owners.locals)

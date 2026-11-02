@@ -34,6 +34,22 @@ func test_frames_and_trails_the_subject() -> void:
 	assert_gt(-c.xform.basis.z.dot(to_subject), 0.95, "and keeps looking at it")
 
 
+func test_a_fast_subject_does_not_cut_the_shot_every_second() -> void:
+	# A speeder (50 m/s, shots 6 m to the unit) and a ship (180 m/s, 9 m): both
+	# hold a shot for its four seconds, like a runner, instead of outrunning it.
+	for rig in [[50.0, 6.0], [180.0, 9.0]]:
+		var c = Shots.new()
+		c.scale = rig[1]
+		var at := Vector3.ZERO
+		c.update(0.016, at, Vector3.FORWARD)
+		for i in 180:   # about 3 seconds
+			at += Vector3(0, 0, -rig[0] * 0.016)
+			c.update(0.016, at, Vector3.FORWARD)
+		assert_eq(c.cuts, 1, "%d m/s holds its shot for the full time" % rig[0])
+		var to_subject: Vector3 = (at - c.xform.origin).normalized()
+		assert_gt(-c.xform.basis.z.dot(to_subject), 0.95, "and still frames the subject")
+
+
 func test_cuts_early_when_the_subject_gets_away() -> void:
 	var c = Shots.new()
 	c.update(0.016, Vector3.ZERO, Vector3.FORWARD)

@@ -334,6 +334,12 @@
     "load_lift": 1.05,
     "note": "Issue #64: an old cargo droid that rattles round the landing pit, like T-89 a fixture of the pit. Nobody owns it. It carries the pickup named by 'carries' (pickups/port_town.json, pit_jetpack) on its back until someone takes it ([E] beside it, the same pickup as before, so saves still know it is taken). route: pit floor points (town coordinates) it walks in turn, stopping pause_s at each. Oda knows it as a rumor (rumors/port_town.json, r_pit_hauler)."
   },
+  "station": {
+    "note": "The moon station (AsteroidWorld) has no street patrol under its dome: the home port's route crossed its walls and walked the hallway's roof. The town's droids (the side's 'units', cycled) pace short beats on the rock outside the ring wall instead, one at each angle in posts_deg (0 points down the hallway, so keep clear of it), 'out' metres beyond the wall, 'half' metres either way along it. Beats this far apart never overlap.",
+    "posts_deg": [70, 140, 220, 290],
+    "out": 8.0,
+    "half": 6.0
+  },
   "locals": {
     "note": "Issue #187: the locals' white assassin droids. One walks each outpost the locals hold (its 'patrol' route), and once they hold the barracks two walk the Remnant's old main street patrol (remnant.patrol). They leave you alone until you hurt a local (their side's alarm) or shoot one, then fight like the Remnant's. Not for sale: the merchant's variants are player_variants.",
     "faction": "locals",

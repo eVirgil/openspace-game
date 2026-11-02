@@ -9,6 +9,86 @@ Plain English, newest on top. One entry per milestone.
   walking, jetpack, gear, rest, weapon, flight, radio, missile, target, land and
   eject keys were missing.
 
+## Bug fix: the lookout's jetpack and blade sit on the floor, not in the middle (2026-11-01)
+
+- **In a story save the jetpack and the energy blade now lie on the cantina
+  lookout's floor on the pit side**: the jetpack 2 m from the middle toward the pit,
+  the blade a metre beside it. The blade used to sit in the middle, where the
+  stairwell and its column are. Same ids, flags and rings as before
+  (`content/core/pickups/port_town.json`).
+## T-89's tutorial: walk the pit while it runs (2026-11-01)
+
+- **The tutorial no longer freezes you.** Each page is a small card on the left of
+  the screen instead of a big menu in the middle, so you can walk, jump, aim and
+  try what it says while you read. Enter turns the page (the last one finishes it),
+  Backspace skips the rest.
+- **Leaving the pit ends it.** Up a ramp or over the rim and T-89 calls "off you
+  go": the card goes away. Opening his menu (E), a talk, a ship or the general's
+  meeting also ends it. The pit is the sunken floor under his marker; a town
+  without one lets go 32 m from him (`tutorial_leash` in `content/core/npcs/t89.json`).
+- **W works in the pick lists again.** In every menu (T-89, the fence, droid
+  merchants) only the Up arrow went up: a layout constant named `KEY_W` hid the W
+  key inside the menu. W and S now both move the cursor.
+
+## Standing toast: every change in faction standing shows (2026-11-01)
+
+- **When your standing with a faction moves, a small panel comes up high on the
+  screen, under the top banner**: "Remnant standing +10", the change green for up and red for
+  down, over a gauge from -100 to +100 with a tick every 25. A finer tick, in the
+  change's colour, is drawn for every point it moved as the marker sweeps from
+  where you were to where you are. A fight that moves both the Remnant and the
+  locals shows two panels side by side, and a second change to one that is still up adds to it.
+- Only the Remnant and the locals: the smugglers' standing never shows.
+  Only faction standing. What one character thinks of you (Oda's trust) is not
+  shown. Setting standing in the dev panel or loading a save is not news either.
+
+## The Remnant love you when you clear the locals for the dark master (2026-11-01)
+
+- **On the dark master's oath, clearing the barracks' local guards now takes your
+  Remnant standing to 100.** It was 25 from joining, and an armed player who had
+  just fired still read as hostile, so the troopers coming back to their posts shot
+  on sight. At 100 they wave you through. Number: `standing.retaken` in
+  `content/core/npcs/dark_master.json`.
+
+## The dark master: blade on his hip until he fights, and his talk works with AI on (2026-11-01)
+
+- **His red blade hangs dark on his left hip while he is at ease**, in story and
+  free roam alike: in the cruiser's bay while he makes his offer, and on the
+  barracks roof while you are sworn to him. The moment he is hostile and the fight
+  is on he draws it, the hilt swinging to his fist and the blade igniting as his
+  guard comes up (0.4 s), and he hangs it up again if he gives up on you (you are
+  down, or gone past his give-up distance). Built mid-fight (free roam, or back
+  after you refused him) it is already out.
+- **His offer talk no longer locks the box with AI characters on.** His talk spot
+  joined the host's list by hand instead of through `add_spot`, so his brain never
+  got the AI service (every answer was a written line) and the host never heard his
+  reply: after your first typed line the box stayed locked, and Esc only repeated
+  "is not finished with you". He now registers as the general does.
+## Map: places the locals hold turn green (2026-11-01)
+
+- **On the F11 Map, an outpost the locals have taken is green**, and the port goes
+  green once the locals hold the barracks (the fleet beaten, or the Remnant driven
+  off). It turns back to its Remnant colour when they take it back.
+- **A ring round each outpost the locals hold drains as their hold runs down.**
+  Once their supplies run short the pin turns yellow-green and "Resupply needed"
+  shows under it.
+- **The Remnant take outposts back five times slower**: the locals hold one for
+  about 100 minutes of play (was 20), and run short with about 40 left. A lazy
+  round of the desert still saves most of them.
+- **The cruiser's holo table shows who holds what (issue #325).** The port's pin
+  is coloured by who holds the barracks, and each of the seven outposts has a
+  pin: Remnant red, locals green, yellow-green when the locals run short. They
+  change colour while you watch, and an outpost that changes hands flashes.
+- **Resupplying is an optional quest.** When an outpost runs short, "Resupply the
+  ... outpost" turns up in the Ledger, pointed at the outpost. It is done when Oda's
+  supplies get there, fails if the Remnant take it back first, and comes round
+  again the next time that outpost runs short. With a quest's waypoint on, Oda's
+  supply job goes to that outpost instead of the one shortest on time.
+- **Hover (or a waypoint on) a held place** and its tag says who holds it and how
+  long the hold has left. The legend has two new lines for the colours.
+- Colours are in `content/look/map.json` (`owners`), the lines in
+  `content/core/flow/map.json`. The pins read Territory each time the page opens.
+
 ## Settings: set up an AI brain with a link or a prompt (2026-11-01)
 
 - **Ollama, the local server (llama.cpp) and the cloud each get two buttons** beside

@@ -7,6 +7,12 @@ extends Node3D
 ## it is turned to the world, not the ship (north and east as on the ground), and
 ## spins slowly about the planet's up, so the map stays true as it turns.
 ##
+## Issue #325: the port and the seven Remnant outposts are coloured by who holds
+## them (Territory: the barracks for the port), and recoloured live while you
+## watch (every refresh_s); an outpost's pin flashes for a few seconds when it
+## changes hands. The outposts' pins have no names: they sit too close round the
+## port for labels to read.
+##
 ## Heights over the ball are squeezed (holo.squeeze) so the 7 km orbit fits over a
 ## five metre table; the moon keeps its true direction at a set distance. Numbers, colours and lines: the cruiser data's
 ## "holo" block (content/core/cruiser/remnant_cruiser.json).
@@ -21,6 +27,10 @@ var radius := 1.1
 var _spin := 0.0
 var _turn: Node3D                      ## everything that spins, centred on the ball
 var _to_world := Basis.IDENTITY        ## the parent's frame back to the world's axes
+## Issue #325: place id (an outpost, or Territory.BARRACKS for the port) ->
+## { owner, short, mats, label, flash }: the pin's materials to recolour.
+var places: Dictionary = {}
+var _refresh := 0.0
 
 
 ## `cruiser_frame` is the cruiser's frame in the world (the parent's), `anchor` the
@@ -62,9 +72,14 @@ func setup(cfg: Dictionary, sp: PlanetSphere, cruiser_frame: Transform3D, anchor
 	lamp.light_energy = 1.6
 	lamp.omni_range = 7.0
 	add_child(lamp)
-	# The port, at the top of the ball (the map's origin).
-	var town_col := Color(str(spec.get("town_color", "#ffc23a")))
-	_pin(sphere.map_dir(0.0, 0.0), town_col, 0.28, str(names.get("town", "")), true)
+	# The port, at the top of the ball (the map's origin), and the Remnant's
+	# outposts, each coloured by who holds it.
+	_place(Territory.BARRACKS, _pin(sphere.map_dir(0.0, 0.0), owner_color(Territory.BARRACKS), 0.28, str(names.get("town", "")), true))
+	for lm in world.get("landmarks", []):
+		var id := str(lm.get("id", ""))
+		if Story.OUTPOSTS.has(id):
+			var at := WorldGround._v3(lm.get("at", [0, 0, 0]))
+			_place(id, _pin(sphere.map_dir(at.x, at.z), owner_color(id), float(spec.get("outpost_stalk", 0.12)), "", false))
 	# Every crash site on the world's map.
 	var wreck_col := Color(str(spec.get("wreck_color", "#ff4a2a")))
 	for lm in world.get("landmarks", []):
@@ -114,11 +129,62 @@ func squeezed(d: float) -> float:
 func _process(dt: float) -> void:
 	_spin = wrapf(_spin + deg_to_rad(float(spec.get("spin_deg_s", 5.0))) * dt, 0.0, TAU)
 	_turn.basis = Basis(Vector3.UP, _spin)
+	_refresh -= dt
+	if _refresh <= 0.0:
+		_refresh = float(spec.get("refresh_s", 0.5))
+		refresh_owners()
+	for id in places:
+		var p: Dictionary = places[id]
+		if float(p.flash) > 0.0:
+			p.flash = maxf(0.0, float(p.flash) - dt)
+			var t := 0.5 + 0.5 * sin(float(p.flash) * TAU * 2.0) if float(p.flash) > 0.0 else 0.0
+			_paint(p, owner_color(str(id)).lerp(Color.WHITE, t * 0.7))
+
+
+## Who holds `id` (an outpost, or Territory.BARRACKS for the port) as the holo's
+## colour: the Remnant's, the locals', or the locals' running short.
+func owner_color(id: String) -> Color:
+	var cols: Dictionary = spec.get("owner_colors", {})
+	var key := Territory.owner(id)
+	if key == Territory.LOCALS and id != Territory.BARRACKS and Territory.short(id):
+		key = "short"
+	return Color(str(cols.get(key, spec.get("town_color", "#ffc23a"))))
+
+
+## Recolour every place whose owner (or shortage) changed since the last look;
+## an outpost that changed hands flashes for holo.flash_s.
+func refresh_owners() -> void:
+	for id in places:
+		var p: Dictionary = places[id]
+		var who := Territory.owner(str(id))
+		var is_short := str(id) != Territory.BARRACKS and Territory.short(str(id))
+		if who == p.owner and is_short == p.short:
+			continue
+		if who != p.owner:
+			p.flash = float(spec.get("flash_s", 3.0))
+		p.owner = who
+		p.short = is_short
+		_paint(p, owner_color(str(id)))
+
+
+func _place(id: String, pin: Dictionary) -> void:
+	pin["owner"] = Territory.owner(id)
+	pin["short"] = id != Territory.BARRACKS and Territory.short(id)
+	pin["flash"] = 0.0
+	places[id] = pin
+
+
+func _paint(p: Dictionary, col: Color) -> void:
+	for m in p.mats:
+		(m as ShaderMaterial).set_shader_parameter("color", col)
+	if p.label != null:
+		(p.label as Label3D).modulate = col.lightened(0.3)
 
 
 ## A marker on the ball at `dir`: a stalk of light out of the surface with a bead
-## on top, and its name over it.
-func _pin(dir: Vector3, col: Color, tall: float, text: String, big: bool) -> void:
+## on top, and its name over it. Returns { mats, label } to recolour it by.
+func _pin(dir: Vector3, col: Color, tall: float, text: String, big: bool) -> Dictionary:
+	var out := { "mats": [], "label": null }
 	var stalk := MeshInstance3D.new()
 	var c := CylinderMesh.new()
 	c.top_radius = 0.01
@@ -134,6 +200,8 @@ func _pin(dir: Vector3, col: Color, tall: float, text: String, big: bool) -> voi
 	var bead := _sphere(0.05 if big else 0.04, _mat(col, 3.0, 1.0, 0.6, 0.0, 0.0))
 	bead.position = up * (radius + tall)
 	_turn.add_child(bead)
+	out.mats.append(stalk.material_override)
+	out.mats.append(bead.material_override)
 	if big:
 		var ring := MeshInstance3D.new()
 		var t := TorusMesh.new()
@@ -144,8 +212,11 @@ func _pin(dir: Vector3, col: Color, tall: float, text: String, big: bool) -> voi
 		ring.basis = PlanetSphere.tilt_to(up)
 		ring.position = up * (radius + 0.005)
 		_turn.add_child(ring)
+		out.mats.append(ring.material_override)
 	if text != "":
-		_turn.add_child(_label(up * (radius + tall + 0.07), text, col))
+		out.label = _label(up * (radius + tall + 0.07), text, col)
+		_turn.add_child(out.label)
+	return out
 
 
 ## A thin ring round the ball's centre through `dir` at `r`: an orbit.

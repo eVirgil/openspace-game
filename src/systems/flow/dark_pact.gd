@@ -13,8 +13,8 @@ extends RefCounted
 ## Story mode: after the general dies he waits in the cruiser's bay
 ## (DarkMasterPost). Join, and your Remnant standing jumps to friendly and the
 ## "dark_oath" quest opens: clear the barracks' local guards. Their deaths hand
-## the town back to the Remnant (Territory.barracks_guard_died) and end the
-## debrief with the dark end card. Telling Oda first breaks the oath. Refuse, and
+## the town back to the Remnant (Territory.barracks_guard_died), raise your
+## standing with them to 100 and end the debrief with the dark end card. Telling Oda first breaks the oath. Refuse, and
 ## he fights you with his red blade.
 ## Free roam (freeplay saves): no offer; he is an enemy on the cruiser once the
 ## general is dead, and on the barracks roof too while the Remnant hold the planet.
@@ -146,9 +146,14 @@ static func break_oath() -> void:
 
 
 ## The barracks are the Remnant's again (Territory.retake_town). On the oath,
-## that is the oath done: the debrief ends with the dark card.
+## that is the oath done: your Remnant standing jumps to its top (the troopers
+## who come back must not shoot you for the locals you just cut down) and the
+## debrief ends with the dark card.
 static func on_town_retaken() -> void:
-	if joined() and oath_open():
+	if not joined():
+		return
+	_standing_at_least(int(cfg().get("standing", {}).get("retaken", 100)), "The Remnant took the barracks back.")
+	if oath_open():
 		Story.event("town_guards_cleared")
 
 

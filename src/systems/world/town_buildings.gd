@@ -12,7 +12,8 @@ extends RefCounted
 ## Looks: hut_round, hut_block, hut_stepped, hut_long (market side), tower_block,
 ## tower_round, tower_wide (barracks side), shop, hall, upper, watchtower, bridge,
 ## cistern. `face` ("+x", "-x", "+z", "-z") is the door side. `style: "garrison"`
-## paints a building in Remnant colours.
+## paints a building in Remnant colours (issue #393: in the locals' once they hold the
+## barracks; LookMaterials.repaint).
 ##
 ## Parts are not nodes: each (mesh, material) pair is gathered and drawn as one
 ## MultiMesh by `flush`, so a hundred buildings cost a few dozen draw calls.
@@ -340,8 +341,8 @@ func build(b: Dictionary) -> bool:
 
 
 func _plaster(b: Dictionary, band_y: float) -> Material:
-	if str(b.get("style", "")) == "garrison":
-		return mats.plaster(0.0, band_y, LookMaterials.REMNANT_OXBLOOD, Color("#cbb594"))
+	if str(b.get("style", "")) == "garrison":       # issue #393: repainted with the barracks' owner
+		return mats.faction_plaster(0.0, band_y, "band", Color("#cbb594"))
 	if str(b.get("style", "")) == "gray":
 		return mats.plaster(0.0, band_y, Color("#84898b"), Color("#55595b"))
 	var i := absi(hash(str(b.id)))
@@ -524,7 +525,8 @@ func _look_upper(b: Dictionary, lx: float, lz: float, h: float) -> void:
 func _look_watchtower(b: Dictionary, lx: float, lz: float, h: float) -> void:
 	var mat := _plaster(b, 2.9)
 	const LEAN := 0.04
-	part(frustum(lx, lz, h, LEAN), mat, Vector3(0, h * 0.5, 0))
+	# The plaster stops inside the crown, not flush with its top (they flickered).
+	part(frustum(lx, lz, h - 0.2, LEAN), mat, Vector3(0, (h - 0.2) * 0.5, 0))
 	var y := FLOOR_H
 	while y < h - 1.0:
 		var k := 1.0 - LEAN * y / h

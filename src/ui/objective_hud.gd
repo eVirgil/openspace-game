@@ -12,6 +12,8 @@ extends CanvasLayer
 ##
 ## Quest news (QuestNews: a quest or job started, cargo found, a target killed)
 ## goes up big in the upper middle, with a sound: the QuestBanner it carries.
+## A change in a faction's standing (StandingNews) shows under it as a
+## StandingToast.
 
 const REFRESH := 0.25                 ## seconds between re-reading the objective
 const AMBER := Color("#e0a050")
@@ -26,6 +28,7 @@ var marks: Control                    ## draws the arrow and the diamond
 var objective: Dictionary = {}        ## the last Objective.current()
 var target_pos := Vector3.INF         ## where it points, INF = nowhere (text only)
 var banner: QuestBanner               ## quest news, big, one at a time
+var standing_toast: StandingToast     ## faction standing changes, a row each, under the banner
 var _left := 0.0
 
 
@@ -55,6 +58,8 @@ func _ready() -> void:
 	add_child(label)
 	banner = QuestBanner.new()
 	add_child(banner)
+	standing_toast = StandingToast.new()
+	add_child(standing_toast)
 	refresh()
 
 
@@ -148,9 +153,10 @@ func where(target: String) -> Vector3:
 			if not demo.pads.is_empty() and is_instance_valid(demo.pads[0]):
 				return demo.pads[0].global_position
 		"cruiser":
-			# Issue #193: its bay from outside, its general (or the bridge) once aboard.
+			# Issue #193: its bay from outside, its general (or the bridge) once aboard;
+			# or one part of it by name: the bay, the stairs, the general.
 			if demo.get("cruiser") != null:
-				return demo.cruiser.objective_point(_player_pos())
+				return demo.cruiser.objective_point(_player_pos(), id)
 		"droid_post":
 			# Issue #212: the nearest desert droid merchant's post.
 			var posts = demo.get("droid_merchant_outposts")

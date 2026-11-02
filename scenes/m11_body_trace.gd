@@ -141,9 +141,9 @@ func _run() -> void:
 	out("CAM_X_NEAR_WALL", snappedf(cam.global_position.x, 0.01))
 	out("CAM_INSIDE_PIT", cam.global_position.x < 17.5)
 
-	# ---- swap spam: 1,2,1,3,2 in five frames -> ends on the sword, cleanly
+	# ---- swap spam: 1,3,1,2,3 in five frames -> ends on the sword, cleanly
 	place(Vector3(6, -6, 12), PI)
-	for s in [1, 2, 1, 3, 2]:
+	for s in [1, 3, 1, 2, 3]:
 		w.holder.request_slot(s)
 		await frames(1)
 	await frames(40)

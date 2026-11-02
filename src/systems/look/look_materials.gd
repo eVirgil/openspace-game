@@ -21,10 +21,85 @@ var _cache := {}
 ## Set it before the town is dressed: every wall, slab, trim, prop and awning made
 ## here asks it for its colours and finish.
 var style: TownStyle
+## Issue #393: materials painted for whoever holds a place (the Remnant's red marks on
+## the barracks, the gate, the wall, the towers and the outposts). Each entry remembers
+## which colour it carries ("band", "wall", "mark", "lamp": town_styles.json "factions")
+## and repaint() swaps a group of them to a faction's colours in place, so the meshes
+## built with them change colour without being rebuilt. The town is one group; each
+## outpost is its own.
+var _faction: Array = []        ## { mat, prop, role, group }
+static var _factions: Dictionary = {}
 
 
 func _init(noise_tex: Texture2D = null) -> void:
 	noise = noise_tex if noise_tex != null else LookEnvironment.make_noise_texture(512, 7, 0.012)
+
+
+# ---------------------------------------------------------------- factions (issue #393)
+
+## A faction's colour for a role, from town_styles.json "factions".
+static func faction_color(owner: String, role: String) -> Color:
+	if _factions.is_empty():
+		_factions = TownStyle.data().get("factions", {})
+	var side: Dictionary = _factions.get(owner, _factions.get("remnant", {}))
+	return Color(str(side.get(role, "#6b1e1e")))
+
+
+## Remember `mat` as carrying faction colour `role` on shader parameter or property
+## `prop`, in `group`. Returns `mat`.
+func faction(mat: Material, prop: String, role: String, group: String = "town") -> Material:
+	for f in _faction:
+		if f.mat == mat and f.group == group:
+			return mat
+	_faction.append({ "mat": mat, "prop": prop, "role": role, "group": group })
+	return mat
+
+
+## Paint every material of `group` in `owner`'s colours ("remnant" or "locals").
+func repaint(owner: String, group: String = "town") -> int:
+	var n := 0
+	for f in _faction:
+		if f.group != group:
+			continue
+		var c := faction_color(owner, f.role)
+		var m: Material = f.mat
+		match f.prop:
+			"band_color", "marking":
+				(m as ShaderMaterial).set_shader_parameter(f.prop, style.band(c) if _styled() else c)
+			"cloth":
+				var cc := style.band(c) if _styled() else c
+				(m as StandardMaterial3D).albedo_color = cc
+				(m as StandardMaterial3D).backlight = cc.lightened(0.2)
+			"glow":
+				(m as StandardMaterial3D).albedo_color = c.darkened(0.6)
+				(m as StandardMaterial3D).emission = c
+			_:
+				m.set(f.prop, style.prop(c) if _styled() else c)
+		n += 1
+	return n
+
+
+## Plaster with a faction band (the barracks, the gate towers, the wall), registered.
+func faction_plaster(ground_y: float, band_y: float, role: String, tint: Color = Color("#d8c2a0"), group: String = "town") -> ShaderMaterial:
+	var m := plaster(ground_y, band_y, faction_color("remnant", role), tint)
+	return faction(m, "marking" if _styled() and style.metal_walls else "band_color", role, group)
+
+
+## Cloth in a faction colour (the watchtower banners), registered.
+func faction_cloth(role: String, group: String = "town") -> StandardMaterial3D:
+	return faction(cloth(faction_color("remnant", role)), "cloth", role, group)
+
+
+## A flat paint in a faction colour, its own material (not the shared cache: an
+## outpost repaints alone), registered.
+func faction_flat(role: String, group: String, roughness: float = 0.9, metallic: float = 0.0) -> StandardMaterial3D:
+	var m: StandardMaterial3D = flat(faction_color("remnant", role), roughness, metallic).duplicate()
+	return faction(m, "albedo_color", role, group)
+
+
+## A lamp in a faction colour, registered.
+func faction_glow(role: String, group: String) -> StandardMaterial3D:
+	return faction(glow(faction_color("remnant", role)), "glow", role, group)
 
 
 func _shader(shader: Shader, key: String, params: Dictionary) -> ShaderMaterial:

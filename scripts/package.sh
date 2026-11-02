@@ -2,7 +2,7 @@
 # Builds the shared builds (export feature "share", see docs/SHARING.md) and zips
 # them for sending. Needs the Godot export templates for the pinned version.
 # Run: ./scripts/package.sh [windows|mac|all]   (default: all)
-# Out: builds/DesertSpaceport-windows.zip, builds/DesertSpaceport-mac.zip
+# Out: builds/OpenSpace-windows.zip, builds/OpenSpace-mac.zip
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -44,22 +44,22 @@ export_preset() {
 
 build_windows() {
   need_template windows_release_x86_64.exe
-  rm -rf builds/windows builds/DesertSpaceport-windows.zip
+  rm -rf builds/windows builds/OpenSpace-windows.zip
   mkdir -p builds/windows
-  export_preset "Windows Share" builds/windows/DesertSpaceport.exe
-  (cd builds && zip -qr DesertSpaceport-windows.zip windows)
-  echo "package: builds/DesertSpaceport-windows.zip ($(du -h builds/DesertSpaceport-windows.zip | cut -f1))"
+  export_preset "Windows Share" builds/windows/OpenSpace.exe
+  (cd builds && zip -qr OpenSpace-windows.zip windows)
+  echo "package: builds/OpenSpace-windows.zip ($(du -h builds/OpenSpace-windows.zip | cut -f1))"
 }
 
 build_mac() {
   need_template macos.zip
-  rm -rf builds/macos builds/DesertSpaceport-mac.zip
+  rm -rf builds/macos builds/OpenSpace-mac.zip
   mkdir -p builds/macos
-  export_preset "macOS Share" builds/macos/DesertSpaceport.app
-  codesign --verify --deep builds/macos/DesertSpaceport.app
+  export_preset "macOS Share" builds/macos/OpenSpace.app
+  codesign --verify --deep builds/macos/OpenSpace.app
   # ditto keeps the bundle's signature and symlinks; plain zip can break them.
-  ditto -c -k --keepParent builds/macos/DesertSpaceport.app builds/DesertSpaceport-mac.zip
-  echo "package: builds/DesertSpaceport-mac.zip ($(du -h builds/DesertSpaceport-mac.zip | cut -f1))"
+  ditto -c -k --keepParent builds/macos/OpenSpace.app builds/OpenSpace-mac.zip
+  echo "package: builds/OpenSpace-mac.zip ($(du -h builds/OpenSpace-mac.zip | cut -f1))"
 }
 
 # Textures and class names must be imported before an export can use them.
