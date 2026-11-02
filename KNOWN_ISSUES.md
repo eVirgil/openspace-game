@@ -15,9 +15,23 @@ GPU time per frame 2.5-3.2 ms with everything on, 0.8-1.1 ms with Low graphics
   warms the shade a little; it cannot warm reflections.
 - **Timing on this Mac is noisy:** single runs had 3-5 ms stretches in either
   mode (CPU time rose with them). Compare medians over several runs.
-- **The town's draw calls are not touched** (200 to 17,000 by where the camera
-  points): low graphics is GPU-side only. Shorter view ranges for small props
-  would be the next step for a slow CPU.
+- **Draw distances are the same in both modes:** low graphics is GPU-side
+  only. Scaling DrawDistance's ranges (world.json "draw_distance") down in low
+  graphics would be the next step for a slow CPU.
+
+## After the draw distance rules (2026-11-02)
+
+**Checked:** headless, with the look on: a probe that boots the port and counts
+every light and mesh by system (lights fading 42 to 182 of 191, meshes with a range
+about 2,400 to 12,600), tests/test_draw_distance (4/4) and test_smoke. Frame times
+and draw calls were not measured on the Mac, and nothing was watched on screen.
+
+- **Things to look at:** small props fading in at 120 to 220 m while walking
+  across the plaza, people at 320 m, the town's lamps going out past 300 m at
+  night (from a ship, too), and the cruiser's bay lights past 120 m.
+- **NPCs are about 74 meshes each.** Ranges stop far ones being drawn, but a
+  crowd close by is still the heaviest thing on screen. Not looked at here.
+- **The space scene's nine lights and the player's own light have no fade.**
 
 ## After the side-by-side saves (2026-11-01)
 

@@ -2,6 +2,32 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-02 — Draw distance: one set of rules for everything round the town
+
+- **The rules were already in the code, one system at a time.** The barge faded
+  its props at 140 m and lights at 90 m, the camps cut canister trim at 120 m and
+  canisters at 220 m, the wreck field cut parts under 6 m at 1500 m, and the
+  outposts put their soldiers to sleep past 320 m. Nothing else had a range: a
+  headless count of the port found 191 lights (42 fading) and about 16,000 meshes
+  (2,400 with a range), 5,259 of them on the 71 town NPCs.
+- **`DrawDistance` applies those numbers by size, from data.** The
+  `draw_distance` block of content/look/world.json maps a mesh's size (corner to
+  corner) to where it stops being drawn, and sets where lights fade. Four rules: outdoor (120 /
+  220 / 1500 m), interior (the barge's 140 m and 90 m, for the cantina and the
+  club), person (320 m, for anything that walks) and orbit (the cruiser: outdoor
+  meshes, interior lights). Anything 6 m or bigger always draws. A light reaching
+  far fades from four times its reach if that is further.
+- **Roots, not a list of meshes.** The town watches each system's root once
+  (`_register_draw_distance`, beside `_register_detail`), and anything built under
+  it later (bodies woken, packs walking in, camps rebuilt) gets its range a frame
+  after it enters the tree. A mesh or light that set its own range keeps it.
+  Alternative: set ranges in each builder, as the barge and camps did. Rejected:
+  over 20 builders, and the lazy builds are easy to miss.
+- **Left alone:** buildings and the ground, the wreck field and the barge (their
+  own ranges), ships and speeders you fly or ride, the space scene and the player.
+  The altitude tiers are unchanged; with these rules, a person is already out of
+  range by the time the ship is 500 m up.
+
 ## 2026-11-01 — The locals' ships are the Remnant's models in a small colour change
 
 - **No new render.** The outposts' ships and the barracks pad's interceptor are the
