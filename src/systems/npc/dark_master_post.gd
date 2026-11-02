@@ -11,6 +11,9 @@ extends Node3D
 ##   - the barracks roof, facing the front gate, while the Remnant hold the planet
 ##     (on the oath in a story save; always in free roam). On the oath he only
 ##     fights back, and killing him turns the Remnant on you.
+## His blade hangs dark on his hip while he is at ease, in every mode; he draws and
+## lights it the moment he is hostile and the fight is on (NpcBody.blade_drawn), and
+## hangs it up again if he gives up on you (you are down, or gone past give_up_m).
 ## He fights with BladeFighter: comes at you, strikes in short rushes, then steps
 ## back and circles before coming again; bounds down off the roof or across the
 ## deck, turns most bolts from the front aside with his blade, and reels when your
@@ -87,7 +90,9 @@ func _physics_process(dt: float) -> void:
 		var b := body(str(where))
 		if b == null or b.dead:
 			continue
-		if bool(hostile.get(where, false)) and not (_in_talk() and spot.body == b):
+		var h := bool(hostile.get(where, false))
+		b.blade_drawn = blade_wanted(h, b)
+		if h and not (_in_talk() and spot.body == b):
 			_fight(str(where), b, dt)     # (not while his last word is still on screen)
 		else:
 			_stand(b)
@@ -155,7 +160,10 @@ func build_at(where: String) -> NpcBody:
 	b.set_meta("dark_master", where)
 	b.display_name = npc_name()
 	b.disable_mode = CollisionObject3D.DISABLE_MODE_KEEP_ACTIVE
-	b.hold_blade(Color(str(cfg.get("blade_color", "#ff2a2a"))), str(cfg.get("hilt", "")), float(cfg.get("blade_length", -1.0)), grip())
+	hostile[where] = DarkPact.hostile_at(where)
+	# Built mid-fight (free roam, or back after a refusal) the blade is already out.
+	b.hold_blade(Color(str(cfg.get("blade_color", "#ff2a2a"))), str(cfg.get("hilt", "")), float(cfg.get("blade_length", -1.0)), grip(),
+		blade_wanted(bool(hostile[where]), b))
 	var pose: Dictionary = {}
 	for jn in cfg.get("guard_pose", {}):
 		pose[jn] = _v(cfg.guard_pose[jn])
@@ -166,7 +174,6 @@ func build_at(where: String) -> NpcBody:
 	b.hit_by.connect(_on_hit.bind(where))
 	bodies[where] = b
 	fighters[where] = f
-	hostile[where] = DarkPact.hostile_at(where)
 	return b
 
 
@@ -209,10 +216,22 @@ func _stand(b: NpcBody) -> void:
 		b.clear_face()
 
 
+## He has given up on you for now: you are down, or gone past give_up_m.
+func given_up(b: NpcBody) -> bool:
+	if player == null or not is_instance_valid(player):
+		return true
+	return bool(player.get("is_downed")) or player.global_position.distance_to(b.global_position) > float(cfg.get("give_up_m", 90.0))
+
+
+## The blade out of its holster: hostile, and the fight is on.
+func blade_wanted(is_hostile: bool, b: NpcBody) -> bool:
+	return is_hostile and not given_up(b)
+
+
 func _fight(where: String, b: NpcBody, dt: float) -> void:
 	var f: BladeFighter = fighters[where]
 	var p := player.global_position
-	if bool(player.get("is_downed")) or p.distance_to(b.global_position) > float(cfg.get("give_up_m", 90.0)):
+	if given_up(b):
 		b.stop()
 		b.clear_face()
 		return
@@ -376,7 +395,13 @@ func attach_host(h: ConversationHost) -> void:
 	spot.face_height = 1.75
 	brain.extra_brief = func(): return [_line("brief")] if meeting else [_line("brief_after")]
 	brain.verdict.connect(_on_verdict)
-	brain.line_done.connect(_on_line)
+	# Through add_spot, as the general: it gives his brain the AI service and wires
+	# the host's reply handlers (the box unlocks when his line is done). Without it
+	# every answer was canned even with AI on, and the box stayed locked after your
+	# first line, with Esc only repeating his hold line. _sync_spot then keeps him
+	# in or out of the host's list.
+	host.add_spot(spot)
+	brain.line_done.connect(_on_line)        # after the host's: his line is on screen first
 	_sync_spot()
 
 

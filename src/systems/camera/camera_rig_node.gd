@@ -34,6 +34,7 @@ var cine := CinematicShots.new()
 var _camera: Camera3D
 var _player: Node3D
 var input_enabled := true             ## false while a dialogue owns the mouse
+var look_blocked := false            ## the weapon wheel is open: the mouse points at slots, not the view
 
 var _glide_from := Transform3D()
 var _glide_left := 0.0
@@ -72,8 +73,8 @@ func camera() -> Camera3D:
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
-			or event is InputEventMouseMotion and DisplayServer.get_name() == "headless":
+	if event is InputEventMouseMotion and not look_blocked and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			or event is InputEventMouseMotion and not look_blocked and DisplayServer.get_name() == "headless":
 		rig.add_yaw(-event.relative.x * mouse_sensitivity * _zoom)
 		rig.add_pitch(-event.relative.y * mouse_sensitivity * _zoom)
 	if event.is_action_pressed(toggle_action):

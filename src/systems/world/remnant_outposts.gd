@@ -27,7 +27,9 @@ extends Node3D
 ## the locals have it: their desert guards (territory.json "outposts" posts) and a
 ## white assassin droid move in once you are out of sight (or after move_in_s),
 ## run by the outpost's own Townsfolk. When the Remnant take it back their
-## troopers and droids return the same way, once you are swap_dist away.
+## troopers and droids return the same way, once you are swap_dist away. Issue
+## #393: the outpost's red band, door frame, lamps and banner turn the locals'
+## green with the swap, and back (LookMaterials.repaint, this outpost's group).
 
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
@@ -227,6 +229,9 @@ func swap(o: Dictionary, side: String) -> void:
 	o.side = side
 	o.wait = 0.0
 	swaps += 1
+	if demo.use_look:
+		demo._flat_mats().repaint(side, id)      # issue #393: the band, door frame, lamps and banner
+		_repaint_ship(o, side)                   # and the ship parked beside it
 	if side == Territory.LOCALS:
 		var posts: Dictionary = Territory.cfg().get("outposts", {}).get("posts", {})
 		var mine: Array = []
@@ -257,6 +262,15 @@ func swap(o: Dictionary, side: String) -> void:
 	if demo.droids != null:
 		demo.droids.clear_outpost_units(id)
 		demo.droids.build_outpost_units(id)
+
+
+## The outpost's ship in `side`'s paint (the locals': the same model, a little green).
+func _repaint_ship(o: Dictionary, side: String) -> void:
+	var ship = o.get("ship", null)
+	if ship == null or not is_instance_valid(ship) or not o.has("look"):
+		return
+	var kit := ShipKit.new()
+	kit.repaint(ship, kit.look_for(str(o.look), side))
 
 
 ## One body leaves outpost `id` for good.
@@ -419,10 +433,10 @@ func _dress(o: Dictionary) -> void:
 		"metal": Color("#34373d"), "metal_light": Color("#4a4e55"), "scorch": Color("#2f3238"),
 		"sand": Color("#b89468"), "metal_scale": 0.8, "rough_add": 0.05 })
 	var black := mats.flat(Color("#141416"), 0.55, 0.4)
-	var red := mats.flat(Color("#a81e1a"), 0.6, 0.2)
+	var red := mats.faction_flat("mark", str(o.id), 0.6, 0.2)       # issue #393: this outpost's own
 	var steel := mats.flat(Color("#5d6168"), 0.35, 0.75)
 	var grille := mats.flat(Color("#0c0c0e"), 0.7, 0.5)
-	var lamp := mats.glow(Color("#ff3020"))
+	var lamp := mats.faction_glow("lamp", str(o.id))
 	var look: Dictionary = o.cfg.get("look", {})
 	for b in o.cfg.get("buildings", []):
 		var s := WorldGround._v3(b.get("size", [1, 1, 1]))
@@ -487,6 +501,7 @@ func _dress(o: Dictionary) -> void:
 	var b0: Dictionary = (o.cfg.get("buildings", []) as Array).front()
 	var s0 := WorldGround._v3(b0.get("size", [1, 1, 1]))
 	light.global_position = (o.xf as Transform3D) * (WorldGround._v3(b0.get("position", [0, 0, 0])) + Vector3(s0.x * 0.5 + 0.8, 2.6, 0))
+	mats.repaint(str(o.side), str(o.id))         # issue #393: painted for whoever holds it now
 
 
 ## How far the sand falls below the outpost's floor (local y = 0) at the corners and
@@ -611,14 +626,17 @@ func _prop_look(parent: Node3D, pr: Dictionary, xf: Transform3D, mats: LookMater
 ## what you bump into); boarding it sets off this outpost's alarm.
 func _park_ship(o: Dictionary) -> void:
 	var ship_id := str(o.cfg.get("ship", ""))
-	var look_id := str(_cc.get_ship(ship_id).get("look", ""))
-	if look_id == "":
+	var remnant_look := str(_cc.get_ship(ship_id).get("look", ""))
+	if remnant_look == "":
 		return
+	o["look"] = remnant_look
+	var kit := ShipKit.new()
+	var look_id := kit.look_for(remnant_look, str(o.side))      # painted for whoever holds it now
 	var at := point(o, "ship")
 	var b: Basis = (o.xf as Transform3D).basis * Basis(Vector3.UP, PI * 0.5)
 	var ship: Node3D
 	if demo.use_look:
-		ship = ShipKit.new().build(look_id)
+		ship = kit.build(look_id)
 		add_child(ship)
 		# Measured upright at the origin, then stood on the sand in the outpost's frame.
 		var a := TownDecor.visual_aabb(ship)

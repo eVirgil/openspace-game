@@ -102,6 +102,7 @@ static func reset() -> void:
 	map_waypoint = {}
 	objective_pin = ""
 	QuestNews.clear()
+	StandingNews.clear()
 	ship_fits = {}
 	wreck_ship = ""
 	kept_ships = []
@@ -193,7 +194,9 @@ static func count(counter: String) -> int:
 
 
 static func change_standing(faction: String, delta: int, why: String = "") -> void:
-	standing[faction] = clampi(int(standing.get(faction, 0)) + delta, -100, 100)
+	var before := int(standing.get(faction, 0))
+	standing[faction] = clampi(before + delta, -100, 100)
+	StandingNews.push(faction, before, int(standing[faction]))
 	if why != "":
 		log_event(why)
 

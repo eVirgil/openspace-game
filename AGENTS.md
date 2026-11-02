@@ -8,7 +8,7 @@ way they are) and `KNOWN_ISSUES.md`.
 
 | Skill | Use it for |
 |---|---|
-| [`write-issue`](.claude/skills/write-issue/SKILL.md) | Writing, scoping or splitting a GitHub issue from what the player wants. Builds it out of the game's existing parts (planets, towns, cantinas, outposts, native packs, the NPC kit), asks follow-up questions for must-haves and could-haves, keeps new renders to a minimum, and lists what the architecture does not let an issue change. |
+| [`write-issue`](.claude/skills/write-issue/SKILL.md) | Writing, scoping or splitting a GitHub issue from what the player wants, and the PR that closes it. Checks open issues and recent PRs first, builds the request out of the game's existing parts (planets, towns, cantinas, outposts, native packs, the NPC kit) so every issue is a variation of something that exists, asks follow-up questions for must-haves and could-haves, keeps new renders to a minimum, lists what the architecture does not let an issue change, and gives the PR format (the user's ask quoted at the top, screenshots for anything visual). |
 
 ## Ground rules
 

@@ -6,9 +6,12 @@ extends Node
 ## shows in the RetroHud footer.
 ##
 ## Controls (project.godot actions):
-##   1 / 2 / 3     blaster / energy sword / rifle   (same key again holsters)
+##   1 / 2 / 3     blaster / rifle / energy sword   (same key again holsters)
 ##   Q             last weapon        mouse wheel   cycle        H   holster
-##   Tab           next weapon, and hands free after the last one
+##   Tab           tap: next weapon, and hands free after the last one
+##                 hold: the weapon wheel (issue #410), see WeaponWheel. Point with
+##                 the mouse, WASD or the arrows, let go to draw. The game runs on;
+##                 the wheel takes look, walking and firing until it closes.
 ##   LMB (fire)    shoot / swing: a click swipes left, the next right, and so on;
 ##                 a double click is the combo, left-right-centre
 ##   RMB (alt)     right-click TOGGLES: blaster aim/zoom in-out, sword block on-off
@@ -24,6 +27,7 @@ const SwordCombo := preload("res://src/systems/combat/sword_combo.gd")
 const WeaponHolder := preload("res://src/systems/combat/weapon_holder.gd")
 const BodyAnimator := preload("res://src/systems/anim/body_animator.gd")
 const Ads := preload("res://src/systems/look/ads.gd")
+const WheelView := preload("res://src/ui/weapon_wheel_view.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 const LOOK_PATH := "res://content/look/hand_weapons.json"
 
@@ -36,9 +40,10 @@ var player: CharacterBody3D
 var avatar: PlayerAvatar
 var rig_node: Node3D                ## camera_rig_node.gd
 var bolt_parent: Node3D
-var holder := WeaponHolder.new(["pistol_blaster", "energy_blade", "rifle_blaster"])
+var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "energy_blade"])
 var guns: Dictionary = {}           ## id -> Weapon (ammo + timing)
 var combo: SwordCombo
+var wheel := WeaponWheel.new()      ## hold Tab (issue #410)
 var look: Dictionary = {}
 var cfg: Dictionary = {}            ## core weapon data by id
 var enabled := true                 ## false while talking at the bar
@@ -52,6 +57,7 @@ var deflections := 0
 var blocks := 0
 var sword_hits := 0
 
+var _wheel_view: Control
 var _fire_held := false
 var _alt_on := false
 var _hitstop := 0.0
@@ -87,8 +93,22 @@ func setup(p: CharacterBody3D, a: PlayerAvatar, rig: Node3D, bolts_into: Node3D)
 			guns[id] = Weapon.new(cfg[id])
 	combo = SwordCombo.new(cfg.get("energy_blade", {}))
 	holder.can_draw = func(id): return WorldState.weapon_allowed(id)      # issue #200: a story save starts with the pistol only
+	_setup_wheel()
 	avatar.build_weapons(holder.slots)
 	avatar.set_blade_extent(0.0)
+
+
+## Issue #410: the wheel shows the holder's slots and asks it what may be drawn.
+func _setup_wheel() -> void:
+	var w: Dictionary = look.get("wheel", {})
+	wheel.set_slots(holder.slots)
+	wheel.can_draw = func(id): return holder.can_draw.call(id)
+	wheel.hold_time = float(w.get("hold_time", wheel.hold_time))
+	wheel.dead_zone = float(w.get("dead_zone", wheel.dead_zone))
+	wheel.mouse_pixels = float(w.get("mouse_pixels", wheel.mouse_pixels))
+	if _wheel_view != null:
+		_wheel_view.radius = float(w.get("radius", _wheel_view.radius))
+		_wheel_view.inner = float(w.get("inner", _wheel_view.inner))
 
 
 ## Issue #208: the fence fitted an upgrade: each gun takes its data again with
@@ -110,7 +130,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not enabled:
 		return
-	if event is InputEventMouseButton and event.pressed:
+	if event is InputEventMouseMotion:
+		wheel.move_mouse((event as InputEventMouseMotion).relative)
+	if event is InputEventMouseButton and event.pressed and not wheel.is_open:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			holder.cycle(-1)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -121,11 +143,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("weapon_last"):
 		holder.request_last()
 	if event.is_action_pressed("weapon_cycle"):
-		holder.cycle_to_empty()
+		wheel.press()
+	elif event.is_action_released("weapon_cycle"):
+		_release_cycle()
 	if event.is_action_pressed("holster"):
 		holder.request("")
 	if event.is_action_pressed("reload") and guns.has(holder.current):
 		(guns[holder.current] as Weapon).start_reloading()
+	if wheel.is_open and (event.is_action_pressed("fire") or event.is_action_pressed("alt_fire")):
+		return          # choosing a weapon, not using one
 	if event.is_action_pressed("fire"):
 		_fire_held = true
 		if holder.current == "energy_blade" and holder.is_ready() and not sprinting:
@@ -135,6 +161,47 @@ func _unhandled_input(event: InputEvent) -> void:
 		_fire_held = false
 	if event.is_action_pressed("alt_fire"):
 		toggle_alt()
+
+
+## Tab let go: a tap cycles as it always did; after a hold it draws what the wheel
+## points at. The weapon already in hand is left alone (the number key would
+## holster it).
+func _release_cycle() -> void:
+	var was_held := wheel.is_held()
+	var was_open := wheel.is_open
+	var id := wheel.release()
+	if was_open:
+		_wheel_closed()
+		var target := holder.pending if holder.is_swapping() else holder.current
+		if id != "" and id != target:
+			holder.request(id)
+	elif was_held:
+		holder.cycle_to_empty()
+
+
+func _wheel_opened() -> void:
+	_fire_held = false
+	_alt_on = false
+	if rig_node != null and "look_blocked" in rig_node:
+		rig_node.look_blocked = true
+	if player != null and "move_blocked" in player:
+		player.move_blocked = true
+	if _wheel_view != null:
+		_wheel_view.current_id = holder.current
+
+
+func _wheel_closed() -> void:
+	if rig_node != null and "look_blocked" in rig_node:
+		rig_node.look_blocked = false
+	if player != null and "move_blocked" in player:
+		player.move_blocked = false
+
+
+## WASD and the arrows as a direction for the wheel (y down).
+func _wheel_keys() -> Vector2:
+	var x := Input.get_axis("move_left", "move_right") + float(Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_LEFT))
+	var y := Input.get_axis("move_forward", "move_back") + float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP))
+	return Vector2(clampf(x, -1.0, 1.0), clampf(y, -1.0, 1.0))
 
 
 ## Bot / test seam: drive the same paths without input events.
@@ -160,6 +227,8 @@ func toggle_alt() -> void:
 func set_enabled(on: bool) -> void:
 	enabled = on
 	if not on:
+		wheel.cancel()
+		_wheel_closed()
 		_fire_held = false
 		_alt_on = false
 		combo.set_block(false)
@@ -174,6 +243,13 @@ func set_enabled(on: bool) -> void:
 func _physics_process(dt: float) -> void:
 	if player == null:
 		return
+	if wheel.is_held() and wheel.tick(dt):
+		_wheel_opened()
+	if wheel.is_open:
+		wheel.push_keys(_wheel_keys())
+		if player.get("is_downed") == true:
+			wheel.cancel()
+			_wheel_closed()
 	for ev in holder.update(dt):
 		_on_holder_event(str(ev))
 	var cur := holder.current
@@ -218,6 +294,10 @@ func _physics_process(dt: float) -> void:
 	for ev in combo.update(sdt):
 		if str(ev).begins_with("swing:"):
 			_on_swing_started()
+		elif str(ev) == "block_broken":
+			# Out of stamina: let go of the toggle, or the guard goes straight back
+			# up the moment the cooldown ends and stamina never gets to recover.
+			_alt_on = false
 	if cur == "energy_blade" and combo.is_active():
 		_sword_hits()
 	else:
@@ -266,6 +346,8 @@ func _on_holder_event(ev: String) -> void:
 	var parts := ev.split(":")
 	match parts[0]:
 		"drawing":
+			if parts[1] == "energy_blade":
+				_alt_on = false     # an aim toggled on with a gun is not a block
 			_play("blade_on" if parts[1] == "energy_blade" else "swap")
 			_show_name(str(cfg.get(parts[1], {}).get("label", parts[1])))
 		"holstered":
@@ -554,6 +636,21 @@ func _build_hud() -> void:
 		_cross.add_child(c)
 	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -114), 26)
 	_name = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -148), 18)
+	var view := WheelView.new()
+	view.wheel = wheel
+	view.info = _wheel_info
+	_wheel_view = view
+	_hud.add_child(view)
+	_setup_wheel()
+
+
+## What the wheel says about a weapon id: its name, and a gun's rounds.
+func _wheel_info(id: String) -> Dictionary:
+	var detail := ""
+	if guns.has(id):
+		var g: Weapon = guns[id]
+		detail = "RELOADING" if g.is_reloading() else "%d / %d" % [g.ammo, int(g.config.get("mag", 0))]
+	return { "name": str(cfg.get(id, {}).get("label", id)), "detail": detail }
 
 
 func _label(preset: int, offset: Vector2, size: int) -> Label:

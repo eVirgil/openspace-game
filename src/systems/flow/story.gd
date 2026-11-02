@@ -157,8 +157,10 @@ static func _skipped(c: Dictionary, unplayed: bool, untold: bool) -> void:
 static func event(name: String) -> bool:
 	Quests.event(name)
 	var c := chapter_cfg()
-	if c.is_empty() or name == "" or not ends_on(c, name):
+	if c.is_empty() or name == "":
 		return false
+	if not ends_on(c, name):
+		return _step_event(c, name)
 	var next := chapter()
 	for later in chapters().slice(index(chapter()) + 1):
 		if applies(later):
@@ -182,6 +184,75 @@ static func event(name: String) -> bool:
 static func ends_on(c: Dictionary, name: String) -> bool:
 	var want = c.get("done_on", "")
 	return (want as Array).has(name) if want is Array else str(want) == name
+
+
+# ------------------------------------------------------------------ steps
+
+## A chapter's steps ("steps": [{ id, done_on, text, target }]): its objective one
+## step at a time, each with its own waypoint (the fleet: land in the cruiser's
+## bay, reach the stairs, kill the general). A step is done when its flag is set.
+static func steps(c: Dictionary = {}) -> Array:
+	if c.is_empty():
+		c = chapter_cfg()
+	return c.get("steps", [])
+
+
+static func step_flag(c: Dictionary, s: Dictionary) -> String:
+	return "%s_%s" % [str(c.get("id", "")), str(s.get("id", ""))]
+
+
+static func step_done(c: Dictionary, s: Dictionary) -> bool:
+	return WorldState.has_flag(step_flag(c, s))
+
+
+## The step the chapter is on (the first not done), or {}.
+static func current_step(c: Dictionary = {}) -> Dictionary:
+	if c.is_empty():
+		c = chapter_cfg()
+	for s in steps(c):
+		if not step_done(c, s):
+			return s
+	return {}
+
+
+## A step of chapter `c` ends on `name` (never the chapter's own event: that ends
+## the chapter): it and every step before it are done, and once the chapter is
+## told the banner says what it wants next. True if a step was done by it.
+static func _step_event(c: Dictionary, name: String) -> bool:
+	if not steps(c).any(func(s): return str(s.get("done_on", "")) == name):
+		return false
+	var changed := false
+	for s in steps(c):
+		if not step_done(c, s):
+			WorldState.set_flag(step_flag(c, s))
+			changed = true
+		if str(s.get("done_on", "")) == name:
+			break
+	if not changed:
+		return false
+	WorldState.log_event("Story: %s, %s." % [str(c.id).replace("_", " "), name.replace("_", " ")])
+	var next_line := str(Objective.chapter_objective().get("text", ""))
+	if bool(WorldState.story.get("told", false)) and next_line != "":
+		QuestNews.push("objective", next_line)
+	return true
+
+
+## A step's text with the general's name in it ("Kill %s on the bridge").
+static func fill_step(text: String) -> String:
+	if not text.contains("%s"):
+		return text
+	var n := cruiser_general_name()
+	return text % (n if n != "" else Objective.line("general_unknown"))
+
+
+## The general aboard the Remnant cruiser by name ("General So-and-so") before you
+## have met him: the name engine names him off the same key his body will get
+## (NameHooks.person), and keeps it in the book, so the two agree.
+static func cruiser_general_name() -> String:
+	var cfg := CruiserHull.data()
+	var soldier := str(cfg.get("general", {}).get("soldier", "cruiser_general"))
+	var profile := ItemKit._read_json("res://content/core/soldiers/%s.json" % soldier)
+	return NameHooks.person(profile.get("naming", {}), "npc:%s/general" % str(cfg.get("id", "remnant_cruiser")))
 
 
 ## Issue #193: the chapter is done before it was asked (the cruiser taken before
@@ -213,8 +284,26 @@ static func beat(teller: String) -> Dictionary:
 	if first:
 		# Issue #201/#215: "told:<chapter>" unlocks quests (the blade on the tower) and
 		# ends a chapter that is only the telling (T-89's).
+		var before := chapter()
 		event("told:" + str(c.id))
+		if chapter() == before and str(c.get("job", "")) == "":
+			_told_news(c)
 	return out
+
+
+## Told a chapter that sends you somewhere, with no job card to be the news: the
+## banner says the objective it wants now, after a "New Quest" with the chapter's
+## title when it has one (the fleet). A "talk to the teller" banner still waiting
+## from the chapter before (met Oda, and she told the range in the same breath)
+## is dropped: it is answered.
+static func _told_news(c: Dictionary) -> void:
+	var o := Objective.chapter_objective()
+	if str(o.get("target", "")) == "" or str(o.get("text", "")) == "":
+		return
+	QuestNews.retract("objective", str(data().get("objectives", {}).get("teller", {}).get("text", "")))
+	if str(c.get("title", "")) != "":
+		QuestNews.push("quest_new", str(c.title))
+	QuestNews.push("objective", str(o.text))
 
 
 static func _tell(c: Dictionary, first: bool) -> Dictionary:

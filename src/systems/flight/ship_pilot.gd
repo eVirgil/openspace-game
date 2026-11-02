@@ -73,6 +73,7 @@ const ShipDefense := preload("res://src/systems/flight/ship_defense.gd")
 const ShipLoadout := preload("res://src/systems/flight/ship_loadout.gd")
 const MissileLock := preload("res://src/systems/flight/missile_lock.gd")
 const Dogfight := preload("res://src/systems/flight/dogfight.gd")
+const SeekerWarning := preload("res://src/systems/flight/seeker_warning.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const SCENE_PATH := "res://scenes/town_demo.tscn"
@@ -136,6 +137,8 @@ var fight_log: Array = []        ## { outcome, payout, at } per sortie, for trac
 var space_exit_margin := 250.0   ## metres below the edge that break off a running fight
 var travel: SpaceTravel          ## issue #45: the other planets in this sky, and flying to them
 var _engine: AudioStreamPlayer   ## issue #16: the engine drone while the ship flies
+var seeker_warning := SeekerWarning.new()   ## an enemy lock or seeker on her: alarm, text and dash lamp
+var _alarm: AudioStreamPlayer    ## the seeker warning's alarm, made when it first sounds
 var bay_landing := false          ## issue #75: Z near the bay: she is flying herself in
 var bay_landings := 0             ## times that brought her down (traces, tests)
 var docking := false              ## issue #193: Z by the cruiser: she is flying herself into its bay
@@ -205,6 +208,9 @@ func _ready() -> void:
 	atmo = AtmoFlight.new()
 	atmo.setup(ship_cfg, ground)
 	space_exit_margin = GameFlow.setting("space_exit_margin", space_exit_margin)
+	seeker_warning.configure(GameFlow.setting("seeker_alarm_secs", seeker_warning.alarm_secs),
+		GameFlow.setting("seeker_alarm_rest", seeker_warning.rest_secs),
+		GameFlow.setting("seeker_lamp_hz", seeker_warning.flash_hz))
 	hud = FlightHud.new()
 	add_child(hud)
 	var layer := CanvasLayer.new()
@@ -1069,6 +1075,7 @@ func _physics_process(dt: float) -> void:
 	if fight != null and fight.sheltered:
 		_sheltered_step(dt)
 	_engine_step()
+	_seeker_step(dt)
 	if crash_left >= 0.0:
 		crash_left -= dt
 		if crash_left < 0.0:
@@ -1113,6 +1120,39 @@ func _engine_step() -> void:
 			_engine.stop()
 	if on:
 		_engine.pitch_scale = 0.75 + _throttle * 0.5 + (0.15 if _boost else 0.0)
+
+
+## The seeker warning: while an enemy has a lock on her or a seeker in flight at her
+## (in a space fight, or down on the planet from the Remnant interceptor, whether or
+## not the space dogfight is on), the alarm sounds for a few seconds, the text shows, and (in the cockpit
+## view) the dash lamp flashes. SeekerWarning decides when; this plays it.
+func _seeker_step(dt: float) -> void:
+	var threat := false
+	if _fight_flying() and fight.running():
+		var on_her: Dictionary = fight.df.seekers_on_player()
+		threat = int(on_her.locks) + int(on_her.missiles) > 0
+	# Down on the planet too, fight or no fight (the dogfight toggle does not matter):
+	# the Remnant interceptor's lock and its seekers in the air.
+	var foe = _air_foe()
+	if not threat and piloting and foe != null and foe.has_method("seekers_on_player"):
+		var on_her: Dictionary = foe.seekers_on_player()
+		threat = int(on_her.locks) + int(on_her.missiles) > 0
+	var was := seeker_warning.sounding
+	seeker_warning.update(dt, threat)
+	if seeker_warning.sounding != was:
+		_sound_alarm(seeker_warning.sounding)
+	hud.set_seeker_warning(seeker_warning.sounding, seeker_warning.lamp_on())
+
+
+func _sound_alarm(on: bool) -> void:
+	if _alarm == null and on:
+		_alarm = Sound.loop("seeker_alarm", self, false) as AudioStreamPlayer
+	if _alarm == null or not _alarm.is_inside_tree():
+		return
+	if on:
+		_alarm.play()
+	else:
+		_alarm.stop()
 
 
 func _on_foot() -> void:

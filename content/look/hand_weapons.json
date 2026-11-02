@@ -64,6 +64,14 @@
     "sound_pitch": 0.72,
     "slot": 3
   },
+  "wheel": {
+    "note": "The Tab weapon wheel (issue #410). hold_time: seconds of Tab before it opens (shorter is a tap that cycles). dead_zone: fraction of the radius that is the middle. mouse_pixels: mouse travel from the middle to the rim. radius and inner are on-screen pixels.",
+    "hold_time": 0.2,
+    "dead_zone": 0.3,
+    "mouse_pixels": 140,
+    "radius": 230,
+    "inner": 80
+  },
   "bolt": { "length": 0.9, "radius": 0.035, "energy": 5.0 },
   "recoil": { "back": 0.05, "up_deg": 7.0, "recover_s": 0.12 },
   "muzzle_light": { "note": "The flash's light. It sits `ahead` metres past the muzzle so the hand on the grip is lit warm, not blown out.", "energy": 1.5, "range": 4.5, "ahead": 0.35 },

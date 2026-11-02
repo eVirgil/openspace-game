@@ -46,5 +46,10 @@
     "adobe": { "metallic": 0.0, "roughness": 0.95 }
   },
   "accent_words": ["with", "trim", "trims", "accent", "accents", "and"],
+  "factions": {
+    "note": "Issue #393: the colours a place is marked with for whoever holds it (src/systems/look/look_materials.gd repaint). band: painted bands on the barracks, the gate towers and the watchtower banners; wall: the town wall and the gate lintel; mark: an outpost's band, door frame and banner; lamp: an outpost's corner lamps. The town swaps between them with the barracks guards, an outpost with its own.",
+    "remnant": { "band": "#6b1e1e", "wall": "#601b1b", "mark": "#a81e1a", "lamp": "#ff3020" },
+    "locals": { "band": "#3f8a4a", "wall": "#397c43", "mark": "#4a9a56", "lamp": "#48ff6a" }
+  },
   "snow": { "dirt": "#e8eef5", "drift": "#f4f7fb", "paving": "#dfe6ee" }
 }

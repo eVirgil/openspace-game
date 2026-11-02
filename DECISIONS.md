@@ -2,6 +2,49 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-01 — The locals' ships are the Remnant's models in a small colour change
+
+- **No new render.** The outposts' ships and the barracks pad's interceptor are the
+  models the game already has. `interceptor_locals` is the player's interceptor
+  (silver hull) with its cobalt trim turned the locals' green and its saffron
+  trim to bone, the guards' colours. `freighter_locals` is the freighter's
+  texture times a sage tint, because its paint is in the texture and it has
+  no flat accents to swap. The look says how in `recolor` (`swap`, `tint`:
+  `ShipKit.recolor`), the way a Remnant look says `darken`.
+  Alternative: more Hyper3D paint jobs, as the freighter's upgrade skins are.
+  Rejected: each is a render and a `.glb`; a swap is two lines of data.
+- **A look names its locals' paint** (`"locals": "interceptor_locals"` on
+  `interceptor_dark`), so a ship keeps one look id and `ShipKit.look_for(look,
+  owner)` picks the paint. The outpost and the pad hold the Remnant's look id and
+  ask. Colours come from the factions in `town_styles.json` (`"locals.band"`),
+  so the ships, guards and buildings share one green.
+- **The ship repaints with its place**, like the band and the lamps: an
+  outpost's ship on `RemnantOutposts.swap`, the pad's interceptor with the town
+  (`_repaint_town`). `ShipKit.repaint` swaps the model under the same node, so the
+  berth, the hull and the parking stay put (and a stolen ship stays yours).
+
+## 2026-11-01 — Places repaint for whoever holds them (issue #393)
+
+- **Repaint the materials in place, never rebuild the meshes.** The Remnant's
+  red marks (the barracks' bands, the gate towers, the lintel, the wall, the
+  watchtower banners, an outpost's band, door frame and lamps) are made through
+  `LookMaterials.faction_*`, which remembers each material and its role, and
+  `repaint(owner, group)` sets the colour on the material the meshes already
+  share. Alternative: re-dress the barracks and the outposts on a swap.
+  Rejected: the town's buildings are batched into MultiMeshes and the swap
+  happens out of sight anyway; a parameter change is free and cannot leave a
+  half-built block.
+- **The town is one group, each outpost its own.** The town follows the
+  barracks' owner with the guard swap (`_locals_take_barracks`,
+  `_return_town_remnant`); an outpost follows `RemnantOutposts.swap`. An
+  outpost's flats are duplicated out of the shared cache so one outpost can be
+  green while the next is red.
+- **Colours are data by role** (`content/look/town_styles.json` `factions`:
+  `band`, `wall`, `mark`, `lamp`), so the holo table or the F1 screen can read
+  the same two colours later. The locals' guard is the trooper kit recoloured
+  (`guard:locals`: bone plate, green trim), not white: the art direction keeps
+  white armour out.
+
 ## 2026-11-01 — A story save and a free roam save, side by side
 
 - **One file per mode** (`SaveSlots`: `save_story.json`, `save_freeplay.json`),

@@ -101,6 +101,17 @@ var bottle: Node3D
 var blade: Node3D              ## issue #303: an energy sword in the right hand (hold_blade)
 var blade_grip := Transform3D(Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0)), Vector3(0.0, -0.08, -0.06))   ## in the hand
 var _blade_bone := -1          ## the rigged model's hand bone the blade follows (-1: the wrist joint holds it)
+## The blade stays hung on the left hip, dark, until its owner draws it. `blade_drawn`
+## says where it should be; `blade_out` eases there over BLADE_DRAW_S (0 = on the hip,
+## 1 = lit in the fist): the hilt swings hip -> hand over the first half, the blade
+## ignites over the second, and hold_pose (the guard) comes up with it.
+var blade_drawn := true
+var blade_out := 1.0
+const BLADE_DRAW_S := 0.4
+## The hilt on the hip: at the left hip joint, hung from the pelvis (so it does not
+## swing with the thigh), emitter down and a little forward (the player's l_hip holster).
+var _blade_holster := Transform3D(Basis.from_euler(Vector3(PI * 0.85, 0.0, 0.25)), Vector3(0.14, -0.02, 0.06))
+var _blade_lit := -1.0         ## the Blade node's last extent (skip the scale write when unchanged)
 var hold_pose: Dictionary = {} ## joint -> degrees, held over the walk while no move plays (a sword's guard)
 ## Issue #303: (amount, shooter, by_blade) -> the damage that gets through (0 = turned
 ## aside). The dark master's red blade deflects bolts and parries cuts.
@@ -533,6 +544,7 @@ func _physics_process(delta: float) -> void:
 		if action_t >= action_len:
 			action = ""
 	_tick_sip(delta)
+	_tick_blade(delta)
 	var move := _walk(delta)
 	_turn(delta, move)
 	var dir := NpcLocomotion.world_to_command(move, -rotation.y)
@@ -814,6 +826,8 @@ func _fall(dt: float) -> void:
 		ragdoll.step(dt)
 		if moving and look_body.has_meta("skin"):
 			(look_body.get_meta("skin") as SkinnedBody).sync(look_body)
+		if moving:
+			_place_blade()
 		_debug_line()
 		_update_health_bar()
 		return
@@ -906,9 +920,11 @@ func _animate(dt: float, move: Vector3) -> void:
 	if perform != "":
 		_reach_instrument(out)
 	if action == "" and not hold_pose.is_empty():
+		var hw := hold_pose_weight()
 		for jn in hold_pose:
 			if joints.has(jn):
-				(joints[jn] as Node3D).rotation_degrees = hold_pose[jn]
+				var hj := joints[jn] as Node3D
+				hj.rotation_degrees = hj.rotation_degrees.lerp(hold_pose[jn], hw)
 	if bottle != null:
 		bottle.visible = not drawn
 		if bottle.visible and action == "":
@@ -976,7 +992,9 @@ func _reach_instrument(out: Dictionary) -> void:
 ## the forearm is level (as the bottle). Its look is CharacterKit's (the player's).
 ## A rigged model draws its hand off the joints, so there the blade follows the
 ## model's own hand bone (`grip` in that bone's space), not the wrist joint.
-func hold_blade(color: Color, hilt: String = "", length: float = -1.0, grip = null) -> Node3D:
+## `drawn`: in the fist and lit from the start (false: hung on the hip, dark, until
+## blade_drawn is set).
+func hold_blade(color: Color, hilt: String = "", length: float = -1.0, grip = null, drawn := true) -> Node3D:
 	var wrist := joints.get("r_wrist") as Node3D
 	if wrist == null or kit == null:
 		return null
@@ -987,23 +1005,69 @@ func hold_blade(color: Color, hilt: String = "", length: float = -1.0, grip = nu
 	var skin: SkinnedBody = look_body.get_meta("skin") if look_body.has_meta("skin") else null
 	if skin != null and skin.bone_of.has("r_wrist"):
 		_blade_bone = int(skin.bone_of.r_wrist)
-		look_body.add_child(blade)
-		blade.top_level = true
-		_place_blade()
-	else:
-		wrist.add_child(blade)
-		blade.transform = blade_grip
+	blade_drawn = drawn
+	blade_out = 1.0 if drawn else 0.0
+	_blade_lit = -1.0
+	look_body.add_child(blade)
+	blade.top_level = true
+	_place_blade()
 	return blade
 
 
-## The blade in the rigged hand: the bone's frame without its scale, then the grip.
-func _place_blade() -> void:
-	if blade == null or _blade_bone < 0 or not is_instance_valid(blade):
-		return
-	var skin: SkinnedBody = look_body.get_meta("skin")
-	var hand := skin.skeleton.global_transform * skin.skeleton.get_bone_global_pose(_blade_bone)
+## Where the hilt would sit in the fist (world): the rigged hand bone's frame
+## without its scale, or the wrist joint's, then the grip.
+func _blade_hand_xf() -> Transform3D:
+	var hand: Transform3D
+	if _blade_bone >= 0 and look_body.has_meta("skin"):
+		var skin: SkinnedBody = look_body.get_meta("skin")
+		hand = skin.skeleton.global_transform * skin.skeleton.get_bone_global_pose(_blade_bone)
+	else:
+		hand = (joints.r_wrist as Node3D).global_transform
 	hand.basis = hand.basis.orthonormalized()
-	blade.global_transform = hand * blade_grip
+	return hand * blade_grip
+
+
+## Where the hilt hangs on the hip (world).
+func _blade_hip_xf() -> Transform3D:
+	var pelvis := (joints.pelvis as Node3D).global_transform if joints.has("pelvis") else global_transform
+	var hip := (joints.l_hip as Node3D).global_transform if joints.has("l_hip") else pelvis
+	return Transform3D(pelvis.basis.orthonormalized(), hip.origin) * _blade_holster
+
+
+## The blade between the hip and the fist (blade_out), and lit only once it is there.
+func _place_blade() -> void:
+	if blade == null or not is_instance_valid(blade) or joints.is_empty():
+		return
+	var hand := _blade_hand_xf()
+	var swing := clampf(blade_out * 2.0, 0.0, 1.0)
+	if swing >= 1.0:
+		blade.global_transform = hand
+	else:
+		swing = swing * swing * (3.0 - 2.0 * swing)
+		blade.global_transform = _blade_hip_xf().interpolate_with(hand, swing)
+	var lit := clampf(blade_out * 2.0 - 1.0, 0.0, 1.0)
+	if lit != _blade_lit:
+		_blade_lit = lit
+		var bl := blade.get_node_or_null("Blade") as Node3D
+		if bl != null:
+			bl.scale = Vector3(1.0, maxf(lit, 0.001), 1.0)
+			bl.visible = lit > 0.01
+
+
+func _tick_blade(dt: float) -> void:
+	if blade == null:
+		return
+	blade_out = move_toward(blade_out, 1.0 if blade_drawn else 0.0, dt / BLADE_DRAW_S)
+
+
+## How far the hold pose (the sword's guard) is up: with the blade, as it is drawn.
+func hold_pose_weight() -> float:
+	return 1.0 if blade == null else clampf(blade_out * 2.0, 0.0, 1.0)
+
+
+## 0 = the hilt on the hip, dark; 1 = lit in the fist.
+func blade_extent() -> float:
+	return clampf(blade_out * 2.0 - 1.0, 0.0, 1.0)
 
 
 ## Issue #261: a bottle in the right hand, upright while the forearm is level

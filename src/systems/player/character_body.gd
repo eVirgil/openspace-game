@@ -24,6 +24,7 @@ signal jet_stopped              ## M13: the jetpack cut out (released or empty)
 ## M11: while true (talking at the bar, a cutscene) the player stands still and
 ## ignores movement input. Gravity and collision still run.
 var locked := false
+var move_blocked := false     ## the weapon wheel is open: WASD points at slots, nobody walks
 ## M14: true while the player is in a ship's seat. ShipPilot sets it (and disables
 ## this node); prompts on foot (the bar, gear) check it so E means "roll" up there.
 var piloting := false
@@ -133,7 +134,7 @@ func clear_external_command() -> void:
 func _physics_process(delta: float) -> void:
 	_tick_health(delta)
 	var yaw: float = -rotation.y
-	if locked:
+	if locked or move_blocked:
 		controller.set_command(Vector2.ZERO, false, false, false)
 		gait.reset()
 	elif not use_external_command:

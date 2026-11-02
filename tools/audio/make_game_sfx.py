@@ -24,6 +24,8 @@ and cross-faded end into start, so they repeat without a click.
   quest_start.wav   a rising two-note bell over a soft swell: a new quest or job
   quest_success.wav a four-note bell run up: cargo found, a target down, a job done
   quest_fail.wav    two muffled notes falling: a quest failed
+  seeker_alarm.wav  the cockpit's seeker warning: a high then a low beep, then a
+                    rest (a 1 s loop; ShipPilot plays it for 5 s at a time)
 
 Run: python3 tools/audio/make_game_sfx.py
 Writes 16-bit mono WAVs to assets/audio/sfx/. Mapping in content/look/sound.json.
@@ -340,6 +342,26 @@ def quest_fail():
     save("quest_fail.wav", mix(dull(587.3, 0.6), at(0.22, dull(440.0, 0.9))), 0.7)
 
 
+def seeker_alarm():
+    # Two beeps half a second apart (high, then low), a soft square-ish tone, silence
+    # between. The lamp flashes at 2 Hz, so it lights with each beep.
+    def beep(freq, secs):
+        n = n_of(secs)
+        tone = [math.sin(TAU * freq * i / SR) + 0.33 * math.sin(TAU * 3 * freq * i / SR) for i in range(n)]
+        a, r = n_of(0.01), n_of(0.05)
+        shape = [min(1.0, i / a, (n - i) / r) for i in range(n)]
+        return apply(lowpass(tone, 3000), shape)
+
+    n = n_of(1.0)
+    out = [0.0] * n
+    for start, freq in [(0.0, 940.0), (0.5, 700.0)]:
+        b = beep(freq, 0.24)
+        o = n_of(start)
+        for i, v in enumerate(b):
+            out[o + i] += v
+    save("seeker_alarm.wav", out, 0.6)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     coin_gain()
@@ -363,3 +385,4 @@ if __name__ == "__main__":
     quest_start()
     quest_success()
     quest_fail()
+    seeker_alarm()

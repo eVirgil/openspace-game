@@ -29,6 +29,9 @@ var gauge: Control
 var boost := 1.0
 var vessel_name := ""            ## issue #15: shown on the HUD (issue #181: and the dash)
 var target: Dictionary = {}       ## issue #76: an enemy in the air (AtmoFighter.hud_target), or {}
+var warn_label: Label             ## the seeker warning's text, over the toast
+var seeker_warn := false          ## the seeker warning is sounding (SeekerWarning)
+var seeker_lamp := false          ## and its lamp is in the lit half of a flash
 var _toast_left := 0.0
 var _fade: ColorRect
 
@@ -49,6 +52,12 @@ func _ready() -> void:
 	toast_label.add_theme_font_size_override("font_size", RetroUI.size("flight_toast", 26))
 	toast_label.size.y = 40
 	toast_label.visible = false
+	warn_label = _center_label(-210.0)
+	warn_label.add_theme_font_size_override("font_size", RetroUI.size("flight_toast", 26) + 6)
+	warn_label.add_theme_color_override("font_color", WARN)
+	warn_label.text = GameFlow.label("seeker_warning")
+	warn_label.size.y = 40
+	warn_label.visible = false
 	gauge = Control.new()
 	gauge.name = "Gauge"
 	gauge.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -95,6 +104,7 @@ func show_values(v: Dictionary) -> void:
 	if gauge == null:
 		return
 	values = v
+	values["seeker_lamp"] = seeker_lamp
 	boost = float(v.get("boost", 0.0))
 	for view in [sim, cockpit]:
 		view.values = v
@@ -111,6 +121,8 @@ func set_cockpit(on: bool, cinematic := false) -> void:
 	if cockpit == null:
 		return
 	cockpit_view = on
+	if warn_label != null and on:
+		warn_label.visible = false
 	cockpit.visible = on
 	sim.visible = not on and not cinematic
 	gauge.visible = not cinematic
@@ -134,6 +146,19 @@ func confirm_hit(kill: bool) -> void:
 func mark_hit_at(at: Vector3, kill: bool) -> void:
 	if feedback != null:
 		feedback.mark_at(at, kill)
+
+
+## The seeker warning (SeekerWarning): while `on`, the text shows over the view and
+## blinks with the lamp; the cockpit view's dash lamp (`values.seeker_lamp`) flashes
+## with it.
+func set_seeker_warning(on: bool, lamp: bool) -> void:
+	seeker_warn = on
+	seeker_lamp = on and lamp
+	values["seeker_lamp"] = seeker_lamp
+	if warn_label != null:
+		# The cockpit view has the lamp and the alarm only; the text is for the chase view.
+		warn_label.visible = on and not cockpit_view
+		warn_label.modulate.a = 1.0 if seeker_lamp else 0.35
 
 
 ## Issue #181: you were hit.

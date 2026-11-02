@@ -2,6 +2,40 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Standing toast: every change in faction standing shows (2026-11-01)
+
+- **When your standing with a faction moves, a small panel comes up high on the
+  screen, under the top banner**: "Remnant standing +10", the change green for up and red for
+  down, over a gauge from -100 to +100 with a tick every 25. A finer tick, in the
+  change's colour, is drawn for every point it moved as the marker sweeps from
+  where you were to where you are. A fight that moves both the Remnant and the
+  locals shows two panels side by side, and a second change to one that is still up adds to it.
+- Only the Remnant and the locals: the smugglers' standing never shows.
+  Only faction standing. What one character thinks of you (Oda's trust) is not
+  shown. Setting standing in the dev panel or loading a save is not news either.
+
+## The Remnant love you when you clear the locals for the dark master (2026-11-01)
+
+- **On the dark master's oath, clearing the barracks' local guards now takes your
+  Remnant standing to 100.** It was 25 from joining, and an armed player who had
+  just fired still read as hostile, so the troopers coming back to their posts shot
+  on sight. At 100 they wave you through. Number: `standing.retaken` in
+  `content/core/npcs/dark_master.json`.
+
+## The dark master: blade on his hip until he fights, and his talk works with AI on (2026-11-01)
+
+- **His red blade hangs dark on his left hip while he is at ease**, in story and
+  free roam alike: in the cruiser's bay while he makes his offer, and on the
+  barracks roof while you are sworn to him. The moment he is hostile and the fight
+  is on he draws it, the hilt swinging to his fist and the blade igniting as his
+  guard comes up (0.4 s), and he hangs it up again if he gives up on you (you are
+  down, or gone past his give-up distance). Built mid-fight (free roam, or back
+  after you refused him) it is already out.
+- **His offer talk no longer locks the box with AI characters on.** His talk spot
+  joined the host's list by hand instead of through `add_spot`, so his brain never
+  got the AI service (every answer was a written line) and the host never heard his
+  reply: after your first typed line the box stayed locked, and Esc only repeated
+  "is not finished with you". He now registers as the general does.
 ## Map: places the locals hold turn green (2026-11-01)
 
 - **On the F11 Map, an outpost the locals have taken is green**, and the port goes

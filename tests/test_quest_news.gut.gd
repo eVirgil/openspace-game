@@ -61,6 +61,37 @@ func test_a_bounty_killed_and_paid() -> void:
 	assert_eq([n.key, n.sub], ["bounty_paid", "+1500 cr"])
 
 
+## Oda telling the fleet is news: the quest by its title, then its first step; each
+## step done says the next.
+func test_oda_telling_the_fleet_is_news() -> void:
+	Story.skip_to("fleet")
+	QuestNews.clear()
+	Story.beat("cantina_owner")
+	var n := QuestNews.take()
+	assert_eq([n.key, n.sub], ["quest_new", "Destroy the fleet"])
+	n = QuestNews.take()
+	assert_eq(n.key, "objective")
+	assert_string_contains(n.sub, "bay")
+	assert_eq(QuestNews.take(), {}, "and that is all")
+	Story.event("cruiser_landed")
+	n = QuestNews.take()
+	assert_eq(n.key, "objective")
+	assert_string_contains(n.sub, "stairs")
+	Story.event("cruiser_infiltrated")
+	assert_string_contains(QuestNews.take().sub, "Kill")
+
+
+## Any chapter Oda tells that sends you somewhere is news, and a "talk to Oda"
+## banner still waiting from the chapter before is not shown: it was answered.
+func test_oda_telling_the_range_is_news_and_not_talk_to_oda() -> void:
+	QuestNews.clear()
+	Story.beat("cantina_owner")           # meets Oda, told the range
+	var n := QuestNews.take()
+	assert_eq(n.key, "objective")
+	assert_string_contains(n.sub, "range")
+	assert_eq(QuestNews.take(), {})
+
+
 func test_the_banner_shows_one_at_a_time_and_clears() -> void:
 	var b := QuestBanner.new()
 	add_child_autofree(b)

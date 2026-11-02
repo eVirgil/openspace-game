@@ -1133,6 +1133,10 @@ func _build_remnant() -> void:
 ## The main street's patrol droids for one side's block (droids.json "remnant" or
 ## "locals"), on the Remnant's street route.
 func _build_town_units(side: Dictionary) -> void:
+	var station = demo.platform if demo != null and "platform" in demo else null
+	if station is AsteroidWorld and not station.st.is_empty():
+		_build_station_pacers(side, station)
+		return
 	var pts: Array = cfg.get("remnant", {}).get("patrol", [])
 	# Issue #237: a town layout can draw its own street patrol (route "street_patrol").
 	if demo != null and "town" in demo and demo.town != null and not demo.town.get_route("street_patrol").is_empty():
@@ -1144,6 +1148,30 @@ func _build_town_units(side: Dictionary) -> void:
 		var sp: Dictionary = _side_spec(side, spec)
 		sp["patrol"] = route
 		_spawn_remnant(sp, int(spec.get("start", 0)) % route.size())
+
+
+## The moon station: no street patrol under the dome (the home port's route crossed
+## its walls and walked the hallway's roof). The side's droids pace short beats on
+## the rock outside the ring wall instead (droids.json "station"), one per post.
+func _build_station_pacers(side: Dictionary, station: AsteroidWorld) -> void:
+	var sc: Dictionary = cfg.get("station", {})
+	var units: Array = side.get("units", [])
+	if units.is_empty():
+		return
+	var r: float = station.rw + float(sc.get("out", 8.0))
+	var half := float(sc.get("half", 6.0))
+	var i := 0
+	for deg in sc.get("posts_deg", []):
+		var a := deg_to_rad(float(deg))
+		var at: Vector3 = station.rc + Vector3(cos(a), 0.0, sin(a)) * r
+		var along := Vector3(-sin(a), 0.0, cos(a)) * half
+		var beat: Array = [at - along, at + along]
+		if _on_ball():
+			beat = beat.map(func(p): return ground.surface_below(p + _up(p) * 200.0))
+		var sp := _side_spec(side, units[i % units.size()])
+		sp["patrol"] = beat
+		_spawn_remnant(sp, i % 2)
+		i += 1
 
 
 ## Issue #187: a side's block: "remnant" (the Remnant's) or "locals".
