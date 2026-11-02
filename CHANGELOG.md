@@ -2,6 +2,18 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Standing toast: every change in faction standing shows (2026-11-01)
+
+- **When your standing with a faction moves, a small panel comes up high on the
+  screen, under the top banner**: "Remnant standing +10", the change green for up and red for
+  down, over a gauge from -100 to +100 with a tick every 25. A finer tick, in the
+  change's colour, is drawn for every point it moved as the marker sweeps from
+  where you were to where you are. A fight that moves both the Remnant and the
+  locals shows two panels side by side, and a second change to one that is still up adds to it.
+- Only the Remnant and the locals: the smugglers' standing never shows.
+  Only faction standing. What one character thinks of you (Oda's trust) is not
+  shown. Setting standing in the dev panel or loading a save is not news either.
+
 ## The Remnant love you when you clear the locals for the dark master (2026-11-01)
 
 - **On the dark master's oath, clearing the barracks' local guards now takes your
@@ -9,6 +21,7 @@ Plain English, newest on top. One entry per milestone.
   just fired still read as hostile, so the troopers coming back to their posts shot
   on sight. At 100 they wave you through. Number: `standing.retaken` in
   `content/core/npcs/dark_master.json`.
+
 ## The dark master: blade on his hip until he fights, and his talk works with AI on (2026-11-01)
 
 - **His red blade hangs dark on his left hip while he is at ease**, in story and

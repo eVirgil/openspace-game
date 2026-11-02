@@ -12,6 +12,8 @@ extends CanvasLayer
 ##
 ## Quest news (QuestNews: a quest or job started, cargo found, a target killed)
 ## goes up big in the upper middle, with a sound: the QuestBanner it carries.
+## A change in a faction's standing (StandingNews) shows under it as a
+## StandingToast.
 
 const REFRESH := 0.25                 ## seconds between re-reading the objective
 const AMBER := Color("#e0a050")
@@ -26,6 +28,7 @@ var marks: Control                    ## draws the arrow and the diamond
 var objective: Dictionary = {}        ## the last Objective.current()
 var target_pos := Vector3.INF         ## where it points, INF = nowhere (text only)
 var banner: QuestBanner               ## quest news, big, one at a time
+var standing_toast: StandingToast     ## faction standing changes, a row each, under the banner
 var _left := 0.0
 
 
@@ -55,6 +58,8 @@ func _ready() -> void:
 	add_child(label)
 	banner = QuestBanner.new()
 	add_child(banner)
+	standing_toast = StandingToast.new()
+	add_child(standing_toast)
 	refresh()
 
 
