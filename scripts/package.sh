@@ -2,7 +2,9 @@
 # Builds the shared builds (export feature "share", see docs/SHARING.md) and zips
 # them for sending. Needs the Godot export templates for the pinned version.
 # Run: ./scripts/package.sh [windows|mac|all]   (default: all)
-# Out: builds/OpenSpace-windows.zip, builds/OpenSpace-mac.zip
+# Out: "builds/OpenSpace V<version> Windows.zip", "builds/OpenSpace V<version> Mac.zip",
+# where <version> is application/config/version in project.godot (the only place
+# to bump it; the export presets leave their version fields empty so they use it).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -19,6 +21,13 @@ case "$GODOT_VER" in
   "$PIN".stable*) ;;
   *) echo "package: Godot $PIN is pinned, found '$GODOT_VER'" >&2; exit 1 ;;
 esac
+VERSION="$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)"
+if [ -z "$VERSION" ]; then
+  echo "package: no config/version in project.godot" >&2
+  exit 1
+fi
+NAME="OpenSpace V$VERSION"
+
 TEMPLATES="$HOME/Library/Application Support/Godot/export_templates/$PIN.stable"
 
 need_template() {
@@ -44,22 +53,25 @@ export_preset() {
 
 build_windows() {
   need_template windows_release_x86_64.exe
-  rm -rf builds/windows builds/OpenSpace-windows.zip
-  mkdir -p builds/windows
-  export_preset "Windows Share" builds/windows/OpenSpace.exe
-  (cd builds && zip -qr OpenSpace-windows.zip windows)
-  echo "package: builds/OpenSpace-windows.zip ($(du -h builds/OpenSpace-windows.zip | cut -f1))"
+  local zip="builds/$NAME Windows.zip"
+  rm -rf builds/windows "$zip"
+  mkdir -p "builds/windows/$NAME"
+  export_preset "Windows Share" "builds/windows/$NAME/$NAME.exe"
+  # The zip unpacks to a folder named like the game.
+  (cd builds/windows && zip -qr "../$NAME Windows.zip" "$NAME")
+  echo "package: $zip ($(du -h "$zip" | cut -f1))"
 }
 
 build_mac() {
   need_template macos.zip
-  rm -rf builds/macos builds/OpenSpace-mac.zip
+  local app="builds/macos/$NAME.app" zip="builds/$NAME Mac.zip"
+  rm -rf builds/macos "$zip"
   mkdir -p builds/macos
-  export_preset "macOS Share" builds/macos/OpenSpace.app
-  codesign --verify --deep builds/macos/OpenSpace.app
+  export_preset "macOS Share" "$app"
+  codesign --verify --deep "$app"
   # ditto keeps the bundle's signature and symlinks; plain zip can break them.
-  ditto -c -k --keepParent builds/macos/OpenSpace.app builds/OpenSpace-mac.zip
-  echo "package: builds/OpenSpace-mac.zip ($(du -h builds/OpenSpace-mac.zip | cut -f1))"
+  ditto -c -k --keepParent "$app" "$zip"
+  echo "package: $zip ($(du -h "$zip" | cut -f1))"
 }
 
 # Textures and class names must be imported before an export can use them.
