@@ -715,6 +715,13 @@ Plain English, newest on top. One entry per milestone.
   walk back and board her. She can still be shot on the way down. You can't
   board another ship until she's down or towed.
 
+## Ejecting from your own ship sends her home (2026-11-01)
+
+- **Your ship flies home; a stolen one crashes.** Eject from a ship you own and she
+  is on her pad at once, with "Your ship flies home. Press [I] to call it back."
+  (the ledger's Call button). No fall, no crash, no tow. A stolen or borrowed ship,
+  or a pad's own ship that is nobody's, still goes adrift and crashes as before.
+
 ## The party barge (issue #269, 2026-10-31)
 
 - **A sail barge that is one long party.** Out in the home planet's desert,

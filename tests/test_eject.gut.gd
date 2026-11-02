@@ -274,3 +274,38 @@ func test_ejecting_low_and_slow_she_lands_where_she_comes_down() -> void:
 	assert_eq(pilot.atmo.state, AtmoFlight.State.PARKED, "set down intact")
 	assert_false(pilot.log_events.any(func(e): return e.type == "crashed"))
 	assert_false(t._player.is_downed, "an 8 m hop out does not kill you")
+
+
+# ------------------------------------------------ your own ship flies home, a stolen one crashes
+
+func test_ejecting_from_your_own_ship_flies_her_home() -> void:
+	WorldState.hangar = "courier"
+	var t = _town()
+	await _settled(t)
+	var pilot := _flying(t, 300.0, 90.0, Vector3(0, -0.3, -1).normalized())
+	await wait_physics_frames(2)
+	assert_eq(pilot.berth_key(), Fleet.T89)
+	assert_true(pilot.ejecting_flies_home())
+	assert_true(pilot.eject())
+	assert_eq(pilot.atmo.state, AtmoFlight.State.PARKED, "no fall to simulate: she is on her pad")
+	assert_true(pilot.is_parked_home())
+	assert_true(pilot.visual.visible)
+	for i in 60 * 5:
+		await wait_physics_frames(1)
+	assert_false(pilot.log_events.any(func(e): return e.type == "crashed"), "she never crashes")
+	assert_eq(pilot.atmo.state, AtmoFlight.State.PARKED)
+	var p = t._player
+	p.global_position = pilot.visual.global_position + Vector3(40.0, 0.0, 0.0)
+	assert_eq(pilot.call_ship(), "", "Call (the ledger's button, I) brings her back")
+
+
+func test_ejecting_from_a_stolen_ship_still_crashes_her() -> void:
+	WorldState.hangar = "courier"
+	var t = _town()
+	await _settled(t)
+	var pilot := _flying(t, 300.0, 90.0, Vector3(0, -0.3, -1).normalized())
+	pilot.berths[pilot.berth]["stolen"] = true
+	assert_false(pilot.ejecting_flies_home(), "not yours to send home")
+	await wait_physics_frames(2)
+	assert_true(pilot.eject())
+	assert_eq(pilot.atmo.state, AtmoFlight.State.ADRIFT)
