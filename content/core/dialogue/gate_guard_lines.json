@@ -1,5 +1,5 @@
 {
-  "note": "Gate guard barks (authored, not LLM). Keys are what the checkpoint and the guard brain ask for; a line is picked at random per key. Generic, in-world, no franchise terms.",
+  "note": "Gate guard barks (authored, not LLM). Whoever holds the front gate says these (the Remnant's guards or the locals'), so no line names either side. Keys are what the checkpoint and the guard brain ask for; a line is picked at random per key. Generic, in-world, no franchise terms.",
   "lines": {
     "wave": [
       "Move along.",
@@ -117,7 +117,6 @@
       "That's not a lunchbox."
     ],
     "confiscated": [
-      "Remnant property now. Move.",
       "Smart. Now get out of my sight.",
       "Confiscated. Don't let me see it again."
     ],

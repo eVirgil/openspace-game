@@ -42,7 +42,7 @@ var ground: WorldGround
 var outposts: Array = []           ## { id, label, origin, yaw, cfg }
 var guards: Array = []             ## NpcBody at the outposts (also in demo.npcs)
 var garrisons: Dictionary = {}     ## outpost id -> its own Garrison (the town builds them)
-var folks: Dictionary = {}         ## issue #187: outpost id -> the Townsfolk running the locals there
+var folks: Dictionary = {}         ## issue #187: outpost id -> the locals' garrison there (Garrison on the locals' side)
 var held_by: Array = []            ## issue #187: NpcBody, the locals' guards at the outposts (also in demo.locals)
 var swaps := 0                     ## issue #187: outposts that changed hands in this scene, for traces
 var target: NpcBody                ## the bounty target, while one is out there
@@ -241,7 +241,7 @@ func swap(o: Dictionary, side: String) -> void:
 				mine.append(g)
 		var folk = folks.get(id, null)
 		if folk == null:
-			folks[id] = demo.make_townsfolk("Locals_" + id, mine)
+			folks[id] = demo.make_locals_outpost_garrison(o, mine)
 		else:
 			for g in mine:
 				folk.add_member(g)

@@ -16,8 +16,8 @@
   },
   "barracks": {
     "posts": {
-      "trooper_gate_n": "local_guard",
-      "trooper_gate_s": "local_guard",
+      "trooper_gate_n": "local_gate_guard",
+      "trooper_gate_s": "local_gate_guard",
       "trooper_tower": "local_sentry",
       "trooper_yard_a": "local_guard",
       "trooper_yard_b": "local_guard"

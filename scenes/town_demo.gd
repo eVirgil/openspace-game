@@ -80,6 +80,7 @@ var club_look: ClubDressing           ## issue #261: the club's room and the ban
 var garrison: Garrison                ## M15: runs every trooper in town (null with npc_brains off)
 var locals: Array = []                ## NpcBody, one per marker whose profile is in the "locals" faction
 var townsfolk: Townsfolk              ## runs every local (null with npc_brains off)
+var locals_garrison: Garrison         ## the locals' guards on the barracks posts (gate, yard, tower) while they hold it, else null
 var town_name := ""                   ## issue #15: this town's generated name ("" when its world names none)
 var planet_name := ""                 ## and the planet it is on
 var place_card: Label                 ## "<town>  ·  <planet>", shown for a few seconds on arrival
@@ -762,12 +763,38 @@ func _npc_brains() -> void:
 		if gear != null:
 			gear.vendor_open = townsfolk.vendor_open
 			gear.closed_line = townsfolk.closed_line
+		for n in locals:
+			_locals_garrison_join(n)
 	if npc_brains and outposts != null:
 		# Issue #187: the locals at each outpost they hold have their own alarm.
 		for o in outposts.outposts:
 			var mine: Array = outposts.held_by.filter(func(g): return str(g.get_meta("outpost", "")) == str(o.id))
 			if not mine.is_empty():
-				outposts.folks[str(o.id)] = make_townsfolk("Locals_" + str(o.id), mine)
+				outposts.folks[str(o.id)] = make_locals_outpost_garrison(o, mine)
+
+
+## The locals hold the barracks: their guards on its posts (Townsfolk.on_barracks)
+## work the front gate and the barracks yard like the Remnant's did, in a garrison
+## of their own on the locals' standing, whose alarm goes up with the town's locals.
+func _locals_garrison_join(n: NpcBody) -> void:
+	if not npc_brains or n == null or not Townsfolk.on_barracks(n):
+		return
+	if locals_garrison != null and is_instance_valid(locals_garrison):
+		locals_garrison.add_member(n)
+		return
+	locals_garrison = _make_garrison("LocalsGarrison", [n], false, Vector3.INF, false, _town_zones())
+	locals_garrison.respawn_rule = Callable()   # a dead one stays dead (Territory.barracks_dead)
+	if townsfolk != null:
+		locals_garrison.alarm_up.connect(townsfolk.join_alarm)
+		townsfolk.alarm_up.connect(locals_garrison.join_alarm)
+
+
+## The locals at an outpost they hold: a garrison on their side with the
+## outpost's ring as its checkpoint, like the Remnant's there. Its own alarm.
+func make_locals_outpost_garrison(o: Dictionary, members: Array) -> Garrison:
+	var g := _make_garrison("Locals_" + str(o.id), members, false, o.origin, true, [outpost_zone(o)])
+	g.respawn_rule = Callable()   # Territory decides when the locals there are gone
+	return g
 
 
 ## Issue #187: a director for some of the port's locals (the town's, or one outpost's).
@@ -823,8 +850,9 @@ func outpost_zone(o: Dictionary) -> Dictionary:
 	return spec
 
 
-## The Townsfolk running the locals at outpost `id` ("" = the town's own).
-func townsfolk_for(id: String) -> Townsfolk:
+## Who runs the locals at outpost `id`: the locals' garrison there, else ("" or
+## none) the town's Townsfolk. Either has the alarm the locals' droids go by.
+func townsfolk_for(id: String) -> Node:
 	if id != "" and outposts != null and outposts.folks.has(id):
 		return outposts.folks[id]
 	return townsfolk
@@ -991,6 +1019,9 @@ func _return_town_remnant() -> void:
 		locals.erase(n)
 		n.queue_free()
 	barracks_locals.clear()
+	if locals_garrison != null and is_instance_valid(locals_garrison):
+		locals_garrison.queue_free()     # the Remnant's garrison has the gate again
+	locals_garrison = null
 	for m in town.markers():
 		if not _is_live_npc(m) or not _is_remnant_post(m):
 			continue
@@ -1018,6 +1049,7 @@ func _locals_take_barracks() -> void:
 		_build_npc(m)
 		if townsfolk != null and locals.size() > before:
 			townsfolk.add_member(locals.back())
+			_locals_garrison_join(locals.back())
 	if gear != null and gear.hud != null:
 		gear.hud.toast(Territory.line("barracks"), 5.0)
 
