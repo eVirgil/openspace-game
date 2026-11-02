@@ -26,10 +26,40 @@ static func indirect_level() -> float:
 
 static func save_indirect_level(level: float) -> void:
 	_indirect = clampf(level, 0.0, 1.0)
+	_save_setting("light", "indirect", _indirect)
+
+
+## The player's "Low graphics" setting (F11 > Options), for slower PCs: holds the
+## expensive render features off on the ground too (as AltitudeDetail does high up),
+## shortens the sun's shadows, draws the 3D world at a lower resolution and thins
+## the blowing sand. What it changes: time_of_day.json "low_graphics". Saved per machine.
+static var _low := -1
+static var _low_cfg: Dictionary = {}
+
+
+static func low_graphics() -> bool:
+	if _low < 0:
+		var f := ConfigFile.new()
+		_low = int(bool(f.get_value("quality", "low", false))) if f.load(SETTINGS_PATH) == OK else 0
+	return _low == 1
+
+
+static func save_low_graphics(on: bool) -> void:
+	_low = int(on)
+	_save_setting("quality", "low", on)
+
+
+static func low_cfg() -> Dictionary:
+	if _low_cfg.is_empty():
+		_low_cfg = load_presets().get("low_graphics", {})
+	return _low_cfg
+
+
+static func _save_setting(section: String, key: String, value: Variant) -> void:
 	DirAccess.make_dir_recursive_absolute(SETTINGS_PATH.get_base_dir())
 	var f := ConfigFile.new()
 	f.load(SETTINGS_PATH)
-	f.set_value("light", "indirect", _indirect)
+	f.set_value(section, key, value)
 	f.save(SETTINGS_PATH)
 
 var presets: Dictionary = {}
@@ -141,7 +171,6 @@ func _init() -> void:
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.directional_shadow_blend_splits = true
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
@@ -204,7 +233,8 @@ func set_space_level(level: float) -> void:
 
 
 func ambient_now() -> float:
-	return lerpf(_ambient_energy_base * ambient_energy_scale, _ambient_space, space_level) * indirect_level()
+	var low := float(low_cfg().get("ambient", 1.0)) if low_graphics() else 1.0
+	return lerpf(_ambient_energy_base * ambient_energy_scale, _ambient_space, space_level) * indirect_level() * low
 
 
 ## Set (and save) the Indirect light setting, and show it at once.
@@ -213,6 +243,31 @@ func set_indirect(level: float) -> void:
 	if env != null:
 		env.ambient_light_energy = ambient_now()
 	_apply_quality()
+
+
+## Set (and save) the Low graphics setting, and show it at once.
+func set_low_graphics(on: bool) -> void:
+	save_low_graphics(on)
+	if env != null:
+		env.ambient_light_energy = ambient_now()
+	_apply_quality()
+	_apply_shadow_range()
+	_apply_render_scale()
+
+
+func _enter_tree() -> void:
+	_apply_render_scale()
+
+
+## Low graphics draws the 3D world in this viewport at render_scale and scales it
+## up with FSR; 2D (the HUD, menus) is drawn at full size either way.
+func _apply_render_scale() -> void:
+	if not is_inside_tree():
+		return
+	var vp := get_viewport()
+	var low := low_graphics()
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if low else Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = clampf(float(low_cfg().get("render_scale", 1.0)), 0.25, 1.0) if low else 1.0
 
 
 func apply(preset_id: String = "") -> void:
@@ -383,13 +438,17 @@ func set_shadow_cap(metres: float) -> void:
 func _apply_shadow_range() -> void:
 	if sun == null or _shadow_distance <= 0.0:
 		return
-	sun.directional_shadow_max_distance = minf(_shadow_distance, shadow_cap) if shadow_cap > 0.0 else _shadow_distance
+	var d := minf(_shadow_distance, shadow_cap) if shadow_cap > 0.0 else _shadow_distance
+	if low_graphics():
+		d = minf(d, float(low_cfg().get("shadow_m", d)))
+	sun.directional_shadow_max_distance = d
 
 
 func _apply_quality() -> void:
 	if env == null:
 		return
-	var on := func(k: String) -> bool: return bool(_wanted.get(k, true)) and not suppressed.has(k)
+	var low: Array = low_cfg().get("off", []) if low_graphics() else []
+	var on := func(k: String) -> bool: return bool(_wanted.get(k, true)) and not suppressed.has(k) and not low.has(k)
 	var indirect := indirect_level()
 	env.ssao_enabled = on.call("ssao")
 	env.ssil_enabled = on.call("ssil") and indirect > 0.0
@@ -397,8 +456,15 @@ func _apply_quality() -> void:
 	env.sdfgi_enabled = on.call("sdfgi") and indirect > 0.0
 	env.sdfgi_energy = indirect
 	env.volumetric_fog_enabled = on.call("volumetric")
+	# Without SDFGI nothing bounces the sand's warmth back up: low graphics mixes
+	# a sand colour into the sky's fill instead.
+	var bounce := float(low_cfg().get("bounce_share", 0.0)) if low_graphics() else 0.0
+	env.ambient_light_sky_contribution = 1.0 - bounce
+	env.ambient_light_color = Color.html(str(low_cfg().get("bounce", "#000000"))) if bounce > 0.0 else Color.BLACK
 	if sun != null:
 		sun.shadow_enabled = on.call("shadows")
+		sun.directional_shadow_mode = (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if low_graphics()
+			else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
 
 
 func _apply_lamps() -> void:

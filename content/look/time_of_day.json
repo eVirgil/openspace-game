@@ -9,6 +9,16 @@
     { "hour": 17.0, "preset": "golden" },
     { "hour": 19.5, "preset": "dusk" }
   ],
+  "low_graphics": {
+    "note": "F11 > Options > Graphics > Low graphics (saved per machine in user://settings/graphics.cfg). Read by src/systems/look/look_environment.gd and src/systems/look/dust_wind.gd. off: render features held off on the ground as well as in the sky (the same names as the worlds' 'detail' tiers: sdfgi, ssil, ssao, volumetric, shadows). shadow_m: the sun's shadows end this many metres out (the presets ask for 700-900), in 2 splits instead of 4. render_scale: the 3D world is drawn at this fraction of the window and scaled up with FSR (0.75 draws ~56% of the pixels; the HUD stays sharp). ambient: the sky's fill is multiplied by this, standing in for the bounce light SDFGI no longer adds, so shade does not go black. bounce / bounce_share: that share of the fill comes from this sand colour instead of the sky, for the warm light SDFGI bounces off the ground. dust: the share of blowing sand still drawn.",
+    "off": ["sdfgi", "ssil", "ssao", "volumetric"],
+    "shadow_m": 150.0,
+    "render_scale": 0.75,
+    "ambient": 1.3,
+    "bounce": "#d2a676",
+    "bounce_share": 0.4,
+    "dust": 0.35
+  },
   "presets": {
     "golden": {
       "sun": { "elevation_deg": 8.0, "azimuth_deg": -58.0, "color": "#ffc48a", "energy": 2.9, "angular_size": 0.6, "shadow_distance": 900.0, "fog_energy": 0.8 },

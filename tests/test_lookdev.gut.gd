@@ -14,6 +14,57 @@ func test_every_preset_has_the_keys_the_environment_reads() -> void:
 			assert_true(p.has(key), "%s preset has %s" % [id, key])
 
 
+## Low graphics (F11 > Options): the expensive features go, the shadows shorten, the
+## 3D world draws at a lower scale, and turning it off gives every one of them back.
+## The setting is saved to the player's graphics.cfg, so the file is put back after.
+func test_low_graphics_turns_the_expensive_features_off_and_back_on() -> void:
+	var path := LookEnvironment.SETTINGS_PATH
+	var had := FileAccess.file_exists(path)
+	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
+	var was_low := LookEnvironment.low_graphics()
+	var cfg := LookEnvironment.low_cfg()
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.set_low_graphics(false)
+	look.apply("golden")
+	var ambient := look.env.ambient_light_energy
+	assert_true(look.env.sdfgi_enabled or LookEnvironment.indirect_level() == 0.0, "SDFGI on by default")
+	assert_true(look.env.volumetric_fog_enabled and look.env.ssao_enabled)
+
+	look.set_low_graphics(true)
+	assert_true(LookEnvironment.low_graphics())
+	assert_false(look.env.sdfgi_enabled, "no SDFGI")
+	assert_false(look.env.ssil_enabled, "no SSIL")
+	assert_false(look.env.ssao_enabled, "no SSAO")
+	assert_false(look.env.volumetric_fog_enabled, "no volumetric fog")
+	assert_true(look.sun.shadow_enabled, "the sun still casts shadows")
+	assert_eq(look.sun.directional_shadow_mode, DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS)
+	assert_almost_eq(look.sun.directional_shadow_max_distance, float(cfg["shadow_m"]), 0.01)
+	assert_almost_eq(look.env.ambient_light_energy, ambient * float(cfg["ambient"]), 0.001)
+	assert_almost_eq(look.env.ambient_light_sky_contribution, 1.0 - float(cfg["bounce_share"]), 0.001, "sand bounce in the fill")
+	assert_almost_eq(look.get_viewport().scaling_3d_scale, float(cfg["render_scale"]), 0.001)
+	assert_eq(look.get_viewport().scaling_3d_mode, Viewport.SCALING_3D_MODE_FSR)
+	look.apply("dusk")
+	assert_false(look.env.sdfgi_enabled, "a new preset keeps it low")
+
+	look.set_low_graphics(false)
+	look.apply("golden")
+	assert_true(look.env.volumetric_fog_enabled and look.env.ssao_enabled, "everything back")
+	assert_eq(look.sun.directional_shadow_mode, DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
+	assert_gt(look.sun.directional_shadow_max_distance, float(cfg["shadow_m"]))
+	assert_almost_eq(look.env.ambient_light_energy, ambient, 0.001)
+	assert_almost_eq(look.env.ambient_light_sky_contribution, 1.0, 0.001)
+	assert_almost_eq(look.get_viewport().scaling_3d_scale, 1.0, 0.001)
+
+	LookEnvironment.save_low_graphics(was_low)
+	if had:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(saved)
+		f.close()
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func test_sun_direction_matches_elevation() -> void:
 	var d := LookEnvironment.direction(0.0, 90.0)
 	assert_almost_eq(d.y, 1.0, 0.0001, "90 degrees elevation points straight up")

@@ -40,8 +40,9 @@ func _process(dt: float) -> void:
 	_t += dt
 	gust = smoothstep(-0.35, 0.55, _gusts.get_noise_1d(_t))
 	var lull := float(cfg.get("lull", 0.12))
-	grains.amount_ratio = lerpf(lull, 1.0, gust)
-	puffs.amount_ratio = lerpf(lull, 1.0, smoothstep(-0.35, 0.55, _gusts.get_noise_1d(_t - 1.5)))
+	var share := float(LookEnvironment.low_cfg().get("dust", 1.0)) if LookEnvironment.low_graphics() else 1.0
+	grains.amount_ratio = lerpf(lull, 1.0, gust) * share
+	puffs.amount_ratio = lerpf(lull, 1.0, smoothstep(-0.35, 0.55, _gusts.get_noise_1d(_t - 1.5))) * share
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return
