@@ -6,7 +6,7 @@ extends Node
 ## shows in the RetroHud footer.
 ##
 ## Controls (project.godot actions):
-##   1 / 2 / 3     blaster / energy sword / rifle   (same key again holsters)
+##   1 / 2 / 3     blaster / rifle / energy sword   (same key again holsters)
 ##   Q             last weapon        mouse wheel   cycle        H   holster
 ##   Tab           next weapon, and hands free after the last one
 ##   LMB (fire)    shoot / swing: a click swipes left, the next right, and so on;
@@ -36,7 +36,7 @@ var player: CharacterBody3D
 var avatar: PlayerAvatar
 var rig_node: Node3D                ## camera_rig_node.gd
 var bolt_parent: Node3D
-var holder := WeaponHolder.new(["pistol_blaster", "energy_blade", "rifle_blaster"])
+var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "energy_blade"])
 var guns: Dictionary = {}           ## id -> Weapon (ammo + timing)
 var combo: SwordCombo
 var look: Dictionary = {}
