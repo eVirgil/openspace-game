@@ -2,6 +2,12 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.3 (2026-11-01)
+
+- Share builds are now **OpenSpace V1.3** (`OpenSpace V1.3.app`, `OpenSpace V1.3.exe`).
+  Everything below is in it. The version is `config/version` in `project.godot`;
+  `.claude/skills/build-share-files` says how to build and name the next one.
+
 ## Settings: the controls list shows every control (2026-11-01)
 
 - **F11 > Options > Controls now lists all the controls**, in four groups: on foot,

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Builds the shared builds (export feature "share", see docs/SHARING.md) and zips
 # them for sending. Needs the Godot export templates for the pinned version.
-# Run: ./scripts/package.sh [windows|mac|all]   (default: all)
+# Run: ./scripts/package.sh [windows|mac|all] [label]   (default: all, no label)
 # Out: "builds/OpenSpace V<version> Windows.zip", "builds/OpenSpace V<version> Mac.zip",
 # where <version> is application/config/version in project.godot (the only place
 # to bump it; the export presets leave their version fields empty so they use it).
+# A label names a feature demo: `all "Weapon Wheel"` -> "OpenSpace V1.3 - Weapon Wheel".
+# The skill .claude/skills/build-share-files says when to use which.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -26,7 +28,11 @@ if [ -z "$VERSION" ]; then
   echo "package: no config/version in project.godot" >&2
   exit 1
 fi
-NAME="OpenSpace V$VERSION"
+LABEL="${2:-}"
+case "$LABEL" in
+  *[/\\:\*\?\"\<\>\|]*) echo "package: the label can not hold / \\ : * ? \" < > |" >&2; exit 2 ;;
+esac
+NAME="OpenSpace V$VERSION${LABEL:+ - $LABEL}"
 
 TEMPLATES="$HOME/Library/Application Support/Godot/export_templates/$PIN.stable"
 
@@ -82,5 +88,5 @@ case "${1:-all}" in
   windows) build_windows ;;
   mac) build_mac ;;
   all) build_windows; build_mac ;;
-  *) echo "usage: $0 [windows|mac|all]" >&2; exit 2 ;;
+  *) echo "usage: $0 [windows|mac|all] [label]" >&2; exit 2 ;;
 esac

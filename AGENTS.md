@@ -8,7 +8,8 @@ way they are) and `KNOWN_ISSUES.md`.
 
 | Skill | Use it for |
 |---|---|
-| [`write-issue`](.claude/skills/write-issue/SKILL.md) | Writing, scoping or splitting a GitHub issue from what the player wants, and the PR that closes it. Checks open issues and recent PRs first, builds the request out of the game's existing parts (planets, towns, cantinas, outposts, native packs, the NPC kit) so every issue is a variation of something that exists, asks follow-up questions for must-haves and could-haves, keeps new renders to a minimum, lists what the architecture does not let an issue change, and gives the PR format (the user's ask quoted at the top, screenshots for anything visual). |
+| [`write-issue`](.claude/skills/write-issue/SKILL.md) | Writing, scoping or splitting a GitHub issue from what the player wants, and the PR that closes it. Checks open issues and recent PRs first, builds the request out of the game's existing parts (planets, towns, cantinas, outposts, native packs, the NPC kit) so every issue is a variation of something that exists, asks follow-up questions for must-haves and could-haves, keeps new renders to a minimum, lists what the architecture does not let an issue change, and gives the issue and PR formats (both open with the user's ask, quoted; screenshots for anything visual). |
+| [`build-share-files`](.claude/skills/build-share-files/SKILL.md) | Building the Mac and Windows share builds from GitHub. Always asks which version first (the most recent is in `project.godot`): a new base version (`OpenSpace V1.4`, bumped in a PR and noted in the changelog as "New version is 1.4") or a feature demo (`OpenSpace V1.3 - Weapon Wheel`, no changelog). Puts the zips and the Mac app on the Desktop and writes the copy-paste list of what is new, by category. |
 
 ## Ground rules
 
