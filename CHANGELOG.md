@@ -8,6 +8,18 @@ Plain English, newest on top. One entry per milestone.
   weapons, flying, and the keys that work everywhere. It used to show eleven; the
   walking, jetpack, gear, rest, weapon, flight, radio, missile, target, land and
   eject keys were missing.
+## G wears the armour too, and new gear tells you the key (2026-11-01)
+
+- **[G] now puts on and takes off the quantonium armour as well as the jetpack.**
+  With only one of them it just toggles it. With both it opens a small menu:
+  "Put on" or "Take off" for each, Enter to pick, Esc to walk away.
+- **New equipment says how to wear it.** Buying the armour from the fence (or taking
+  any jetpack or armour that does not go on by itself) toasts "New equipment: ...
+  Press [G] to put it on".
+- **A new weapon says how to change weapons.** Picking up or buying a gun or a
+  sword follows its toast with "Press [Tab] to change weapons - press & hold to see
+  all weapons".
+- Words are in `content/core/flow/gear.json`; tests in `tests/test_gear_g.gut.gd`.
 
 ## Bug fix: the lookout's jetpack and blade sit on the floor, not in the middle (2026-11-01)
 
@@ -721,6 +733,13 @@ Plain English, newest on top. One entry per milestone.
   any crash. If she comes down slower, she rests where she lands and you can
   walk back and board her. She can still be shot on the way down. You can't
   board another ship until she's down or towed.
+
+## Ejecting from your own ship sends her home (2026-11-01)
+
+- **Your ship flies home; a stolen one crashes.** Eject from a ship you own and she
+  is on her pad at once, with "Your ship flies home. Press [I] to call it back."
+  (the ledger's Call button). No fall, no crash, no tow. A stolen or borrowed ship,
+  or a pad's own ship that is nobody's, still goes adrift and crashes as before.
 
 ## The party barge (issue #269, 2026-10-31)
 

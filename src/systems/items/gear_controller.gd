@@ -7,7 +7,9 @@ extends Node
 ##     (WorldState.smuggle_drop()), and swaps it when she lines up the next one,
 ##   - shows a prompt when the player is in reach and acts on `interact` (E):
 ##     pick up, sell, buy,
-##   - attaches and detaches gear on `gear_toggle` (G),
+##   - attaches and detaches gear on `gear_toggle` (G): the jetpack and the armour. With
+##     one of them it just toggles; with both it opens a small menu (put on / take off
+##     each). Picking up or buying new equipment, or a weapon, toasts the key to press.
 ##   - gives the player node a Jetpack while one is on its back, puts the pack's
 ##     look on the body's chest joint, and lights its flames while thrusting,
 ##   - issue #148: an item with a "blade_color" (the red saber from the wreck, or
@@ -39,6 +41,7 @@ const LABELS_PATH := "res://content/core/flow/gear.json"
 const SLOT_BACK := "back"
 const SLOT_ARMOUR := "armour"
 const SLOT_BLADE := "blade"
+const G_SLOTS := [SLOT_BACK, SLOT_ARMOUR]   ## the slots [G] puts on and takes off
 const FALL_MARGIN := 20.0       ## metres below the lowest floor before a rescue
 
 var content
@@ -483,6 +486,7 @@ func _take(node) -> String:
 	sync_gear()
 	if hud != null:
 		hud.toast(msg, 4.0)
+	_tips_for(id)
 	return "picked_up"
 
 
@@ -579,6 +583,7 @@ func buy_item(id: String, v: Dictionary) -> String:
 	_trade_said = _l("bought") % [str(it.get("label", id)), cost]
 	if hud != null:
 		hud.toast(_trade_said)
+	_tips_for(id)
 	return "bought"
 
 
@@ -636,6 +641,8 @@ func buy_offer(id: String) -> String:
 		_trade_said = Inventory.full_line()
 	if r in ["bought", "cant_afford", "full"] and hud != null:
 		hud.toast(_trade_said, 4.0)
+	if r == "bought" and o.has("item"):
+		_tips_for(str(o.item))
 	return r
 
 
@@ -683,27 +690,67 @@ func toggle_item(id: String) -> String:
 	return ""
 
 
-## Put the back-slot gear on, or take it off. Returns "attached", "detached" or "".
+## What [G] works on: the owned jetpack and armour, worn or in the pack.
+func g_items() -> Array:
+	var out: Array = []
+	for slot in G_SLOTS:
+		for id in inv().item_ids():
+			if str(content.get_item(str(id)).get("slot", "")) == slot:
+				out.append(str(id))
+	return out
+
+
+## [G]: with one piece of gear it goes on or comes off; with several (the jetpack
+## and the armour) a menu asks which. Returns "attached", "detached", "full" (no
+## backpack slot to take it off into), "menu" (asking) or "" (nothing to put on).
 func toggle_gear() -> String:
-	var on := inv().in_slot(SLOT_BACK)
-	if on != "":
-		if not _room_to_take_off(on):
-			return "full"
-		inv().detach(on)
-		sync_gear()
+	var ids := g_items()
+	if ids.is_empty():
 		if hud != null:
-			hud.toast(_l("detached") % str(content.get_item(on).get("label", on)))
-		return "detached"
-	for id in inv().item_ids():
-		var it: Dictionary = content.get_item(str(id))
-		if str(it.get("slot", "")) == SLOT_BACK and inv().attach(str(id), it):
-			sync_gear()
-			if hud != null:
-				hud.toast(_l("attached") % str(it.get("label", id)))
-			return "attached"
-	if hud != null:
-		hud.toast(_l("nothing_to_attach"))
-	return ""
+			hud.toast(_l("nothing_to_attach"))
+		return ""
+	if ids.size() > 1:
+		_open_gear_menu(ids)
+		return "menu"
+	return _toggle_worn(str(ids[0]))
+
+
+## Put `id` on or take it off, and say so.
+func _toggle_worn(id: String) -> String:
+	var r := toggle_item(id)
+	if r in ["attached", "detached"] and hud != null:
+		var item: Dictionary = content.get_item(id)
+		var key := r if str(item.get("slot", "")) == SLOT_BACK else "%s_%s" % [r, str(item.get("slot", ""))]
+		hud.toast(_l(key) % str(item.get("label", id)))
+	return r
+
+
+func _open_gear_menu(ids: Array) -> void:
+	var opts: Array = []
+	for id in ids:
+		var label := str(content.get_item(str(id)).get("label", id))
+		opts.append({ "id": str(id), "text": _l("take_off_row" if inv().is_attached(str(id)) else "put_on_row") % label })
+	var lock: bool = player != null and not bool(player.get("locked"))
+	if lock:
+		player.locked = true
+	var pick := func(id: String) -> void:
+		if lock:
+			player.locked = false
+		if id != "":
+			_toggle_worn(id)
+	menu.open(_l("gear_title"), opts, pick)
+
+
+## After something new comes into the pack: the key that puts new equipment on, and
+## how to change weapons. Queued behind the pickup's own toast.
+func _tips_for(id: String) -> void:
+	if hud == null:
+		return
+	var item: Dictionary = content.get_item(id)
+	if G_SLOTS.has(str(item.get("slot", ""))) and not inv().is_attached(id):
+		hud.toast_after(_l("new_equipment") % str(item.get("label", id)))
+	if str(item.get("kind", "")) == "weapon":
+		hud.toast_after(_l("weapon_tip"))
 
 
 # ------------------------------------------------------------------ gear -> player

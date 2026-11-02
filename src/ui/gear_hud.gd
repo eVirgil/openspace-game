@@ -9,6 +9,7 @@ const INK := Color(0.95, 0.92, 0.85, 0.95)
 var prompt: Label
 var toast_label: Label
 var _toast_left := 0.0
+var _queued: Array = []          ## [{ text, secs }] tips waiting for the toast on screen to finish
 
 
 func _init() -> void:
@@ -46,6 +47,22 @@ func set_prompt(text: String) -> void:
 func toast(text: String, secs: float = 3.0) -> void:
 	if toast_label == null or text == "":
 		return
+	_queued.clear()
+	_show(text, secs)
+
+
+## A tip that follows the toast on screen (a pickup, then what to press); with none
+## up it shows at once. A fresh toast() drops whatever was waiting.
+func toast_after(text: String, secs: float = 4.0) -> void:
+	if toast_label == null or text == "":
+		return
+	if _toast_left > 0.0:
+		_queued.append({ "text": text, "secs": secs })
+	else:
+		_show(text, secs)
+
+
+func _show(text: String, secs: float) -> void:
 	toast_label.text = text
 	toast_label.visible = true
 	_toast_left = secs
@@ -55,4 +72,8 @@ func _process(dt: float) -> void:
 	if _toast_left > 0.0:
 		_toast_left -= dt
 		if _toast_left <= 0.0:
-			toast_label.visible = false
+			if _queued.is_empty():
+				toast_label.visible = false
+			else:
+				var next: Dictionary = _queued.pop_front()
+				_show(str(next.text), float(next.secs))

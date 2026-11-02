@@ -571,8 +571,16 @@ func can_eject() -> bool:
 		and atmo.altitude() < atmo.space_altitude
 
 
+## Your own ship flies itself home when you eject; a stolen (or borrowed) one, or one
+## that is nobody's, has nobody to take it and comes down ADRIFT.
+func ejecting_flies_home() -> bool:
+	var b: Dictionary = berths[berth]
+	return berth_key() != "" and not bool(b.get("stolen", false)) and not bool(b.get("borrowed", false))
+
+
 ## Out of the seat in mid air: thrown clear (above and behind) with the ship's own
-## speed and a kick up, falling on foot from there. The empty ship flies on ADRIFT.
+## speed and a kick up, falling on foot from there. The empty ship flies on ADRIFT,
+## unless she is yours: then she flies home (_fly_home) and waits on her pad.
 func eject() -> bool:
 	if not can_eject():
 		return false
@@ -585,8 +593,12 @@ func eject() -> bool:
 	_eject_hold = 0.0
 	if atmo.state == AtmoFlight.State.LANDING:
 		v -= u * atmo.p("land_descent", 12.0)
-	atmo.abandon()
+	var flies_home := ejecting_flies_home()
+	if not flies_home:
+		atmo.abandon()
 	_leave_seat(spot)
+	if flies_home:
+		_fly_home()
 	var p := player()
 	var climb := v.dot(u)
 	var flat := (v - u * climb).limit_length(GameFlow.setting("eject_push_max", 60.0))
@@ -603,6 +615,20 @@ func eject() -> bool:
 	log_events.append(e)
 	ejected.emit()
 	return true
+
+
+## Issue #276 follow-up: an ejected ship of yours is not simulated down. She is on her
+## pad at once (no fall, no crash, nothing for the garrison to shoot) and the ledger's
+## Call brings her back.
+func _fly_home() -> void:
+	atmo.park(home, home_yaw)
+	_set_hull(true)
+	if visual != null:
+		visual.visible = true
+	_sync_visual()
+	_remember(berth)
+	var line := "eject_home_call" if berth_key() == Fleet.primary() else "eject_home"
+	_foot_toast(GameFlow.label(line))
 
 
 ## Out of the seat at `spot`: the player is back on foot (seen, solid, moving), the
