@@ -1,6 +1,7 @@
 extends GutTest
 ## Issue #381: the time of day moves on with the game (day_clock.gd, pure). On
-## Auto each trigger steps the day on; a fixed pick holds it; a story save
+## Auto each trigger steps the day on, once five minutes of play have gone by
+## since the last step; a fixed pick holds it; a story save
 ## follows its chapters until the cruiser is won, then the picker unlocks on
 ## Auto; the pick is saved with the world.
 
@@ -13,19 +14,38 @@ func after_all() -> void:
 	WorldState.reset()
 
 
+## Play on long enough for the day to be free to move again.
+func _later() -> void:
+	WorldState.clock += DayClock.min_seconds()
+
+
 func test_freeplay_steps_the_day_on_at_each_trigger() -> void:
 	assert_eq(WorldState.time_of_day, "golden")
 	assert_eq(WorldState.day_pick, DayClock.AUTO)
-	assert_eq(DayClock.trigger("indoors"), "noon")
-	assert_eq(DayClock.trigger("respawn"), "golden")
-	assert_eq(DayClock.trigger("travel"), "dusk")
-	assert_eq(DayClock.trigger("indoors"), "golden")
+	for want in ["noon", "golden", "dusk", "golden"]:
+		_later()
+		assert_eq(DayClock.trigger("indoors"), want)
 	assert_eq(WorldState.time_of_day, "golden")
+
+
+func test_the_day_holds_five_minutes_of_play_between_steps() -> void:
+	assert_eq(DayClock.min_seconds(), 300.0, "time_of_day.json day_min_seconds")
+	assert_eq(DayClock.trigger("indoors"), "", "a new game holds its first light")
+	assert_eq(DayClock.on_arrival("travel"), "golden", "a faded trip too")
+	WorldState.clock += 299.0
+	assert_eq(DayClock.trigger("respawn"), "", "not yet")
+	WorldState.clock += 1.0
+	assert_eq(DayClock.trigger("respawn"), "noon", "five minutes in: it moves on")
+	WorldState.clock += 120.0
+	assert_eq(DayClock.trigger("indoors"), "", "and holds again from there")
+	WorldState.clock += 180.0
+	assert_eq(DayClock.trigger("indoors"), "golden")
 
 
 func test_a_step_never_lands_on_the_time_you_are_in() -> void:
 	for i in 12:
 		var was := WorldState.time_of_day
+		_later()
 		assert_ne(DayClock.trigger("indoors"), was)
 
 
@@ -33,6 +53,7 @@ func test_after_the_light_is_moved_by_hand_the_day_goes_on_from_there() -> void:
 	assert_true(DayClock.set_by_hand("dusk"))
 	WorldState.time_of_day = "dusk"
 	WorldState.day_pick = DayClock.AUTO
+	_later()
 	assert_eq(DayClock.trigger("indoors"), "golden")
 
 
@@ -50,6 +71,7 @@ func test_a_fixed_pick_holds_the_time() -> void:
 func test_the_seamless_hop_to_the_moon_keeps_the_time() -> void:
 	assert_eq(DayClock.on_arrival("handoff"), "golden")
 	assert_eq(DayClock.on_arrival(""), "golden")
+	_later()
 	assert_eq(DayClock.on_arrival("travel"), "noon", "a faded trip moves it on")
 
 
@@ -89,6 +111,7 @@ func test_the_story_locks_the_controls_until_the_cruiser_is_won() -> void:
 	assert_false(DayClock.locked(), "unlocked once the cruiser is won")
 	assert_eq(WorldState.day_pick, DayClock.AUTO, "on Auto")
 	var was := WorldState.time_of_day
+	_later()
 	assert_ne(DayClock.trigger("indoors"), "", "the debrief's walk into the cantina moves it on")
 	assert_ne(WorldState.time_of_day, was)
 	var want := "dusk" if WorldState.time_of_day != "dusk" else ""
@@ -98,17 +121,21 @@ func test_the_story_locks_the_controls_until_the_cruiser_is_won() -> void:
 
 func test_the_pick_is_saved() -> void:
 	DayClock.pick("dusk")
+	WorldState.day_moved_at = 420.0
 	var d := WorldState.to_save()
 	WorldState.reset()
 	WorldState.from_save(JSON.parse_string(JSON.stringify(d)))
 	assert_eq(WorldState.day_pick, "dusk")
 	assert_eq(WorldState.time_of_day, "dusk")
+	assert_eq(WorldState.day_moved_at, 420.0, "when the day last moved")
 
 
 func test_an_old_save_loads_on_auto() -> void:
 	var d := WorldState.to_save()
 	d.erase("day_pick")
 	d.erase("day_step")
+	d.erase("day_moved_at")
 	WorldState.from_save(JSON.parse_string(JSON.stringify(d)))
 	assert_eq(WorldState.day_pick, DayClock.AUTO)
+	_later()
 	assert_eq(DayClock.trigger("indoors"), "noon")
