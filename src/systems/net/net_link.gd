@@ -10,7 +10,7 @@ extends Node
 ## (SceneMultiplayer's server relay). Each game puts a RemotePlayer in its town for
 ## every other player on the same planet.
 ##
-## Tests: `local_state` replaces reading the town's player, `with_bodies` false
+## Tests: `local_state` (and `local_outfit`) replace reading the town's player, `with_bodies` false
 ## keeps bodies out, `arrive_on_welcome` false keeps a guest's town from reloading.
 
 signal welcomed(planet_id: String)
@@ -30,6 +30,10 @@ const F_CROUCH := 2
 const F_SPRINT := 4
 const F_VISIBLE := 8
 const F_SLIDE := 16
+const F_AIM := 32                  ## trigger or aim held: the gun comes up
+const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
+const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
+const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
 
 var my_name := ""
 var my_outfit: Dictionary = {}
@@ -42,6 +46,7 @@ var address := ""                  ## the host's (a guest), for the status line
 var host_name := ""
 var welcomed_in := false           ## a guest the host has let in
 var local_state: Callable = Callable()
+var local_outfit: Callable = Callable()   ## tests: replaces reading the town's avatar
 var with_bodies := true
 var arrive_on_welcome := true
 var _max := 5
@@ -49,7 +54,10 @@ var _send_left := 0.0
 var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
+var _fit_left := 0.0               ## seconds to the next look at what you wear
+var outfits_heard := 0             ## the others' outfit changes heard (tests)
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var hits_answered := 0             ## your hits on the others their games answered (tests)
 var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
@@ -251,16 +259,19 @@ func _on_host_gone() -> void:
 # ------------------------------------------------------------------ state
 
 ## Every player -> every other (the host relays): where I am and what I am doing.
-## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt]
+## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt,
+##  where the gun points (INF: along the pose), the blade's third-person pose, reload]
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func state(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
-	if pkt.size() < 9 or (_mp().is_server() and not roster.has(id)):
+	if pkt.size() < 12 or (_mp().is_server() and not roster.has(id)):
 		return
 	states[id] = {
 		"planet": str(pkt[0]), "pos": pkt[1] as Vector3, "yaw": float(pkt[2]), "vel": pkt[3] as Vector3,
 		"flags": int(pkt[4]), "weapon": str(pkt[5]), "drawn": float(pkt[6]), "pitch": float(pkt[7]),
-		"tilt": pkt[8] as Quaternion, "t": Time.get_ticks_msec() / 1000.0,
+		"tilt": pkt[8] as Quaternion, "aim_at": pkt[9] as Vector3,
+		"sword": pkt[10] if pkt[10] is Dictionary else {}, "reload": float(pkt[11]),
+		"t": Time.get_ticks_msec() / 1000.0,
 	}
 
 
@@ -291,6 +302,10 @@ func _physics_process(dt: float) -> void:
 	if with_bodies:
 		_place_bodies()
 	_hook_shots()
+	_fit_left -= dt
+	if _fit_left <= 0.0:
+		_fit_left = NetSession.n("outfit_check_s", 1.0)
+		_send_outfit()
 
 
 func _connected() -> bool:
@@ -324,13 +339,34 @@ func town_state() -> Array:
 	var kit = scene.get("player_kit")
 	var weapon := ""
 	var drawn := 0.0
+	var aim_at := Vector3.INF
+	var sword: Dictionary = {}
+	var reload := -1.0
 	if kit != null and is_instance_valid(kit) and kit.avatar != null:
-		weapon = str(kit.avatar.current)
-		drawn = float(kit.avatar.drawn)
+		var av = kit.avatar
+		weapon = str(av.current)
+		drawn = float(av.drawn)
+		reload = float(av.reload)
+		if av.aim_wanted:
+			flags |= F_AIM
+		if av.sprint_lowered:
+			flags |= F_SPRINT_LOW
+		if av.first_person:
+			flags |= F_FIRST_PERSON
+		if av.sword_trail_on:
+			flags |= F_CUTTING
+		var w = kit.weapons
+		if weapon == "energy_blade" and w != null and w.combo != null:
+			sword = w.combo.pose(false)        # the others see you from outside, even in first person
+		# Where the gun points: the crosshair's spot in third person, and in first
+		# person where the eye looks (the avatar has no aim_target then).
+		if weapon != "" and weapon != "energy_blade" and w != null and w.has_method("aim_point"):
+			aim_at = av.aim_target if av.aim_target != Vector3.INF else w.aim_point()
 	var tilt = body.get("tilt")
 	return [GameFlow.current_planet_id(), body.global_position, rig.yaw if rig != null else body.rotation.y,
 		body.velocity, flags, weapon, drawn, rig.pitch if rig != null else 0.0,
-		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY]
+		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY,
+		aim_at, sword, reload]
 
 
 ## A body in this town for every other player on this planet who is not in a ship.
@@ -369,6 +405,44 @@ func _drop_body(id: int) -> void:
 	_drop_ship(id)
 
 
+# ------------------------------------------------------------------ outfits
+
+## What you wear changed (the character builder, another save's outfit): tell the
+## others. Read off the town's avatar, so every way of changing it is caught.
+func _send_outfit() -> void:
+	var fit: Dictionary = {}
+	if local_outfit.is_valid():
+		fit = local_outfit.call()
+	else:
+		var scene := get_tree().current_scene
+		var kit = scene.get("player_kit") if scene != null else null
+		if kit == null or not is_instance_valid(kit) or kit.avatar == null:
+			return
+		fit = kit.avatar.worn_outfit()
+	if fit.is_empty() or fit.hash() == my_outfit.hash():
+		return
+	my_outfit = fit
+	if roster.has(my_id()):
+		roster[my_id()]["outfit"] = fit
+	if _mp().is_server() or welcomed_in:
+		outfit.rpc(fit)
+
+
+## Every player -> every other (the host relays): what I wear now. The host keeps
+## it on the roster, so someone joining later sees it too.
+@rpc("any_peer", "call_remote", "reliable")
+func outfit(fit: Dictionary) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id):
+		return
+	var clean := PlayerOutfit.sanitize(fit)
+	roster[id]["outfit"] = clean
+	outfits_heard += 1
+	var b = bodies.get(id, null)
+	if b != null and is_instance_valid(b):
+		b.wear(clean)
+
+
 # ------------------------------------------------------------------ shots and friendly fire
 
 ## Send the town's player's shots to the others (a new town builds new weapons).
@@ -404,6 +478,8 @@ func shot(pkt: Array) -> void:
 	b.streak_length = float(pkt[6])
 	b.stylize = true
 	b.shooter = bodies.get(id, null)
+	if b.shooter != null and is_instance_valid(b.shooter) and b.shooter.avatar != null:
+		b.shooter.avatar.fire_kick()       # their gun kicks and flashes here too
 	scene.add_child(b)
 	b.global_position = pkt[1] as Vector3
 	b.monitoring = false               # a picture of the shot, never a hit
@@ -430,13 +506,33 @@ func hit(amount: float, from: Vector3) -> void:
 	var scene := get_tree().current_scene
 	var p = scene.get("_player") if scene != null else null
 	if not (p is CharacterBody3D) or not is_instance_valid(p) or dmg <= 0.0:
+		hit_back.rpc_id(id, false, false)
 		return
+	var hp_was := int(p.health.hp)
+	var down_was := bool(p.is_downed)
 	var shooter = bodies.get(id, null)
 	if shooter != null and is_instance_valid(shooter):
 		p.apply_damage_from(dmg, shooter)
 	else:
 		p.last_hit_from = from
 		p.apply_damage(dmg)
+	hit_back.rpc_id(id, int(p.health.hp) < hp_was, bool(p.is_downed) and not down_was)
+
+
+## The player you hit -> you: whether it hurt them (not while they were already
+## down or in a grace period) and whether it put them down. Your hit marker comes
+## from this, white for a hit, red for a down, as for a guard (HitFeedback).
+@rpc("any_peer", "call_remote", "reliable")
+func hit_back(took: bool, downed: bool) -> void:
+	if not roster.has(_mp().get_remote_sender_id()):
+		return
+	hits_answered += 1
+	var scene := get_tree().current_scene
+	var kit = scene.get("player_kit") if scene != null else null
+	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
+	var fb = w.feedback if w != null else null
+	if took and fb != null and is_instance_valid(fb):
+		fb.confirm(downed)
 
 
 # ------------------------------------------------------------------ words
