@@ -526,12 +526,13 @@ func _refresh_map(centre := false) -> void:
 		if not now.is_empty() else GlobeMap.line("none")
 
 
-## Where you are and which way you look, and where the pointer is (the globe
-## flashes the pin there, or marks the spot). Off-planet targets (another planet,
-## the cruiser up there) are not on the globe.
+## Where you are and which way you look, the other LAN players near you, and
+## where the pointer is (the globe flashes the pin there, or marks the spot).
+## Off-planet targets (another planet, the cruiser up there) are not on the globe.
 func _map_marks(sphere: PlanetSphere) -> void:
 	globe.player = Vector2.INF
 	globe.heading = Vector2.ZERO
+	globe.others = []
 	globe.goal_pin = ""
 	globe.goal = Vector2.INF
 	if sphere == null or demo == null:
@@ -543,6 +544,8 @@ func _map_marks(sphere: PlanetSphere) -> void:
 		var cam := get_viewport().get_camera_3d()
 		var fwd: Vector3 = -cam.global_basis.z if cam != null else -(p as Node3D).global_basis.z
 		globe.heading = sphere.world_to_map(at + fwd * 25.0) - globe.player
+		for o in NetSession.others_near(at):
+			globe.others.append({ "map": sphere.world_to_map(o.pos), "name": o.name })
 	var now := Objective.current()
 	if now.is_empty():
 		return

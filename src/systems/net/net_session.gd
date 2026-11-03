@@ -213,6 +213,29 @@ static func spot_by_pad(box: Dictionary, toward: Vector3) -> Array:
 	return [at, atan2(c.x - at.x, c.z - at.z)]
 
 
+## The other players on foot in this town within mark_m of `from`, nearest first:
+## [{ name, pos }]. The HUD and the F11 map mark them (mark_color). Only reads
+## the bodies the town already has, so it is cheap to call every frame.
+static func others_near(from: Vector3) -> Array:
+	var out: Array = []
+	if not active() or from == Vector3.INF:
+		return out
+	var max_m := n("mark_m", 3000.0)
+	for id in link.bodies:
+		var b = link.bodies[id]
+		if b == null or not is_instance_valid(b) or not b.is_visible_in_tree():
+			continue
+		var at: Vector3 = (b as Node3D).global_position
+		if at.distance_to(from) <= max_m:
+			out.append({ "name": str(b.player_name), "pos": at })
+	out.sort_custom(func(a, b): return (a.pos as Vector3).distance_to(from) < (b.pos as Vector3).distance_to(from))
+	return out
+
+
+static func mark_color() -> Color:
+	return Color(str(cfg().get("mark_color", "#4da6ff")))
+
+
 ## One line for F11: hosting at, in whose game, or not connected; then who is here.
 static func status_line() -> String:
 	if not active():

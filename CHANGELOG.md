@@ -2,6 +2,19 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## LAN: you can find each other (2026-11-03)
+
+- **The other players were there, just hard to find.** A guest arrives by a
+  pad down in the pit, often 80 m or more from the host, and the name over
+  their head was a few centimetres of cream text, the colour of an NPC's
+  speech: past a few metres you could not tell a player from a townsperson.
+- **Their name is blue and the same size on screen at any distance.**
+- **A blue mark on the HUD** for each other player on foot within 3 km, past
+  25 m: a diamond over them, through walls, with their name and how far.
+- **On the F11 map** they show as a blue dot with their name.
+- Tunable in `content/core/flow/lan.json` (`name_px`, `mark_m`, `mark_near_m`,
+  `mark_color`).
+
 ## The wreck field is cheaper to look at (2026-11-03)
 
 - **The four crashed cruisers look the same and cost far less to draw.** Their

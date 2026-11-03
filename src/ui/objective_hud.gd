@@ -198,12 +198,14 @@ func _marker(id: String) -> Vector3:
 # ------------------------------------------------------------------ drawing
 
 ## The arrow before the line (the target's bearing from where the camera looks),
-## and the diamond over the target while it is in front of the camera.
+## and the diamond over the target while it is in front of the camera. LAN: the
+## other players nearby too, a blue diamond each with their name and how far.
 func _draw_marks() -> void:
-	if objective.is_empty() or target_pos == Vector3.INF or not label.visible:
-		return
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
+		return
+	_draw_players(cam)
+	if objective.is_empty() or target_pos == Vector3.INF or not label.visible:
 		return
 	var size := marks.size
 	var to := target_pos - cam.global_position
@@ -224,3 +226,30 @@ func _draw_marks() -> void:
 	var dia := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
 	marks.draw_colored_polygon(dia, Color(AMBER, 0.85))
 	marks.draw_polyline(dia + PackedVector2Array([dia[0]]), Color.BLACK, 1.5)
+
+
+## LAN: the other players on foot within NetSession's mark_m, past mark_near_m
+## (nearer, their own floating name does): a blue diamond over each in front of
+## the camera, through walls, kept inside the screen, their name and distance by it.
+func _draw_players(cam: Camera3D) -> void:
+	var me := _player_pos()
+	if not NetSession.active() or me == Vector3.INF:
+		return
+	var col := NetSession.mark_color()
+	var font := marks.get_theme_default_font()
+	var size := marks.size
+	for o in NetSession.others_near(me):
+		var pos: Vector3 = o.pos
+		var d := me.distance_to(pos)
+		if d < NetSession.n("mark_near_m", 25.0) or cam.is_position_behind(pos + Vector3.UP * 2.6):
+			continue
+		var at := cam.unproject_position(pos + Vector3.UP * 2.6)
+		at = at.clamp(Vector2(EDGE, TOP + 50.0), size - Vector2(EDGE, EDGE + 40.0))
+		var r := 7.0
+		var dia := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
+		marks.draw_colored_polygon(dia, Color(col, 0.9))
+		marks.draw_polyline(dia + PackedVector2Array([dia[0]]), Color.BLACK, 1.5)
+		if font != null:
+			var text := "%s  %s" % [o.name, ("%.1f km" % (d / 1000.0)) if d >= 1000.0 else ("%d m" % int(d))]
+			marks.draw_string_outline(font, at + Vector2(r + 5.0, 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color.BLACK)
+			marks.draw_string(font, at + Vector2(r + 5.0, 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, col)
