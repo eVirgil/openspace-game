@@ -116,6 +116,15 @@ static func play(key: String, at: Vector3 = Vector3.INF) -> Node:
 	return p
 
 
+## Loads the streams of `keys` now (FxWarmup), so the first play of each is not a disk read.
+static func warm(keys: Array) -> void:
+	var s := lib()
+	for k in keys:
+		var st = s.cfg.get("sfx", {}).get(k, {}).get("stream", "")
+		for path in (st if st is Array else [st]):
+			s._load(str(path))
+
+
 ## A looping player on `parent`: 3D when the parent is a Node3D (unless `spatial`
 ## is false: the sound of your own ship), 2D otherwise. Not playing yet. Null when
 ## the key is unknown.

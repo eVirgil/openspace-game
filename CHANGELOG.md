@@ -2,6 +2,12 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## No freeze on the first blaster shot (2026-11-02)
+
+- **The first shot no longer stops the game for a few seconds.** The bolt, the
+  muzzle flash, the explosions and their sounds now load in small pieces over
+  the first frames of the game, before anyone fires.
+
 ## Chill 80s synth score, and a second battle track for long fights (2026-11-02)
 
 - **The background music is laid-back 80s synth now.** Eleven new tracks, picked

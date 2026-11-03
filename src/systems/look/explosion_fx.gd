@@ -25,6 +25,20 @@ const GLOW_SHADER := "res://src/systems/look/shaders/explosion_glow.gdshader"
 static var _m: Dictionary = {}      ## shared meshes, materials, ramps and curves (built once)
 
 
+## Builds every shared mesh, material, ramp and curve now, so the first explosion
+## does not (FxWarmup, as a town is built).
+static func warm() -> void:
+	_quad()
+	_spark_mesh()
+	_chunk_mesh()
+	for k in ["fire", "smoke", "flash", "ring", "spark", "chunk"]:
+		_mat(k)
+	for k in ["fire", "fire_clean", "smoke_dark", "smoke_light", "flash_hot", "flash_cold", "ring", "spark_hot", "spark_cold"]:
+		_ramp(k)
+	for k in ["pop", "ring", "billow", "rise", "shrink"]:
+		_curve(k)
+
+
 ## A droid going pop at `at` (its middle).
 static func small(parent: Node, at: Vector3) -> Node3D:
 	var r := _pop(parent, at, "fire")
