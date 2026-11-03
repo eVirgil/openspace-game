@@ -31,7 +31,7 @@ const FREE_SHIP_GONE := "free_ship_gone"    ## ... and was sold or lost for good
 static var standing: Dictionary = DEFAULT_STANDING.duplicate()
 static var flags: Dictionary = {}          ## name -> true
 static var counters: Dictionary = {}       ## name -> int
-static var events: Array = []              ## [{ t, text }] newest last, capped
+static var events: Array = []              ## [{ t, text, where? }] newest last, capped (issue #188: where = the place it happened)
 static var credits := 60
 static var time_of_day := "golden"
 static var day_pick := "auto"              ## issue #381: the F11 picker: "auto" or a preset (DayClock)
@@ -203,16 +203,23 @@ static func count(counter: String) -> int:
 	return int(counters.get(counter, 0))
 
 
-static func change_standing(faction: String, delta: int, why: String = "") -> void:
+static func change_standing(faction: String, delta: int, why: String = "", where: String = "") -> void:
 	var before := int(standing.get(faction, 0))
 	standing[faction] = clampi(before + delta, -100, 100)
 	StandingNews.push(faction, before, int(standing[faction]))
 	if why != "":
-		log_event(why)
+		log_event(why, where)
 
 
-static func log_event(text: String) -> void:
-	events.append({ "t": clock, "text": text })
+## Issue #188: `where` is the place in town it happened ("gate", "market", "pit",
+## "back_gate", "barracks", "cantina", "orbit"): who is there hears it at once,
+## everyone else when the gossip gets to them (NpcBrain.heard). "" = nowhere in
+## particular: gossip only.
+static func log_event(text: String, where: String = "") -> void:
+	var e := { "t": clock, "text": text }
+	if where != "":
+		e["where"] = where
+	events.append(e)
 	while events.size() > MAX_EVENTS:
 		events.pop_front()
 
@@ -251,18 +258,19 @@ static func on_gate_bribe(price: int) -> void:
 	credits = maxi(0, credits - price)
 	bump("gate_bribes")
 	set_flag("bribed_gate")
-	log_event("Paid off the front gate (%d cr)." % price)
+	log_event("Paid off the front gate (%d cr)." % price, "gate")
 
 
-## A Remnant guard died. `all_down`: that was the last one at the gate.
-static func on_guard_killed(delta: int, all_down: bool) -> void:
+## A Remnant guard died. `all_down`: that was the last one at the gate. `where`:
+## the place it happened ("gate" for the town's own garrison; issue #188).
+static func on_guard_killed(delta: int, all_down: bool, where: String = "") -> void:
 	bump("guards_killed")
-	change_standing("imperial_remnant", delta, "A Remnant gate guard was killed.")
+	change_standing("imperial_remnant", delta, "A Remnant gate guard was killed.", where)
 	change_standing("locals", 1)
 	if all_down:
 		set_flag("gate_guards_down")
 		set_flag("gate_checkpoint_up", false)
-		log_event("The front gate checkpoint is down. Nobody is on it.")
+		log_event("The front gate checkpoint is down. Nobody is on it.", "gate")
 
 
 ## Issue #76: the player killed a Remnant soldier worth `amount` (its profile's
@@ -280,7 +288,7 @@ static func on_player_downed(share: float = 0.2, minimum: int = 5) -> int:
 	var take := mini(credits, maxi(minimum, int(credits * share)))
 	credits -= take
 	bump("times_downed")
-	log_event("Woke up in the pit, %d cr lighter." % take)
+	log_event("Woke up in the pit, %d cr lighter." % take, "pit")
 	return take
 
 
@@ -291,7 +299,7 @@ static func on_flight_returned(arrival: Dictionary) -> void:
 		bump("patrols_beaten")
 		set_flag("remnant_patrol_beaten")
 		set_flag("ship_limped_home", false)
-		change_standing("imperial_remnant", -15, "A Remnant patrol in orbit was shot to pieces.")
+		change_standing("imperial_remnant", -15, "A Remnant patrol in orbit was shot to pieces.", "orbit")
 		change_standing("locals", 4)
 		change_standing("smuggler", 5)
 		# The fleet's fighters are only in the way: the story waits on the cruiser's general.
@@ -299,7 +307,7 @@ static func on_flight_returned(arrival: Dictionary) -> void:
 		_complete_jobs("flight_complete")
 	else:
 		set_flag("ship_limped_home")
-		log_event("A ship came back into the pit trailing smoke.")
+		log_event("A ship came back into the pit trailing smoke.", "pit")
 
 
 ## Issue #64: the player is on the practice range (Oda's honour system: going
@@ -746,7 +754,7 @@ static func on_general_killed() -> void:
 	if bool(bounty.get("general", false)) and str(bounty.get("state", "")) == "rolled":
 		bounty = { "run": int(bounty.run), "outpost": str(bounty.outpost), "state": "" }
 	jobs_taken.erase(GeneralPost.job_id())
-	log_event(str(Story.bounty_cfg().get("event_general", "%s was shot dead at the barracks.")) % str(NpcBrain._read(GENERAL_CARD).get("name", "The general")))
+	log_event(str(Story.bounty_cfg().get("event_general", "%s was shot dead at the barracks.")) % str(NpcBrain._read(GENERAL_CARD).get("name", "The general")), "barracks")
 
 
 ## Issue #193: the general aboard the Remnant cruiser is dead. The cruiser is taken
@@ -770,7 +778,7 @@ static func on_cruiser_taken(general: String, reward: Dictionary, line: String =
 	if not Story.remnant_gone():
 		# Issue #303: free roam too (no story chapter waits for it): the fleet is broken.
 		set_flag("remnant_fleet_beaten")
-		log_event("The Remnant fleet in orbit was broken. The garrison is pulling out of town.")
+		log_event("The Remnant fleet in orbit was broken. The garrison is pulling out of town.", "orbit")
 	checkpoint("cruiser_taken")
 	return pay
 

@@ -241,7 +241,7 @@ func buy() -> bool:
 	WorldState.credits -= price
 	WorldState.bump("speeders_owned")
 	WorldState.set_flag("bought_speeder")
-	WorldState.log_event("Someone bought a speeder from Skrugs.")
+	WorldState.log_event("Someone bought a speeder from Skrugs.", "back_gate")
 	sales += 1
 	_park(WorldState.count("speeders_owned") - 1)
 	if spot != null:
@@ -470,7 +470,7 @@ func keep_ship() -> int:
 	if not pilot.keep_berth(i):
 		return -1
 	WorldState.credits -= price
-	WorldState.log_event(str(lines.get("event_kept", "Skrugs cleaned up a %s for someone.")) % str(o.name))
+	WorldState.log_event(str(lines.get("event_kept", "Skrugs cleaned up a %s for someone.")) % str(o.name), "back_gate")
 	ships_kept += 1
 	if spot != null:
 		var rel := spot.brain.rel
@@ -509,10 +509,10 @@ func buy_ship() -> int:
 	var lines: Dictionary = card.get("ship_buy", {}).get("lines", {})
 	if str(o.kind) == "owned":
 		ShipSalesman.settle_sale(sid, paid)
-		WorldState.log_event(str(lines.get("event_owned", "Someone sold a %s to Skrugs.")) % str(o.name))
+		WorldState.log_event(str(lines.get("event_owned", "Someone sold a %s to Skrugs.")) % str(o.name), "back_gate")
 	else:
 		WorldState.credits += paid
-		WorldState.log_event(str(lines.get("event_stolen", "Someone sold a Remnant ship to Skrugs.")))
+		WorldState.log_event(str(lines.get("event_stolen", "Someone sold a Remnant ship to Skrugs.")), "back_gate")
 	ships_bought += 1
 	if spot != null:
 		var rel := spot.brain.rel

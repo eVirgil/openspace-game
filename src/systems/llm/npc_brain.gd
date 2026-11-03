@@ -134,12 +134,14 @@ func begin_visit() -> String:
 
 ## Issue #185: the events since they last talked (WorldState.clock heard_until),
 ## newest first, at most the card's recap.max (3). Story bookkeeping is left out.
+## Issue #188: only what they have heard by now (heard()).
 func news() -> Array:
 	if rel.heard_until < 0.0:
 		return []
 	var out: Array = []
-	for i in range(WorldState.events.size() - 1, -1, -1):
-		var e: Dictionary = WorldState.events[i]
+	var known := heard_events()
+	for i in range(known.size() - 1, -1, -1):
+		var e: Dictionary = known[i]
 		if float(e.get("t", 0.0)) <= rel.heard_until:
 			break
 		var text := str(e.get("text", ""))
@@ -149,6 +151,26 @@ func news() -> Array:
 		if out.size() >= int(card.get("recap", {}).get("max", 3)):
 			break
 	return out
+
+
+## Issue #188: has this character heard event `e` yet? At once if it happened
+## where they are (the card's "hears": places, "*" = they hear everything first,
+## like Oda), else once the gossip gets to them: the card's "gossip_delay"
+## seconds, world_briefing.json "gossip" "delay" by default.
+func heard(e: Dictionary) -> bool:
+	var hears: Array = card.get("hears", [])
+	if hears.has("*") or hears.has(str(e.get("where", ""))):
+		return true
+	return WorldState.clock - float(e.get("t", 0.0)) >= gossip_delay()
+
+
+func gossip_delay() -> float:
+	return float(card.get("gossip_delay", builder.world_text.get("gossip", {}).get("delay", 90.0)))
+
+
+## Issue #188: the world's events this character has heard of by now, oldest first.
+func heard_events() -> Array:
+	return WorldState.events.filter(heard)
 
 
 ## Issue #185: a model is there to ask (AI characters on, a provider up).
@@ -309,7 +331,7 @@ func say(text: String) -> bool:
 	last_hints = hints_for(text, tier)
 	var world := {
 		"flags": WorldState.flags, "standing": WorldState.standing, "time": WorldState.time_of_day,
-		"events": WorldState.events, "credits": WorldState.credits,
+		"events": heard_events(), "credits": WorldState.credits,     # issue #188: word travels
 		"place": _place(), "people": NameHooks.known("npc:"),
 		"story": Story.brief(id()),
 		"beast": PlanetBeast.brief(GameFlow.planet()),     # everyone here knows the planet's beast
@@ -499,7 +521,7 @@ func _apply(kept: Array) -> Array:
 			"call_guards":
 				rel.banned_until = WorldState.clock + 90.0
 				rel.add_trust(-5, "threatened you in your own bar")
-				WorldState.change_standing("locals", -2, "Someone got thrown out of the cantina.")
+				WorldState.change_standing("locals", -2, "Someone got thrown out of the cantina.", "cantina")
 			"comrade":
 				comrade_declared.emit()
 			"let_go", "search", "join", "refuse":

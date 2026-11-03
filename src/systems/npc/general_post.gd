@@ -509,7 +509,7 @@ func _watch_talk() -> void:
 ## The player mouthed off: Remnant standing drops, and once too often in one talk
 ## his guards search them on the spot. Returns true when they were searched.
 func on_insult() -> bool:
-	WorldState.change_standing("imperial_remnant", int(cfg.get("insult_standing", -5)), "Someone mouthed off at the Remnant general.")
+	WorldState.change_standing("imperial_remnant", int(cfg.get("insult_standing", -5)), "Someone mouthed off at the Remnant general.", "barracks")
 	_talk_insults += 1
 	if _talk_insults < int(cfg.get("search_after", 2)):
 		return false
@@ -658,7 +658,7 @@ func hand_over(uid: int) -> int:
 		demo.droids._free_companion(uid)
 	var pay := droid_pay()
 	WorldState.credits += pay
-	WorldState.change_standing("imperial_remnant", int(cfg.get("droid_standing", 5)), "Someone sold the Remnant general an assassin droid.")
+	WorldState.change_standing("imperial_remnant", int(cfg.get("droid_standing", 5)), "Someone sold the Remnant general an assassin droid.", "barracks")
 	WorldState.jobs_taken.erase(job_id())       # open again
 	WorldState.bump("general_droids")
 	QuestNews.push("droid_delivered", "+%d cr" % pay)

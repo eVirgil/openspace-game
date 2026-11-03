@@ -1974,7 +1974,7 @@ func _wreck_berth(i: int, boom: bool, sold: bool = false) -> void:
 		var at := v.global_position + Vector3(0, 1.5, 0)
 		_crash_fx(at)
 		Sound.play("vehicle_boom", at)
-		WorldState.log_event("A parked ship in the pit was shot to pieces.")
+		WorldState.log_event("A parked ship in the pit was shot to pieces.", "pit")
 	if is_instance_valid(v):
 		v.visible = false
 	if b.hull != null and is_instance_valid(b.hull):

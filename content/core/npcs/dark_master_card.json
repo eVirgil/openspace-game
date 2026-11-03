@@ -4,6 +4,8 @@
   "label": "Dark Master",
   "note": "Issue #303: persona card for the dark master (src/systems/npc/dark_master_post.gd). Same brain as the general (NpcBrain), his own card. He waits in the Remnant cruiser's bay after the player kills its general and offers them a place at his side; the game adds the join / refuse actions for that talk (extra_actions) and his briefing says what the oath is. Sworn to him, the player can talk to him again on the barracks roof. Draft content: the product owner edits freely.",
   "temperature": 0.7,
+  "hears": [],
+  "gossip_delay": 120,
   "actions": [
     "refuse_topic",
     "end_conversation"
