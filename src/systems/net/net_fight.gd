@@ -15,6 +15,10 @@ extends Node
 ## the raiders pick it as they pick the host's, and a bolt or seeker of theirs that
 ## lands on it is sent to that guest's game (fight_hurt) and lands on their ship.
 ##
+## Friendly fire (lan.json "friendly_fire"): your own bolts and seekers that cross
+## another player's ship (their RemoteShip, within its radius) stop there and the
+## hit goes to their game (NetLink.send_ship_hit), in a shared fight or not.
+##
 ## Lives at /root/NetLink/Fight (NetLink makes it). Host -> guests: fight_snap (the
 ## ships, fight_rate times a second), fight_kill, fight_over. Guests -> host:
 ## fight_hit. Everyone -> everyone in the fight: fight_shots (bolts and seekers
@@ -30,6 +34,7 @@ var _ghosts: Array = []          ## the others' shots, for the next step
 var _snap_left := 0.0
 var _guests: Dictionary = {}     ## host: peer id -> their ship in the fight { encounter, ship, pos, rot, speed, t }
 var hits_sent := 0               ## tests
+var ship_hits_sent := 0          ## your bolts on the other players' ships (tests)
 
 
 func _ready() -> void:
@@ -93,7 +98,10 @@ func before_step(fight, dt: float) -> Array:
 ## After it steps: the host sends its fight; a guest its hits on the copies; both
 ## the shots they fired.
 func after_step(fight, events: Array) -> void:
-	if not _live() or not _shared(fight):
+	if not _live():
+		return
+	_hit_players(fight)
+	if not _shared(fight):
 		return
 	var df = fight.df
 	var here := GameFlow.current_planet_id()
@@ -354,6 +362,33 @@ func _sync_copies(fight, dt: float) -> void:
 
 
 # ------------------------------------------------------------------ shots
+
+## Friendly fire: this step's bolts and seekers of yours that crossed another
+## player's ship. A seeker cannot lock on one (it is not in the director), so only
+## one flying straight, or after a fighter, gets there.
+func _hit_players(fight) -> void:
+	var df = fight.df
+	var targets: Array = []
+	for rs in _link().ship_bodies.values():
+		if is_instance_valid(rs) and rs.hittable():
+			targets.append(rs)
+	if targets.is_empty():
+		return
+	var keep: Array = []
+	for p in df.projectiles.items:
+		var hit = null
+		if int(p.owner) == df.player_id and not p.get("ghost", false):
+			for rs in targets:
+				if df.projectiles.segment_hits_sphere(p.prev, p.pos, rs.global_position, rs.radius()):
+					hit = rs
+					break
+		if hit == null:
+			keep.append(p)
+			continue
+		ship_hits_sent += 1
+		_link().send_ship_hit(int(hit.peer_id), float(p.damage))
+	df.projectiles.items = keep
+
 
 ## This game's shots since the last ones sent: the host's whole fight's, a guest's
 ## own. [kind, team, from, velocity, range, turn rate, target (the host's id, -1: none)]

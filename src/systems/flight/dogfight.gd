@@ -530,6 +530,17 @@ func net_hurt(amount: float, kind: String, point: Vector3) -> void:
 	events = now
 
 
+## LAN friendly fire: another player's cannon or seeker hit your ship (their ship is a
+## RemoteShip here, NetFight). It lands as net_hurt's do. Returns 0 if it did
+## nothing, 1 if it hurt, 2 if it was the kill.
+func friendly_damage(amount: float) -> int:
+	var me := get_ship(player_id)
+	if me.is_empty() or not me.alive or player_sheltered or state != State.RUNNING or amount <= 0.0:
+		return 0
+	net_hurt(amount, "bolt", me.flight.position)
+	return 1 if me.alive else 2
+
+
 ## How a ship's pilot is called out: '"Cinder" Lieutenant Varo Kesh', or just the
 ## name or the callsign, or "" when nobody named them.
 static func who(ship: Dictionary) -> String:
