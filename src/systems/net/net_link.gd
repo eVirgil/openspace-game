@@ -20,6 +20,7 @@ signal host_left
 signal turned_away(id: int, why: String)     ## host: a guest refused (full, another version)
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
+const NetWorld := preload("res://src/systems/net/net_world.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -51,6 +52,9 @@ var shots_seen := 0                ## the others' bolts shown here (tests)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS       # the F11 panel pauses the game; the others still move
+	var w := NetWorld.new()
+	w.name = "World"                               # issue #402: the host's people, on everyone's screen
+	add_child(w)
 
 
 func _mp() -> MultiplayerAPI:
@@ -67,6 +71,7 @@ func start_host(port: int, max_players: int) -> Error:
 	roster[1] = { "name": my_name, "outfit": my_outfit }
 	host_name = my_name
 	_mp().peer_disconnected.connect(_on_peer_gone)
+	_mp().peer_connected.connect(func(id): _patient(id))
 	return OK
 
 
@@ -97,6 +102,16 @@ func close() -> void:
 	states.clear()
 
 
+## Give peer `id` peer_timeout_s before counting it gone: a game loading a town
+## does not answer for a few seconds (ENet's own five would drop it).
+func _patient(id: int) -> void:
+	var peer := _mp().multiplayer_peer as ENetMultiplayerPeer
+	var p := peer.get_peer(id) if peer != null else null
+	if p != null:
+		var ms := int(NetSession.n("peer_timeout_s", 30.0) * 1000.0)
+		p.set_timeout(32, ms, ms)
+
+
 func _exit_tree() -> void:
 	close()
 
@@ -109,6 +124,7 @@ func my_id() -> int:
 
 func _on_connected() -> void:
 	_wait_left = -1.0
+	_patient(1)
 	hello.rpc_id(1, my_name, my_outfit, _version())
 
 
@@ -424,6 +440,23 @@ func hit(amount: float, from: Vector3) -> void:
 	else:
 		p.last_hit_from = from
 		p.apply_damage(dmg)
+
+
+## Issue #402 (host): one of the town's people shot player `id`'s body here.
+func send_town_hit(id: int, amount: float, from: Vector3) -> void:
+	if roster.has(id) and id != my_id():
+		town_hit.rpc_id(id, amount, from)
+
+
+## Host -> a guest: the town (a guard, a local) hit you for `amount`, from `from`.
+@rpc("authority", "call_remote", "reliable")
+func town_hit(amount: float, from: Vector3) -> void:
+	var scene := get_tree().current_scene
+	var p = scene.get("_player") if scene != null else null
+	if not (p is CharacterBody3D) or not is_instance_valid(p):
+		return
+	p.last_hit_from = from
+	p.apply_damage(clampf(amount, 0.0, 500.0))
 
 
 # ------------------------------------------------------------------ words
