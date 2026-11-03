@@ -5,6 +5,9 @@ extends RefCounted
 ##   - "wreck": the wreck T-89 rebuilt (WorldState.SHIP_REBUILT + wreck_ship),
 ##   - "t89":   the ship he sold you (WorldState.hangar),
 ##   - "kept_N": a stolen ship Skrugs cleaned up for you (WorldState.kept_ships).
+##   - "free":  a free roam game's own interceptor, the pit pad's ship, yours from
+##              the start (WorldState.FREE_SHIP; its ship id is the story data's
+##              "free_roam_ship"), so Call brings it in free roam too.
 ## Each is known by that key. One is the primary (WorldState.primary_ship): it waits
 ## on the pit pad wherever you wake (ShipPilot.woke_in_pit) and it is the one Call
 ## brings to you (ShipPilot.call_ship). The others stay where you last left them,
@@ -15,12 +18,15 @@ extends RefCounted
 
 const WRECK := "wreck"
 const T89 := "t89"
+const FREE := "free"
 const WRECKED := "primary_wrecked"         ## the flag: the primary was shot to pieces, not yet repaired
 
 
 ## Every ship you own, in order: [{ key, ship }].
 static func owned() -> Array:
 	var out: Array = []
+	if WorldState.has_flag(WorldState.FREE_SHIP) and not WorldState.story_mode() and free_ship() != "":
+		out.append({ "key": FREE, "ship": free_ship() })
 	if WorldState.has_flag(WorldState.SHIP_REBUILT) and WorldState.wreck_ship != "":
 		out.append({ "key": WRECK, "ship": WorldState.wreck_ship })
 	if WorldState.hangar != "":
@@ -28,6 +34,11 @@ static func owned() -> Array:
 	for k in WorldState.kept_ships:
 		out.append({ "key": str(k.get("key", "")), "ship": str(k.get("ship", "")) })
 	return out
+
+
+## The ship id of a free roam game's own interceptor.
+static func free_ship() -> String:
+	return str(Story.data().get("free_roam_ship", ""))
 
 
 static func owns(key: String) -> bool:
@@ -94,6 +105,9 @@ static func keep(ship_id: String) -> String:
 ## `key` is gone for good: sold, or shot to pieces when it was not the primary.
 static func lose(key: String) -> void:
 	match key:
+		FREE:
+			WorldState.set_flag(WorldState.FREE_SHIP, false)
+			WorldState.set_flag(WorldState.FREE_SHIP_GONE)
 		WRECK:
 			WorldState.wreck_ship = ""
 		T89:

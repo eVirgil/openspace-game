@@ -25,6 +25,8 @@ const GENERAL_CARD := "res://content/core/npcs/general_card.json"
 const SHIP_REBUILT := "ship_rebuilt"        ## issue #206: T-89 rebuilt the wreck on the pit pad (a story save's own ship)
 const COMRADE := "t89_comrade"              ## issue #206: the player told T-89 they can't stand the Remnant
 const FREE_OPENING := "free_opening"        ## a new free roam game: the landing still to play (opening_due)
+const FREE_SHIP := "free_ship"              ## a free roam game's own interceptor is yours (Fleet.FREE)
+const FREE_SHIP_GONE := "free_ship_gone"    ## ... and was sold or lost for good
 
 static var standing: Dictionary = DEFAULT_STANDING.duplicate()
 static var flags: Dictionary = {}          ## name -> true
@@ -128,6 +130,7 @@ static func new_game(m: String) -> void:
 		story = { "chapter": "free", "told": true }
 		set_flag("ships_unlocked")
 		set_flag(FREE_OPENING)
+		set_flag(FREE_SHIP)
 		for id in Story.data().get("free_roam_kit", []):
 			inventory.add(str(id))
 
@@ -1002,6 +1005,8 @@ static func from_save(d: Dictionary) -> void:
 	control = d.get("control", {}).duplicate(true)
 	map_waypoint = d.get("map_waypoint", {}).duplicate()
 	objective_pin = str(d.get("objective_pin", ""))
+	if mode == FREEPLAY and str(story.get("chapter", "")) == "free" and not has_flag(FREE_SHIP_GONE):
+		set_flag(FREE_SHIP)    # a free roam save from before its interceptor was yours (Fleet.FREE)
 	if story.has("chapter"):
 		Story.catch_up()       # the general dead in a save from when the fleet chapter waited on a dogfight
 
