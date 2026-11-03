@@ -9,6 +9,8 @@ extends StaticBody3D
 ## that player's game (NetLink.hit), which applies it to their own player, so
 ## being downed works there as it always does. Only your own hits are sent (a
 ## guard's bolt in your game is not one in theirs). Off: nothing to hit or bump.
+## Your hit marker waits for their game's answer (NetLink.hit_back), so it shows
+## only when the hit hurt them, and as a kill when it put them down.
 ##
 ## NetLink hands it every state packet heard (hear); between packets it closes on
 ## where the player should be by now (the last spot plus the velocity since),
@@ -30,6 +32,9 @@ var tilt := Basis.IDENTITY        ## the ground's frame (PlayerAvatar.animate re
 var _mats: LookMaterials
 var _s: Dictionary = {}           ## the last state heard
 var _placed := false
+## HitFeedback reads this: never fresh, so your own game shows no marker for a hit
+## here; it comes when that player's game says the hit landed (NetLink.hit_back).
+var damage_usec := -1000000000
 
 
 func setup(id: int, nm: String, fit: Dictionary, mats: LookMaterials = null) -> void:
