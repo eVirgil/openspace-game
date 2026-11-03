@@ -39,7 +39,7 @@ func test_pins_are_the_places_that_stay_put() -> void:
 	var camps := pins.keys().filter(func(k): return str(k).begins_with("camp_"))
 	assert_eq(camps.size(), 2, "each native pack's camp")
 	assert_true(pins.camp_bone_teeth.hostile)
-	assert_eq(pins.camp_bone_teeth.map, Vector2(45, -560), "where the planet's data puts it")
+	assert_eq(pins.camp_bone_teeth.map, Vector2(180, -1230), "where the planet's data puts it")
 
 
 func test_off_planet_lists_planets_and_the_cruiser() -> void:

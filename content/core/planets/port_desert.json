@@ -16,7 +16,7 @@
     "pickups"
   ],
   "natives": {
-    "note": "Issue #96: the dune people in one friendly and one hostile pack, and sand pigs. Each pack has a camp (where it starts, a stop after route point 'stop_after', and where it sleeps). Routes and camps are map points (metres along the ground from the port). locals_say: what the port's locals, calm, say of the packs when you walk close by (src/systems/npc/townsfolk.gd); an [audio tag] is voiced, never shown.",
+    "note": "Issue #96: the dune people in one friendly and one hostile pack, and sand pigs. Each pack has a camp (where it starts, a stop after route point 'stop_after', and where it sleeps). Routes and camps are map points (metres along the ground from the port). locals_say: what the port's locals, calm, say of the packs when you walk close by (src/systems/npc/townsfolk.gd); an [audio tag] is voiced, never shown. The packs roam 0.6 to 1.5 km out, past the Remnant's outposts: the Red Wind's loop goes by the near and west ones, the Bone Teeth's by the mid and south ones, about 200 m off (out of the troopers' sight, so no fighting yet).",
     "species": "dune_nomads",
     "locals_say": [
       "I got a great deal from the Red Wind.",
@@ -32,27 +32,27 @@
         "style": "sun_bleached",
         "camp": {
           "at": [
-            -380,
-            260
+            -760,
+            620
           ],
           "stop_after": 3
         },
         "route": [
           [
-            -300,
-            350
+            -330,
+            960
           ],
           [
-            -560,
-            520
+            -800,
+            1050
           ],
           [
-            -720,
-            260
+            -1130,
+            640
           ],
           [
-            -460,
-            170
+            -1150,
+            300
           ]
         ]
       },
@@ -65,27 +65,27 @@
         "style": "rust",
         "camp": {
           "at": [
-            45,
-            -560
+            180,
+            -1230
           ],
           "stop_after": 3
         },
         "route": [
           [
-            150,
-            -460
+            330,
+            -900
           ],
           [
-            460,
-            -620
+            800,
+            -740
           ],
           [
-            300,
-            -860
+            620,
+            -1250
           ],
           [
-            -60,
-            -660
+            40,
+            -1480
           ]
         ]
       }
