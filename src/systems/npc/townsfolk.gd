@@ -31,6 +31,8 @@ extends Node
 ##
 ## They know the planet's beast (PlanetBeast): calm, a local you walk close by now
 ## and then says something about it, by name (its "lore" in the planet's file).
+## They know the planet's native packs the same way: its natives' "locals_say"
+## lines go in the same pool (an [audio tag] in one is voiced, never shown).
 
 const LINES_PATH := "res://content/core/dialogue/locals_lines.json"
 
@@ -50,6 +52,7 @@ var claimed: Dictionary = {}      ## NpcBody -> Vector3 its cover spot
 ## Numbers the traces read.
 var barks_said: Array = []
 var beast_said: Array = []        ## what the locals have said about the beast (traces)
+var nomads_said: Array = []       ## what the locals have said about the native packs (traces)
 var alarm_t := -1.0               ## game seconds when the alarm last went up
 var kills := 0
 
@@ -61,7 +64,10 @@ var _clock := 0.0
 var _last_key := ""
 var _last_key_t := -100.0
 var _beast_cfg: Dictionary = {}   ## PlanetBeast.config of this planet ({} if it has no beast)
-var _beast_next := 0.0            ## game seconds before a local may talk of the beast again
+var _beast_next := 0.0            ## game seconds before a local may talk of the beast or the packs again
+var _talk_cfg: Dictionary = {}    ## locals_say_m / _every_s / _first_s: the beast's, else the beast defaults
+var _nomad_lines: Array = []      ## the planet's natives' "locals_say" ([] if none)
+var _audio_tag := RegEx.create_from_string("\\[[^\\]]*\\]\\s*")
 
 ## The alarm went up here (any cause): the locals' barracks join it (Garrison.join_alarm).
 signal alarm_up(at: Vector3)
@@ -77,8 +83,12 @@ func setup(town_demo, all: Array) -> void:
 	cfg = town.data.get("locals", {}) if town.data is Dictionary else {}
 	alarm = TownAlarm.new(cfg.get("alarm", {}))
 	lines = CharacterKit._read_json(LINES_PATH).get("lines", {})
-	_beast_cfg = PlanetBeast.config(demo.get("planet") if demo.get("planet") is Dictionary else {})
-	_beast_next = float(_beast_cfg.get("locals_say_first_s", 6.0))
+	var planet: Dictionary = demo.get("planet") if demo.get("planet") is Dictionary else {}
+	_beast_cfg = PlanetBeast.config(planet)
+	var natives = planet.get("natives", {})
+	_nomad_lines = natives.get("locals_say", []) if natives is Dictionary else []
+	_talk_cfg = _beast_cfg if not _beast_cfg.is_empty() else PlanetBeast.defaults()
+	_beast_next = float(_talk_cfg.get("locals_say_first_s", 6.0))
 	for g in members:
 		if (not g.has_meta("outpost") or not is_same(members, demo.locals)) and not on_barracks(g):
 			_adopt(g)              # (issue #187: the town's leaves the outposts' locals to theirs)
@@ -152,7 +162,7 @@ func _physics_process(dt: float) -> void:
 			b.alarm_pos = Vector3.INF
 		_run_brain(g, dt, ppos)
 	if not alarm.active():
-		_beast_talk(alive, ppos)
+		_calm_talk(alive, ppos)
 
 
 func _run_brain(g: NpcBody, dt: float, ppos: Vector3) -> void:
@@ -384,20 +394,23 @@ func _nearest(among: Array, at: Vector3) -> NpcBody:
 	return best
 
 
-## Calm, a local the player walks close by now and then talks of the beast.
-func _beast_talk(alive: Array, ppos: Vector3) -> void:
-	if _beast_cfg.is_empty() or ppos == Vector3.INF or _clock < _beast_next:
+## Calm, a local the player walks close by now and then talks of the beast or the
+## native packs, one line at random from both.
+func _calm_talk(alive: Array, ppos: Vector3) -> void:
+	if ppos == Vector3.INF or _clock < _beast_next:
 		return
 	var g := _nearest(alive, ppos)
-	if g == null or g.global_position.distance_to(ppos) > float(_beast_cfg.get("locals_say_m", 4.0)):
+	if g == null or g.global_position.distance_to(ppos) > float(_talk_cfg.get("locals_say_m", 4.0)):
 		return
-	var said := PlanetBeast.lore(demo.planet)
-	if said.is_empty():
+	var lore := PlanetBeast.lore(demo.planet) if not _beast_cfg.is_empty() else []
+	var n := lore.size() + _nomad_lines.size()
+	if n == 0:
 		return
-	var text := str(said[_rng.randi() % said.size()])
-	_beast_next = _clock + float(_beast_cfg.get("locals_say_every_s", 30.0))
-	beast_said.append(text)
-	g.say(text, 4.0, false)
+	var i := _rng.randi() % n
+	var text := str(lore[i]) if i < lore.size() else str(_nomad_lines[i - lore.size()])
+	_beast_next = _clock + float(_talk_cfg.get("locals_say_every_s", 30.0))
+	(beast_said if i < lore.size() else nomads_said).append(text)
+	g.say(_audio_tag.sub(text, "", true).strip_edges(), 4.0, false)
 
 
 func _say(g: NpcBody, key: String) -> void:

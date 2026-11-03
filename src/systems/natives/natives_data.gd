@@ -78,7 +78,8 @@ static func _authored(planet_id: String, n: Dictionary) -> Dictionary:
 		var ar: Array = f.get("around", [0, 0])
 		g["around"] = Vector2(float(ar[0]), float(ar[1]))
 		fa.append(g)
-	return { "planet": planet_id, "people": { "id": sid, "label": str(data.get("label", sid)), "data": data }, "packs": packs, "fauna": fa }
+	return { "planet": planet_id, "people": { "id": sid, "label": str(data.get("label", sid)), "data": data }, "packs": packs, "fauna": fa,
+		"locals_say": n.get("locals_say", []) }
 
 
 ## A generated planet: its own people from the type's template, packs on loops

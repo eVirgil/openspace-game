@@ -10,6 +10,10 @@ key = first 16 hex of sha256("<line>|<voice_id>"), the same as
 NpcVoice.bundled_path(). Lines with a runtime fill (%s, %d, {name}) can not be
 recorded ahead and still go through the API when the player has a key.
 
+An inline audio tag ("... [scared] sometimes ...") is spoken but never shown:
+the clip is keyed by the line without it (as the game shows it) and rendered
+with the tag by the profiles' model, which reads tags (the quick one does not).
+
 Speakers in a role pool (guards, locals, Odas on other planets) get a stable
 pick by id in game, so their lines are rendered in every voice of the pool.
 
@@ -36,6 +40,12 @@ KEYS_CFG = os.path.join(USER_DIR, "llm", "keys.cfg")
 CACHE_DIR = os.path.join(USER_DIR, "npc_voice_cache")
 API_URL = "https://api.elevenlabs.io/v1/text-to-speech/%s?output_format=mp3_44100_64"
 FILL = re.compile(r"%[sd]|\{[a-z_]+\}")
+TAG = re.compile(r"\[[^\]]*\]\s*")
+
+
+def shown(line):
+    """The line as the game shows (and keys) it: audio tags taken out."""
+    return TAG.sub("", line).strip()
 
 
 def read(rel):
@@ -103,6 +113,7 @@ def collect():
     said.append((strings(read("dialogue/gate_guard_lines.json")["lines"]), POOLS["guard"]))
     locals_pool = sorted(set(POOLS["guard"] + POOLS["local"] + POOLS["merchant"]))
     said.append((strings(read("dialogue/locals_lines.json")["lines"]), locals_pool))
+    said.append((strings(read("planets/port_desert.json")["natives"].get("locals_say", [])), locals_pool))
     for ch in read("story/main.json")["chapters"]:
         teller = ch.get("teller", "")
         if teller:
@@ -158,10 +169,10 @@ def cached(line, voice):
 
 def record(key, model, line, profile):
     voice = LIBRARY[profile]
-    path = os.path.join(OUT, clip_name(line, voice["voice_id"]))
+    path = os.path.join(OUT, clip_name(shown(line), voice["voice_id"]))
     if os.path.exists(path):
         return "kept"
-    found = cached(line, voice)
+    found = cached(shown(line), voice) if shown(line) == line else ""
     if found:
         shutil.copyfile(found, path)
         return "from_cache"
@@ -169,7 +180,7 @@ def record(key, model, line, profile):
         return "skipped"
     body = json.dumps({
         "text": line,
-        "model_id": model,
+        "model_id": model if shown(line) == line else PROFILES.get("model_id", "eleven_v4"),
         "voice_settings": {"speed": 1.0, "stability": float(voice.get("stability", 0.55)),
                            "similarity_boost": 0.75},
     }).encode("utf-8")

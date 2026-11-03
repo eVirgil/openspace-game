@@ -16,8 +16,12 @@
     "pickups"
   ],
   "natives": {
-    "note": "Issue #96: the dune people in one friendly and one hostile pack, and sand pigs. Each pack has a camp (where it starts, a stop after route point 'stop_after', and where it sleeps). Routes and camps are map points (metres along the ground from the port).",
+    "note": "Issue #96: the dune people in one friendly and one hostile pack, and sand pigs. Each pack has a camp (where it starts, a stop after route point 'stop_after', and where it sleeps). Routes and camps are map points (metres along the ground from the port). locals_say: what the port's locals, calm, say of the packs when you walk close by (src/systems/npc/townsfolk.gd); an [audio tag] is voiced, never shown.",
     "species": "dune_nomads",
+    "locals_say": [
+      "I got a great deal from the Red Wind.",
+      "If you can survive the nomads, they're rather friendly... [scared] sometimes too friendly."
+    ],
     "packs": [
       {
         "id": "red_wind",
