@@ -104,6 +104,7 @@ func _build_tabs() -> void:
 	tabs.add_child(_map_tab())
 	tabs.add_child(_inventory_tab())
 	var game := _tab("Game")
+	_lan_page(game)
 	_saves_page(game)
 	_story_page(game)
 	_world_page(game)
@@ -162,6 +163,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(_dt: float) -> void:
 	if visible and Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if visible and _lan_refresh.is_valid():
+		_lan_refresh.call()          # players come and go while the panel is open
 
 
 func _physics_process(_dt: float) -> void:
@@ -898,6 +901,118 @@ func _saves_page(v: VBoxContainer) -> void:
 	note.text = "Each save keeps its own world, gear, ships, standing, names and outfit. This one is saved before the other opens; the town reloads."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(note)
+
+
+# ------------------------------------------------------------------ LAN (issue #401)
+
+var _lan_refresh: Callable = Callable()
+
+
+## Play with friends on the same wifi: your name (remembered), Host, or the host's
+## address and Join, Leave, and who is here. Free roam only: hosting from a story
+## save opens the free roam save first.
+func _lan_page(v: VBoxContainer) -> void:
+	_anchors["LAN"] = _section(v, "Play with friends (LAN)")
+	var name_box := LineEdit.new()
+	name_box.text = NetSession.saved_name()
+	name_box.placeholder_text = "Your name over your head"
+	name_box.max_length = int(NetSession.n("name_max", 16))
+	name_box.custom_minimum_size = Vector2(260, 0)
+	name_box.text_changed.connect(func(t): NetSession.save_name(t))
+	_row(v, "Your name", name_box)
+	var host := Button.new()
+	host.text = "Host a game"
+	_row(v, "", host)
+	var addr := LineEdit.new()
+	addr.text = NetSession.saved_address()
+	addr.placeholder_text = "Host's address, e.g. 192.168.1.20"
+	addr.custom_minimum_size = Vector2(260, 0)
+	var join := Button.new()
+	join.text = "Join"
+	var join_row := HBoxContainer.new()
+	join_row.add_child(addr)
+	join_row.add_child(join)
+	_row(v, "Join a friend", join_row)
+	var leave := Button.new()
+	leave.text = "Leave"
+	_row(v, "", leave)
+	var status := Label.new()
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(status)
+	var said := [""]                 # a refusal or a "type your name" stays until the next click
+	host.pressed.connect(func():
+		said[0] = lan_host(name_box.text)
+		_lan_refresh.call())
+	var go_join := func():
+		said[0] = lan_join(addr.text, name_box.text)
+		_lan_refresh.call()
+	join.pressed.connect(go_join)
+	addr.text_submitted.connect(func(_t): go_join.call())
+	leave.pressed.connect(func():
+		said[0] = ""
+		NetSession.leave()
+		_lan_refresh.call())
+	_lan_refresh = func():
+		var on := NetSession.active()
+		host.disabled = on
+		join.disabled = on
+		addr.editable = not on
+		name_box.editable = not on
+		leave.disabled = not on
+		status.text = NetSession.status_line() if on or said[0] == "" else said[0]
+	_refreshers.append(_lan_refresh)
+
+
+## Host a LAN game as `who`. Returns "" or why not. From a story save the free roam
+## save opens first (the town reloads; the session carries on).
+func lan_host(who: String) -> String:
+	if NetSession.clean_name(who) == "":
+		return NetSession.label("need_name")
+	NetSession.save_name(who)
+	if NetSession.host(get_tree(), who, _worn()) != OK:
+		var line := NetSession.label("cannot_host")
+		return line % NetSession.port() if line.contains("%d") else line
+	if SaveSlots.playing() != WorldState.FREEPLAY:
+		switch_save(WorldState.FREEPLAY)
+	return ""
+
+
+## Join the LAN game at `address` as `who`. Returns "" or why not; the host's answer
+## comes later (lan_arrive, or a toast saying no).
+func lan_join(address: String, who: String) -> String:
+	if NetSession.clean_name(who) == "":
+		return NetSession.label("need_name")
+	if address.strip_edges() == "":
+		return NetSession.label("need_address")
+	NetSession.save_name(who)
+	NetSession.save_address(address)
+	if NetSession.join(get_tree(), address, who, _worn()) != OK:
+		var line := NetSession.label("no_answer")
+		return line % address if line.contains("%s") else line
+	return ""
+
+
+## The outfit the others see you in.
+func _worn() -> Dictionary:
+	var a := _avatar()
+	return a.worn_outfit() if a != null else PlayerOutfit.load_outfit()
+
+
+## Issue #401: the host let you in. This game is saved, then your free roam save
+## opens on the host's planet with you beside T-89: no opening landing, no hello
+## and tutorial from him. `reload` false: just the state (tests).
+func lan_arrive(planet_id: String, reload := true) -> void:
+	var persist := _persists()
+	_save_left()
+	_leave()
+	SaveSlots.enter(WorldState.FREEPLAY, persist)
+	GameFlow.resumed = true                 # the host's planet, not where the save was left
+	GameFlow.planet_id = "" if planet_id == PlanetGen.home_id() or PlanetGen.build(planet_id).is_empty() else planet_id
+	WorldState.set_flag(WorldState.FREE_OPENING, false)
+	ShipSalesman.greeted = true
+	NetSession.guest_spawn = true
+	_reload(reload)
 
 
 ## Issue #64: start again, as a story or as free roam.
