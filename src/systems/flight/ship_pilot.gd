@@ -1337,6 +1337,9 @@ func _read_keys(dt: float) -> void:
 	# used to drop the autopilot, and from any height land() refuses: dead stop, free).
 	if st == AtmoFlight.State.FLYING and _just("crouch_act") and not bay_landing and not docking:
 		land()
+	elif st == AtmoFlight.State.LANDING and _just("crouch_act") and atmo.abort_landing():
+		_throttle = 0.0          # C again: flying on, coasting to a stop
+		hud.toast(GameFlow.label("landing_off"), 2.0)
 	if st == AtmoFlight.State.FLYING and _just("bay_land"):
 		if bay_landing or docking:
 			bay_landing = false          # Z again: take her back

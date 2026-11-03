@@ -121,6 +121,22 @@ func test_land_only_when_low_and_settles_on_what_is_below() -> void:
 	assert_almost_eq(a.position().y - a.clearance, float((roof.max as Vector3).y), 0.05, "on the watchtower's top")
 
 
+func test_landing_called_off_coasts_to_a_stop() -> void:
+	a.place_flying(Vector3(40, 100, 0), Vector3.FORWARD, 40.0, 0.5)
+	assert_false(a.abort_landing(), "only while landing")
+	assert_true(a.land())
+	_run(0.2)
+	var moving: float = a.speed()
+	assert_gt(moving, 20.0)
+	assert_true(a.abort_landing())
+	assert_eq(a.state, AtmoFlight.State.FLYING)
+	_run(1.0, { "throttle": 0.0 })
+	assert_between(a.speed(), moving * 0.3, moving * 0.7, "still moving, slowing")
+	_run(1.1, { "throttle": 0.0 })
+	assert_almost_eq(a.speed(), 0.0, 0.01, "stopped after the coast")
+	assert_eq(a.state, AtmoFlight.State.FLYING, "hovering, not landing")
+
+
 func test_can_land_reuses_the_current_clearance_when_supplied() -> void:
 	var counted := CountingGround.new()
 	var town := TownLayout.new()
