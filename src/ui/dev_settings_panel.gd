@@ -512,6 +512,15 @@ func map_pick(pin: Dictionary) -> void:
 
 func _world_page(v: VBoxContainer) -> void:
 	_section(v, "Time of day")
+	# LAN: the host sets the time of day for everyone; a guest sees a line instead.
+	var tod := VBoxContainer.new()
+	v.add_child(tod)
+	var hosts := Label.new()
+	hosts.text = NetSession.label("lighting_host")
+	v.add_child(hosts)
+	_refreshers.append(func():
+		tod.visible = not NetSession.is_guest()
+		hosts.visible = NetSession.is_guest())
 	_hour = HSlider.new()
 	_hour.min_value = 0.0
 	_hour.max_value = 24.0
@@ -522,7 +531,7 @@ func _world_page(v: VBoxContainer) -> void:
 	_hour.value_changed.connect(func(h):
 		demo.set_hour(h)
 		_show_hour())
-	var hr := _row(v, "Hour", _hour)
+	var hr := _row(tod, "Hour", _hour)
 	hr.add_child(_hour_label)
 	var presets := HBoxContainer.new()
 	for id in ["golden", "noon", "dusk"]:
@@ -533,7 +542,7 @@ func _world_page(v: VBoxContainer) -> void:
 			_hour.set_value_no_signal(maxf(0.0, demo.look.hour_of(id)) if demo.look != null else 0.0)
 			_show_hour())
 		presets.add_child(btn)
-	_row(v, "Preset", presets)
+	_row(tod, "Preset", presets)
 	_refreshers.append(func():
 		var h: float = demo.look.hour if demo.look != null and demo.look.hour >= 0.0 else \
 			(demo.look.hour_of(demo.preset) if demo.look != null else 0.0)
