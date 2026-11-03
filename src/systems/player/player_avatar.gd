@@ -72,6 +72,7 @@ var _flash_left := 0.0
 var ads_on := false
 var ads_camera: Camera3D
 var ads_blend := 0.0               ## 0 = hip, 1 = fully aimed
+var ads_relief_scale := 1.0        ## > 1 zoomed past a gun's first step (Ads.relief_scale)
 var _last_upper := ""
 var _last_pitch := 0.0
 
@@ -183,7 +184,9 @@ func build_weapons(ids: Array) -> void:
 			tor.ring_segments = 8
 			ring.mesh = tor
 			ring.rotation_degrees = Vector3(90, 0, 0)
-			ring.material_override = _emissive(gcol, 2.5)
+			# tint "ring": the ring and core in that colour instead (the black sniper's are black).
+			var rcol := Color.html(str(tint.get("ring", tint.get("glow", "#ff7a3a"))))
+			ring.material_override = _emissive(gcol, 2.5) if not tint.has("ring") else _emissive(rcol, 0.0)
 			ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			muzzle.add_child(ring)
 			var core := MeshInstance3D.new()
@@ -193,7 +196,7 @@ func build_weapons(ids: Array) -> void:
 			cm.height = 0.004
 			core.mesh = cm
 			core.rotation_degrees = Vector3(90, 0, 0)
-			core.material_override = _emissive(gcol.darkened(0.5), 0.8)
+			core.material_override = _emissive(gcol.darkened(0.5), 0.8) if not tint.has("ring") else _emissive(rcol, 0.0)
 			core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			muzzle.add_child(core)
 			muzzle.add_child(_make_flash(gcol))
@@ -672,7 +675,7 @@ func _place_weapon(upper: String, pitch: float) -> void:
 	if ads_blend > 0.0 and first_person and ads_camera != null and is_inside_tree() and current != "energy_blade":
 		var a := Ads.spec(look, current)
 		var sc := float((look.get(current, {}) as Dictionary).get("scale", 1.0))
-		aimed_cam = Ads.weapon_local(Ads.sight_point(look, current) * sc, float(a.relief))
+		aimed_cam = Ads.weapon_local(Ads.sight_point(look, current) * sc, float(a.relief) * ads_relief_scale)
 		if _recoil > 0.0:
 			var rc2: Dictionary = look.get("recoil", {})
 			var k2 := _recoil * _recoil * 0.5

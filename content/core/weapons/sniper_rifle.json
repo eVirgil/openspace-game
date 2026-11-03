@@ -1,0 +1,17 @@
+{
+  "id": "sniper_rifle",
+  "class": "rifle",
+  "label": "Sniper Rifle",
+  "damage": 150,
+  "bolt_speed": 160.0,
+  "rate": 0.12,
+  "recoil": 3.5,
+  "range": 300.0,
+  "mag": 30,
+  "reload_time": 2.2,
+  "visible_bolt": true,
+  "bolt_color": "#ff4a2a",
+  "spread_deg": 0.0,
+  "noise_radius": 60.0,
+  "note": "IP-neutral. Generic label only. The rifle blaster's numbers with heavy damage (150: one shot drops a trooper), no spread, a fast bolt and a long reach, so it lands dead on the crosshair at 100 m and more, and a shorter cooldown (fires faster). Sold only by the fence (vendors/fence.json); items/sniper_rifle.json 'must_own' keeps it holstered until you have bought it, in free roam too."
+}

@@ -9,7 +9,7 @@ extends SceneTree
 ## Writes res://assets/ui/weapon_icons/<weapon id>.png. Run again if a model changes.
 
 const OUT := "res://assets/ui/weapon_icons/"
-const IDS := ["pistol_blaster", "rifle_blaster", "energy_blade"]
+const IDS := ["pistol_blaster", "rifle_blaster", "energy_blade", "sniper_rifle"]
 const W := 512
 const H := 256
 const MARGIN := 1.12

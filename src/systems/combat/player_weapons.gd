@@ -1,12 +1,12 @@
 class_name PlayerWeapons
 extends Node
 ## The player's hand weapons in the port (M11): blaster pistol, energy sword and
-## rifle, the swap between them, firing, the sword's swings and block, and turning
-## enemy bolts around. Owns the HUD bits for weapons (crosshair, ammo); stamina
+## rifle, the fence's sniper rifle, the swap between them, firing, the sword's
+## swings and block, and turning enemy bolts around. Owns the HUD bits for weapons (crosshair, ammo); stamina
 ## shows in the RetroHud footer.
 ##
 ## Controls (project.godot actions):
-##   1 / 2 / 3     blaster / rifle / energy sword   (same key again holsters)
+##   1 / 2 / 3 / 4 blaster / rifle / energy sword / sniper rifle (same key again holsters)
 ##   Q             last weapon        mouse wheel   cycle        H   holster
 ##   Tab           tap: next weapon, and hands free after the last one
 ##                 hold: the weapon wheel (issue #410), see WeaponWheel. Point with
@@ -16,7 +16,9 @@ extends Node
 ##                 a double click is the combo, left-right-centre
 ##   RMB (alt)     right-click TOGGLES: blaster aim/zoom in-out, sword block on-off
 ##                 (re-click to undo; with the sword, block just before a bolt lands
-##                 to deflect it back)
+##                 to deflect it back). The sniper rifle: a second click while
+##                 aimed zooms in further (hand_weapons ads "zoom_steps"), a third
+##                 puts it down; its scope draws a digital reticle with the range.
 ##   R             reload
 ##
 ## The pure parts are proven headless: WeaponHolder (swap), SwordCombo (chain,
@@ -28,6 +30,7 @@ const WeaponHolder := preload("res://src/systems/combat/weapon_holder.gd")
 const BodyAnimator := preload("res://src/systems/anim/body_animator.gd")
 const Ads := preload("res://src/systems/look/ads.gd")
 const WheelView := preload("res://src/ui/weapon_wheel_view.gd")
+const DigitalReticle := preload("res://src/ui/digital_reticle.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 const LOOK_PATH := "res://content/look/hand_weapons.json"
 
@@ -41,7 +44,7 @@ var player: CharacterBody3D
 var avatar: PlayerAvatar
 var rig_node: Node3D                ## camera_rig_node.gd
 var bolt_parent: Node3D
-var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "energy_blade"])
+var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "energy_blade", "sniper_rifle"])
 var guns: Dictionary = {}           ## id -> Weapon (ammo + timing)
 var combo: SwordCombo
 var wheel := WeaponWheel.new()      ## hold Tab (issue #410)
@@ -61,6 +64,7 @@ var sword_hits := 0
 var _wheel_view: Control
 var _fire_held := false
 var _alt_on := false
+var _zoom_step := 0                 ## which of the gun's ads zoom_steps (the sniper's second click)
 var _hitstop := 0.0
 var _tip_was := Vector3.INF         ## the blade tip last frame of a swing (INF = not swinging)
 var _sfx: Dictionary = {}
@@ -68,6 +72,7 @@ var _sfx_pitch: Dictionary = {}     ## key -> base pitch (the rifle is the pisto
 var _hum: AudioStreamPlayer
 var _hud: CanvasLayer
 var _cross: Control
+var _scope_hud: Control             ## DigitalReticle: the sniper's scope, aimed in
 var _ammo: Label
 var _name: Label
 var _name_left := 0.0
@@ -138,8 +143,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			holder.cycle(-1)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			holder.cycle(1)
-	for n in 3:
-		if event.is_action_pressed("weapon_%d" % (n + 1)):
+	for n in holder.slots.size():
+		if InputMap.has_action("weapon_%d" % (n + 1)) and event.is_action_pressed("weapon_%d" % (n + 1)):
 			holder.request_slot(n + 1)
 	if event.is_action_pressed("weapon_last"):
 		holder.request_last()
@@ -218,11 +223,19 @@ func release_fire() -> void:
 
 func set_alt(on: bool) -> void:
 	_alt_on = on
+	if not on:
+		_zoom_step = 0
 
 
-## Right-click: flip aim (blaster zoom) with the sword's block. Re-click undoes it.
+## Right-click: flip aim (blaster zoom) with the sword's block. Re-click undoes it,
+## except on a gun with more zoom steps (the sniper): aimed, it zooms in a step,
+## and only past the last one goes back down.
 func toggle_alt() -> void:
+	if _alt_on and guns.has(holder.current) and _zoom_step + 1 < Ads.zoom_steps(look, holder.current):
+		_zoom_step += 1
+		return
 	_alt_on = not _alt_on
+	_zoom_step = 0
 
 
 func set_enabled(on: bool) -> void:
@@ -282,10 +295,15 @@ func _physics_process(dt: float) -> void:
 		if r == Weapon.Result.SHOT:
 			_shoot(id)
 	aiming = enabled and guns.has(cur) and holder.is_ready() and _alt_on and not sprinting
+	if not _alt_on:
+		_zoom_step = 0
 	if rig_node != null:
 		# Each gun has its own magnification (issue #65): fov = base / mag.
-		rig_node.set_zoom(Ads.zoom(look, cur) if aiming else 1.0)
+		rig_node.set_zoom(Ads.zoom(look, cur, _zoom_step) if aiming else 1.0)
 		avatar.ads_camera = rig_node.camera()
+		var cam: Camera3D = rig_node.camera()
+		avatar.ads_relief_scale = Ads.relief_scale(look, cur, float(rig_node.get("base_fov") if rig_node.get("base_fov") != null else 75.0), cam.fov) \
+			if guns.has(cur) and cam != null else 1.0
 	avatar.ads_on = aiming
 
 	# Sword.
@@ -317,7 +335,7 @@ func upper_mode() -> String:
 	match holder.current:
 		"pistol_blaster":
 			return BodyAnimator.UPPER_AIM
-		"rifle_blaster":
+		"rifle_blaster", "sniper_rifle":
 			return BodyAnimator.UPPER_RIFLE
 		"energy_blade":
 			return BodyAnimator.UPPER_SWORD
@@ -347,6 +365,7 @@ func _on_holder_event(ev: String) -> void:
 	var parts := ev.split(":")
 	match parts[0]:
 		"drawing":
+			_zoom_step = 0
 			if parts[1] == "energy_blade":
 				_alt_on = false     # an aim toggled on with a gun is not a block
 			_play("blade_on" if parts[1] == "energy_blade" else "swap")
@@ -370,11 +389,24 @@ func aim_point() -> Vector3:
 	var view: Transform3D = rig_node.aim_transform() if rig_node.has_method("aim_transform") else cam.global_transform
 	var from := view.origin
 	var dir := -view.basis.z
-	var to := from + dir * 250.0
+	var to := from + dir * maxf(250.0, float(cfg.get(holder.current, {}).get("range", 0.0)))
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	q.exclude = [player.get_rid()]
 	var hit := cam.get_world_3d().direct_space_state.intersect_ray(q)
 	return hit.position if not hit.is_empty() else to
+
+
+## Metres from the eye to whatever is under the screen centre, out to `reach`;
+## -1 when nothing is (open sky). The sniper scope's rangefinder.
+func aim_range(reach := 1000.0) -> float:
+	var cam: Camera3D = rig_node.camera() if rig_node != null else null
+	if cam == null or not cam.is_inside_tree():
+		return -1.0
+	var view: Transform3D = rig_node.aim_transform() if rig_node.has_method("aim_transform") else cam.global_transform
+	var q := PhysicsRayQueryParameters3D.create(view.origin, view.origin - view.basis.z * reach)
+	q.exclude = [player.get_rid()]
+	var hit := cam.get_world_3d().direct_space_state.intersect_ray(q)
+	return view.origin.distance_to(hit.position) if not hit.is_empty() else -1.0
 
 
 func _shoot(id: String) -> void:
@@ -384,7 +416,8 @@ func _shoot(id: String) -> void:
 	var dir := (target - origin).normalized()
 	# A touch of spread, less when aiming.
 	var spread := deg_to_rad(float(c.get("spread_deg", 1.2)) * (0.35 if aiming else 1.0))
-	dir = dir.rotated(dir.cross(Vector3.UP).normalized(), randf_range(-spread, spread)).rotated(Vector3.UP, randf_range(-spread, spread))
+	if spread > 0.0:        # none (the sniper): dead on the crosshair
+		dir = dir.rotated(dir.cross(Vector3.UP).normalized(), randf_range(-spread, spread)).rotated(Vector3.UP, randf_range(-spread, spread))
 	var b = BoltScene.instantiate()
 	b.direction = dir
 	b.speed = float(c.get("bolt_speed", 40.0))
@@ -573,9 +606,10 @@ func _build_sfx() -> void:
 	}
 	var lk: Dictionary = CharacterKit._read_json(LOOK_PATH)
 	var blade_vol: Dictionary = lk.get("blade_volume", {})
-	for id in ["pistol_blaster", "rifle_blaster"]:
-		map["shot_" + id] = lk.get(id, {}).get("sound", "")
-		_sfx_pitch["shot_" + id] = float(lk.get(id, {}).get("sound_pitch", 1.0))
+	for id in lk:
+		if lk[id] is Dictionary and str(lk[id].get("sound", "")) != "":
+			map["shot_" + id] = lk[id].sound
+			_sfx_pitch["shot_" + id] = float(lk[id].get("sound_pitch", 1.0))
 	for k in map:
 		var path := str(map[k])
 		if path == "" or not ResourceLoader.exists(path):
@@ -636,6 +670,8 @@ func _build_hud() -> void:
 		c.color = Color(1, 0.92, 0.8, 0.85)
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_cross.add_child(c)
+	_scope_hud = DigitalReticle.new()
+	_hud.add_child(_scope_hud)
 	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -114), 26)
 	_name = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -148), 18)
 	var view := WheelView.new()
@@ -684,6 +720,7 @@ func _update_hud(dt: float) -> void:
 	_cross.visible = crosshair_shown(guns.has(cur), holder.is_ready(),
 		rig_node != null and (rig_node.is_overridden() or rig_node.has_method("is_cinematic") and rig_node.is_cinematic()),
 		avatar.first_person, avatar.ads_blend)
+	_update_scope_hud(cur)
 	if guns.has(cur):
 		var g: Weapon = guns[cur]
 		_ammo.text = "RELOADING" if g.is_reloading() else "%d / %d" % [g.ammo, int(g.config.get("mag", 0))]
@@ -692,3 +729,25 @@ func _update_hud(dt: float) -> void:
 		_ammo.visible = false
 	_name_left = maxf(0.0, _name_left - dt)
 	_name.visible = _name_left > 0.0
+
+
+## The sniper's digital reticle (its scope spec "digital"), fully aimed in first
+## person: inside the scope's opening, with the range to what is under it and the zoom.
+func _update_scope_hud(cur: String) -> void:
+	var sc: Dictionary = (look.get(cur, {}) as Dictionary).get("scope", {})
+	var cam: Camera3D = rig_node.camera() if rig_node != null else null
+	var on := guns.has(cur) and bool(sc.get("digital", false)) and avatar.first_person \
+		and avatar.ads_blend >= 0.95 and cam != null
+	_scope_hud.visible = on
+	if not on:
+		return
+	# The narrowest the view through the tube gets is its far end (the tube's radius
+	# just behind the objective bell); the reticle stays inside that opening.
+	var relief := float(Ads.spec(look, cur).relief) * avatar.ads_relief_scale
+	var far := relief + float(sc.get("length", 0.24)) - 0.045
+	var half_h := _hud.get_viewport().get_visible_rect().size.y * 0.5
+	_scope_hud.reach = 0.8 * float(sc.get("radius", 0.024)) / far / tan(deg_to_rad(cam.fov) * 0.5) * half_h
+	_scope_hud.color = Color.html(str(sc.get("reticle", "#ff2a1a")))
+	_scope_hud.meters = aim_range()
+	_scope_hud.mag = Ads.magnification(look, cur, _zoom_step)
+	_scope_hud.queue_redraw()

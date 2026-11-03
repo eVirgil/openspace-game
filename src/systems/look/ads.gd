@@ -25,13 +25,33 @@ static func has_ads(look: Dictionary, id: String) -> bool:
 	return g is Dictionary and g.get("ads") is Dictionary
 
 
-static func magnification(look: Dictionary, id: String) -> float:
+## `step`: which of the gun's "zoom_steps" (the sniper rifle: a second right-click
+## zooms in further); a gun without them has the one `mag`.
+static func magnification(look: Dictionary, id: String, step := 0) -> float:
+	var steps = spec(look, id).get("zoom_steps")
+	if steps is Array and not steps.is_empty():
+		return maxf(1.0, float(steps[clampi(step, 0, steps.size() - 1)]))
 	return maxf(1.0, float(spec(look, id).mag))
 
 
+## How many zoom steps a gun has (1 for most).
+static func zoom_steps(look: Dictionary, id: String) -> int:
+	var steps = spec(look, id).get("zoom_steps")
+	return steps.size() if steps is Array and not steps.is_empty() else 1
+
+
 ## What to hand CameraRigNode.set_zoom: fov = base_fov * zoom = base_fov / mag.
-static func zoom(look: Dictionary, id: String) -> float:
-	return 1.0 / magnification(look, id)
+static func zoom(look: Dictionary, id: String, step := 0) -> float:
+	return 1.0 / magnification(look, id, step)
+
+
+## Zoomed past a gun's first step, the eye backs off the scope by this much so the
+## eyepiece and reticle keep their size on screen (the view inside zooms, the scope
+## does not). `fov_deg` is the camera's fov now, `base_fov` its unzoomed one.
+## Never below 1: nothing changes at or under the first step.
+static func relief_scale(look: Dictionary, id: String, base_fov: float, fov_deg: float) -> float:
+	var first := deg_to_rad(base_fov / magnification(look, id, 0))
+	return maxf(1.0, tan(first * 0.5) / tan(deg_to_rad(maxf(1.0, fov_deg)) * 0.5))
 
 
 static func sight_point(look: Dictionary, id: String) -> Vector3:
