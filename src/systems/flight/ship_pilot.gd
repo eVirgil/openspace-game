@@ -66,6 +66,9 @@ extends Node
 ##   - issue #401: a LAN guest's own ship (Fleet.LAN) stands on the landing pad the
 ##     host gave it, in their livery, "Your ship" over it; the pit pad's ship is
 ##     the host's in their game, so it is stowed in the guest's (lan_pad, _stow).
+##   - LAN: a guest who climbs out while the host's fight is on flies a copy of it
+##     (NetFight, SpaceFight.net_copy) instead of the pad's own, and joins it from
+##     up there when it starts (join_net_fight).
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -1386,8 +1389,12 @@ func start_fight() -> bool:
 	if fight != null:
 		return false
 	var f := SpaceFight.new()
+	# LAN: the host's fight over this planet is on: join it instead (NetFight).
+	var net = NetSession.link.get_node_or_null("Fight") if NetSession.is_guest() else null
+	var host_fight: Dictionary = net.joinable() if net != null else {}
+	f.net_copy = not host_fight.is_empty()
 	demo.add_child(f)
-	if not f.begin(content, encounter_id(), atmo.transform(), atmo.speed(), 1, kit, ship_id):
+	if not f.begin(content, str(host_fight.get("encounter", encounter_id())), atmo.transform(), atmo.speed(), 1, kit, ship_id):
 		f.queue_free()
 		return false
 	fight = f
@@ -1439,6 +1446,9 @@ func _fight_step(dt: float) -> void:
 				return
 			"failed":
 				end_fight("failed")
+				return
+			"net_over":
+				_net_fight_over()
 				return
 	if not _fight_held() and atmo.altitude() < atmo.space_altitude - space_exit_margin and not _bound_for_cruiser():
 		end_fight("left")
@@ -1515,6 +1525,29 @@ func _sheltered_step(dt: float) -> void:
 		if str(e.type) == "complete":
 			end_fight("complete")
 			return
+		if str(e.type) == "net_over":
+			_net_fight_over()
+			return
+
+
+## LAN: a guest up in space with no fight of their own joins the host's when it
+## starts (NetFight asks while it is on). False when not up there flying.
+func join_net_fight() -> bool:
+	if fight != null or not piloting or atmo == null or atmo.state != AtmoFlight.State.FLYING \
+			or not atmo.reached_space or atmo.altitude() < atmo.space_altitude or not GameFlow.space_dogfight():
+		return false
+	if not start_fight():
+		return false
+	hud.toast(GameFlow.label("contact"), 6.0)
+	return true
+
+
+## LAN: the host's fight this guest was flying a copy of is over (or the host went
+## quiet): it is over here too, nothing paid.
+func _net_fight_over() -> void:
+	end_fight("left", true)
+	Sound.set_space(false)
+	hud.toast(NetSession.label("fight_over"), 4.0)
 
 
 ## Flying at the cruiser keeps the fight on: the ball curves away under the straight
@@ -1579,6 +1612,7 @@ func end_fight(outcome: String, quiet := false) -> void:
 	var me: Dictionary = fight.df.get_ship(fight.df.player_id) if fight.df != null else {}
 	if not me.is_empty() and guns != null:
 		guns.set_rack("secondary", me.loadout.rack("secondary"))   # the seekers you came down with
+	fight.finish(outcome)
 	fight.queue_free()
 	fight = null
 	if not quiet:

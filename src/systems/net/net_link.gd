@@ -23,6 +23,7 @@ signal turned_away(id: int, why: String)     ## host: a guest refused (full, ano
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
 const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
+const NetFight := preload("res://src/systems/net/net_fight.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -69,6 +70,9 @@ func _ready() -> void:
 	var w := NetWorld.new()
 	w.name = "World"                               # issue #402: the host's people, on everyone's screen
 	add_child(w)
+	var fight := NetFight.new()
+	fight.name = "Fight"                           # one space fight: the host's, on everyone's screen
+	add_child(fight)
 
 
 func _mp() -> MultiplayerAPI:

@@ -9,7 +9,7 @@ extends RefCounted
 
 var items: Array = []   ## each: { uid, kind, pos, prev, vel, speed, damage, range_left,
 						##         team, owner, homing, turn_rate, target_id, weapon_id,
-						##         splash_radius, splash_damage, blast_size }
+						##         splash_radius, splash_damage, blast_size, ghost? }
 var _next_uid := 1
 
 
@@ -70,7 +70,8 @@ func step(dt: float, targets: Array) -> Array:
 		p.pos = p.prev + step_v
 		p.range_left -= step_v.length()
 		var hit := false
-		for t in targets:
+		var ghost: bool = p.get("ghost", false)    # LAN: another game's shot, a picture (NetFight)
+		for t in ([] if ghost else targets):
 			if not t.alive or str(t.team) == p.team or int(t.id) == p.owner:
 				continue
 			if segment_hits_sphere(p.prev, p.pos, t.position, float(t.radius)):
