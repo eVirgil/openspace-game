@@ -244,6 +244,9 @@ func build_plan(staged_build: bool) -> Array:
 		add.call("shots", SHELL, func(): _build_shot_camera(); return true)
 		return plan
 	add.call("music", SHELL, func(): Sound.start_music(); return true)      # issue #16: carries on across launches and landings
+	if use_look:
+		# The first shot froze the game: its bolt, flash and pop are loaded and compiled over the next frames instead.
+		add.call("warm_fx", SHELL, func(): FxWarmup.start(self); return true)
 	add.call("player", SHELL, func(): _spawn_player(); return true)
 	add.call("club", SHELL, func(): _add_club_music(); return true)    # issue #104: the cantina's club mix
 	add.call("pads", SHELL, func(): _build_launch_pads(); return true)

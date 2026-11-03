@@ -1416,6 +1416,31 @@ Every significant technical choice, the alternative, and why. Newest on top.
   code did not change.
 
 
+## 2026-11-02 — The ambient score is laid-back 80s synth; long fights get a second battle track
+
+- **Ambient 4-8 are new: eleven Pixabay synthwave tracks (ambient4..14).** The
+  CC0 five above read as too cinematic, dramatic and romantic. The owner's two
+  references (now ambient10 and ambient12) set the target: ~80-100 BPM, a soft
+  steady beat, warm bass, long pads, no vocals. About 120 Pixabay tracks were
+  scored against them by tempo, busyness, brightness, bass, how steady the pads
+  are and overall timbre, checked for words with a speech model, and the owner
+  kept the ones that sounded right. Pixabay's audio CDN serves the file to a
+  script even though its pages do not. Encoded like the rest; each source page is
+  in `music.ambient_sources`.
+- **`battle_2` follows the battle track when a fight outlasts it.** The first
+  track no longer loops when there is a second: `battle_blend` seconds before it
+  ends, `battle_2` blends in and loops for as long as the fight holds. Out of the
+  fight and back into one starts on the first again. Without a `battle_2` it is
+  the old single looping track.
+- **The cruiser's music ends at the top.** The general's death called
+  `Sound.battle()`, which held the climb's music for another `battle_hold`; it
+  now calls `Sound.end_battle()` and the score fades back to ambient. Anyone
+  still shooting starts it again from the first track.
+- **The dark master's blade counts as a fight.** Battle music only ever came
+  from NPC gunfire, so his duel had none. `DarkMasterPost._fight()` calls
+  `Sound.battle()` while he is on you (not once he gives up), so the music
+  starts fresh when he attacks in the bay, or on the barracks roof.
+
 ## 2026-11-01 — The canopy frame and the dash are the ship's own metal
 
 - **The frame and the dash's body are meshes on the camera now, not paint.**

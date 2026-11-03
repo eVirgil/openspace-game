@@ -292,7 +292,8 @@ func _draw_pin(at: Vector2, pin: Dictionary, hot: bool) -> void:
 
 
 ## A held outpost's clock: a ring that drains clockwise from the top as the
-## locals' hold runs down, and "Resupply needed" under it once they run short.
+## locals' hold runs down (or, issue #425, the Remnant's once the cruiser has
+## fallen), and "Resupply needed" under it once they run short.
 func _draw_hold(at: Vector2, pin: Dictionary, font: Font) -> void:
 	var frac := float(pin.get("hold", -1.0))
 	if frac < 0.0:
@@ -314,7 +315,8 @@ func _draw_hold(at: Vector2, pin: Dictionary, font: Font) -> void:
 
 
 ## A pin's look (content/look/map.json): its kind's shape and colour, recoloured
-## when the locals hold the place (green, or yellow-green while their supplies run short).
+## when the locals hold the place (green, or yellow-green while their supplies run
+## short), or the Remnant run short there (issue #425: orange).
 static func pin_look(pin: Dictionary) -> Dictionary:
 	var lk := GlobeMap.look()
 	var key := str(pin.kind)
@@ -324,6 +326,9 @@ static func pin_look(pin: Dictionary) -> Dictionary:
 	if str(pin.get("owner", "")) == Territory.LOCALS:
 		p = p.duplicate()
 		p["color"] = lk.get("owners", {}).get("short" if bool(pin.get("short", false)) else "locals", p.get("color", "#f2e2b0"))
+	elif str(pin.get("owner", "")) == Territory.REMNANT and bool(pin.get("short", false)):
+		p = p.duplicate()
+		p["color"] = lk.get("owners", {}).get("remnant_short", p.get("color", "#f2e2b0"))
 	return p
 
 

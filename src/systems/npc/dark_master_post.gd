@@ -235,6 +235,7 @@ func _fight(where: String, b: NpcBody, dt: float) -> void:
 		b.stop()
 		b.clear_face()
 		return
+	Sound.battle()                    # his blade is a fight like gunfire: the battle music
 	var flat := Vector2(p.x - b.global_position.x, p.z - b.global_position.z).length()
 	var out := f.update(dt, flat, p.y - b.global_position.y)
 	match str(out.act):

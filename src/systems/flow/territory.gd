@@ -3,7 +3,14 @@ extends RefCounted
 ## Who holds each place (issue #187): the Remnant or the locals. Pure and static,
 ## like Story; its state lives in WorldState.control (saved with the world):
 ##   { <outpost id>: { owner: "locals", hold: seconds left }, supply: <outpost id> }
-## An outpost with no entry is the Remnant's.
+## An outpost with no entry is the Remnant's (for ever, until you clear it).
+## Issue #425: once the cruiser has fallen (Story.cruiser_taken) the Remnant on
+## the ground are cut off, and every outpost of theirs gets an entry too:
+## { owner: "remnant", hold: seconds left }, staggered so they run short one at a
+## time. When one runs out the locals move in on their own (give_up). A player
+## the Remnant still deal with (remnant_friend) is offered a resupply quest for
+## each one that runs short (resupply_remnant_<id>); walking up to it with that
+## quest's waypoint on fills its clock back up (deliver_remnant).
 ##
 ##   an outpost    the Remnant's until every trooper there is dead (take), then the
 ##                 locals' for hold_s of play. A supply run from Oda (j_supply)
@@ -94,25 +101,62 @@ static func short(id: String) -> bool:
 	return owner(id) == LOCALS and not WorldState.has_flag(DRIVEN_OFF) and hold_left(id) <= n("supply_warn_s", 420.0)
 
 
+## Issue #425: a number from territory.json "remnant" (the Remnant's clocks).
+static func rn(key: String, fallback: float) -> float:
+	return float(cfg().get(REMNANT, {}).get(key, fallback))
+
+
+## The cruiser has fallen and the Remnant still hold some of the desert: their
+## outposts run down.
+static func remnant_cut_off() -> bool:
+	return Story.cruiser_taken() and not WorldState.has_flag(DRIVEN_OFF)
+
+
+## The Remnant's outposts on a clock (only once they are cut off).
+static func remnant_clocked() -> Array:
+	return Story.OUTPOSTS.filter(func(id): return owner(str(id)) == REMNANT and WorldState.control.get(id) is Dictionary)
+
+
+## The Remnant at outpost `id` are running short.
+static func remnant_short(id: String) -> bool:
+	return remnant_cut_off() and remnant_clocked().has(id) and hold_left(id) <= rn("warn_s", 2400.0)
+
+
+## The Remnant still give you work (the general's band: not hostile).
+static func remnant_friend() -> bool:
+	return int(WorldState.standing.get("imperial_remnant", 0)) >= int(rn("friend_from", -39.0))
+
+
 # ------------------------------------------------------------------ changes
 
-## Every trooper at the outpost is dead: the locals have it.
-static func take(id: String) -> void:
+## Every trooper at the outpost is dead: the locals have it. `quiet` (issue #425):
+## the Remnant there ran out of supplies and gave up (give_up), so nobody took
+## it: no standing and no outposts_taken count.
+static func take(id: String, quiet := false) -> void:
 	if not Story.OUTPOSTS.has(id) or owner(id) == LOCALS:
 		return
 	WorldState.control[id] = { "owner": LOCALS, "hold": n("hold_s", 900.0) }
-	WorldState.bump("outposts_taken")
-	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("outpost_taken", 6)), "The locals took an outpost.")
-	WorldState.log_event(line("taken") % Story.outpost_label(id))
+	Quests.fail(remnant_quest_id(id))         # it fell before a load got there
+	if quiet:
+		WorldState.log_event(line("remnant_gave_up") % Story.outpost_label(id))
+	else:
+		WorldState.bump("outposts_taken")
+		WorldState.change_standing("locals", int(cfg().get("standing", {}).get("outpost_taken", 6)), "The locals took an outpost.")
+		WorldState.log_event(line("taken") % Story.outpost_label(id))
 	if lost() == Story.OUTPOSTS.size():
-		WorldState.set_flag(DRIVEN_OFF)
-		WorldState.set_flag(RETAKEN, false)
-		WorldState.control.erase("remnant_dead")
-		_cancel_supply()
-		WorldState.log_event(line("driven_off"))
-		for o in Story.OUTPOSTS:
-			Quests.complete(quest_id(str(o)))     # nothing left to run short
+		_drive_off()
 	_sync_flags()
+
+
+## Every outpost is the locals': the Remnant are driven off the planet.
+static func _drive_off() -> void:
+	WorldState.set_flag(DRIVEN_OFF)
+	WorldState.set_flag(RETAKEN, false)
+	WorldState.control.erase("remnant_dead")
+	_cancel_supply()
+	WorldState.log_event(line("driven_off"))
+	for o in Story.OUTPOSTS:
+		Quests.complete(quest_id(str(o)))     # nothing left to run short
 
 
 ## The Remnant have it again.
@@ -120,6 +164,8 @@ static func retake(id: String) -> void:
 	if owner(id) != LOCALS or WorldState.has_flag(DRIVEN_OFF):
 		return
 	WorldState.control.erase(id)
+	if remnant_cut_off():                     # issue #425: cut off, they cannot hold it for ever
+		WorldState.control[id] = { "owner": REMNANT, "hold": rn("hold_s", 6000.0) }
 	if supply_out() == id:
 		_cancel_supply()
 	WorldState.bump("outposts_retaken")
@@ -139,6 +185,12 @@ static func guards_lost(id: String) -> void:
 static func tick(dt: float) -> void:
 	if WorldState.has_flag(DRIVEN_OFF):
 		return
+	# All seven already held with the barracks back too (the town retaken, then
+	# freed): no outpost is left to take, so the drive-off happens here.
+	if lost() == Story.OUTPOSTS.size() and not WorldState.has_flag(RETAKEN):
+		_drive_off()
+		_sync_flags()
+		return
 	var warn := n("supply_warn_s", 420.0)
 	for id in held():
 		var c: Dictionary = WorldState.control[id]
@@ -149,13 +201,57 @@ static func tick(dt: float) -> void:
 			Quests.offer_again(quest_id(str(id)))
 		if float(c.hold) <= 0.0:
 			retake(str(id))
+	if remnant_cut_off():
+		_tick_remnant(dt)
 	_sync_flags()
+
+
+## Issue #425: the Remnant at outpost `id` have run out: the locals move in.
+static func give_up(id: String) -> void:
+	take(id, true)
+
+
+## The Remnant's clocks run down once the cruiser has fallen. A friend of theirs
+## is offered a resupply quest for each one running short (and loses it on
+## turning hostile); one that runs out goes to the locals.
+static func _tick_remnant(dt: float) -> void:
+	_start_remnant_clocks()
+	var warn := rn("warn_s", 2400.0)
+	var friend := remnant_friend()
+	for id in remnant_clocked():
+		var c: Dictionary = WorldState.control[id]
+		var was := float(c.hold)
+		c.hold = was - dt
+		if was > warn and float(c.hold) <= warn:
+			WorldState.log_event(line("remnant_warn") % Story.outpost_label(str(id)))
+		var q := remnant_quest_id(str(id))
+		if friend and remnant_short(str(id)) and Quests.state(q) != "open":
+			Quests.offer_again(q)
+		elif not friend:
+			Quests.fail(q)
+		if float(c.hold) <= 0.0:
+			give_up(str(id))
+			if WorldState.has_flag(DRIVEN_OFF):
+				return
+
+
+## Every Remnant outpost with no clock yet gets one (the tick after the cruiser
+## falls, or the first after loading a save from before this): the first in
+## Story.OUTPOSTS a full hold, each one after it stagger_s less.
+static func _start_remnant_clocks() -> void:
+	var i := 0
+	for id in Story.OUTPOSTS:
+		if owner(str(id)) != REMNANT or WorldState.control.get(id) is Dictionary:
+			continue
+		WorldState.control[id] = { "owner": REMNANT, "hold": maxf(1.0, rn("hold_s", 6000.0) - i * rn("stagger_s", 540.0)) }
+		i += 1
 
 
 ## Flags the rumors and the board read.
 static func _sync_flags() -> void:
 	WorldState.set_flag("locals_hold_outpost", lost() > 0)
 	WorldState.set_flag("outpost_short", Story.OUTPOSTS.any(func(id): return short(str(id))))
+	WorldState.set_flag("remnant_outpost_short", Story.OUTPOSTS.any(func(id): return remnant_short(str(id))))
 
 
 # ------------------------------------------------------------------ the barracks change hands (issue #303)
@@ -247,10 +343,11 @@ static func supplier() -> bool:
 	return WorldState.has_flag(SUPPLIER) or WorldState.count("supplies_delivered") > 0 or supply_out() != ""
 
 
-## Do the maps (F11, the cruiser's hologram) mark outpost `id` as short? Only
-## once you are the supplier.
+## Do the maps (F11, the cruiser's hologram) mark outpost `id` as short? The
+## locals' only once you are their supplier; the Remnant's (issue #425) only
+## while they still deal with you.
 static func short_shown(id: String) -> bool:
-	return id != BARRACKS and supplier() and short(id)
+	return id != BARRACKS and ((supplier() and short(id)) or (remnant_friend() and remnant_short(id)))
 
 
 ## Would walking up to outpost `id` hand over supplies? Where the job sends you,
@@ -306,27 +403,67 @@ static func deliver(id: String) -> int:
 	return pay
 
 
+## Issue #425: would walking up to outpost `id` hand the Remnant a load? Only
+## while they are short there, still deal with you, and you are pointed at
+## its resupply quest (the waypoint is the job: you are carrying the load).
+static func can_deliver_remnant(id: String) -> bool:
+	return remnant_short(id) and remnant_friend() and Quests.state(remnant_quest_id(id)) == "open" \
+		and bool(WorldState.quests.get(remnant_quest_id(id), {}).get("waypoint", false))
+
+
+## The player brought the Remnant a load at outpost `id`. Returns the pay (0 = not theirs).
+static func deliver_remnant(id: String) -> int:
+	if not can_deliver_remnant(id):
+		return 0
+	WorldState.control[id].hold = rn("hold_s", 6000.0)
+	var pay := int(rn("pay", 120.0))
+	var st: Dictionary = cfg().get(REMNANT, {}).get("standing", {})
+	WorldState.credits += pay
+	WorldState.bump("remnant_supplies_delivered")
+	WorldState.change_standing("imperial_remnant", int(st.get("remnant", 3)), "Supplies reached the Remnant.")
+	WorldState.change_standing("locals", int(st.get("locals", -2)), "Someone is keeping the Remnant supplied.")
+	WorldState.log_event(line("remnant_supplied") % [Story.outpost_label(id), pay])
+	QuestNews.push("supplies_delivered", "+%d cr" % pay)
+	Quests.complete(remnant_quest_id(id))
+	_sync_flags()
+	return pay
+
+
 ## The resupply quest for outpost `id`.
 static func quest_id(id: String) -> String:
 	return "resupply_" + id
 
 
-## One optional resupply quest per outpost, in Quests' shape (territory.json "quest").
+## Issue #425: the Remnant's resupply quest for outpost `id`.
+static func remnant_quest_id(id: String) -> String:
+	return "resupply_remnant_" + id
+
+
+## One optional resupply quest per outpost for each side, in Quests' shape
+## (territory.json "quest", and "remnant" "quest" for the Remnant's).
 static func quests() -> Array:
 	var q: Dictionary = cfg().get("quest", {})
+	var rq: Dictionary = cfg().get(REMNANT, {}).get("quest", {})
 	var out: Array = []
 	for id in Story.OUTPOSTS:
 		var label := Story.outpost_label(str(id))
 		out.append({ "id": quest_id(str(id)), "title": str(q.get("title", "%s")) % label,
 			"text": str(q.get("text_supplier" if supplier() else "text", "%s")) % label, "target": "outpost:" + str(id) })
+	for id in Story.OUTPOSTS:
+		var label := Story.outpost_label(str(id))
+		out.append({ "id": remnant_quest_id(str(id)), "title": str(rq.get("title", "%s")) % label,
+			"text": str(rq.get("text_oath" if DarkPact.joined() else "text", "%s")) % label, "target": "outpost:" + str(id) })
 	return out
 
 
-## Fraction of a full hold the locals have left at outpost `id` (0..1), or -1
-## when there is no clock (not theirs, or the Remnant are gone).
+## Fraction of a full hold the holders have left at outpost `id` (0..1), or -1
+## when there is no clock (the Remnant's before the cruiser falls, or the
+## Remnant are gone).
 static func hold_frac(id: String) -> float:
-	if owner(id) != LOCALS or WorldState.has_flag(DRIVEN_OFF) or not Story.OUTPOSTS.has(id):
+	if WorldState.has_flag(DRIVEN_OFF) or not Story.OUTPOSTS.has(id):
 		return -1.0
+	if owner(id) == REMNANT:
+		return clampf(hold_left(id) / rn("hold_s", 6000.0), 0.0, 1.0) if remnant_clocked().has(id) else -1.0
 	return clampf(hold_left(id) / n("hold_s", 900.0), 0.0, 1.0)
 
 
@@ -365,8 +502,9 @@ static func summary() -> Array:
 		var label := "Barracks" if id == BARRACKS else Story.outpost_label(str(id)).trim_prefix("the ")
 		var who := owner(str(id))
 		var tag := str(labels.get(who, who.to_upper()))
-		if id != BARRACKS and who == LOCALS and not WorldState.has_flag(DRIVEN_OFF):
+		if id != BARRACKS and hold_frac(str(id)) >= 0.0:
 			var left := maxf(0.0, hold_left(str(id)))
-			tag = "%s %d:%02d" % [str(labels.get("short", tag)) if short(str(id)) else tag, int(left) / 60, int(left) % 60]
+			var low := short(str(id)) or remnant_short(str(id))
+			tag = "%s %d:%02d" % [str(labels.get("short" if who == LOCALS else "remnant_short", tag)) if low else tag, int(left) / 60, int(left) % 60]
 		out.append("%-19s %s" % [label.capitalize().left(19), tag])
 	return out

@@ -1,5 +1,5 @@
 {
-  "note": "How the F11 Map page's globe looks (src/ui/globe_view.gd). Each pin kind is a small shape (star, triangle, square, diamond, cross, circle, ring, planet, cruiser) in a colour; 'planet' and 'cruiser' are the icons beside the off-planet places; 'ink' is the globe's own lines (null = the player's HUD colour). 'player' is you (a pulsing triangle that points the way you look); 'goal' is the waypoint's colour: the pin it is at flashes, and out where no pin is it shows as its own marker. 'owners' recolours a pin the locals hold (Territory): green, and yellow-green while their supplies there run short; round a held outpost a ring of radius ring_px drains as their hold runs down (ring_back_alpha the empty part). Names and what goes on the map: content/core/flow/map.json.",
+  "note": "How the F11 Map page's globe looks (src/ui/globe_view.gd). Each pin kind is a small shape (star, triangle, square, diamond, cross, circle, ring, planet, cruiser) in a colour; 'planet' and 'cruiser' are the icons beside the off-planet places; 'ink' is the globe's own lines (null = the player's HUD colour). 'player' is you (a pulsing triangle that points the way you look); 'goal' is the waypoint's colour: the pin it is at flashes, and out where no pin is it shows as its own marker. 'owners' recolours a pin the locals hold (Territory): green, and yellow-green while their supplies there run short; round a held outpost a ring of radius ring_px drains as their hold runs down (ring_back_alpha the empty part). Issue #425: once the cruiser has fallen the Remnant's outposts get the ring too (in their own red), and remnant_short (orange) while they run short and you could resupply them. Names and what goes on the map: content/core/flow/map.json.",
   "sea": "#141009",
   "ink": null,
   "grid_alpha": 0.14,
@@ -7,7 +7,7 @@
   "pin_size": 6.0,
   "player": { "shape": "you", "color": "#4dff88" },
   "goal": { "shape": "goal", "color": "#ffd84a" },
-  "owners": { "locals": "#5fd35f", "short": "#d8d83c", "ring_alpha": 0.9, "ring_back_alpha": 0.25, "ring_px": 11.0 },
+  "owners": { "locals": "#5fd35f", "short": "#d8d83c", "remnant_short": "#f0a030", "ring_alpha": 0.9, "ring_back_alpha": 0.25, "ring_px": 11.0 },
   "pins": {
     "port": { "shape": "star", "color": "#f2e2b0" },
     "remnant_outpost": { "shape": "triangle", "color": "#e0573a" },

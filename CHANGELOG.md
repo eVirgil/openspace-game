@@ -4,8 +4,8 @@ Plain English, newest on top. One entry per milestone.
 
 ## Skrugs's yard: real lamps on the clock, and a workbench (2026-11-02)
 
-- **Skrugs's garage has a work light, his house door a lamp,** and with the lamp
-  over his counter all three are real lights on the look's lamp clock: on by day,
+- **Skrugs's garage has a work light, his house door a lamp,** a lamp over his bench, and with the
+  lamp over his counter all four are real lights on the look's lamp clock: on by day,
   full at dusk and night. The string bulbs and a new teal sign over the garage
   mouth brighten with them (issue #458, `src/systems/world/speeder_post.gd`).
 - **His bench is a workbench** like Dorrin's: a vise, a pegboard of tools behind
@@ -13,6 +13,22 @@ Plain English, newest on top. One entry per milestone.
 - **Dorrin's counter hangs the same lamp**, a real light now, and his bulbs and
   garage sign follow the clock too. The lamp is `HangingLamp`
   (`src/systems/look/hanging_lamp.gd`), for any outpost dressing.
+## No freeze on the first blaster shot (2026-11-02)
+
+- **The first shot no longer stops the game for a few seconds.** The bolt, the
+  muzzle flash, the explosions and their sounds now load in small pieces over
+  the first frames of the game, before anyone fires.
+
+## Chill 80s synth score, and a second battle track for long fights (2026-11-02)
+
+- **The background music is laid-back 80s synth now.** Eleven new tracks, picked
+  to sound like the owner's two favourites (slow, soft beat, long pads, no
+  vocals), replace the five that were too cinematic. Fourteen in the shuffle.
+- **Long fights get a second battle track.** When the battle music runs out and
+  people are still shooting at you, a second track takes over and lasts the whole
+  fight, which suits the climb up the cruiser.
+- **The cruiser's music ends at the top** when the general dies, and **starts
+  again when the dark master attacks you**. His sword fight has battle music now.
 
 ## New version is 1.4 (2026-11-02)
 

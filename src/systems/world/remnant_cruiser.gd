@@ -338,7 +338,7 @@ func _on_general_died() -> void:
 	if demo.pilot != null and demo.pilot.fight != null:
 		demo.pilot.end_fight("general")
 		_toast(line("escort_gone"), 6.0)
-	Sound.battle()
+	Sound.end_battle()                 # the climb's music ends at the top; the dark master starts it again
 
 
 ## Taken, and you are away: whoever was left aboard is gone.
