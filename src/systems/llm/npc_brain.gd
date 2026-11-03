@@ -58,6 +58,7 @@ var last_turn: Dictionary = {}       ## for the debug overlay
 var turns: Array = []                ## every finished turn this session (tests read it)
 var extra_brief: Callable            ## () -> Array of lines: this character's own facts each turn (T-89: the pad)
 var ship_offer: Callable             ## issue #295: () -> { id, name, price, stolen } a ship they would buy now, or {}
+var sale_open: Callable              ## () -> bool: whether their card's "sale" is on offer now (Skrugs: not once you own your one speeder)
 
 var _turn_id := -1
 var _raw := ""
@@ -316,6 +317,7 @@ func say(text: String) -> bool:
 		"club_moods": Sound.lib().cfg.get("club", {}).get("moods", []),   # issue #261: what she can ask the band for
 		"extra": (extra_brief.call() if extra_brief.is_valid() else []) + last_hints + _recap_brief(),
 		"ship_buy": _ship_offer(),
+		"sale_open": _sale_open(),
 	}
 	var built := builder.build(world, rel, rumors, jobs, history, text)
 	_messages = built.messages
@@ -544,6 +546,10 @@ func _ship_offer() -> Dictionary:
 	return ship_offer.call() if ship_offer.is_valid() else {}
 
 
+func _sale_open() -> bool:
+	return bool(sale_open.call()) if sale_open.is_valid() else true
+
+
 ## The player accepted a job she offered (from the job card).
 func accept_job(id: String) -> bool:
 	if not WorldState.accept_job(id):
@@ -616,6 +622,8 @@ func canned_reply(text: String, topic: String = "") -> Dictionary:
 		"drink":
 			return { "say": "Dust ale. You look like a dust ale.", "actions": [{ "type": "pour_drink", "name": "dust ale" }] }
 		"buy":
+			if not _sale_open():
+				return { "say": _pick(c.get("one_only", ["You have one already."])), "actions": [] }
 			return { "say": _pick(c.get("sell", ["Yours for the price on the board."])), "actions": [{ "type": "offer_speeder" }] }
 		"bye":
 			return { "say": _pick(c.get("bye", ["Go on."])), "actions": [{ "type": "end_conversation" }] }

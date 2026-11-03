@@ -2,6 +2,17 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## One speeder each: the town is smooth again (2026-11-03)
+
+- **Skrugs sells one speeder to a customer.** Once you own one he says so, and
+  points you to his bench for parts instead. A save with more keeps its first
+  speeder, paint and parts and all; the rest are gone.
+- **Why:** every parked speeder ran its hover each physics tick, standing still
+  or not. A free roam save with seven of them parked at his yard took the town
+  down to 7.5 fps (each tick took 22 ms, over its 16 ms budget, so the game ran
+  several a frame). With one a tick takes 10 ms: 61-88 fps in most directions
+  with full graphics.
+
 ## Blaster pops are sparks, not grit (2026-11-03)
 
 - **A blaster bolt landing is a clean pop now:** the flash and the spray of
