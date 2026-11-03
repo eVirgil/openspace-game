@@ -173,7 +173,7 @@ func hello(player_name: String, outfit: Dictionary, version: String) -> void:
 		_refuse(id, "refused_full")
 		return
 	var nm := _unique(NetSession.clean_name(player_name))
-	var fit := PlayerOutfit.sanitize(outfit)
+	var fit := PlayerOutfit.sanitize(outfit, false)
 	for other in roster:
 		if other != 1:
 			joined.rpc_id(other, id, nm, fit)
@@ -458,7 +458,7 @@ func outfit(fit: Dictionary) -> void:
 	var id := _mp().get_remote_sender_id()
 	if not roster.has(id):
 		return
-	var clean := PlayerOutfit.sanitize(fit)
+	var clean := PlayerOutfit.sanitize(fit, false)
 	roster[id]["outfit"] = clean
 	outfits_heard += 1
 	var b = bodies.get(id, null)

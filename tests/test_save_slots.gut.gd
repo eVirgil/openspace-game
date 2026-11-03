@@ -194,7 +194,7 @@ func test_what_a_run_keeps_goes_back_to_a_launch_on_a_switch() -> void:
 
 func test_each_save_has_its_own_outfit() -> void:
 	_playing(WorldState.FREEPLAY)
-	var mix := { "torso": "guard:gunmetal" }
+	var mix := { "torso": "player:rust" }
 	PlayerOutfit.save_outfit(mix)
 	var free_file := PlayerOutfit.path()
 	panel.switch_save(WorldState.STORY, false)
