@@ -1026,6 +1026,13 @@ func hold_blade(color: Color, hilt: String = "", length: float = -1.0, grip = nu
 	return blade
 
 
+## The held blade gone from the body (its owner's fell as a pickup; one sword, not two).
+func drop_blade() -> void:
+	if blade != null and is_instance_valid(blade):
+		blade.queue_free()
+	blade = null
+
+
 ## Where the hilt would sit in the fist (world): the rigged hand bone's frame
 ## without its scale, or the wrist joint's, then the grip.
 func _blade_hand_xf() -> Transform3D:
