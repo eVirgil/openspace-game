@@ -2,6 +2,21 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## LAN: friendly fire for ships, not seekers (2026-11-03)
+
+- **Your ship's cannons hit your friends' ships.** Before, another player's
+  ship was a picture: bolts flew through it. Now, while they fly it, a hit
+  lands on their ship in their game (shield first, then hull) and enough of
+  them shoot it down, as any gun would, in the town's sky and out in space.
+  You get the usual hit marker, red for the one that brings it down.
+- **Seekers never hit a friend's ship.** They fly through it, locked or not.
+- **A parked ship is still a picture.** Nobody can wreck a friend's ship on
+  its pad.
+- **You see your friends' cannon fire in the sky.** Before, their shots only
+  showed in a space fight.
+- Off with the same switch as friendly fire on foot (`friendly_fire` in
+  `content/core/flow/lan.json`), scaled by `friendly_fire_scale`.
+
 ## New version is 1.5 (2026-11-03)
 
 - Share builds are now **OpenSpace V1.5**. Everything below, down to "New

@@ -2,6 +2,27 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After LAN friendly fire for ships (2026-11-03)
+
+**Checked:** tests/test_lan_ship_fire.gut.gd (4/4: the hull is solid only in the
+air, seekers pass, space bolts on a friend's ship are sent once, a friend's hit
+lands in the fight's director and can lose it), test_smoke, test_ship_combat,
+test_seeker_warning, `scripts/test_lan.sh`, and a headless town boot. Two
+players were not flown against each other on two computers.
+`test_dogfight` ("three remnant fighters"), `test_m10_dogfight` and the guest
+half of `scripts/test_lan_world.sh` ("people here are not all copies") fail on
+`main` as well.
+
+- **You hit where your friend's ship is drawn in your game,** which is up to
+  a packet (1/20 s) behind where it is in theirs. Fast passes in space can land
+  hits they did not see coming, or miss ones that looked close on their screen.
+- **Shooting the host down in a space fight ends that fight for everyone,** as
+  the host being shot down by a raider does.
+- **A friend's ship in space is hit as a sphere** (half its longest side),
+  not its box, as the fight's own ships are.
+- **Their cannon fire in the sky is a picture** that flies to where their guns
+  crossed and stops; it can pass through a hill in your game.
+
 ## After the Low graphics setting (2026-11-02)
 
 **Checked:** the new test in test_lookdev (21 asserts), test_smoke, a headless

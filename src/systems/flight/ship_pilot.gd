@@ -69,6 +69,9 @@ extends Node
 ##   - LAN: a guest who climbs out while the host's fight is on flies a copy of it
 ##     (NetFight, SpaceFight.net_copy) instead of the pad's own, and joins it from
 ##     up there when it starts (join_net_fight).
+##   - LAN friendly fire: your cannons hit the other players' ships while they fly
+##     (RemoteShip's hull; NetFight out in space) and theirs hit yours
+##     (lan_ship_hit); your seekers fly through theirs (_launch_seeker).
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -92,6 +95,7 @@ signal ejected                   ## issue #275: out of the seat in the air
 signal left_atmosphere
 signal fight_started
 signal fight_ended(outcome: String)
+signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others
 
 var demo                         ## the town scene (town_demo.gd)
 var content
@@ -1831,6 +1835,7 @@ func _fire_guns(dt: float, trigger: bool, missile := false) -> void:
 		b.global_position = s.origin
 		shots += 1
 		volley = true
+		cannon_fired.emit(s.origin, b.direction, minf(guns.convergence + 2.0, b.range_m), b)
 	if volley:
 		Sound.play("ship_cannon", atmo.position())
 
@@ -1846,12 +1851,48 @@ func _launch_seeker(s: Dictionary, seek: Node3D) -> void:
 	b.seek = seek
 	b.turn_rate = float(s.get("turn_rate", 0.0))
 	b.blast_size = float(s.get("blast_size", 0.0))
+	b.friends = _lan_hulls()                     # LAN: no friendly fire from seekers
 	b.connect("on_hit", hud.on_gun_hit)
 	b.connect("on_splash", hud.on_gun_hit)
 	demo.add_child(b)
 	b.global_position = s.origin
 	seekers += 1
 	Sound.play("ship_missile", s.origin)
+
+
+## LAN: the other players' ships here (RemoteShip hulls), which seekers fly through.
+func _lan_hulls() -> Array:
+	var out: Array = []
+	if NetSession.active():
+		for rs in NetSession.link.ship_bodies.values():
+			if is_instance_valid(rs) and rs.hull != null:
+				out.append(rs.hull)
+	return out
+
+
+## LAN: whether the others' cannons can hit the ship you fly (RemoteShip): off the
+## ground, or out in a space fight.
+func lan_flying() -> bool:
+	return piloting and (_fight_flying() or atmo.state in [AtmoFlight.State.LIFTOFF,
+		AtmoFlight.State.FLYING, AtmoFlight.State.LANDING])
+
+
+## LAN friendly fire: another player's ship cannon hit the ship you fly
+## (NetLink.ship_hit). In the air it is a hit on your hull, as anyone's bolt is;
+## out in a space fight it lands on your ship in the fight's director. Returns 0 if
+## it did nothing (not flying, already down), 1 if it hurt, 2 if it shot you down.
+func lan_ship_hit(amount: float) -> int:
+	if not lan_flying():
+		return 0
+	if _fight_flying():
+		return int(fight.df.friendly_damage(amount))
+	if berth < 0 or berth >= berths.size():
+		return 0
+	var was: float = defense.shield + float(defense.hull_hp())
+	_on_hull_hit(amount, null, berth)
+	if atmo.state == AtmoFlight.State.CRASHED:
+		return 2
+	return 1 if defense.shield + float(defense.hull_hp()) < was else 0
 
 
 ## The Remnant interceptor (issue #76), when this town has one: what the seekers
