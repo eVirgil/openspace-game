@@ -38,6 +38,8 @@ func _ready() -> void:
 	info.offset_right = 330
 	info.offset_top = -250
 	info.offset_bottom = 250
+	info.grow_horizontal = Control.GROW_DIRECTION_BOTH   # longer text grows it both ways: it stays centred
+	info.grow_vertical = Control.GROW_DIRECTION_BOTH
 	info.visible = false
 	info.gui_input.connect(_on_click)
 	add_child(info)
