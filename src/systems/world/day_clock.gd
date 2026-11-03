@@ -7,30 +7,44 @@ extends RefCounted
 ##   Auto (freeplay, and a story save once the cruiser is won): each trigger
 ##     (going indoors, a faded trip to another planet, waking in the pit) steps
 ##     the day on along time_of_day.json "day_order", never landing on the time
-##     you are in. The seamless hop to the moon is no trigger.
+##     you are in, and only once "day_min_seconds" of play (WorldState.clock)
+##     have gone by since the last step. The seamless hop to the moon is no trigger.
 ##   A story save before the cruiser is won: the time is the chapter's ("time"
 ##     on each chapter in content/core/story/main.json; "time_after_job" once
 ##     you have taken that job). The L key and F11's time controls are locked.
 ##   The picker on Golden / Noon / Dusk: the time stays there; triggers do nothing.
 ##
 ## State (saved with the world): WorldState.time_of_day, day_pick ("auto" or a
-## preset) and day_step (where in day_order the day is: golden comes twice).
+## preset), day_step (where in day_order the day is: golden comes twice) and
+## day_moved_at (WorldState.clock at the last step).
 
 const PATH := "res://content/look/time_of_day.json"
 const AUTO := "auto"
 const PICKS := [AUTO, "golden", "noon", "dusk"]
 
 static var _order: Array = []
+static var _min_seconds := -1.0
+
+
+static func _data() -> Dictionary:
+	var f := FileAccess.open(PATH, FileAccess.READ)
+	var d = JSON.parse_string(f.get_as_text()) if f != null else null
+	return d if d is Dictionary else {}
 
 
 ## The day's presets in order, round and round.
 static func order() -> Array:
 	if _order.is_empty():
-		var f := FileAccess.open(PATH, FileAccess.READ)
-		var d = JSON.parse_string(f.get_as_text()) if f != null else null
-		var o = d.get("day_order", []) if d is Dictionary else []
+		var o = _data().get("day_order", [])
 		_order = o if o is Array and not o.is_empty() else ["golden", "noon", "golden", "dusk"]
 	return _order
+
+
+## Seconds of play the day holds on Auto before a trigger can move it on.
+static func min_seconds() -> float:
+	if _min_seconds < 0.0:
+		_min_seconds = maxf(0.0, float(_data().get("day_min_seconds", 300.0)))
+	return _min_seconds
 
 
 ## A story save before the cruiser is won: the chapters set the time.
@@ -64,6 +78,8 @@ static func trigger(_trigger: String) -> String:
 		return _to(story_time())
 	if WorldState.day_pick != AUTO:
 		return _to(WorldState.day_pick)
+	if WorldState.clock - WorldState.day_moved_at < min_seconds():
+		return ""                               # too soon after the last step: the day holds
 	var o := order()
 	var s := WorldState.day_step
 	if s < 0 or s >= o.size() or str(o[s]) != WorldState.time_of_day:
@@ -73,6 +89,7 @@ static func trigger(_trigger: String) -> String:
 		if str(o[s]) != WorldState.time_of_day:
 			break
 	WorldState.day_step = s
+	WorldState.day_moved_at = WorldState.clock
 	return _to(str(o[s]))
 
 
