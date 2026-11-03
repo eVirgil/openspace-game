@@ -18,6 +18,12 @@ extends StaticBody3D
 ## NetLink hands it every state packet heard (hear); between packets it closes on
 ## where the player should be by now (the last spot plus the velocity since),
 ## smoothed so it does not jitter, and jumps when it is snap_m off (a teleport).
+##
+## Downed (NetLink.F_DOWNED), the body falls as a ragdoll where it was, pushed away
+## from the hit that put them down, as their own does in their game (PlayerKit),
+## with nothing to hit or bump. When they wake (the pit, wherever) the body there
+## goes and they stand up where they are now. Their sword is their colour and hilt
+## (the red saber's red on its black hilt), as heard in each packet.
 
 const UPPER := {
 	"pistol_blaster": BodyAnimator.UPPER_AIM,
@@ -36,9 +42,12 @@ var tilt := Basis.IDENTITY        ## the ground's frame (PlayerAvatar.animate re
 var _mats: LookMaterials
 var _s: Dictionary = {}           ## the last state heard
 var _placed := false
+var ragdoll: Ragdoll              ## while they are downed
+var _hidden_weapon: Node3D
 ## HitFeedback reads this: never fresh, so your own game shows no marker for a hit
 ## here; it comes when that player's game says the hit landed (NetLink.hit_back).
 var damage_usec := -1000000000
+var velocity := Vector3.ZERO      ## as last heard (the host's NPCs lead their shots by it)
 
 
 func setup(id: int, nm: String, fit: Dictionary, mats: LookMaterials = null) -> void:
@@ -68,7 +77,10 @@ func _ready() -> void:
 	tag.text = player_name
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.position.y = NetSession.n("name_height", 2.15)
-	tag.pixel_size = 0.005
+	# The same size on screen however far. Further off the HUD marks them too
+	# (ObjectiveHud).
+	tag.fixed_size = true
+	tag.pixel_size = NetSession.n("name_px", 0.0011)
 	tag.font_size = 40
 	tag.outline_size = 10
 	tag.modulate = Color(1.0, 0.93, 0.78)
@@ -108,6 +120,11 @@ func _physics_process(dt: float) -> void:
 		return
 	var flags := int(_s.flags)
 	visible = (flags & 8) != 0          # NetLink.F_VISIBLE: not while they sit in a ship
+	velocity = _s.vel
+	_wear_blade(_s.get("blade", []))
+	if _ragdolled(dt, (flags & 512) != 0):   # NetLink.F_DOWNED
+		collision_layer = 0
+		return
 	collision_layer = 1 if visible and friendly_fire() else 0
 	var to := wanted()
 	if global_position.distance_to(to) > NetSession.n("snap_m", 8.0):
@@ -140,6 +157,68 @@ func _physics_process(dt: float) -> void:
 		"aim_pitch": float(_s.pitch),
 		"upper": UPPER.get(weapon, BodyAnimator.UPPER_FREE),     # as PlayerWeapons.upper_mode: the avatar holsters by `drawn`
 	})
+
+
+## What the host's NPCs read of them (NpcBody.watches_guests), as for the player.
+func downed() -> bool:
+	return not _s.is_empty() and (int(_s.flags) & 512) != 0    # NetLink.F_DOWNED
+
+
+func crouched() -> bool:
+	return not _s.is_empty() and (int(_s.flags) & 2) != 0
+
+
+func armed() -> bool:
+	return not _s.is_empty() and str(_s.weapon) != ""
+
+
+# ------------------------------------------------------------------ downed
+
+## Downed: the body goes limp where it is (away from the hit), the weapon in hand
+## put away; up again, every joint goes back and the body is where they are now
+## (the one on the ground is gone). True while the ragdoll owns the body.
+func _ragdolled(dt: float, down: bool) -> bool:
+	if not down:
+		if ragdoll != null:
+			ragdoll.stop()
+			ragdoll = null
+			if _hidden_weapon != null and is_instance_valid(_hidden_weapon):
+				_hidden_weapon.visible = true
+			_hidden_weapon = null
+			global_position = wanted()
+			avatar.reset_render_smoothing()
+		return false
+	if ragdoll == null:
+		if not is_inside_tree():
+			return false
+		var cfg := Ragdoll.load_config()
+		var hit: Array = _s.get("hit", [])
+		var from: Vector3 = hit[0] if hit.size() >= 2 and hit[0] is Vector3 else Vector3.INF
+		var amount := float(hit[1]) if hit.size() >= 2 else 0.0
+		var kick := Ragdoll.kick_for(global_position, from, amount, cfg)
+		ragdoll = Ragdoll.new(avatar.joints, cfg)
+		ragdoll.start(_s.vel, kick, get_world_3d().direct_space_state, [get_rid()])
+		var w := avatar.weapon_node(avatar.current)
+		if w != null and w.visible:
+			_hidden_weapon = w
+			w.visible = false
+	var moving := not ragdoll.asleep
+	ragdoll.step(dt)
+	if moving and avatar.skin != null:
+		avatar.skin.sync(avatar.body)
+	return true
+
+
+## Issue #148: their sword's [colour, hilt] (alpha 0 / "": the default blue one).
+## A hilt is only ever one of the game's own models.
+func _wear_blade(b: Array) -> void:
+	if b.size() < 2 or not (b[0] is Color):
+		return
+	var hilt := str(b[1])
+	if hilt != "" and (not hilt.begins_with("res://assets/") or not ResourceLoader.exists(hilt)):
+		hilt = ""
+	if avatar.blade_color != b[0] or avatar.blade_hilt != hilt:
+		avatar.set_blade_color(b[0], hilt)
 
 
 # ------------------------------------------------------------------ friendly fire

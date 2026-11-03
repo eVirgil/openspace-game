@@ -31,6 +31,7 @@
     "offers_title": "%s  -  you have %d cr",
     "talk": "Talk",
     "talk_to": "[E] Talk to the %s",
+    "key_trade": "Trade",
     "offer": "%s  (%d cr): %s",
     "offer_bought": "%s: done.",
     "offer_cant_afford": "%s is %d cr. You have %d.",

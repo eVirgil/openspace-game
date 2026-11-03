@@ -284,11 +284,14 @@ func _on_offer(id: String) -> void:
 		_say(_line("skipped"))
 
 
-## [E] beside him: his top menu. In the story he never calls out first, so the
-## first [E] is his hello and the tutorial offer.
+## [E] beside him: the chat box (issue #305: talk first; his shops are on its
+## keyword row), or his top menu with no conversation host. In the story he never
+## calls out first, so the first [E] is his hello and the tutorial offer.
 func talk() -> void:
 	if not greeted and not WorldState.has_flag(MET_FLAG):
 		greet()
+		return
+	if spot != null and chat():
 		return
 	_beep()
 	_open(_line("hello_again") + _repair_line() + _story_line(), top_options(), _on_top)
@@ -762,10 +765,56 @@ func attach_host(h: ConversationHost) -> void:
 	spot.manual = true
 	spot.radius = float(cfg.get("reach", 3.2))
 	spot.face_height = height() - 0.25
+	spot.shortcuts = shortcuts
+	spot.on_shortcut = _on_shortcut
+	spot.opener = _chat_opener
+	brain.wares = wares
 	host.add_spot(spot)
 	brain.sale_offered.connect(_on_ship_offered)
+	brain.item_offered.connect(_on_upgrade_offered)
 	brain.comrade_declared.connect(func(): comrade())
 	host.panel.sale_answered.connect(_on_ship_answer)
+
+
+## Issue #305: the keyword row over his chat box: his shops, a click away.
+func shortcuts() -> Array:
+	var out := [{ "id": "go_ships", "label": _l("key_ships") }]
+	if not ShipUpgrades.owned().is_empty():
+		out.append({ "id": "go_upgrades", "label": _l("key_upgrades") })
+	out.append({ "id": "go_menu", "label": _l("key_menu") })
+	return out
+
+
+## A keyword picked: the chat closes and that shop (or his top menu) opens; its
+## "Talk" brings the chat back.
+func _on_shortcut(id: String) -> void:
+	host.end_talk()
+	_beep()
+	if id in ["go_ships", "go_upgrades"]:
+		var g := id.substr(3)
+		_open(_group_line(g), _group_options(g), _on_group.bind(g))
+	else:
+		_open(_line("anything_else"), top_options(), _on_top)
+
+
+## The chat's first line while your wreck waits: the rebuild's price (and the
+## quest), as his menu used to say it.
+func _chat_opener() -> Dictionary:
+	if not needs_rebuild():
+		return {}
+	return { "say": (_line("hello_again") + _repair_line()).strip_edges() }
+
+
+## Issue #305: what he can fit for them now, for his offer_item: each upgrade not
+## yet on each ship they own, at its price.
+func wares() -> Array:
+	var out := []
+	for sid in ShipUpgrades.owned():
+		for up in ShipUpgrades.ids():
+			if not ShipUpgrades.has(sid, up):
+				out.append({ "id": "fit:%s:%s" % [sid, up], "name": _l("fit_name") % [ShipUpgrades.label(up), ship_label(sid)],
+					"price": ShipUpgrades.price(up) })
+	return out
 
 
 ## Open the chat box with him (from his shop's "Talk").
@@ -847,12 +896,23 @@ func _on_ship_offered(item: Dictionary) -> void:
 	host.panel.show_sale(_offered, WorldState.credits)
 
 
-## Buy on the price card: the shop's buy(), and his answer in the chat box.
+## Issue #305: his offer_item: an upgrade's price card in the chat box.
+func _on_upgrade_offered(item: Dictionary) -> void:
+	if host == null or host.active != spot:
+		return
+	_offered = item.duplicate()
+	_offered["text"] = _line("fit_card") % ship_label(str(item.id).get_slice(":", 1))
+	host.panel.show_sale(_offered, WorldState.credits)
+
+
+## Buy on the price card: the shop's buy() (or fit(), for an upgrade), and his
+## answer in the chat box.
 func _on_ship_answer(id: String, accepted: bool) -> void:
 	if not accepted or host == null or host.active != spot or id != str(_offered.get("id", "")):
 		return
 	_offered = {}
-	if buy(id) != "":
+	var done := fit(id.get_slice(":", 1), id.get_slice(":", 2)) if id.begins_with("fit:") else buy(id)
+	if done != "":
 		host.panel.set_line(said)
 		host.panel.set_money(WorldState.credits, spot.brain.rel.tab)
 

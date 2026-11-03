@@ -20,12 +20,15 @@
     "name": "speeder",
     "price": 100,
     "note": "One model only: a low hover sled with twin skids and a rear fan. Twin forward lasers, armored hull. Hovers over sand, jumps off ramps. Once paid, the game parks it in your garage (beside it if the garage is full) and you tell them so.",
-    "text": "A low hover sled with twin skids, a rear fan and twin forward lasers. Hovers over sand, jumps off ramps. Waiting in his garage once you pay."
+    "text": "A low hover sled with twin skids, a rear fan and twin forward lasers. Hovers over sand, jumps off ramps. Waiting in his garage once you pay.",
+    "max_owned": 1,
+    "closed": "THEY ALREADY OWN A SPEEDER: one to a customer, your rule (a yard full of them is nobody's business). Do not use offer_speeder. Point them to the one they have, or to the garage bench for parts."
   },
   "where": {
     "skrugs_post_round": "WHERE YOU ARE: your yard inside the town wall, right behind the cantina, on the back lane a short walk from the back gate. Your house, your stall, the display speeder and your garage, which opens onto the lane. A speeder drives out of the garage, down the lane and out through the back gate into the desert. Your stall stands at the gate end of the yard, beside your garage, facing the back gate. Ships can't land inside the wall: to sell you one, they land it within a hundred metres of your stall, just outside the back gate is best.",
     "skrugs_post": "WHERE YOU ARE: out in the sand past the back gate, a short walk from it. Your house, your stall, the display speeder and your garage beside the house. To sell you a ship, they land it right by your post. Your sand ramp is out past it."
   },
+  "shortcuts": { "note": "Issue #305: the keyword row over his chat box.", "speeder": "Buy a speeder", "sell_ship": "Sell my ship" },
   "garage": {
     "free": "YOUR GARAGE: you fit speeder parts at your garage bench, the same parts and prices as the mechanic out in the desert (paint, looks, engines, thrusters, cannons, the Grav Lifter), and you take a speeder for scrap. They park their speeder in your garage and use the bench (E there). You never take money in the chat for parts.",
     "story": "YOUR GARAGE: it holds the speeders you sell. You don't fit parts: send them to the mechanic out in the desert for that."
@@ -76,6 +79,7 @@
     "job": ["Work? Sure, sure, I hear things. %s A speeder gets you there by lunch."],
     "no_job": ["Nothing on my side of the gate right now, friend. Try the cantina owner's board."],
     "no_smuggle": ["One drop at a time, friend. Go find the last one first."],
+    "one_only": ["You've got one already, friend. One to a customer. Want parts for her instead?"],
     "sold": ["Done! She's waiting in my garage. Try not to scratch her."],
     "ship_buy": ["The %s? Lovely. %d credits, no questions. Deal?", "I'll take the %s off your hands. %d credits, and I never saw it."],
     "no_ship_buy": ["A ship? Land it by my post first, friend, then we talk."],

@@ -212,16 +212,56 @@ func test_every_paint_job_is_a_model() -> void:
 		assert_true(look.paints.has(id), "Skrugs sells a paint that exists: " + str(id))
 
 
-func test_skrugs_sells_each_one_in_a_new_paint() -> void:
+func test_one_speeder_to_a_customer() -> void:
 	var t = _town()
 	var post: SpeederPost = t.speeder_post
 	WorldState.credits = 1000
-	for i in 3:
-		post.buy()
-	var paints := post.speeders.map(func(s): return s.paint)
-	assert_eq(paints, cfg.look.sold_paints, "steel, then green and blue, then crimson and white")
+	assert_true(post.buy())
+	assert_false(post.buy(), "a second is not for sale")
+	assert_false(post.buy())
+	assert_eq(post.speeders.size(), 1)
+	assert_eq(WorldState.count("speeders_owned"), 1)
+	assert_eq(WorldState.credits, 900, "charged once")
+	assert_eq(post.speeders[0].paint, str(cfg.look.sold_paints[0]))
 	assert_eq(post.display.paint, str(cfg.look.display_paint))
-	assert_not_null(post.speeders[1].visual.get_node_or_null("Model"), "the Sand-boxer, not the stand-in")
+	assert_not_null(post.speeders[0].visual.get_node_or_null("Model"), "the Sand-boxer, not the stand-in")
+
+
+func test_he_does_not_offer_a_second() -> void:
+	var t = _town()
+	var post: SpeederPost = t.speeder_post
+	var brain: NpcBrain = post.spot.brain
+	var open_ids: Dictionary = brain.builder.briefing({ "sale_open": brain._sale_open() }, brain.rel, [], []).ids
+	assert_eq(str(open_ids.sale.get("id", "")), "speeder", "none owned: on sale")
+	WorldState.credits = 1000
+	post.buy()
+	assert_false(brain._sale_open())
+	var b: Dictionary = brain.builder.briefing({ "sale_open": brain._sale_open() }, brain.rel, [], [])
+	assert_true(b.ids.sale.is_empty(), "an offer_speeder is dropped")
+	assert_string_contains(str(b.message.content), "ALREADY OWN A SPEEDER")
+	var said := brain.canned_reply("How much for the speeder?")
+	assert_true((said.actions as Array).is_empty(), "no AI: no offer either")
+	assert_eq(str(said.say), str(brain.card.canned.one_only[0]))
+	# Even an offer that gets through sells nothing.
+	t.bar.start_talk(post.spot)
+	brain.sale_offered.emit({ "id": "speeder", "name": "speeder", "price": 100 })
+	t.bar.panel.answer_card(true)
+	assert_eq(WorldState.credits, 900)
+	assert_eq(post.speeders.size(), 1)
+	t.bar.end_talk()
+
+
+func test_an_old_save_keeps_its_first_speeder() -> void:
+	WorldState.counters["speeders_owned"] = 3
+	WorldState.speeder_fits = [SpeederUpgrades.new_fit("tide"), SpeederUpgrades.new_fit("steel"), SpeederUpgrades.new_fit("crimson")]
+	WorldState.speeder_fits[0].parts = ["engine_1"]
+	var t = _town()
+	var post: SpeederPost = t.speeder_post
+	assert_eq(post.speeders.size(), 1, "the rest are gone")
+	assert_eq(WorldState.count("speeders_owned"), 1)
+	assert_eq(WorldState.speeder_fits.size(), 1)
+	assert_eq(post.speeders[0].paint, "tide", "the first one, as it was")
+	assert_eq(WorldState.speeder_fits[0].parts, ["engine_1"])
 
 
 func test_the_remnant_parks_a_black_and_red_one_outside_the_front_gate() -> void:

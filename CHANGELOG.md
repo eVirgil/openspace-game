@@ -2,6 +2,69 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## LAN: friendly fire for ships, no seeker lock on friends (2026-11-03)
+
+- **Your ship's cannons hit your friends' ships.** Before, another player's
+  ship was a picture: bolts flew through it. Now, while they fly it, a hit
+  lands on their ship in their game (shield first, then hull) and enough of
+  them shoot it down, as any gun would, in the town's sky and out in space.
+  You get the usual hit marker, red for the one that brings it down.
+- **Seekers never lock on a friend's ship.** An unlocked seeker fired
+  straight into one still hits it, blast and all.
+- **A parked ship is still a picture.** Nobody can wreck a friend's ship on
+  its pad.
+- **You see your friends' cannon fire and unlocked seekers in the sky.**
+  Before, their shots only showed in a space fight.
+- Off with the same switch as friendly fire on foot (`friendly_fire` in
+  `content/core/flow/lan.json`), scaled by `friendly_fire_scale`.
+
+## New version is 1.5 (2026-11-03)
+
+- Share builds are now **OpenSpace V1.5**. Everything below, down to "New
+  version is 1.4", is in it.
+
+## LAN: you can find each other (2026-11-03)
+
+- **The other players were there, just hard to find.** A guest arrives by a
+  pad down in the pit, often 80 m or more from the host, and the name over
+  their head was a few centimetres of text the colour of an NPC's speech: past
+  a few metres you could not tell a player from a townsperson.
+- **Their name is the same size on screen at any distance.**
+- **On the F11 map** each other player on foot is a blue dot with their name.
+  Click one and they are your waypoint: the HUD's pointer follows them with a
+  blue diamond (the line stays white), and clears when you reach them or they
+  leave the game.
+- Tunable in `content/core/flow/lan.json` (`name_px`, `mark_color`,
+  `waypoint_arrive_m`).
+
+## LAN: falls, wake-ups and the red sword show to the others (2026-11-03)
+
+- **A downed player falls as a ragdoll on every screen,** pushed away from the
+  hit that put them down, as their own body does in their game. Before, the
+  others saw them standing still.
+- **When they wake, the body on the ground goes.** It is gone from where it
+  fell and they stand up where they woke (the pit, wherever).
+- **The red saber is red to the others too,** on its black hilt. Before, every
+  other player's sword showed blue.
+
+## The wreck field is cheaper to look at (2026-11-03)
+
+- **The four crashed cruisers look the same and cost far less to draw.** Their
+  2,561 hull plates were drawn one by one, from anywhere the field can be seen;
+  they are now 56 meshes, one per wreck and finish. Looking east from the port
+  that is about 2,700 fewer draw calls a frame (about 5 ms on a Mac).
+
+## One speeder each: the town is smooth again (2026-11-03)
+
+- **Skrugs sells one speeder to a customer.** Once you own one he says so, and
+  points you to his bench for parts instead. A save with more keeps its first
+  speeder, paint and parts and all; the rest are gone.
+- **Why:** every parked speeder ran its hover each physics tick, standing still
+  or not. A free roam save with seven of them parked at his yard took the town
+  down to 7.5 fps (each tick took 22 ms, over its 16 ms budget, so the game ran
+  several a frame). With one a tick takes 10 ms: 61-88 fps in most directions
+  with full graphics.
+
 ## Blaster pops are sparks, not grit (2026-11-03)
 
 - **A blaster bolt landing is a clean pop now:** the flash and the spray of

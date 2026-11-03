@@ -36,6 +36,7 @@ const F_AIM := 32                  ## trigger or aim held: the gun comes up
 const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
 const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
 const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
+const F_DOWNED := 512              ## downed: the others' copy falls as a ragdoll until they wake
 
 var my_name := ""
 var my_outfit: Dictionary = {}
@@ -56,9 +57,11 @@ var _send_left := 0.0
 var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
+var _hooked_pilot: Object = null   ## the town's ShipPilot whose cannon shots are being sent
 var _fit_left := 0.0               ## seconds to the next look at what you wear
 var outfits_heard := 0             ## the others' outfit changes heard (tests)
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var ship_hits_taken := 0           ## the others' cannons on the ship you fly (tests)
 var hits_answered := 0             ## your hits on the others their games answered (tests)
 var _light_left := 0.0             ## host: seconds to the next word on the lighting
 var _light_sent := []              ## host: the lighting last sent [planet, preset, hour]
@@ -282,7 +285,9 @@ func _on_host_gone() -> void:
 
 ## Every player -> every other (the host relays): where I am and what I am doing.
 ## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt,
-##  where the gun points (INF: along the pose), the blade's third-person pose, reload]
+##  where the gun points (INF: along the pose), the blade's third-person pose, reload,
+##  the sword's [colour, hilt] (issue #148: the red saber), the downing hit's
+##  [from, amount] (the ragdoll's push)]
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func state(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
@@ -293,6 +298,8 @@ func state(pkt: Array) -> void:
 		"flags": int(pkt[4]), "weapon": str(pkt[5]), "drawn": float(pkt[6]), "pitch": float(pkt[7]),
 		"tilt": pkt[8] as Quaternion, "aim_at": pkt[9] as Vector3,
 		"sword": pkt[10] if pkt[10] is Dictionary else {}, "reload": float(pkt[11]),
+		"blade": pkt[12] if pkt.size() > 12 and pkt[12] is Array and (pkt[12] as Array).size() >= 2 else [],
+		"hit": pkt[13] if pkt.size() > 13 and pkt[13] is Array and (pkt[13] as Array).size() >= 2 else [],
 		"t": Time.get_ticks_msec() / 1000.0,
 	}
 
@@ -357,6 +364,9 @@ func town_state() -> Array:
 		flags |= F_SLIDE
 	if body.is_visible_in_tree():
 		flags |= F_VISIBLE
+	var down: bool = body.get("is_downed") == true
+	if down:
+		flags |= F_DOWNED
 	var rig_node = scene.get("_rig")
 	var rig = rig_node.rig if rig_node != null and is_instance_valid(rig_node) else null
 	var kit = scene.get("player_kit")
@@ -365,8 +375,10 @@ func town_state() -> Array:
 	var aim_at := Vector3.INF
 	var sword: Dictionary = {}
 	var reload := -1.0
+	var blade: Array = [Color(0, 0, 0, 0), ""]
 	if kit != null and is_instance_valid(kit) and kit.avatar != null:
 		var av = kit.avatar
+		blade = [av.blade_color, str(av.blade_hilt)]
 		weapon = str(av.current)
 		drawn = float(av.drawn)
 		reload = float(av.reload)
@@ -389,7 +401,8 @@ func town_state() -> Array:
 	return [GameFlow.current_planet_id(), body.global_position, rig.yaw if rig != null else body.rotation.y,
 		body.velocity, flags, weapon, drawn, rig.pitch if rig != null else 0.0,
 		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY,
-		aim_at, sword, reload]
+		aim_at, sword, reload, blade,
+		[body.get("last_hit_from"), float(body.get("last_hit_amount"))] if down else []]
 
 
 ## A body in this town for every other player on this planet who is not in a ship.
@@ -468,9 +481,17 @@ func outfit(fit: Dictionary) -> void:
 
 # ------------------------------------------------------------------ shots and friendly fire
 
-## Send the town's player's shots to the others (a new town builds new weapons).
+## Send the town's player's shots to the others (a new town builds new weapons),
+## their ship's cannons' in the town's sky too.
 func _hook_shots() -> void:
 	var scene := get_tree().current_scene
+	var pilot = scene.get("pilot") if scene != null else null
+	if pilot != null and is_instance_valid(pilot) and pilot != _hooked_pilot and pilot.has_signal("cannon_fired"):
+		_hooked_pilot = pilot
+		pilot.cannon_fired.connect(func(origin: Vector3, dir: Vector3, reach: float, b: Node):
+			if _connected() and (_mp().is_server() or welcomed_in):
+				shot.rpc([GameFlow.current_planet_id(), origin, dir, float(b.speed), b.color, reach,
+					float(b.streak_length), float(b.streak_radius)]))
 	var kit = scene.get("player_kit") if scene != null else null
 	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
 	if w == null or w == _hooked:
@@ -484,7 +505,8 @@ func _hook_shots() -> void:
 ## Every player -> every other: a bolt I fired, from, which way, how fast, its
 ## colour and how far it went before it hit something (in my game). Shown here as
 ## a streak that flies that far and touches nothing: what it hit is the shooter's
-## game's to say (a hit on you comes as `hit`).
+## game's to say (a hit on you comes as `hit`, on your ship as `ship_hit`). A ship
+## cannon's shot comes with its streak's radius too (an 8th item); no gun kicks.
 @rpc("any_peer", "call_remote", "reliable")
 func shot(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
@@ -500,8 +522,11 @@ func shot(pkt: Array) -> void:
 	b.color = pkt[4] as Color
 	b.streak_length = float(pkt[6])
 	b.stylize = true
+	var from_ship := pkt.size() > 7
+	if from_ship:
+		b.streak_radius = float(pkt[7])
 	b.shooter = bodies.get(id, null)
-	if b.shooter != null and is_instance_valid(b.shooter) and b.shooter.avatar != null:
+	if not from_ship and b.shooter != null and is_instance_valid(b.shooter) and b.shooter.avatar != null:
 		b.shooter.avatar.fire_kick()       # their gun kicks and flashes here too
 	scene.add_child(b)
 	b.global_position = pkt[1] as Vector3
@@ -659,7 +684,8 @@ func _ship_near(pilot, c: Vector3, r: float) -> bool:
 
 
 ## This game's player's ship as a packet, [] when there is none here: the one they
-## fly, else the one Call would bring (their primary). [planet, look, where, rotation]
+## fly, else the one Call would bring (their primary). [planet, look, where, rotation,
+## flying (off the ground, or out in space: the others' cannons can hit it)]
 func town_ship() -> Array:
 	var scene := get_tree().current_scene
 	var pilot = scene.get("pilot") if scene != null else null
@@ -673,7 +699,7 @@ func town_ship() -> Array:
 		return []
 	var xf := (v as Node3D).global_transform
 	return [GameFlow.current_planet_id(), str(v.get_meta("look_id", "")), xf.origin,
-		xf.basis.orthonormalized().get_rotation_quaternion()]
+		xf.basis.orthonormalized().get_rotation_quaternion(), bool(pilot.lan_flying())]
 
 
 ## Every player -> every other (the host relays): where my ship is.
@@ -683,7 +709,7 @@ func ship_state(pkt: Array) -> void:
 	if pkt.size() < 4 or not roster.has(id):
 		return
 	ships[id] = { "planet": str(pkt[0]), "look": str(pkt[1]), "pos": pkt[2] as Vector3,
-		"rot": pkt[3] as Quaternion, "t": Time.get_ticks_msec() / 1000.0 }
+		"rot": pkt[3] as Quaternion, "flying": pkt.size() > 4 and bool(pkt[4]), "t": Time.get_ticks_msec() / 1000.0 }
 
 
 ## A ship in this town for every other player whose ship is on this planet. One not
@@ -710,7 +736,44 @@ func _place_ships(scene: Node, here: String, town: bool) -> void:
 			b.setup(id, str(roster[id].name), str(s.look), mats)
 			scene.add_child(b)
 			ship_bodies[id] = b
-		b.hear(str(s.look), s.pos, s.rot)
+		b.hear(str(s.look), s.pos, s.rot, bool(s.get("flying", false)))
+
+
+## Your ship's cannon landed on player `id`'s ship here (RemoteShip): tell their game.
+func send_ship_hit(id: int, amount: float) -> void:
+	if roster.has(id) and id != my_id():
+		ship_hit.rpc_id(id, amount)
+
+
+## A player's ship cannon -> the player whose ship it hit: their game lands it on
+## the ship they fly (ShipPilot.lan_ship_hit), in the air or out in a space fight.
+@rpc("any_peer", "call_remote", "reliable")
+func ship_hit(amount: float) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id) or not RemotePlayer.friendly_fire():
+		return
+	var dmg := clampf(amount, 0.0, 500.0) * NetSession.n("friendly_fire_scale", 1.0)
+	var scene := get_tree().current_scene
+	var pilot = scene.get("pilot") if scene != null else null
+	var r := 0
+	if pilot != null and is_instance_valid(pilot) and dmg > 0.0:
+		r = int(pilot.lan_ship_hit(dmg))
+	ship_hits_taken += 1
+	ship_hit_back.rpc_id(id, r > 0, r > 1)
+
+
+## The player whose ship you hit -> you: whether it hurt it and whether it went
+## down. The marker is your ship's guns' own (FlightHud), as on any ship.
+@rpc("any_peer", "call_remote", "reliable")
+func ship_hit_back(took: bool, downed: bool) -> void:
+	if not roster.has(_mp().get_remote_sender_id()):
+		return
+	hits_answered += 1
+	var scene := get_tree().current_scene
+	var pilot = scene.get("pilot") if scene != null else null
+	var hud = pilot.get("hud") if pilot != null and is_instance_valid(pilot) else null
+	if took and hud != null and is_instance_valid(hud):
+		hud.confirm_hit(downed)
 
 
 func _drop_ship(id: int) -> void:

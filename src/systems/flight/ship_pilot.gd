@@ -69,6 +69,10 @@ extends Node
 ##   - LAN: a guest who climbs out while the host's fight is on flies a copy of it
 ##     (NetFight, SpaceFight.net_copy) instead of the pad's own, and joins it from
 ##     up there when it starts (join_net_fight).
+##   - LAN friendly fire: your cannons hit the other players' ships while they fly
+##     (RemoteShip's hull; NetFight out in space) and theirs hit yours
+##     (lan_ship_hit). Seekers never lock on them (the lock is on the Remnant
+##     interceptor only), but one flying straight that runs into one hits it.
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -92,6 +96,7 @@ signal ejected                   ## issue #275: out of the seat in the air
 signal left_atmosphere
 signal fight_started
 signal fight_ended(outcome: String)
+signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others (unlocked seekers too)
 
 var demo                         ## the town scene (town_demo.gd)
 var content
@@ -1831,6 +1836,7 @@ func _fire_guns(dt: float, trigger: bool, missile := false) -> void:
 		b.global_position = s.origin
 		shots += 1
 		volley = true
+		cannon_fired.emit(s.origin, b.direction, minf(guns.convergence + 2.0, b.range_m), b)
 	if volley:
 		Sound.play("ship_cannon", atmo.position())
 
@@ -1852,6 +1858,35 @@ func _launch_seeker(s: Dictionary, seek: Node3D) -> void:
 	b.global_position = s.origin
 	seekers += 1
 	Sound.play("ship_missile", s.origin)
+	if seek == null:
+		# LAN: a straight one shows to the others, out to whatever is under the nose.
+		var cross := _gun_cross()
+		cannon_fired.emit(s.origin, b.direction, cross + 2.0 if cross < _gun_reach else b.range_m, b)
+
+
+## LAN: whether the others' cannons can hit the ship you fly (RemoteShip): off the
+## ground, or out in a space fight.
+func lan_flying() -> bool:
+	return piloting and (_fight_flying() or atmo.state in [AtmoFlight.State.LIFTOFF,
+		AtmoFlight.State.FLYING, AtmoFlight.State.LANDING])
+
+
+## LAN friendly fire: another player's ship cannon hit the ship you fly
+## (NetLink.ship_hit). In the air it is a hit on your hull, as anyone's bolt is;
+## out in a space fight it lands on your ship in the fight's director. Returns 0 if
+## it did nothing (not flying, already down), 1 if it hurt, 2 if it shot you down.
+func lan_ship_hit(amount: float) -> int:
+	if not lan_flying():
+		return 0
+	if _fight_flying():
+		return int(fight.df.friendly_damage(amount))
+	if berth < 0 or berth >= berths.size():
+		return 0
+	var was: float = defense.shield + float(defense.hull_hp())
+	_on_hull_hit(amount, null, berth)
+	if atmo.state == AtmoFlight.State.CRASHED:
+		return 2
+	return 1 if defense.shield + float(defense.hull_hp()) < was else 0
 
 
 ## The Remnant interceptor (issue #76), when this town has one: what the seekers
@@ -2069,8 +2104,10 @@ func place_fleet() -> void:
 	if fleet_placed or berths.is_empty():
 		return
 	fleet_placed = true
-	if Fleet.lan() and not berths.is_empty():
-		_stow(0)            # issue #401: a LAN guest's pit pad is the host's (their ship shows there)
+	# Issue #401: a LAN guest's pit pad is the host's (their ship shows there), unless
+	# the guest flew in on their own (Fleet.LAN, the moon handoff): that one is theirs.
+	if Fleet.lan() and not berths.is_empty() and str(berths[0].get("key", "")) != Fleet.LAN:
+		_stow(0)
 	var here := GameFlow.current_planet_id()
 	for e in Fleet.owned():
 		var key := str(e.key)

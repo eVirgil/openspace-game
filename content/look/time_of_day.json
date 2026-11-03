@@ -1,7 +1,8 @@
 {
   "note": "Lighting presets. Tune here and re-shoot with tools/lookdev/shoot.sh; never hardcode these in scripts. Azimuth 0 = looking out from the port into the desert (-Z), positive = to the right.",
   "default": "golden",
-  "day_order_note": "Issue #381 (src/systems/world/day_clock.gd): on Auto the day steps along this list, round and round, each time you go indoors (a cantina, the cruiser), take a faded trip to another planet or wake in the pit. A step never lands on the time you are in.",
+  "day_order_note": "Issue #381 (src/systems/world/day_clock.gd): on Auto the day steps along this list, round and round, each time you go indoors (a cantina, the cruiser), take a faded trip to another planet or wake in the pit. A step never lands on the time you are in, and comes only once day_min_seconds of play have gone by since the last one.",
+  "day_min_seconds": 300,
   "day_order": ["golden", "noon", "golden", "dusk"],
   "hours_note": "Continuous time of day (F11 demo settings): the hour blends between these presets. Before the first and after the last key it holds the end preset.",
   "hours": [
