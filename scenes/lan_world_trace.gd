@@ -5,7 +5,10 @@ extends SceneTree
 ##     the host's (as many copies as the host has people), each within 2.5 m of
 ##     where the host's last stood, plus 0.6 s of its walk (it follows behind),
 ##   - the guest shoots the nearest Remnant trooper copy until the host's dies: it
-##     is dead in both games, and the guest's game hears the kill was theirs.
+##     is dead in both games, and the guest's game hears the kill was theirs,
+##   - the beast (the centipede): the guest's is a copy whose head is within 3 m
+##     of the host's; the guest shoots it until the host's dies, and it is dead in
+##     both games.
 ##
 ## Run: godot --headless --path . -s res://scenes/lan_world_trace.gd -- host|guest <port>
 
@@ -100,6 +103,12 @@ func _host() -> void:
 		fails.append("no trooper here died of the guest's shots (%d dead at start)" % dead_at_start)
 	else:
 		say("a trooper died here of the guest's shots")
+	var b = town.get("beast")
+	if b != null and is_instance_valid(b):
+		if await _wait(30.0, func(): return b.dead):
+			say("the beast died here of the guest's shots")
+		else:
+			fails.append("the beast here never died")
 	await _wait(3.0)
 
 
@@ -150,3 +159,29 @@ func _guest() -> void:
 		fails.append("the copy never died")
 	if int(target.health.hp) == hp0 and not target.dead:
 		fails.append("the copy took no damage from the host's word")
+	await _beast_guest(world)
+
+
+func _beast_guest(world) -> void:
+	var b = town.get("beast")
+	if b == null or not is_instance_valid(b):
+		say("no beast in this town (none on the planet, or slain in this save): skipped")
+		return
+	if not await _wait(5.0, func(): return b.net_copy):
+		fails.append("the beast here is not a copy of the host's")
+		return
+	await _wait(1.0)
+	var host_at: Vector3 = b._net_at
+	var off: float = (b._head_ground as Vector3).distance_to(host_at)
+	say("beast: a copy, head %.1f m from the host's (hp %.0f)" % [off, b.hp])
+	if off > 3.0 + b._net_vel.length() * 0.6:
+		fails.append("the beast's head is %.1f m from the host's" % off)
+	for i in 6:
+		if b.dead:
+			break
+		b.apply_damage_from(500.0, town._player)
+		await _wait(0.5)
+	await _wait(3.0, func(): return b.dead)
+	say("beast dead here: %s" % b.dead)
+	if not b.dead:
+		fails.append("the beast never died")

@@ -29,6 +29,11 @@ extends StaticBody3D
 ## It rides the ground (WorldGround: the home planet's ball), moved here rather
 ## than by physics. Its head and every segment are solid to bolts and blades
 ## (layer 4, "enemies") but nothing collides with it: touching any of it kills.
+##
+## Issue #402: in a LAN guest's game on the host's planet it is a copy of the
+## host's (net_copy): its head goes where the host's goes (net_hear) and its body
+## follows the trail as ever; touching it still kills you in your own game. Hits
+## from you go to the host's (net_hit) and it dies when the host's does (net_die).
 
 signal killed_player
 signal farted
@@ -90,6 +95,11 @@ var _squash := 0.0
 var _t := 0.0
 var _wake_left := -1.0
 var _sfx: AudioStreamPlayer3D
+var net_copy := false                 ## issue #402: a LAN guest's copy of the host's beast
+var net_hit: Callable                 ## (amount) -> your hit on the copy, for the host's game
+var _net_at := Vector3.INF            ## where the host's head is on the ground
+var _net_vel := Vector3.ZERO
+var _net_t := 0.0
 
 
 static func defaults() -> Dictionary:
@@ -518,6 +528,12 @@ func _physics_process(dt: float) -> void:
 		_place(_head_ground)
 		_pose()
 		return
+	if net_copy:
+		_follow(dt)
+		_squash = move_toward(_squash, 0.0, dt * 1.6)
+		_pose()
+		_touch()
+		return
 	_wander(dt)
 	_squash = move_toward(_squash, 0.0, dt * 1.6)
 	_pose()
@@ -653,6 +669,44 @@ func _new_pace() -> void:
 	_speed_left = _range("speed_change_s", 3.0, 8.0)
 
 
+# ------------------------------------------------------------------ LAN copy (issue #402)
+
+## The host's beast now: its head on the ground, its heading, chasing, its health.
+func net_hear(at: Vector3, head: Vector3, chase: bool, health: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if _net_at != Vector3.INF and now - _net_t > 0.03:
+		_net_vel = (at - _net_at) / (now - _net_t)
+	if _net_at == Vector3.INF or at.distance_to(_head_ground) > float(cfg.get("net_snap_m", 25.0)):
+		home = at                  # first word, or far off: it is there, body and all
+		heading = _flat(head, at).normalized()
+		_seed_trail()
+		_place(at)
+	_net_at = at
+	_net_t = now
+	heading = _flat(head, at).normalized() if head.length() > 0.01 else heading
+	chasing = chase
+	hp = health
+
+
+## Crawl after the host's head, a little ahead of where it was last heard.
+func _follow(dt: float) -> void:
+	if _net_at == Vector3.INF:
+		return
+	var since := clampf(Time.get_ticks_msec() / 1000.0 - _net_t, 0.0, 0.3)
+	var want := _ground_at(_net_at + _net_vel * since)
+	var step := (want - _head_ground) * (1.0 - exp(-8.0 * dt))
+	travelled += step.length()
+	var next := _ground_at(_head_ground + step)
+	_place(next)
+	_push_trail(next)
+
+
+## The host's beast died: so does this one, slumping as it does.
+func net_die() -> void:
+	if not dead:
+		_die()
+
+
 func _place(ground_point: Vector3) -> void:
 	var u := _up(ground_point)
 	global_position = ground_point + u * radius * (1.0 - 0.6 * _sink)
@@ -686,6 +740,11 @@ func _is_player(shooter: Node) -> bool:
 
 func _hurt(amount: float, by_player: bool) -> void:
 	if dead or amount <= 0.0:
+		return
+	if net_copy:
+		_squash = maxf(_squash, 0.5)
+		if by_player and net_hit.is_valid():
+			net_hit.call(amount)           # the host's game says what it did
 		return
 	hits_taken += 1
 	hp -= amount
