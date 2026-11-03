@@ -22,6 +22,13 @@ extends Node
 ## wave) by npc_act. The camps by camp_snap (each pack's mood and which tents are
 ## down; camp_hit sends a guest's shot on a tent, native_provoke a pack that saw a
 ## guest steal), the animals by pig_snap, pig_hit and pig_died.
+## The droids the same way (droid_snap, droid_fire, droid_ask / droid_meta,
+## droid_hit, droid_died, droid_gone): the Remnant's and the locals' patrol droids,
+## the wreck's crew and the haulers. A guest's town builds none of them
+## (DroidController.net_copy) and makes each from the host's description. The
+## moon rave's laser droid: rave_snap (where it is on its loop), rave_hit and
+## rave_down. And every player's own droids walk in the others' games as pictures
+## that follow that player (pal_snap and pal_fire, from every game to every other).
 ##
 ## A guest's copies are its own town's bodies where they match the host's (same
 ## node, same soldier), else made from npc_meta; its own bodies the host does not
@@ -119,6 +126,8 @@ func _physics_process(dt: float) -> void:
 		_host_tick(dt)
 	else:
 		_guest_tick()
+		_drive_droids(dt)
+	_pals_tick(dt)
 
 
 # ------------------------------------------------------------------ host
@@ -137,6 +146,8 @@ func _host_tick(dt: float) -> void:
 		if n.acts > int(_acts.get(id, n.acts)) and not n.dead:
 			npc_act.rpc(GameFlow.current_planet_id(), id, n.action)
 		_acts[id] = n.acts
+	var ctl = scene.get("droids")
+	_droid_shots(ctl)
 	_snap_left -= dt
 	if _snap_left > 0.0:
 		return
@@ -157,6 +168,9 @@ func _host_tick(dt: float) -> void:
 		npc_snap.rpc(GameFlow.current_planet_id(), rows.slice(i, i + chunk))
 	_send_beast(scene)
 	_send_natives(scene, near, far_m, _round % far_every == 0)
+	_send_droids(ctl, near, far_m, far_every)
+	if _round % far_every == 0:
+		_send_raves(scene)
 
 
 ## Everyone's feet here: the host's and every guest's on this planet.
@@ -360,6 +374,8 @@ func _enter(scene: Node) -> void:
 	_claimed.clear()
 	_first_snap = -1.0
 	_natives_built = -1.0
+	_dunits.clear()
+	_dheard.clear()
 
 
 ## Host -> a guest: what it asked about.
@@ -525,8 +541,8 @@ func _yours(shooter: Node) -> bool:
 	var p = scene.get("_player") if scene != null else null
 	if shooter == null or p == null or not is_instance_valid(shooter):
 		return false
-	if shooter == p:
-		return true
+	if shooter == p or DroidController.by_player(shooter, p):
+		return true                     # you, or one of your droids
 	var v = p.get("vehicle")
 	return v != null and is_instance_valid(v) and v.has_method("hull_body") and shooter == v.hull_body()
 
@@ -721,3 +737,439 @@ func native_provoke(pack_id: String) -> void:
 	var p: Dictionary = d.pack(pack_id)
 	if not p.is_empty():
 		d._provoke(p)
+
+
+# ------------------------------------------------------------------ droids
+
+const D_PROVOKED := 1
+var _dids: Dictionary = {}         ## host: DroidUnit instance id -> net id
+var _dunits: Dictionary = {}       ## host: net id -> DroidUnit;  guest: net id -> its copy
+var _dshots: Dictionary = {}       ## host: net id -> shots last seen
+var _dnext := 1
+var _droids_hooked: Object = null  ## host: the DroidController whose deaths are sent
+var _droid_by := 0                 ## host: the guest whose hit is landing now (0 = none)
+var _dmeta: Dictionary = {}        ## guest: net id -> droid_meta
+var _dasked: Dictionary = {}       ## guest: net id -> when it was last asked for
+var _dheard: Dictionary = {}       ## guest: net id -> { at, yaw, vel, fight, t }
+
+
+## The host's droids that are the town's (not yours, not the wrecks in the sand).
+static func town_droids(ctl) -> Array:
+	var out: Array = []
+	if ctl == null or not is_instance_valid(ctl):
+		return out
+	for u in ctl.remnant + [ctl.hauler, ctl.wreck_hauler]:
+		if u != null and is_instance_valid(u) and u.is_inside_tree():
+			out.append(u)
+	return out
+
+
+func _droid_id(u) -> int:
+	var k: int = u.get_instance_id()
+	if not _dids.has(k):
+		_dids[k] = _dnext
+		_dunits[_dnext] = u
+		u.tree_exiting.connect(_on_droid_gone.bind(k, _dnext), CONNECT_ONE_SHOT)
+		_dnext += 1
+	return int(_dids[k])
+
+
+func _on_droid_gone(k: int, id: int) -> void:
+	_dids.erase(k)
+	_dunits.erase(id)
+	_dshots.erase(id)
+	if _live():
+		droid_gone.rpc(id)
+
+
+func _droid_shots(ctl) -> void:
+	for u in town_droids(ctl):
+		var id := _droid_id(u)
+		if u.shots > int(_dshots.get(id, u.shots)):
+			droid_fire.rpc(GameFlow.current_planet_id(), id, u.last_aim)
+		_dshots[id] = u.shots
+
+
+## [id, feet, heading, flags, hp]; far ones only every far_every-th time, as the people.
+func _send_droids(ctl, near: Array, far_m: float, far_every: int) -> void:
+	if ctl == null or not is_instance_valid(ctl):
+		return
+	if ctl != _droids_hooked:
+		_droids_hooked = ctl
+		ctl.unit_down.connect(func(u, sweep):
+			if _live():
+				droid_died.rpc(_droid_id(u), sweep, _droid_by))
+	var rows: Array = []
+	for u in town_droids(ctl):
+		if u.dead:
+			continue
+		if _round % far_every != 0 and not near.any(func(p): return (p as Vector3).distance_to(u.global_position) <= far_m):
+			continue
+		rows.append([_droid_id(u), u.global_position, u.yaw, D_PROVOKED if u.provoked else 0, u.hp])
+	var chunk := maxi(1, int(NetSession.n("npc_chunk", 14)))
+	for i in range(0, rows.size(), chunk):
+		droid_snap.rpc(GameFlow.current_planet_id(), rows.slice(i, i + chunk))
+
+
+## Guest -> host: what is droid N? (the answer: droid_meta)
+@rpc("any_peer", "call_remote", "reliable")
+func droid_ask(ids: Array) -> void:
+	if not _mp().is_server():
+		return
+	var out: Array = []
+	for id in ids:
+		var u = _dunits.get(int(id), null)
+		if u == null or not is_instance_valid(u):
+			continue
+		var ctl = u.ctl
+		out.append({ "id": int(id), "kind": u.kind, "variant": u.variant, "faction": u.faction,
+			"hp": u.hp, "max_hp": u.max_hp, "gun": u.gun, "outpost": str(u.spec.get("outpost", "")),
+			"site": str(u.spec.get("site", "")),
+			"hauler": "pit" if u == ctl.hauler else ("wreck" if u == ctl.wreck_hauler else ""),
+			"pos": u.global_position, "yaw": u.yaw, "dead": u.dead })
+	if not out.is_empty():
+		droid_meta.rpc_id(_mp().get_remote_sender_id(), out)
+
+
+## Guest -> host: my bolt or blade landed on your droid `id` (blade: the sweep, else INF).
+@rpc("any_peer", "call_remote", "reliable")
+func droid_hit(id: int, amount: float, sweep: Vector3) -> void:
+	if not _mp().is_server():
+		return
+	var u = _dunits.get(id, null)
+	if u == null or not is_instance_valid(u) or u.dead:
+		return
+	var shooter = _link().bodies.get(_mp().get_remote_sender_id(), null)    # their body here
+	_droid_by = _mp().get_remote_sender_id()
+	u.ctl.on_unit_hit(u, clampf(amount, 0.0, 500.0), shooter, Vector3.ZERO if sweep == Vector3.INF else sweep)
+	_droid_by = 0
+
+
+## Host -> guests: where its droids are now.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func droid_snap(planet: String, rows: Array) -> void:
+	var scene := _town()
+	if scene == null or planet != GameFlow.current_planet_id() or not bool(scene.get("lan_shared")):
+		return
+	_enter(scene)
+	var ctl = _guest_droids(scene)
+	if ctl == null:
+		return
+	var want: Array = []
+	var now := Time.get_ticks_msec() / 1000.0
+	for r in rows:
+		if not (r is Array) or (r as Array).size() < 5:
+			continue
+		var id := int(r[0])
+		var h: Dictionary = _dheard.get(id, {})
+		var vel := Vector3.ZERO           # how fast the host's one goes, from the last two heard
+		if not h.is_empty() and now - float(h.t) > 0.03:
+			vel = ((r[1] as Vector3) - (h.at as Vector3)) / (now - float(h.t))
+			if vel.length() > 12.0:
+				vel = Vector3.ZERO              # a jump, not a walk
+		_dheard[id] = { "at": r[1], "yaw": float(r[2]), "vel": vel, "fight": (int(r[3]) & D_PROVOKED) != 0, "t": now }
+		var u = _dcopy(id, ctl)
+		if u == null:
+			if not _dmeta.has(id) and now - float(_dasked.get(id, -10.0)) > 2.0:
+				_dasked[id] = now
+				want.append(id)
+			continue
+		u.provoked = (int(r[3]) & D_PROVOKED) != 0     # in a fight: your droids answer it
+		u.hp = float(r[4])
+	if not want.is_empty():
+		droid_ask.rpc_id(1, want)
+
+
+## This town's DroidController, if it is one that runs no droids of its own.
+func _guest_droids(scene: Node):
+	var ctl = scene.get("droids")
+	if ctl == null or not is_instance_valid(ctl) or not ctl.net_copy:
+		return null
+	if not ctl.net_hit.is_valid():
+		ctl.net_hit = _on_droid_copy_hit
+	return ctl
+
+
+## Host -> a guest: the droids it asked about.
+@rpc("authority", "call_remote", "reliable")
+func droid_meta(list: Array) -> void:
+	for m in list:
+		if m is Dictionary:
+			_dmeta[int(m.id)] = m
+			_dasked.erase(int(m.id))
+
+
+func _dcopy(id: int, ctl):
+	var u = _dunits.get(id, null)
+	if u != null and is_instance_valid(u):
+		return u
+	if not _dmeta.has(id) or bool(_dmeta[id].get("dead", false)):
+		return null
+	u = ctl.net_unit(_dmeta[id])
+	u.set_meta("net_id", id)
+	_dunits[id] = u
+	return u
+
+
+## Every frame: each copy closes on where the host's one is by now.
+func _drive_droids(dt: float) -> void:
+	for id in _dunits:
+		var u = _dunits[id]
+		if u == null or not is_instance_valid(u) or u.dead or not _dheard.has(id):
+			continue
+		var h: Dictionary = _dheard[id]
+		_glide(u, h, dt, bool(h.fight))
+
+
+## Move droid `u` toward `h` (at, yaw, vel, t): run on at its speed a moment past
+## the last word, smoothed, and jump when it is droid_snap_m off. Its legs, wheels
+## or hover go with it.
+func _glide(u, h: Dictionary, dt: float, fighting: bool) -> void:
+	var since := clampf(Time.get_ticks_msec() / 1000.0 - float(h.t), 0.0, 0.25)
+	var vel := h.vel as Vector3
+	var to := (h.at as Vector3) + vel * since
+	if u.global_position.distance_to(to) > NetSession.n("droid_snap_m", 6.0):
+		u.global_position = to
+	else:
+		u.global_position = u.global_position.lerp(to, 1.0 - exp(-NetSession.n("droid_smooth", 10.0) * dt))
+	u.yaw = lerp_angle(u.yaw, float(h.yaw), 1.0 - exp(-NetSession.n("droid_smooth", 10.0) * dt))
+	u.ctl._orient(u)
+	var speed := vel.length()
+	u.walk(dt, speed > 0.3, speed, fighting and speed <= 0.3)
+
+
+## Host -> guests: droid `id` fired at `aim`: the copy fires a harmless bolt there.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func droid_fire(planet: String, id: int, aim: Vector3) -> void:
+	if planet != GameFlow.current_planet_id() or _mp().is_server() or aim == Vector3.INF:
+		return
+	var u = _dunits.get(id, null)
+	if u == null or not is_instance_valid(u) or u.dead:
+		return
+	u.ctl.net_fire(u, aim, u.gun)
+
+
+## Host -> guests: droid `id` died (a blade's `sweep`, ZERO for a bolt, INF: it
+## ran off); `killer` is the guest whose hit it was (their kill marker), 0 if none.
+@rpc("authority", "call_remote", "reliable")
+func droid_died(id: int, sweep: Vector3, killer: int) -> void:
+	if killer == _mp().get_unique_id():
+		_marker(true)
+	if _dmeta.has(id):
+		_dmeta[id]["dead"] = true
+	var u = _dunits.get(id, null)
+	if u != null and is_instance_valid(u):
+		u.ctl.net_down(u, sweep)
+
+
+## Host -> guests: droid `id` is gone (it came back as a new one, its outpost
+## changed hands, the cruiser's crew left).
+@rpc("authority", "call_remote", "reliable")
+func droid_gone(id: int) -> void:
+	_dmeta.erase(id)
+	_dheard.erase(id)
+	var u = _dunits.get(id, null)
+	_dunits.erase(id)
+	if u == null or not is_instance_valid(u):
+		return
+	var ctl = u.ctl
+	ctl.remnant.erase(u)
+	if ctl.hauler == u:
+		ctl.hauler = null
+	if ctl.wreck_hauler == u:
+		ctl.wreck_hauler = null
+	u.queue_free()
+
+
+## A copy was hit here (DroidController.net_hit). Only yours are sent: your bolt,
+## your droid's, or your blade (a cut, `sweep`, is only ever the player's).
+func _on_droid_copy_hit(u, amount: float, shooter: Node, sweep: Vector3) -> void:
+	if u.faction == "" or amount <= 0.0 or not (_yours(shooter) or sweep != Vector3.ZERO):
+		return                          # a hauler shrugs it off, as the host's does
+	hits_sent += 1
+	droid_hit.rpc_id(1, int(u.get_meta("net_id")), amount, sweep if sweep != Vector3.ZERO else Vector3.INF)
+
+
+# ------------------------------------------------------------------ the rave's laser droid
+
+var _rave_by := 0                  ## host: the guest whose hit is landing now
+
+
+## [path from the town, where it is on its loop, alive]
+func _send_raves(scene: Node) -> void:
+	var rows: Array = []
+	for r in get_tree().get_nodes_in_group("rave_droids"):
+		if not (r is RaveDroid) or not scene.is_ancestor_of(r):
+			continue
+		var key := str(scene.get_path_to(r))
+		if not r.has_meta("net_hooked"):
+			r.set_meta("net_hooked", true)
+			r.shot_down.connect(func(): if _live(): rave_down.rpc(GameFlow.current_planet_id(), key, _rave_by))
+		rows.append([key, r.t, r.alive])
+	if not rows.is_empty():
+		rave_snap.rpc(GameFlow.current_planet_id(), rows)
+
+
+## Host -> guests: where the laser droids are on their loops.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func rave_snap(planet: String, rows: Array) -> void:
+	var scene := _town()
+	if scene == null or planet != GameFlow.current_planet_id() or not bool(scene.get("lan_shared")):
+		return
+	for row in rows:
+		var r = _rave(scene, row[0]) if row is Array and (row as Array).size() >= 3 else null
+		if r == null:
+			continue
+		if not bool(row[2]):
+			r.shoot_down()
+		elif absf(r.t - float(row[1])) > NetSession.n("rave_sync_s", 0.4):
+			r.t = float(row[1])
+
+
+## This town's laser droid at `key`, made a copy of the host's.
+func _rave(scene: Node, key) -> RaveDroid:
+	var r = scene.get_node_or_null(NodePath(str(key)))
+	if not (r is RaveDroid):
+		return null
+	if not r.net_copy:
+		r.net_copy = true
+		r.net_hit = func(amount: float, shooter: Node):
+			if amount > 0.0 and _yours(shooter):
+				rave_hit.rpc_id(1, str(key), amount)
+	return r
+
+
+## Guest -> host: my bolt or blade landed on the laser droid at `key`.
+@rpc("any_peer", "call_remote", "reliable")
+func rave_hit(key: String, amount: float) -> void:
+	var scene := _town()
+	var r = scene.get_node_or_null(NodePath(key)) if scene != null and _mp().is_server() else null
+	if not (r is RaveDroid) or not r.alive:
+		return
+	_rave_by = _mp().get_remote_sender_id()
+	r.hit(clampf(amount, 0.0, 500.0), _link().bodies.get(_rave_by, null))
+	_rave_by = 0
+
+
+## Host -> guests: the laser droid at `key` was shot down; `killer`: the guest whose shot it was.
+@rpc("authority", "call_remote", "reliable")
+func rave_down(planet: String, key: String, killer: int) -> void:
+	if killer == _mp().get_unique_id():
+		_marker(true)
+	var scene := _town()
+	if scene == null or planet != GameFlow.current_planet_id() or not bool(scene.get("lan_shared")):
+		return
+	var r = _rave(scene, key)
+	if r != null:
+		r.shoot_down()
+
+
+# ------------------------------------------------------------------ everyone's own droids
+
+const P_DEAD := 1
+const P_FIGHT := 2
+var _pal_left := 0.0
+var _pal_shots: Dictionary = {}    ## your droid's uid -> shots last seen
+var _pals: Dictionary = {}         ## "peer:uid" -> { u, peer, dead, at, yaw, vel, fight, t }: theirs, here
+
+
+## Send where your droids are (and their shots); move the others' pictures here.
+func _pals_tick(dt: float) -> void:
+	if _link().roster.size() < 2:
+		return
+	var scene := _town()
+	var ctl = scene.get("droids") if scene != null else null
+	if ctl != null and not is_instance_valid(ctl):
+		ctl = null
+	var here := GameFlow.current_planet_id()
+	if ctl != null:
+		for uid in ctl.companions:
+			var u = ctl.companions[uid]
+			if not is_instance_valid(u):
+				continue
+			if u.shots > int(_pal_shots.get(uid, u.shots)):
+				pal_fire.rpc(here, int(uid), u.last_aim)
+			_pal_shots[uid] = u.shots
+	_pal_left -= dt
+	if _pal_left <= 0.0:
+		_pal_left = 1.0 / maxf(1.0, NetSession.n("pal_rate", 10.0))
+		var rows: Array = []
+		if ctl != null:
+			for uid in ctl.companions:
+				var u = ctl.companions[uid]
+				if is_instance_valid(u) and u.is_inside_tree():
+					rows.append([int(uid), u.kind, u.variant, u.global_position, u.yaw,
+						(P_DEAD if u.dead else 0) | (P_FIGHT if u.target != null else 0)])
+		pal_snap.rpc(here if ctl != null else "", rows)
+	var now := Time.get_ticks_msec() / 1000.0
+	for key in _pals.keys():
+		var p: Dictionary = _pals[key]
+		if not is_instance_valid(p.u) or p.u.get_parent() != ctl or not _link().roster.has(p.peer) \
+				or now - float(p.t) > NetSession.n("pal_timeout_s", 3.0):
+			_drop_pal(key)
+		elif not bool(p.dead):
+			_glide(p.u, p, dt, bool(p.fight))
+
+
+func _drop_pal(key: String) -> void:
+	var p = _pals.get(key, null)
+	_pals.erase(key)
+	if p != null and is_instance_valid(p.u):
+		p.u.queue_free()
+
+
+## Every player -> every other (the host relays): where my droids are. All of them
+## each time, so one missing is one gone (sold, or waiting while I fly).
+## [uid, kind, variant, feet, heading, flags]
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func pal_snap(planet: String, rows: Array) -> void:
+	var from := _mp().get_remote_sender_id()
+	if not _link().roster.has(from):
+		return
+	var scene := _town()
+	var ctl = scene.get("droids") if scene != null else null
+	var seen := {}
+	if ctl != null and is_instance_valid(ctl) and planet == GameFlow.current_planet_id():
+		var now := Time.get_ticks_msec() / 1000.0
+		for r in rows:
+			if not (r is Array) or (r as Array).size() < 6:
+				continue
+			var key := "%d:%d" % [from, int(r[0])]
+			var dead := (int(r[5]) & P_DEAD) != 0
+			seen[key] = true
+			var p = _pals.get(key, null)
+			if p != null and (not is_instance_valid(p.u) or p.u.get_parent() != ctl or (bool(p.dead) and not dead)):
+				_drop_pal(key)              # a new town, or it rebooted (a new body there too)
+				p = null
+			if p == null:
+				var u = ctl.net_picture(str(r[1]), str(r[2]))
+				u.global_position = r[3]
+				u.yaw = float(r[4])
+				ctl._orient(u)
+				p = { "u": u, "peer": from, "dead": false, "at": r[3], "t": now }
+				_pals[key] = p
+			var vel := Vector3.ZERO
+			if now - float(p.t) > 0.03:
+				vel = ((r[3] as Vector3) - (p.at as Vector3)) / (now - float(p.t))
+				if vel.length() > 12.0:
+					vel = Vector3.ZERO
+			p.at = r[3]
+			p.yaw = float(r[4])
+			p.vel = vel
+			p.fight = (int(r[5]) & P_FIGHT) != 0
+			p.t = now
+			if dead and not bool(p.dead):
+				p.dead = true
+				ctl.net_down(p.u, Vector3.ZERO)      # knocked out: down it goes, here too
+	for key in _pals.keys():
+		if int(_pals[key].peer) == from and not seen.has(key):
+			_drop_pal(key)
+
+
+## Every player -> every other: my droid `uid` fired at `aim` (a harmless bolt here).
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func pal_fire(planet: String, uid: int, aim: Vector3) -> void:
+	var p = _pals.get("%d:%d" % [_mp().get_remote_sender_id(), uid], null)
+	if p == null or planet != GameFlow.current_planet_id() or aim == Vector3.INF or not is_instance_valid(p.u) or bool(p.dead):
+		return
+	p.u.ctl.net_fire(p.u, aim, DroidRoster.kind_cfg(p.u.kind).get("gun", {}))
