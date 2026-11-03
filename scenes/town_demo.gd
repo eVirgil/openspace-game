@@ -609,8 +609,13 @@ func _spawn_player() -> void:
 		var c: Vector3 = from_pad.center
 		yaw = atan2(c.x - from_pad.arrive.x, c.z - from_pad.arrive.z)
 	elif _arrival.is_empty() and NetSession.take_guest_spawn():
-		var t89 := guest_t89()                      # issue #401: a LAN guest arrives beside T-89, facing him
-		if t89 != Vector3.INF:
+		var pad: Dictionary = town.get_box(str(NetSession.ship.get("pad", "")))
+		var t89 := guest_t89()                      # issue #401: a LAN guest arrives beside T-89, facing him,
+		if not pad.is_empty():                      # or by the pad their own ship stands on, facing it
+			var at: Array = NetSession.spot_by_pad(pad, town.spawn_pos())
+			_player.position = (at[0] as Vector3) + Vector3(0, 0.05, 0)
+			yaw = float(at[1])
+		elif t89 != Vector3.INF:
 			_player.position = NetSession.spot_by(t89, multiplayer.get_unique_id()) + Vector3(0, 0.05, 0)
 			yaw = atan2(t89.x - _player.position.x, t89.z - _player.position.z)
 	elif _arrival.is_empty():

@@ -227,6 +227,8 @@
   "opening_exit": "E: get out",
   "free_roam_kit": ["rifle_blaster", "energy_blade"],
   "free_roam_kit_note": "What a new free roam game puts in your backpack (WorldState.new_game). A free roam game also opens with the landing (ShipPilot.opening_landing), once, with no general in the pit.",
+  "free_roam_ship": "interceptor",
+  "free_roam_ship_note": "The ship a free roam game starts with, on the pit pad and yours (Fleet.FREE): Call (the inventory's ships ledger) brings it to you, T-89 fits it, and it flies home when you eject. Sold or lost for good, it is gone (WorldState.FREE_SHIP_GONE).",
   "ship_wreck": "Your ship. A wreck: T-89 in the pit can rebuild it.",
   "ship_not_yours": "Not yours. No keys, no flight.",
   "bounty": {

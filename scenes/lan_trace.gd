@@ -5,7 +5,10 @@ extends SceneTree
 ##   - guest "walker" is let in, walks 10 m (4 m/s along x) and the host's copy of
 ##     it is within 0.5 m of where it stopped inside 1 s,
 ##   - guest "late" is turned away: the game is full,
-##   - the host's bolt lands on the walker: the walker's game hears the hit,
+##   - the host's bolt lands on the walker: the walker's game hears the hit and
+##     answers (the host's hit marker), and the walker's hit on the host is
+##     answered the same way (the guest's hit marker),
+##   - the walker changing outfit once it has walked reaches the host,
 ##   - the walker quitting takes it off the host's roster.
 ## No town is built: the players' state comes from `local_state`, not a body.
 ##
@@ -57,6 +60,7 @@ func _run() -> void:
 	link.with_bodies = false
 	link.arrive_on_welcome = false
 	link.local_state = _state
+	link.local_outfit = func(): return {"hat": "walked"} if walk_t > WALK_M / WALK_SPEED else {}
 	if role == "host":
 		await _host()
 	elif role == "walker":
@@ -70,7 +74,7 @@ func _state() -> Array:
 	if walk_t >= 0.0:
 		x = minf(walk_t * WALK_SPEED, WALK_M)
 	var moving := walk_t >= 0.0 and x < WALK_M
-	return ["port_desert", Vector3(x, 0, 0), 0.0, Vector3(WALK_SPEED if moving else 0.0, 0, 0), 8, "", 0.0, 0.0, Quaternion.IDENTITY]
+	return ["port_desert", Vector3(x, 0, 0), 0.0, Vector3(WALK_SPEED if moving else 0.0, 0, 0), 8, "", 0.0, 0.0, Quaternion.IDENTITY, Vector3.INF, {}, -1.0]
 
 
 func _done(ok: bool) -> void:
@@ -112,6 +116,10 @@ func _host() -> void:
 	if not arrived:
 		fails.append("the host's copy never got within 0.5 m of %.1f" % WALK_M)
 	link.send_hit(walker[0], 25.0, Vector3.ZERO)       # friendly fire: the host shoots the walker
+	if not await _wait(4.0, func(): return link.hits_answered > 0):
+		fails.append("the walker's game never answered the host's hit")
+	else:
+		say("the walker's game answered the hit")
 	if not await _wait(10.0, func(): return refused[0] > 0):
 		fails.append("the late guest was never refused")
 	else:
@@ -120,6 +128,12 @@ func _host() -> void:
 		fails.append("the walker quit but is still on the roster")
 	else:
 		say("walker left; roster %s" % str(link.roster.keys()))
+	if link.hits_taken < 1:
+		fails.append("the walker's hit never reached the host")
+	if link.outfits_heard < 1:
+		fails.append("the walker's outfit change never reached the host")
+	else:
+		say("heard the walker's outfit change")
 	await _done(true)
 
 
@@ -137,8 +151,13 @@ func _walker() -> void:
 	while walk_t < walk_end + 2.0:
 		await physics_frame
 		walk_t = Time.get_ticks_msec() / 1000.0 - start[0]
+	link.send_hit(1, 10.0, Vector3.ZERO)               # and the guest shoots the host
 	# Stay a while so the late guest finds the game full (and the host's shot lands), then quit.
 	await _wait(4.0)
+	if link.hits_answered < 1:
+		fails.append("the host's game never answered the walker's hit")
+	else:
+		say("the host's game answered the hit (guest's hit marker)")
 	if link.hits_taken < 1:
 		fails.append("the host's hit never reached the walker")
 	else:

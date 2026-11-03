@@ -26,6 +26,11 @@ static var root := "user://"     ## tests point this elsewhere
 static var role := ""            ## "", HOST or GUEST
 static var link: Node            ## /root/NetLink while a session is open
 static var guest_spawn := false  ## the next town puts you beside T-89 (a guest just let in)
+## A guest's own ship this session (Fleet.LAN): { look, pad, spot }: its livery,
+## the landing pad the host gave it ("" = none free) and where it stands now
+## (Fleet.spot's shape; {} until it is placed). Empty: not a guest, or no ship.
+## Not saved: the guest's save keeps its own ships.
+static var ship: Dictionary = {}
 static var max_override := 0     ## tests: a smaller game than the data's
 static var _cfg: Dictionary = {}
 
@@ -172,6 +177,7 @@ static func _drop_link() -> void:
 		link.queue_free()
 	link = null
 	role = ""
+	ship = {}
 
 
 ## The town calls this as it spawns the player: true once after a guest was let in.
@@ -187,6 +193,24 @@ static func spot_by(t89: Vector3, peer_id: int) -> Vector3:
 	var a := float(peer_id % 7919) * 2.39996        # the golden angle: ids spread round him
 	var r := n("spawn_by_t89_m", 2.2)
 	return t89 + Vector3(sin(a), 0.0, cos(a)) * r
+
+
+## A guest's ship's livery for join slot `slot` (0 = the first guest).
+static func livery(slot: int) -> String:
+	var all: Array = cfg().get("liveries", [])
+	return str(all[slot % all.size()]) if not all.is_empty() else ""
+
+
+## Where a guest stands by landing pad `box` (a town box): spawn_by_pad_m past its
+## edge, on the side toward `toward` (the town's middle), and the yaw to face it.
+static func spot_by_pad(box: Dictionary, toward: Vector3) -> Array:
+	var lo := Vector3(float(box.min[0]), float(box.min[1]), float(box.min[2]))
+	var hi := Vector3(float(box.max[0]), float(box.max[1]), float(box.max[2]))
+	var c := Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5)
+	var dir := Vector3(toward.x - c.x, 0.0, toward.z - c.z)
+	dir = dir.normalized() if dir.length() > 0.01 else Vector3.BACK
+	var at := c + dir * (minf(hi.x - lo.x, hi.z - lo.z) * 0.5 + n("spawn_by_pad_m", 1.5))
+	return [at, atan2(c.x - at.x, c.z - at.z)]
 
 
 ## One line for F11: hosting at, in whose game, or not connected; then who is here.
