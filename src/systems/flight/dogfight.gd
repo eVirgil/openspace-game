@@ -55,6 +55,12 @@ var player_sheltered := false
 ## Issue #46: the heading (radians about +Y) waves arrive from, so a fight that
 ## starts in the port's sky meets them ahead of the player. 0 = from -Z, as before.
 var wave_yaw := 0.0
+## LAN (NetFight): this is a guest's copy of the host's fight. It runs no waves and
+## never ends of itself; the host's ships are in it as copies ("net": true) that
+## it neither flies nor hurts: a hit on one is a "hit" event with "net" true, for
+## the host's game to apply (net_damage).
+var net_copy := false
+var _net_events: Array = []      ## hits that came in from a guest between steps (net_damage)
 
 var wave_index := -1
 var _wave_timer := 0.0
@@ -299,7 +305,8 @@ func cycle_player_target() -> void:
 
 ## Advance the whole encounter by dt. Returns this step's events.
 func step(dt: float) -> Array:
-	events = []
+	events = _net_events
+	_net_events = []
 	if state != State.RUNNING:
 		return events
 	t += dt
@@ -307,10 +314,11 @@ func step(dt: float) -> Array:
 		var me = get_ship(player_id)
 		if not me.is_empty() and me.alive:
 			arena_center = me.flight.position
-	_run_waves(dt)
+	if not net_copy:
+		_run_waves(dt)
 
 	for s in ships:
-		if not s.alive or (s.is_player and player_sheltered):
+		if not s.alive or (s.is_player and player_sheltered) or s.get("net", false):
 			continue
 		_pick_target(s, dt)
 		var tg = get_ship(s.target_id)
@@ -472,6 +480,11 @@ func _resolve_hits(hits: Array) -> void:
 ## One ship takes `amount` from hit `h` (kind "bolt", "missile" or "splash"): a hit
 ## event, and a kill event if that finished it.
 func _damage(victim: Dictionary, h: Dictionary, kind: String, amount: float, point: Vector3) -> void:
+	if victim.get("net", false):
+		events.append({ "type": "hit", "id": victim.id, "by": h.owner, "kind": kind, "damage": amount,
+			"shield": 0.0, "hull": 0.0, "point": point, "net": true,
+			"blast_size": float(h.get("blast_size", 0.0)) if kind == "missile" else 0.0 })
+		return
 	var absorbed: Dictionary = victim.defense.apply_damage(amount)
 	if victim.brain != null:
 		victim.brain.notify_hit()
@@ -488,7 +501,20 @@ func _damage(victim: Dictionary, h: Dictionary, kind: String, amount: float, poi
 				stats.player_kills += 1
 		events.append({ "type": "kill", "id": victim.id, "ship_id": victim.ship_id,
 			"by": h.owner, "team": victim.team, "point": victim.flight.position,
-			"who": who(victim) })
+			"who": who(victim), "peer": int(h.get("net_peer", 0)) })
+
+
+## LAN (host): LAN player `peer`'s shot landed on ship `id` in their copy of this
+## fight; it lands here, between steps (its events come with the next step's).
+func net_damage(id: int, amount: float, kind: String, point: Vector3, peer: int) -> void:
+	var v := get_ship(id)
+	if v.is_empty() or not v.alive or v.get("net", false) or v.is_player or state != State.RUNNING:
+		return
+	var now := events
+	events = _net_events
+	stats.hits += 1
+	_damage(v, { "owner": -1, "net_peer": peer }, kind, amount, point)
+	events = now
 
 
 ## How a ship's pilot is called out: '"Cinder" Lieutenant Varo Kesh', or just the
@@ -506,6 +532,8 @@ func _check_outcome() -> void:
 	if not me.is_empty() and not me.alive:
 		state = State.FAILED
 		events.append({ "type": "failed" })
+		return
+	if net_copy:
 		return
 	if wave_index >= waves_total() and alive_on(TEAM_HOSTILE).is_empty():
 		state = State.COMPLETE

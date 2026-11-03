@@ -55,6 +55,7 @@ var _recoil := 0.0                 ## 1 right after a shot, decays to 0
 var carry := WeaponCarry.new(1.0)
 var aim_wanted := false
 var aim_target := Vector3.INF      ## third person: where the crosshair points (weapons sets it; INF = along the pose)
+var face_aim := false             ## issue #401: a LAN player's copy whose player is in first person faces where they look
 ## Issue #133: sprinting. The gun drops to rest (first person too), the body faces
 ## where it runs, and gun_up() stays false so nothing fires.
 var sprint_lowered := false
@@ -494,7 +495,7 @@ func animate(dt: float, inp: Dictionary) -> void:
 	# Facing: toward the aim when a weapon is up or in first person, else toward
 	# travel (a gun at rest walks where you go, issue #87).
 	var want := facing_yaw
-	if (armed and not sprint_lowered and (not gun or carry.ready > 0.3)) or first_person:
+	if (armed and not sprint_lowered and (not gun or carry.ready > 0.3)) or first_person or face_aim:
 		want = cam_yaw
 	elif speed > 0.4:
 		want = atan2(flat.x, flat.z)

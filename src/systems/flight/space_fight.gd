@@ -15,6 +15,11 @@ extends Node3D
 ## No input here: ShipPilot passes the player's command to step(). The combat
 ## read-out (shield, hull, guns, target box, lead marker) is drawn here; toasts go
 ## through the pilot's FlightHud.
+##
+## LAN: in a host's game, its fight is everyone's: NetFight sends its ships and
+## lands the guests' hits on them. A guest who climbs out while it is on flies a
+## copy of it (`net_copy`, set before begin()): only their own ship, everyone else
+## the host's, put where the host's are.
 
 const Dogfight := preload("res://src/systems/flight/dogfight.gd")
 
@@ -24,6 +29,9 @@ var encounter_id := ""
 var hud: Control
 var hud_label: Label
 var sheltered := false   ## the fight goes on without the player (Dogfight.player_sheltered)
+var net_copy := false    ## LAN: a guest's copy of the host's fight (NetFight)
+var net_ids := {}        ## LAN, net_copy: the host's ship id -> the copy's here
+var net_sent := 0        ## LAN: the last projectile uid NetFight has looked at
 
 
 ## Start `enc_id` around a ship flying with transform `at` at `speed` m/s.
@@ -43,6 +51,9 @@ func begin(content, enc_id: String, at: Transform3D, speed: float, rng_seed: int
 	df.encounter = placed(df.encounter, at.origin, yaw)
 	if player_ship != "" and df.encounter.has("player"):
 		df.encounter.player.ship = player_ship
+	if net_copy:
+		df.net_copy = true
+		df.encounter["allies"] = []      # the host's wingmen come as copies
 	df.wave_yaw = yaw
 	# Issue #15: everyone who spawns gets a name; each sortie brings new pilots.
 	df.names = WorldState.names
@@ -129,16 +140,36 @@ func next_target() -> void:
 func step(dt: float, cmd: Dictionary) -> Array:
 	if df == null:
 		return []
+	var net = _net()
+	var news: Array = net.before_step(self, dt) if net != null else []
+	if net_copy and net == null:
+		news = [{ "type": "net_over" }]     # out of the LAN game: the host's fight is gone
 	df.set_player_command(float(cmd.get("pitch", 0.0)), float(cmd.get("yaw", 0.0)),
 		float(cmd.get("roll", 0.0)), float(cmd.get("throttle", 0.6)), bool(cmd.get("boost", false)),
 		bool(cmd.get("fire", false)), bool(cmd.get("missile", false)))
 	var ev: Array = df.step(dt)
+	if net != null:
+		net.after_step(self, ev)
+	ev.append_array(news)
 	for e in ev:
 		view.on_event(e)
 	view.sync(df)
 	view.tick(dt)
 	_update_hud()
 	return ev
+
+
+## The fight is over for this game (ShipPilot.end_fight): a host's ends for the
+## guests flying copies of it too.
+func finish(outcome: String) -> void:
+	var net = _net()
+	if net != null and not net_copy:
+		net.host_over(self, outcome)
+
+
+## LAN's fight node (/root/NetLink/Fight), or null out of a LAN game.
+func _net():
+	return NetSession.link.get_node_or_null("Fight") if NetSession.active() else null
 
 
 # ------------------------------------------------------------------ HUD
