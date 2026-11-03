@@ -295,8 +295,10 @@ func _enlist(g: NpcBody) -> void:
 	if garrison == null:
 		if not demo.npc_brains:
 			return
+		# Fights your ship as an outpost's does (vehicles_anywhere): a ship flown into
+		# the bay is shot at, not only you once you climb out of it.
 		garrison = demo._make_garrison("Garrison_" + id, [g], false,
-			frame * Vector3(0, CruiserHull.DECK_Y, (CruiserHull.BAY_Z.x + CruiserHull.BAY_Z.y) * 0.5))
+			frame * Vector3(0, CruiserHull.DECK_Y, (CruiserHull.BAY_Z.x + CruiserHull.BAY_Z.y) * 0.5), true)
 		garrison.always_hostile = not DarkPact.joined()     # issue #303: his crew is yours on the oath
 		var outposts = demo.outposts
 		if outposts != null:
