@@ -860,6 +860,8 @@ func _wake_in_pit() -> void:
 		player.controller.velocity = Vector3.ZERO
 	player.revive()
 	player.locked = false
+	if demo != null and demo.has_method("day_trigger"):
+		demo.day_trigger("respawn")      # issue #381: you wake to a new part of the day
 	forgive_player()
 	var outs = demo.get("outposts")
 	if outs != null:

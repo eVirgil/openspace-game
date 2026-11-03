@@ -34,6 +34,8 @@ static var counters: Dictionary = {}       ## name -> int
 static var events: Array = []              ## [{ t, text }] newest last, capped
 static var credits := 60
 static var time_of_day := "golden"
+static var day_pick := "auto"              ## issue #381: the F11 picker: "auto" or a preset (DayClock)
+static var day_step := 0                   ## issue #381: where the day is in time_of_day.json "day_order"
 static var jobs_taken: Dictionary = {}     ## job id -> "active" | "done"
 static var clock := 0.0                    ## seconds of play, for cooldowns
 static var inventory := Inventory.new()    ## M13: the player's gear (owned, attached, taken, vendor stock)
@@ -82,6 +84,8 @@ static func reset() -> void:
 	events = []
 	credits = 60
 	time_of_day = "golden"
+	day_pick = "auto"
+	day_step = 0
 	jobs_taken = {}
 	clock = 0.0
 	_cooldowns = {}
@@ -936,6 +940,7 @@ static func to_save() -> Dictionary:
 	return {
 		"standing": standing.duplicate(), "flags": flags.duplicate(), "counters": counters.duplicate(),
 		"events": events.duplicate(true), "credits": credits, "time_of_day": time_of_day,
+		"day_pick": day_pick, "day_step": day_step,
 		"jobs_taken": jobs_taken.duplicate(), "clock": clock,
 		"inventory": inventory.to_save(),
 		"names": names.to_save(),
@@ -971,6 +976,8 @@ static func from_save(d: Dictionary) -> void:
 	events = d.get("events", []).duplicate(true)
 	credits = int(d.get("credits", 60))
 	time_of_day = str(d.get("time_of_day", "golden"))
+	day_pick = str(d.get("day_pick", "auto"))          # issue #381: older saves are on Auto
+	day_step = int(d.get("day_step", 0))
 	jobs_taken = d.get("jobs_taken", {}).duplicate()
 	clock = float(d.get("clock", 0.0))
 	inventory = Inventory.new()
