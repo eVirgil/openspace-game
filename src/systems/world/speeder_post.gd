@@ -189,6 +189,8 @@ func attach_host(h: ConversationHost) -> void:
 	brain.ship_offer = func(): return _offer_card(ship_offer())
 	brain.sale_open = func(): return not at_limit()
 	spot.opener = _opener
+	spot.shortcuts = shortcuts
+	spot.on_shortcut = _on_shortcut
 	brain.extra_brief = brief
 	brain.sale_offered.connect(_on_offer)
 	brain.ship_buy_offered.connect(_on_ship_offer)
@@ -209,6 +211,26 @@ func brief() -> Array:
 
 
 # ------------------------------------------------------------------ buying
+
+## Issue #305: the keyword row over his chat box: his speeder's price card, and
+## (with a ship of yours by his post) what he would pay for it.
+func shortcuts() -> Array:
+	var k: Dictionary = card.get("shortcuts", {})
+	var out := []
+	if not at_limit():
+		out.append({ "id": "go_speeder", "label": str(k.get("speeder", "Buy a speeder")) })
+	if not ship_offer().is_empty():
+		out.append({ "id": "go_sell_ship", "label": str(k.get("sell_ship", "Sell my ship")) })
+	return out
+
+
+func _on_shortcut(id: String) -> void:
+	if id == "go_sell_ship":
+		_on_ship_offer({ "id": str(ship_offer().get("id", "")) })
+		return
+	var s: Dictionary = card.get("sale", {})
+	_on_offer({ "id": str(s.get("id", "")), "name": str(s.get("name", "")), "price": int(s.get("price", 0)) })
+
 
 func _on_offer(item: Dictionary) -> void:
 	if host == null or host.active != spot:

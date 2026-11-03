@@ -18,6 +18,8 @@ var face_height := 1.5             ## the two-shot frames this height on the bod
 var manual := false                ## true: the character's own [E] starts the talk (T-89's menu), not the host's
 var hold_line := ""                ## not "": Esc can't leave (the general's pit meeting); the chat box says this instead
 var near_voice := false            ## true: heard as if beside them, however far off (the general's pit meeting opens wherever you stand)
+var shortcuts := Callable()        ## issue #305: valid: () -> [{ id, label }], the keyword row over the chat box, always shown ("Ships", "Upgrades"); ids are node names (no ":")
+var on_shortcut := Callable()      ## issue #305: (id) a keyword was picked: the character puts up a price card, or ends the talk and opens their menu
 var opener := Callable()           ## valid: asked as the talk opens for { say, sale } (Skrugs's ship offer): "say" replaces the greeting, "sale" goes up on the chat box at once; {} = greet as usual
 
 

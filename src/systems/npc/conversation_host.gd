@@ -327,10 +327,12 @@ func answer_first_run(on: bool) -> void:
 
 
 ## The topic menu: with AI characters off, or once a turn in this talk was canned.
-## A topic picked in this talk is off it until the next talk.
+## A topic picked in this talk is off it until the next talk. Issue #305: the
+## character's keywords (their shops) lead the row whatever the AI is doing.
 func _refresh_menu(s: TalkSpot) -> void:
 	var menu: Array = s.brain.topics().filter(func(t): return not _topics_used.has(str(t.id)))
-	panel.set_topics(menu if not llm.ai_on() or _offline_told else [])
+	var keys: Array = s.shortcuts.call() if s.shortcuts.is_valid() else []
+	panel.set_topics(keys + (menu if not llm.ai_on() or _offline_told else []))
 	panel.set_notice(Disclaimers.talk_text(s.display_name()) if llm.ai_on() else "")
 
 
@@ -458,6 +460,10 @@ func _on_topic(topic: String) -> bool:
 	var s := active
 	if s == null or s.brain.busy:
 		return false
+	# Issue #305: a keyword is the character's to answer (a price card, or their menu).
+	if s.shortcuts.is_valid() and (s.shortcuts.call() as Array).any(func(k): return str(k.id) == topic):
+		s.on_shortcut.call(topic)
+		return true
 	for t in s.brain.topics():
 		if str(t.id) == topic:
 			_before_turn(s, str(t.say))

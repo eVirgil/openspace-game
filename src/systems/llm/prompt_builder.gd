@@ -24,6 +24,7 @@ const ACTION_DOCS := {
 	"offer_speeder": '{"type": "offer_speeder"}  when they want to buy (the game shows them the price and asks them to confirm; you never take money yourself)',
 	"offer_ship": '{"type": "offer_ship", "id": "<ship id from YOUR SHIPS>"}  when you recommend a ship or they want to buy one (the game shows them its price and asks them to confirm; you never take money yourself)',
 	"offer_ship_buy": '{"type": "offer_ship_buy", "id": "<id from A SHIP YOU WOULD BUY>"}  when they want to sell you that ship (the game shows them what you pay and asks them to confirm; you never hand over money yourself)',
+	"offer_item": '{"type": "offer_item", "id": "<id from YOU CAN SELL THEM>"}  when they ask for an upgrade or want to buy one (the game shows them its price and asks them to confirm; you never take money yourself)',
 	"trust": '{"type": "trust", "delta": -3..2, "why": "<short reason>"}  how this exchange changed your trust in them',
 	"comrade": '{"type": "comrade"}  when they say plainly that they hate the Remnant or want them gone (you quietly agree; the game gives them your comrade discount)',
 	"refuse_topic": '{"type": "refuse_topic"}  when you will not talk about something',
@@ -204,6 +205,14 @@ func briefing(world: Dictionary, rel, rumors: Array, jobs: Array) -> Dictionary:
 			% [sb.id, sb.name, " (stolen from the Remnant, and you know it)" if bool(sb.get("stolen", false)) else "", int(sb.price)])
 	elif actions().has("offer_ship_buy"):
 		L.append("A SHIP YOU WOULD BUY: none. They have to land one by your post first.")
+	# Issue #305: what they can buy from you right now (upgrades, gear), for offer_item.
+	var wares := {}
+	if actions().has("offer_item"):
+		var ws: PackedStringArray = []
+		for w in world.get("wares", []):
+			wares[str(w.id)] = { "name": str(w.name), "price": int(w.price) }
+			ws.append("[%s] %s: %d credits. %s" % [w.id, w.name, int(w.price), w.get("text", "")])
+		L.append("YOU CAN SELL THEM:\n" + "\n".join(ws) if not ws.is_empty() else "YOU CAN SELL THEM: nothing right now.")
 	if not rel.facts.is_empty():
 		L.append("YOU REMEMBER ABOUT THEM: " + "; ".join(PackedStringArray(rel.facts)) + ".")
 	var drinks := {}
@@ -216,7 +225,7 @@ func briefing(world: Dictionary, rel, rumors: Array, jobs: Array) -> Dictionary:
 		"message": { "role": "system", "content": "YOUR BRIEFING (true right now):\n" + "\n".join(L) },
 		"ids": { "rumors": rumor_ids, "jobs": job_ids, "secrets": secret_ids, "drinks": drinks,
 			"allowed": actions(), "sale": sale if sale_open else {}, "ships": ship_ids, "moods": moods,
-			"ship_buy": world.get("ship_buy", {}) },
+			"ship_buy": world.get("ship_buy", {}), "wares": wares },
 	}
 
 
