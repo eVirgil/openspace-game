@@ -48,6 +48,23 @@ footer shows health, stamina and jetpack fuel. **F1** (or a click on either, onc
 has freed the mouse) opens the info screen with your standing with every faction.
 **F11 > HUD** changes the HUD colour and lists every control, by when it applies.
 
+## Playing with friends on the same wifi (issue #401)
+
+One player opens F11 > Game > Play with friends, types a name (it is remembered)
+and presses **Host a game**; the line under the buttons shows the address to read
+out. Friends type their name and that address and press **Join**. Up to five play
+free roam together: each joiner's own free roam save opens on the host's planet,
+beside T-89, with no opening landing and no tutorial. The host gets a toast when
+someone joins or leaves. Hosting from a story save opens the free roam save first.
+Friendly fire is on: your bolts and blade hurt your friends, and a friend who goes
+down wakes in the pit, as after the guards ("friendly_fire" in lan.json turns it off).
+
+The host's computer may ask to let OpenSpace accept incoming connections (macOS
+and Windows firewalls): say yes. The port is in `content/core/flow/lan.json`.
+The same address works over Tailscale or ZeroTier, though that is not supported.
+
+Test: `./scripts/test_lan.sh` runs a host and two guests on loopback.
+
 ## The demo: the town, and flight from the pit (M9)
 
 ```sh

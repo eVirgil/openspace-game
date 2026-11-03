@@ -35,6 +35,7 @@ signal fired(weapon_id: String)
 signal swung(name: String)
 signal deflected(bolt: Node)
 signal hit_something(target: Node, damage: float)
+signal bolt_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## issue #401: LAN shows it to the others
 
 var player: CharacterBody3D
 var avatar: PlayerAvatar
@@ -398,6 +399,7 @@ func _shoot(id: String) -> void:
 	if bolt_parent != null:
 		bolt_parent.add_child(b)
 		b.global_position = origin
+	bolt_fired.emit(origin, dir, minf(origin.distance_to(target) + 0.3, b.range_m), b)
 	shots += 1
 	if rig_node != null:
 		rig_node.kick(float(c.get("recoil", 2.0)) * (0.5 if aiming else 1.0))

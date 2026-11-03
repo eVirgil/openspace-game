@@ -604,6 +604,11 @@ func _spawn_player() -> void:
 		_player.position = from_pad.arrive
 		var c: Vector3 = from_pad.center
 		yaw = atan2(c.x - from_pad.arrive.x, c.z - from_pad.arrive.z)
+	elif _arrival.is_empty() and NetSession.take_guest_spawn():
+		var t89 := guest_t89()                      # issue #401: a LAN guest arrives beside T-89, facing him
+		if t89 != Vector3.INF:
+			_player.position = NetSession.spot_by(t89, multiplayer.get_unique_id()) + Vector3(0, 0.05, 0)
+			yaw = atan2(t89.x - _player.position.x, t89.z - _player.position.z)
 	elif _arrival.is_empty():
 		var at := GameFlow.take_resume_pos()        # issue #113: where the save left you
 		if at != Vector3.INF:
@@ -625,6 +630,12 @@ func _spawn_player() -> void:
 				return cam.global_position if cam != null else _player.global_position)
 	if not lookdev_mode and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Issue #401: where T-89 stands in this town (his marker), INF when it has none.
+func guest_t89() -> Vector3:
+	var mk := str(ShipSalesman.config().get("marker", "t89"))
+	return town.marker_pos(mk) if not town.get_marker(mk).is_empty() else Vector3.INF
 
 
 func _add_light_and_sky() -> void:

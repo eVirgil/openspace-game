@@ -1,0 +1,149 @@
+extends StaticBody3D
+## Issue #401: another LAN player, in this town. The smuggler's own avatar
+## (PlayerAvatar) in that player's outfit, their name floating over it, walking,
+## sprinting, crouching and jumping as they do, the weapon in their hand and aimed
+## where they look.
+##
+## Friendly fire (lan.json "friendly_fire"): the body is solid, like a guard's, and
+## your bolts and blade land on it. It takes no damage itself: the hit goes to
+## that player's game (NetLink.hit), which applies it to their own player, so
+## being downed works there as it always does. Only your own hits are sent (a
+## guard's bolt in your game is not one in theirs). Off: nothing to hit or bump.
+##
+## NetLink hands it every state packet heard (hear); between packets it closes on
+## where the player should be by now (the last spot plus the velocity since),
+## smoothed so it does not jitter, and jumps when it is snap_m off (a teleport).
+
+const UPPER := {
+	"pistol_blaster": BodyAnimator.UPPER_AIM,
+	"rifle_blaster": BodyAnimator.UPPER_RIFLE,
+	"energy_blade": BodyAnimator.UPPER_SWORD,
+}
+const LEAD_MAX := 0.25            ## seconds a body may run on past its last packet
+
+var peer_id := 0
+var player_name := ""
+var outfit: Dictionary = {}
+var avatar: PlayerAvatar
+var tag: Label3D
+var tilt := Basis.IDENTITY        ## the ground's frame (PlayerAvatar.animate reads its parent's)
+var _mats: LookMaterials
+var _s: Dictionary = {}           ## the last state heard
+var _placed := false
+
+
+func setup(id: int, nm: String, fit: Dictionary, mats: LookMaterials = null) -> void:
+	peer_id = id
+	player_name = nm
+	outfit = fit
+	_mats = mats
+
+
+func _ready() -> void:
+	name = "Remote_%d" % peer_id
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = NetSession.n("hitbox_radius", 0.35)
+	cap.height = NetSession.n("hitbox_height", 1.8)
+	cs.shape = cap
+	cs.position.y = cap.height * 0.5
+	add_child(cs)
+	collision_layer = 1 if friendly_fire() else 0
+	collision_mask = 0
+	avatar = PlayerAvatar.new(_mats, outfit)
+	add_child(avatar)
+	avatar.build_weapons(UPPER.keys())
+	avatar.set_blade_extent(0.0)
+	tag = Label3D.new()
+	tag.name = "Name"
+	tag.text = player_name
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.position.y = NetSession.n("name_height", 2.15)
+	tag.pixel_size = 0.005
+	tag.font_size = 40
+	tag.outline_size = 10
+	tag.modulate = Color(1.0, 0.93, 0.78)
+	add_child(tag)
+	visible = false               # until the first packet places it
+
+
+## The latest state packet (NetLink.state's dictionary).
+func hear(s: Dictionary) -> void:
+	_s = s
+	tilt = Basis((s.get("tilt", Quaternion.IDENTITY) as Quaternion).normalized())
+	if not _placed:
+		global_position = s.pos
+		_placed = true
+		if avatar != null:
+			avatar.facing_yaw = float(s.yaw)
+			avatar.reset_render_smoothing()
+
+
+## Where the player should be by now: the last spot heard, run on at its velocity.
+func wanted() -> Vector3:
+	if _s.is_empty():
+		return global_position
+	var since := clampf(Time.get_ticks_msec() / 1000.0 - float(_s.t), 0.0, LEAD_MAX)
+	return (_s.pos as Vector3) + (_s.vel as Vector3) * since
+
+
+func _physics_process(dt: float) -> void:
+	if _s.is_empty() or avatar == null:
+		return
+	var flags := int(_s.flags)
+	visible = (flags & 8) != 0          # NetLink.F_VISIBLE: not while they sit in a ship
+	collision_layer = 1 if visible and friendly_fire() else 0
+	var to := wanted()
+	if global_position.distance_to(to) > NetSession.n("snap_m", 8.0):
+		global_position = to
+		avatar.reset_render_smoothing()
+	else:
+		global_position = global_position.lerp(to, 1.0 - exp(-NetSession.n("smooth_rate", 14.0) * dt))
+	var weapon := str(_s.weapon)
+	avatar.current = weapon
+	avatar.drawn = float(_s.drawn)
+	avatar.set_blade_extent(float(_s.drawn) if weapon == "energy_blade" else 0.0)
+	avatar.animate(dt, {
+		"velocity": _s.vel,
+		"grounded": (flags & 1) != 0,
+		"crouch": (flags & 2) != 0,
+		"sprint": (flags & 4) != 0,
+		"slide": (flags & 16) != 0,
+		"cam_yaw": float(_s.yaw),
+		"aim_pitch": float(_s.pitch),
+		"upper": UPPER.get(weapon, BodyAnimator.UPPER_FREE),     # as PlayerWeapons.upper_mode: the avatar holsters by `drawn`
+	})
+
+
+# ------------------------------------------------------------------ friendly fire
+
+static func friendly_fire() -> bool:
+	return bool(NetSession.cfg().get("friendly_fire", true))
+
+
+## Your game's player, the only shooter whose hits are sent.
+func _you() -> Node:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	return scene.get("_player") if scene != null else null
+
+
+## Bolts (and a ship cannon's splash) call this.
+func apply_damage_from(amount: float, shooter: Node) -> void:
+	if shooter != null and is_instance_valid(shooter) and shooter == _you():
+		_send_hit(amount)
+
+
+## Your blade calls this (it is the only one that does).
+func apply_blade_hit(amount: float, _dir: Vector3) -> void:
+	_send_hit(amount)
+
+
+## Anything else that hurts without saying who (a fall, a hazard) is not a hit from you.
+func apply_damage(_amount: float) -> void:
+	pass
+
+
+func _send_hit(amount: float) -> void:
+	var you = _you()
+	if friendly_fire() and NetSession.active() and amount > 0.0 and you is Node3D:
+		NetSession.link.send_hit(peer_id, amount, (you as Node3D).global_position)
