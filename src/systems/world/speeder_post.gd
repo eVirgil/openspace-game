@@ -24,6 +24,10 @@ extends Node3D
 ##     only the player's click pays. 100 credits off, a speeder parked in his
 ##     garage (then beside it), his mood warm. Speeders you own are saved
 ##     (WorldState counter "speeders_owned") and parked there again next time.
+##     One to a customer (his card's sale.max_owned): every parked speeder runs its
+##     hover each physics tick, and a yard of seven cost the town its frame rate.
+##     Once you own one he does not offer another, and a save with more keeps
+##     the first.
 ##   - issue #295, free roam only: [E] at his garage bench is Dorrin's parts menu
 ##     (SpeederShop) for the speeder in his garage,
 ##   - issue #295: he buys ships. One of yours landed within ship_buy's radius
@@ -110,6 +114,7 @@ func _ready() -> void:
 	display.setup(demo, ground, {}, false, str(HoverModel.load_config("speeder").get("look", {}).get("display_paint", "")))
 	add_child(display)
 	display.place(world_point("display"), yaw + PI * 0.5)
+	_trim_owned()
 	for i in WorldState.count("speeders_owned"):
 		_park(i)
 	# Issue #82: each speeder sold is a new paint job, an 8 MB model; load them
@@ -182,6 +187,7 @@ func attach_host(h: ConversationHost) -> void:
 	spot.face_height = 1.55
 	host.add_spot(spot)
 	brain.ship_offer = func(): return _offer_card(ship_offer())
+	brain.sale_open = func(): return not at_limit()
 	spot.opener = _opener
 	spot.shortcuts = shortcuts
 	spot.on_shortcut = _on_shortcut
@@ -210,7 +216,9 @@ func brief() -> Array:
 ## (with a ship of yours by his post) what he would pay for it.
 func shortcuts() -> Array:
 	var k: Dictionary = card.get("shortcuts", {})
-	var out := [{ "id": "go_speeder", "label": str(k.get("speeder", "Buy a speeder")) }]
+	var out := []
+	if not at_limit():
+		out.append({ "id": "go_speeder", "label": str(k.get("speeder", "Buy a speeder")) })
 	if not ship_offer().is_empty():
 		out.append({ "id": "go_sell_ship", "label": str(k.get("sell_ship", "Sell my ship")) })
 	return out
@@ -252,11 +260,11 @@ func _on_answer(id: String, accepted: bool) -> void:
 
 
 ## Pay and park a new speeder in his garage (beside it once that is full). False
-## (and nothing charged) if the player cannot afford it.
+## (and nothing charged) if the player cannot afford it or already owns their one.
 func buy() -> bool:
 	var sale: Dictionary = spot.brain.card.get("sale", {}) if spot != null else HoverModel.load_config("speeder")
 	var price := int(sale.get("price", 100))
-	if WorldState.credits < price:
+	if WorldState.credits < price or at_limit():
 		return false
 	WorldState.credits -= price
 	WorldState.bump("speeders_owned")
@@ -273,6 +281,26 @@ func buy() -> bool:
 			var lines: Array = spot.brain.card.get("canned", {}).get("sold", ["She's in the garage."])
 			_answer_line(str(lines[0]))
 	return true
+
+
+## The most speeders one player owns (his card's sale.max_owned).
+func max_owned() -> int:
+	return int(card.get("sale", {}).get("max_owned", 1))
+
+
+## They own as many speeders as he sells to one customer.
+func at_limit() -> bool:
+	return WorldState.count("speeders_owned") >= max_owned()
+
+
+## A save from before the one-speeder rule keeps its first speeders (and their
+## fits); the rest are gone.
+func _trim_owned() -> void:
+	var n := max_owned()
+	if WorldState.count("speeders_owned") > n:
+		WorldState.counters["speeders_owned"] = n
+	if WorldState.speeder_fits.size() > n:
+		WorldState.speeder_fits.resize(n)
 
 
 ## His line in the chat box after a deal, with the new money.

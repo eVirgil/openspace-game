@@ -108,6 +108,7 @@ func _adopt(g: NpcBody) -> void:
 	b.patrol_points = pts if pts.size() >= 2 else [g.post_pos]
 	b.set_post_facing(g.post_facing)
 	brains[g] = b
+	g.watches_guests = true
 	g.died.connect(_on_local_died.bind(g))
 	g.hit_by.connect(_on_local_hit.bind(g))
 
@@ -137,11 +138,16 @@ func _physics_process(dt: float) -> void:
 	var seen := false
 	var noticed := false
 	var nearest := INF
+	var seen_at := Vector3.INF        ## the player where seen, else a guest (LAN)
 	for g in alive:
+		var gt = g.guest_target()
+		var tpos: Vector3 = gt.global_position if gt != null else ppos
 		seen = seen or g.perception.visible
+		if g.perception.visible and (gt == null or seen_at == Vector3.INF):
+			seen_at = tpos
 		noticed = noticed or g.perception.noticed
-		if ppos != Vector3.INF:
-			nearest = minf(nearest, g.global_position.distance_to(ppos))
+		if tpos != Vector3.INF:
+			nearest = minf(nearest, g.global_position.distance_to(tpos))
 	# A face they remember starts it again.
 	if not alarm.active() and alarm.remembers() and noticed and ppos != Vector3.INF:
 		_raise("remembered")
@@ -150,7 +156,8 @@ func _physics_process(dt: float) -> void:
 	if _attacked:
 		_raise("attacked")
 	_attacked = false
-	alarm.update(dt, { "seen": seen, "player_pos": ppos, "nearest_dist": nearest, "alive": alive.size() })
+	alarm.update(dt, { "seen": seen, "player_pos": seen_at if seen_at != Vector3.INF else ppos,
+		"nearest_dist": nearest, "alive": alive.size() })
 	_handle(alarm.drain())
 	for g in alive:
 		var b: GuardBrain = brains[g]
@@ -167,7 +174,11 @@ func _physics_process(dt: float) -> void:
 
 func _run_brain(g: NpcBody, dt: float, ppos: Vector3) -> void:
 	var b: GuardBrain = brains[g]
-	g.brief(b, ppos, player.velocity if ppos != Vector3.INF else Vector3.ZERO)
+	var gt = g.guest_target()
+	if gt != null:
+		g.brief(b, gt.global_position, gt.velocity)      # LAN: the guest it is watching
+	else:
+		g.brief(b, ppos, player.velocity if ppos != Vector3.INF else Vector3.ZERO)
 	b.update(dt)
 	if b.want_cover:
 		b.want_cover = false
@@ -290,7 +301,7 @@ func _on_local_hit(shooter: Node, _amount: float, g: NpcBody) -> void:
 		_check_cut.call_deferred(g)            # issue #307: silent if the cut killed them unseen
 		return
 	brains[g].notify_hit()
-	if DroidController.by_player(shooter, player):
+	if DroidController.by_player(shooter, player) or NpcBody.is_guest(shooter):
 		_attacked = true
 
 

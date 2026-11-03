@@ -10,13 +10,16 @@ extends Node
 ## host's do, and the last wave down pays everyone in the fight. Each player's own
 ## ship shows to the others as their RemoteShip (NetLink.ship_state).
 ##
-## For now the host's fighters only go for the host: a guest is in nobody's sights,
-## and the host's bolts are pictures in a guest's game.
+## A guest in the fight is in the host's fighters' sights as the host is: their ship
+## (fight_me) flies in the host's fight on the host's side, a copy with no AI, so
+## the raiders pick it as they pick the host's, and a bolt or seeker of theirs that
+## lands on it is sent to that guest's game (fight_hurt) and lands on their ship.
 ##
 ## Lives at /root/NetLink/Fight (NetLink makes it). Host -> guests: fight_snap (the
 ## ships, fight_rate times a second), fight_kill, fight_over. Guests -> host:
 ## fight_hit. Everyone -> everyone in the fight: fight_shots (bolts and seekers
-## fired, shown as harmless ones). SpaceFight calls before_step and after_step
+## fired, shown as harmless ones). Guest -> host: fight_me; host -> a guest:
+## fight_hurt. SpaceFight calls before_step and after_step
 ## around each step of its director.
 
 const Dogfight := preload("res://src/systems/flight/dogfight.gd")
@@ -25,6 +28,7 @@ var _snap: Dictionary = {}       ## guest: the host's fight as last heard { plan
 var _pending: Array = []         ## guest: the host's kills and its fight's end, for the next step
 var _ghosts: Array = []          ## the others' shots, for the next step
 var _snap_left := 0.0
+var _guests: Dictionary = {}     ## host: peer id -> their ship in the fight { encounter, ship, pos, rot, speed, t }
 var hits_sent := 0               ## tests
 
 
@@ -81,6 +85,8 @@ func before_step(fight, dt: float) -> Array:
 	if fight.net_copy:
 		out = _guest_news(fight)
 		_sync_copies(fight, dt)
+	else:
+		_sync_guests(fight, dt)
 	return out
 
 
@@ -92,10 +98,18 @@ func after_step(fight, events: Array) -> void:
 	var df = fight.df
 	var here := GameFlow.current_planet_id()
 	if _mp().is_server():
+		var hurt := {}               # peer -> [[amount, kind, point], ...]: the fight's hits on a guest's ship
 		for e in events:
 			if str(e.type) == "kill":
 				var peer := 1 if int(e.get("by", -1)) == df.player_id else int(e.get("peer", 0))
 				fight_kill.rpc(here, int(e.id), e.point, peer, str(e.get("who", "")))
+			elif str(e.type) == "hit" and bool(e.get("net", false)):
+				var to := int(df.get_ship(int(e.id)).get("net_peer", 0))
+				if to > 1:
+					hurt[to] = hurt.get(to, []) + [[float(e.damage), str(e.kind), e.point]]
+		for to in hurt:
+			if _link().roster.has(to):
+				fight_hurt.rpc_id(to, here, hurt[to])
 		_snap_left -= get_physics_process_delta_time()
 		if _snap_left <= 0.0:
 			_snap_left = 1.0 / maxf(1.0, NetSession.n("fight_rate", 15.0))
@@ -109,6 +123,12 @@ func after_step(fight, events: Array) -> void:
 		if not hits.is_empty():
 			hits_sent += hits.size()
 			fight_hit.rpc_id(1, hits)
+		_snap_left -= get_physics_process_delta_time()
+		var me: Dictionary = df.get_ship(df.player_id)
+		if _snap_left <= 0.0 and not me.is_empty() and me.alive and not df.player_sheltered:
+			_snap_left = 1.0 / maxf(1.0, NetSession.n("fight_rate", 15.0))
+			fight_me.rpc_id(1, fight.encounter_id, str(me.ship_id), me.flight.position,
+				me.flight.basis.orthonormalized().get_rotation_quaternion(), float(me.flight.speed))
 	var shots := _new_shots(fight)
 	if not shots.is_empty():
 		fight_shots.rpc(here, shots)
@@ -143,7 +163,7 @@ func _physics_process(_dt: float) -> void:
 func _rows(df) -> Array:
 	var rows: Array = []
 	for s in df.ships:
-		if not s.alive or s.id == df.player_id:
+		if not s.alive or s.id == df.player_id or s.get("net", false):
 			continue
 		rows.append([int(s.id), str(s.ship_id), str(s.team), s.flight.position,
 			s.flight.basis.orthonormalized().get_rotation_quaternion(), float(s.flight.speed), Dogfight.who(s)])
@@ -162,7 +182,70 @@ func fight_hit(rows: Array) -> void:
 			f.df.net_damage(int(r[0]), clampf(float(r[1]), 0.0, 500.0), str(r[2]), r[3] as Vector3, id)
 
 
+## Guest -> host: my ship in your fight now (its encounter): where, which way, how fast.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func fight_me(encounter: String, ship_id: String, pos: Vector3, rot: Quaternion, speed: float) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not _mp().is_server() or not _link().roster.has(id):
+		return
+	_guests[id] = { "encounter": encounter, "ship": ship_id, "pos": pos, "rot": rot.normalized(),
+		"speed": speed, "t": Time.get_ticks_msec() / 1000.0 }
+
+
+## Each guest flying in this fight as a ship on the host's side (no AI, not drawn:
+## their RemoteShip is), put where theirs is; one gone quiet for fight_stale_s goes.
+func _sync_guests(fight, dt: float) -> void:
+	var df = fight.df
+	var now := Time.get_ticks_msec() / 1000.0
+	var k := 1.0 - exp(-NetSession.n("fight_smooth_rate", 10.0) * dt)
+	var mine := {}
+	for s in df.ships:
+		if s.alive and int(s.get("net_peer", 0)) > 0:
+			mine[int(s.net_peer)] = s
+	for id in _guests.keys():
+		var g: Dictionary = _guests[id]
+		var s: Dictionary = mine.get(id, {})
+		if now - float(g.t) > NetSession.n("fight_stale_s", 2.0) or str(g.encounter) != fight.encounter_id \
+				or not _link().roster.has(id):
+			_guests.erase(id)
+			if not s.is_empty():
+				s.alive = false
+			continue
+		var since := clampf(now - float(g.t), 0.0, NetSession.n("fight_lead_max_s", 0.3))
+		var to: Vector3 = (g.pos as Vector3) + Basis(g.rot) * Vector3.FORWARD * float(g.speed) * since
+		if s.is_empty():
+			s = df.get_ship(df.spawn_ship(str(g.ship), Dogfight.TEAM_PLAYER, to, Basis(g.rot) * Vector3.FORWARD))
+			if s.is_empty():
+				continue
+			s.net = true
+			s.net_peer = int(id)
+			s.unseen = true
+			s.brain = null
+			s.pilot_name = str(_link().roster[id].name)
+			s.flight.position = to
+			s.flight.basis = Basis(g.rot)
+		var f = s.flight
+		if f.position.distance_to(to) > maxf(NetSession.n("fight_snap_m", 60.0), float(g.speed) * 0.5):
+			f.position = to
+			f.basis = Basis(g.rot)
+		else:
+			f.position = f.position.lerp(to, k)
+			f.basis = Basis(f.basis.orthonormalized().get_rotation_quaternion().slerp(g.rot, k))
+		f.speed = float(g.speed)
+
+
 # ------------------------------------------------------------------ guest
+
+## Host -> a guest: the host's fighters hit your ship: [[amount, kind, point], ...].
+@rpc("authority", "call_remote", "reliable")
+func fight_hurt(planet: String, rows: Array) -> void:
+	var f = _fight()
+	if f == null or not f.net_copy or f.df == null or planet != GameFlow.current_planet_id():
+		return
+	for r in rows:
+		if r is Array and r.size() >= 3:
+			f.df.net_hurt(clampf(float(r[0]), 0.0, 500.0), str(r[1]), r[2] as Vector3)
+
 
 ## Host -> guests: its fight now. [planet, encounter, waves so far], rows (_rows).
 @rpc("authority", "call_remote", "unreliable_ordered")

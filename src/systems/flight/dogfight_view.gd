@@ -29,8 +29,8 @@ func sync(df) -> void:
 
 func _sync_ships(df) -> void:
 	for s in df.ships:
-		if s.id == skip_id:
-			continue
+		if s.id == skip_id or s.get("unseen", false):
+			continue                # (a LAN guest's ship in the host's fight is their RemoteShip)
 		var node = ship_nodes.get(s.id)
 		if node == null:
 			node = ShipNode.new()
