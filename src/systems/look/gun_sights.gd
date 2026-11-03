@@ -249,7 +249,7 @@ static func build_scope(s: Dictionary) -> Node3D:
 	rim.rings = 64
 	rim.ring_segments = 8
 	_mesh(root, rim, ring, Vector3(0, 0, -length * 0.5), Vector3(90, 0, 0))
-	# Painted bands in the rifle's orange, lit like its panels: one behind the
+	# Painted bands in the rifle's panel color, lit like its panels: one behind the
 	# objective bell, one ahead of the eyepiece's power ring.
 	if s.has("accent"):
 		var paint := _scope_mat(Color.html(str(s.accent)), 0.5)

@@ -49,7 +49,7 @@
       "note": "Procedural scope in model space: axis along +Z at pos, rear end (eyepiece) is the ads sight. Rings on mounts down to a rail at rail_y (the receiver top, once the model's own optic is cut).",
       "pos": [0.0, 0.172, 0.02], "length": 0.24, "radius": 0.024, "ocular": 0.029, "objective": 0.034,
       "rings": [-0.065, 0.075], "rail_y": 0.114, "reticle": "#ff2a1a",
-      "weave": 0.0028, "accent": "#ff5a2a", "accent_glow": 0.6,
+      "weave": 0.0028, "accent": "#1c1d1f", "accent_glow": 0.0,
       "barrel_from": 0.42
     },
     "grips": { "r": [-0.025, -0.08, -0.11], "l": [0.0, -0.035, 0.14] },
