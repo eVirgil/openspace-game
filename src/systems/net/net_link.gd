@@ -22,6 +22,7 @@ signal turned_away(id: int, why: String)     ## host: a guest refused (full, ano
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
 const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
+const NetFight := preload("res://src/systems/net/net_fight.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -55,6 +56,9 @@ var shots_seen := 0                ## the others' bolts shown here (tests)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS       # the F11 panel pauses the game; the others still move
+	var fight := NetFight.new()
+	fight.name = "Fight"                           # one space fight: the host's, on everyone's screen
+	add_child(fight)
 
 
 func _mp() -> MultiplayerAPI:
