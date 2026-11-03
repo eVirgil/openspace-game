@@ -144,14 +144,19 @@ static func take(id: String, quiet := false) -> void:
 		WorldState.change_standing("locals", int(cfg().get("standing", {}).get("outpost_taken", 6)), "The locals took an outpost.")
 		WorldState.log_event(line("taken") % Story.outpost_label(id))
 	if lost() == Story.OUTPOSTS.size():
-		WorldState.set_flag(DRIVEN_OFF)
-		WorldState.set_flag(RETAKEN, false)
-		WorldState.control.erase("remnant_dead")
-		_cancel_supply()
-		WorldState.log_event(line("driven_off"))
-		for o in Story.OUTPOSTS:
-			Quests.complete(quest_id(str(o)))     # nothing left to run short
+		_drive_off()
 	_sync_flags()
+
+
+## Every outpost is the locals': the Remnant are driven off the planet.
+static func _drive_off() -> void:
+	WorldState.set_flag(DRIVEN_OFF)
+	WorldState.set_flag(RETAKEN, false)
+	WorldState.control.erase("remnant_dead")
+	_cancel_supply()
+	WorldState.log_event(line("driven_off"))
+	for o in Story.OUTPOSTS:
+		Quests.complete(quest_id(str(o)))     # nothing left to run short
 
 
 ## The Remnant have it again.
@@ -179,6 +184,12 @@ static func guards_lost(id: String) -> void:
 ## Seconds of play (WorldState.tick). The locals' hold on each outpost runs down.
 static func tick(dt: float) -> void:
 	if WorldState.has_flag(DRIVEN_OFF):
+		return
+	# All seven already held with the barracks back too (the town retaken, then
+	# freed): no outpost is left to take, so the drive-off happens here.
+	if lost() == Story.OUTPOSTS.size() and not WorldState.has_flag(RETAKEN):
+		_drive_off()
+		_sync_flags()
 		return
 	var warn := n("supply_warn_s", 420.0)
 	for id in held():
