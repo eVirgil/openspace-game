@@ -2,6 +2,17 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Half the barge crowd is unarmed; the guards wear navy (2026-11-02)
+
+- **Only half the party barge's dancers carry a pistol.** Hurt anyone on
+  board and every other dancer draws and fights, as before; the rest have no
+  gun and keep dancing through the fight. They can still be shot and cut
+  down (`armed_share` in `content/core/barges/party_barge.json`).
+- **The barge's two guards wear the navy guard armour.** Gunmetal plate with
+  blue trim, a navy cloth and a pale blue visor (`barge_guard` in
+  `content/look/characters.json`), so they read as the boss's own men, not
+  the locals' guards. Still killable, rifles up as before.
+
 ## The map shows the real desert (2026-11-02)
 
 - **The globe on the Map page (M) shows the ground faintly under its lines.**
