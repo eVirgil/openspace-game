@@ -2069,8 +2069,10 @@ func place_fleet() -> void:
 	if fleet_placed or berths.is_empty():
 		return
 	fleet_placed = true
-	if Fleet.lan() and not berths.is_empty():
-		_stow(0)            # issue #401: a LAN guest's pit pad is the host's (their ship shows there)
+	# Issue #401: a LAN guest's pit pad is the host's (their ship shows there), unless
+	# the guest flew in on their own (Fleet.LAN, the moon handoff): that one is theirs.
+	if Fleet.lan() and not berths.is_empty() and str(berths[0].get("key", "")) != Fleet.LAN:
+		_stow(0)
 	var here := GameFlow.current_planet_id()
 	for e in Fleet.owned():
 		var key := str(e.key)
