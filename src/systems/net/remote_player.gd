@@ -1,8 +1,11 @@
 extends StaticBody3D
 ## Issue #401: another LAN player, in this town. The smuggler's own avatar
-## (PlayerAvatar) in that player's outfit (kept up as they change it), their name floating over it, walking,
-## sprinting, crouching and jumping as they do, the weapon in their hand and aimed
-## where they look.
+## (PlayerAvatar) in that player's outfit (kept up as they change it), their name
+## floating over it, walking, sprinting, crouching and jumping as they do, the
+## weapon in their hand: raised while they aim or fire, lowered while they sprint,
+## pointed where their crosshair is, kicking as they shoot; the blade swinging and
+## blocking as theirs. The body faces where they look whenever their own would (a
+## weapon up, first person).
 ##
 ## Friendly fire (lan.json "friendly_fire"): the body is solid, like a guard's, and
 ## your bolts and blade land on it. It takes no damage itself: the hit goes to
@@ -115,6 +118,17 @@ func _physics_process(dt: float) -> void:
 	avatar.current = weapon
 	avatar.drawn = float(_s.drawn)
 	avatar.set_blade_extent(float(_s.drawn) if weapon == "energy_blade" else 0.0)
+	# Aiming as they do: the gun comes up while they hold the trigger or aim (always
+	# in first person, where the body also faces the look), drops while they
+	# sprint, points where their crosshair is; the blade swings as theirs does.
+	var fp := (flags & 128) != 0                  # NetLink.F_FIRST_PERSON
+	avatar.aim_wanted = (flags & 32) != 0 or fp   # NetLink.F_AIM
+	avatar.sprint_lowered = (flags & 64) != 0     # NetLink.F_SPRINT_LOW
+	avatar.face_aim = fp
+	avatar.aim_target = _s.get("aim_at", Vector3.INF)
+	avatar.sword_pose = _s.get("sword", {}) if weapon == "energy_blade" else {}
+	avatar.sword_trail_on = weapon == "energy_blade" and (flags & 256) != 0   # NetLink.F_CUTTING
+	avatar.reload = float(_s.get("reload", -1.0))
 	avatar.animate(dt, {
 		"velocity": _s.vel,
 		"grounded": (flags & 1) != 0,
