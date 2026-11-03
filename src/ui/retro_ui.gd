@@ -33,6 +33,7 @@ static var text_scale := -1.0
 static var _ui: Dictionary = {}
 static var _loaded := false
 static var _fonts: Dictionary = {}
+static var _icons: Dictionary = {}
 
 
 ## The player's colour, read once from the settings file.
@@ -154,6 +155,10 @@ static func skin(c: Control) -> void:
 		legible(c, c.get_theme_color("font_color"), c.get_theme_font_size("font_size"))
 	elif c is CheckBox or c is CheckButton:
 		c.add_theme_font_override("font", font("Bold"))
+		if c is CheckBox:
+			for k in ["unchecked", "checked", "unchecked_disabled", "checked_disabled",
+					"radio_unchecked", "radio_checked", "radio_unchecked_disabled", "radio_checked_disabled"]:
+				c.add_theme_icon_override(k, check_icon(k))
 		for k in ["font_color", "font_focus_color", "font_pressed_color"]:
 			c.add_theme_color_override(k, a)
 		c.add_theme_color_override("font_hover_color", bright)
@@ -220,6 +225,30 @@ static func skin(c: Control) -> void:
 			for side in ["left", "right", "top", "bottom"]:
 				sb.set("content_margin_" + side, old.get("content_margin_" + side))
 		c.add_theme_stylebox_override("panel", sb)
+
+
+## A checkbox's box. The default one is dark and vanishes on the dark glass, so
+## an empty box is white, and a ticked one is the phosphor colour with a dark tick.
+## SVG, so it stays sharp at any UI scale.
+static func check_icon(key: String) -> Texture2D:
+	var id := "%s_%s" % [key, accent.to_html()]
+	if _icons.has(id):
+		return _icons[id]
+	var on := not key.contains("unchecked")
+	var off_alpha := 0.45 if key.ends_with("_disabled") else 1.0
+	var rim := accent.darkened(0.6).to_html(false)
+	var fill := accent.to_html(false) if on else "ffffff"
+	var shape := '<circle cx="9" cy="9" r="7.5"' if key.begins_with("radio") \
+			else '<rect x="1.5" y="1.5" width="15" height="15" rx="2"'
+	var mark := ""
+	if on:
+		mark = '<circle cx="9" cy="9" r="3.5" fill="#000"/>' if key.begins_with("radio") \
+				else '<path d="M4.5 9.5l3 3 6-7" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+	var svg := ('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><g opacity="%s">'
+			+ '%s fill="#%s" stroke="#%s" stroke-width="1.5"/>%s</g></svg>') % [off_alpha, shape, fill, rim, mark]
+	var tex := DPITexture.create_from_string(svg)
+	_icons[id] = tex
+	return tex
 
 
 ## Text that reads on anything: a dark edge right round each letter (the text's
