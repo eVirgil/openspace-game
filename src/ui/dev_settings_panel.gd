@@ -1267,11 +1267,11 @@ const KEYS := [
 		["I", "What you carry, the job log, and Call (your ship flies to you)"],
 	]],
 	["Weapons", [
-		["1 / 2 / 3", "Blaster / energy sword / rifle (same key again holsters)"],
+		["1 / 2 / 3 / 4", "Blaster / rifle / energy sword / sniper rifle (same key again holsters)"],
 		["Q / H", "Last weapon / holster"],
 		["Tab or wheel", "Next weapon"],
 		["Left mouse", "Fire or swing"],
-		["Right mouse", "Aim (blaster) or block (sword), toggles"],
+		["Right mouse", "Aim (blaster) or block (sword), toggles; with the sniper a second click zooms in twice as far"],
 		["R", "Reload"],
 	]],
 	["Flying", [

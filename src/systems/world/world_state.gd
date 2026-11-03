@@ -158,7 +158,10 @@ static func owns_ship() -> bool:
 ## Issue #200: may the player draw hand weapon `id`? Freeplay: all of them. Story:
 ## the pistol, and any other once you own it (issue #210: the rifle on the barracks
 ## roof, the blade on the cantina tower) or something sets its "weapon_<id>" flag.
+## A weapon whose item is "must_own" (the fence's sniper rifle) needs owning in both.
 static func weapon_allowed(id: String) -> bool:
+	if bool(_item(id).get("must_own", false)):
+		return inventory.has(id) or has_flag("weapon_" + id)
 	return not story_mode() or id == STORY_WEAPON or inventory.has(id) or has_flag("weapon_" + id) \
 		or (id == "energy_blade" and inventory.in_slot("blade") != "")     # an activated red saber is a blade too
 

@@ -1,0 +1,9 @@
+{
+  "id": "sniper_rifle",
+  "label": "Sniper rifle",
+  "kind": "weapon",
+  "value": 600,
+  "look": "rifle_case",
+  "must_own": true,
+  "note": "The sniper rifle as something you own. 'must_own': it can only be drawn while you carry it, in a story save and in free roam alike (WorldState.weapon_allowed). The fence sells it from day one."
+}

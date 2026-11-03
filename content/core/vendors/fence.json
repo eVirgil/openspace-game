@@ -22,6 +22,7 @@
     { "id": "rifle_damage", "label": "Rifle: overcharged cells", "about": "75% more damage", "price": 300, "target": "rifle_blaster", "mult": { "damage": 1.75 } },
     { "id": "rifle_rate", "label": "Rifle: hair trigger", "about": "fires 60% faster", "price": 300, "target": "rifle_blaster", "mult": { "rate": 0.62 } },
     { "id": "jetpack_fuel", "label": "Jetpack: long-range tank", "about": "twice the fuel", "price": 250, "target": "jetpack", "mult": { "jetpack.fuel": 2.0 } },
+    { "id": "sniper_rifle", "label": "Sniper rifle", "about": "a long black rifle that hits dead on at 100 m; weapon 4", "price": 600, "item": "sniper_rifle", "endless": true },
     { "id": "quantonium_armour", "label": "Quantonium armour", "about": "triples your health; wear it like the jetpack", "price": 500, "item": "quantonium_armour", "endless": true, "requires": { "counters": { "bounties_paid": 1 } },
       "locked": "after your first bounty is paid" }
   ],

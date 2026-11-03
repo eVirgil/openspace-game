@@ -12,6 +12,8 @@ extends RefCounted
 ## that block from the model's mesh, and the scope sits low on a rail in its place,
 ## in scope_metal.gdshader (anodised, knurled, grooved, worn).
 ## Pistol: a front post and a pair of rear blades with a notch between them.
+## Sniper rifle: the rifle's scope with no reticle in it ("digital": PlayerWeapons
+## draws one on screen with the range) and a longer barrel (build_barrel).
 
 const RETICLE_ENERGY := 3.0
 const SCOPE_METAL := preload("res://src/systems/look/shaders/scope_metal.gdshader")
@@ -31,6 +33,8 @@ static func add_to(model: Node3D, spec: Dictionary) -> void:
 		model.add_child(build_scope(spec.scope))
 	if spec.get("sights") is Dictionary:
 		model.add_child(build_iron_sights(spec.sights))
+	if spec.get("barrel") is Dictionary:
+		model.add_child(build_barrel(spec.barrel, spec.get("dark", {})))
 
 
 static func _v3(a, d := Vector3.ZERO) -> Vector3:
@@ -304,7 +308,47 @@ static func build_scope(s: Dictionary) -> Node3D:
 		d.radial_segments = 20
 		var lens := _mesh(root, d, g[2], Vector3(0, 0, g[1]), Vector3(90, 0, 0))
 		lens.name = "Lens"
-	root.add_child(_reticle(Color.html(str(s.get("reticle", "#ff2a1a"))), r - 0.003))
+	if bool(s.get("digital", false)):
+		var none := Node3D.new()        # drawn on screen instead (DigitalReticle); scope_view still toggles it
+		none.name = "Reticle"
+		root.add_child(none)
+	else:
+		root.add_child(_reticle(Color.html(str(s.get("reticle", "#ff2a1a"))), r - 0.003))
+	return root
+
+
+## The sniper rifle's longer barrel (hand_weapons "barrel"): a plain tube along +Z
+## from inside the model's own barrel (`from`, at height `y`) for `length`, a collar
+## over the joint (at `collar`) and a brake at its end. In the gun's weapon_dark material
+## (white texture, so all body), so aimed in it runs out under the scope with the
+## rest of the barrel and is pinned to the eye like it (scope_view, pin).
+static func build_barrel(b: Dictionary, dark: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Barrel"
+	var img := Image.create(1, 1, false, Image.FORMAT_RGB8)
+	img.fill(Color(0.6, 0.6, 0.6))
+	var mat := ShaderMaterial.new()
+	mat.shader = DARK
+	mat.set_shader_parameter("albedo_tex", ImageTexture.create_from_image(img))
+	for k in ["body_mul", "accent_mul", "glow", "rim", "fill"]:
+		if dark.has(k):
+			mat.set_shader_parameter(k, float(dark[k]))
+	root.position = Vector3(0, float(b.get("y", 0.0)), 0)
+	var z0 := float(b.get("from", 0.0))
+	var length := float(b.get("length", 0.25))
+	var r := float(b.get("radius", 0.012))
+	var brake := float(b.get("brake", 0.0))
+	var tube := _tube(root, r, r, length - brake, z0 + (length - brake) * 0.5, mat, true)
+	tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_tube(root, r * 1.45, r * 1.45, 0.03, float(b.get("collar", z0 + 0.015)), mat, true)
+	if brake > 0.0:
+		var br := _tube(root, r * 1.35, r * 1.35, brake, z0 + length - brake * 0.5, mat, true)
+		br.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# Ports cut across the brake: dark slots either side.
+		for i in 3:
+			var slot := BoxMesh.new()
+			slot.size = Vector3(r * 2.9, r * 0.9, brake * 0.14)
+			_mesh(root, slot, _metal(Color(0.005, 0.005, 0.006), 0.9), Vector3(0, 0, z0 + length - brake * (0.25 + 0.25 * i)))
 	return root
 
 

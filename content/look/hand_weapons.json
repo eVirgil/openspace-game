@@ -64,6 +64,39 @@
     "sound_pitch": 0.72,
     "slot": 3
   },
+  "sniper_rifle": {
+    "note": "The fence's sniper rifle: the rifle's own model, near black (dark), a longer barrel run out of its own (barrel, model space: the model's barrel is centred at y 0.048 and ends at z 0.475, so the tube starts inside it and a collar covers the joint), and a scope whose reticle is drawn on screen as a digital one with the range to the target (digital; PlayerWeapons). ads zoom_steps: right-click aims at the first, a second right-click goes to the next, one more puts it down.",
+    "model": "res://assets/gear/rifle.glb",
+    "scale": 1.0,
+    "retint": false,
+    "tint": { "glow": "#ff5a2a", "ring": "#0c0c0d" },
+    "dark": { "body_mul": 0.07, "accent_mul": 0.1, "glow": 0.0, "rim": 0.25, "fill": 0.12 },
+    "ads": { "sight": [0.0, 0.172, -0.1], "relief": 0.11, "mag": 2.5, "zoom_steps": [2.5, 5.0], "blend_s": 0.15 },
+    "cut": {
+      "boxes": [
+        { "min": [-0.07, 0.1195, -0.085], "max": [0.07, 0.25, 0.135] },
+        { "min": [-0.05, 0.118, 0.4], "max": [0.05, 0.2, 0.47] }
+      ]
+    },
+    "barrel": { "y": 0.048, "from": 0.43, "length": 0.34, "radius": 0.019, "collar": 0.475, "brake": 0.055 },
+    "scope": {
+      "pos": [0.0, 0.172, 0.02], "length": 0.24, "radius": 0.024, "ocular": 0.029, "objective": 0.034,
+      "rings": [-0.065, 0.075], "rail_y": 0.114, "reticle": "#ff3a1e", "digital": true,
+      "weave": 0.0, "accent": "#0b0b0c", "accent_glow": 0.0,
+      "barrel_from": 0.42
+    },
+    "grips": { "r": [-0.025, -0.08, -0.11], "l": [0.0, -0.035, 0.14] },
+    "mag": [0.0, -0.14, 0.06],
+    "reload_out": [0.24, -0.04, -0.06],
+    "muzzle": [0.0, 0.048, 0.77],
+    "aim": { "pos": [-0.13, 0.17, 0.5], "rot": [0, 0, 0], "pivot": [0.0, -0.02, -0.475] },
+    "aim_fpv": { "pos": [-0.19, 0.1, 0.47], "rot": [4, 13, 0] },
+    "fpv_pose": { "r": "trigger", "l": "support" },
+    "holster": "back",
+    "sound": "res://assets/third_party/kenney_starter_kit_fps/sounds/blaster.ogg",
+    "sound_pitch": 0.6,
+    "slot": 4
+  },
   "wheel": {
     "note": "The Tab weapon wheel (issue #410). hold_time: seconds of Tab before it opens (shorter is a tap that cycles). dead_zone: fraction of the radius that is the middle. mouse_pixels: mouse travel from the middle to the rim. radius and inner are on-screen pixels.",
     "hold_time": 0.2,
