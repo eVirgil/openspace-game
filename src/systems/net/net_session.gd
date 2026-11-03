@@ -213,23 +213,31 @@ static func spot_by_pad(box: Dictionary, toward: Vector3) -> Array:
 	return [at, atan2(c.x - at.x, c.z - at.z)]
 
 
-## The other players on foot in this town within mark_m of `from`, nearest first:
-## [{ name, pos }]. The HUD and the F11 map mark them (mark_color). Only reads
-## the bodies the town already has, so it is cheap to call every frame.
-static func others_near(from: Vector3) -> Array:
+## The other players on foot in this town: [{ id, name, pos }]. The F11 map shows
+## them (mark_color), and one can be the waypoint ("player:<id>"). Only reads the
+## bodies the town already has.
+static func others() -> Array:
 	var out: Array = []
-	if not active() or from == Vector3.INF:
+	if not active():
 		return out
-	var max_m := n("mark_m", 3000.0)
 	for id in link.bodies:
 		var b = link.bodies[id]
-		if b == null or not is_instance_valid(b) or not b.is_visible_in_tree():
-			continue
-		var at: Vector3 = (b as Node3D).global_position
-		if at.distance_to(from) <= max_m:
-			out.append({ "name": str(b.player_name), "pos": at })
-	out.sort_custom(func(a, b): return (a.pos as Vector3).distance_to(from) < (b.pos as Vector3).distance_to(from))
+		if b != null and is_instance_valid(b) and b.is_visible_in_tree():
+			out.append({ "id": int(id), "name": str(b.player_name), "pos": (b as Node3D).global_position })
 	return out
+
+
+## Where player `id` stands in this town, or INF (in a ship, on another planet).
+static func player_pos(id: int) -> Vector3:
+	var b = link.bodies.get(id, null) if active() else null
+	if b == null or not is_instance_valid(b) or not b.is_visible_in_tree():
+		return Vector3.INF
+	return (b as Node3D).global_position
+
+
+## Player `id` is still in the game.
+static func in_game(id: int) -> bool:
+	return active() and link.roster.has(id)
 
 
 static func mark_color() -> Color:

@@ -6,14 +6,15 @@ Plain English, newest on top. One entry per milestone.
 
 - **The other players were there, just hard to find.** A guest arrives by a
   pad down in the pit, often 80 m or more from the host, and the name over
-  their head was a few centimetres of cream text, the colour of an NPC's
-  speech: past a few metres you could not tell a player from a townsperson.
-- **Their name is blue and the same size on screen at any distance.**
-- **A blue mark on the HUD** for each other player on foot within 3 km, past
-  25 m: a diamond over them, through walls, with their name and how far.
-- **On the F11 map** they show as a blue dot with their name.
-- Tunable in `content/core/flow/lan.json` (`name_px`, `mark_m`, `mark_near_m`,
-  `mark_color`).
+  their head was a few centimetres of text the colour of an NPC's speech: past
+  a few metres you could not tell a player from a townsperson.
+- **Their name is the same size on screen at any distance.**
+- **On the F11 map** each other player on foot is a blue dot with their name.
+  Click one and they are your waypoint: the HUD's pointer follows them with a
+  blue diamond (the line stays white), and clears when you reach them or they
+  leave the game.
+- Tunable in `content/core/flow/lan.json` (`name_px`, `mark_color`,
+  `waypoint_arrive_m`).
 
 ## The wreck field is cheaper to look at (2026-11-03)
 

@@ -68,13 +68,13 @@ func _ready() -> void:
 	tag.text = player_name
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.position.y = NetSession.n("name_height", 2.15)
-	# The same size on screen however far, in the players' blue, not the cream of
-	# an NPC's speech. Further off the HUD marks them too (ObjectiveHud).
+	# The same size on screen however far. Further off the HUD marks them too
+	# (ObjectiveHud).
 	tag.fixed_size = true
 	tag.pixel_size = NetSession.n("name_px", 0.0011)
 	tag.font_size = 40
 	tag.outline_size = 10
-	tag.modulate = NetSession.mark_color()
+	tag.modulate = Color(1.0, 0.93, 0.78)
 	add_child(tag)
 	visible = false               # until the first packet places it
 
