@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.5 (2026-11-03)
+
+- Share builds are now **OpenSpace V1.5**. Everything below, down to "New
+  version is 1.4", is in it.
+
 ## The wreck field is cheaper to look at (2026-11-03)
 
 - **The four crashed cruisers look the same and cost far less to draw.** Their
