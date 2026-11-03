@@ -113,21 +113,36 @@
       "res://assets/audio/music/ambient5.mp3",
       "res://assets/audio/music/ambient6.mp3",
       "res://assets/audio/music/ambient7.mp3",
-      "res://assets/audio/music/ambient8.mp3"
+      "res://assets/audio/music/ambient8.mp3",
+      "res://assets/audio/music/ambient9.mp3",
+      "res://assets/audio/music/ambient10.mp3",
+      "res://assets/audio/music/ambient11.mp3",
+      "res://assets/audio/music/ambient12.mp3",
+      "res://assets/audio/music/ambient13.mp3",
+      "res://assets/audio/music/ambient14.mp3"
     ],
     "ambient_sources": {
-      "note": "Ambient 4-8 are CC0 (public domain, no attribution needed) from OpenGameArt.org, re-encoded like tools/audio/rip_music.sh. Ambient 1-3 are the owner's Pixabay downloads.",
-      "res://assets/audio/music/ambient4.mp3": "https://opengameart.org/content/galactic-temple",
-      "res://assets/audio/music/ambient5.mp3": "https://opengameart.org/node/182246",
-      "res://assets/audio/music/ambient6.mp3": "https://opengameart.org/content/the-budding-of-consciousness-%E2%80%93-cc0-ambient-minimalist-theme-yoiyami-blue-series-%E2%80%93-no4",
-      "res://assets/audio/music/ambient7.mp3": "https://opengameart.org/node/97098",
-      "res://assets/audio/music/ambient8.mp3": "https://opengameart.org/content/contemplation-0"
+      "note": "Laid-back 80s synth: slow, soft steady beat, long pads, no vocals. Ambient 1-3 are the owner's Pixabay downloads; 4-14 are Pixabay too (Pixabay Content License, no attribution needed), picked against the owner's two reference tracks (ambient10 and ambient12), re-encoded like tools/audio/rip_music.sh. They replace five CC0 tracks that were too cinematic.",
+      "res://assets/audio/music/ambient4.mp3": "https://pixabay.com/music/synthwave-80x-deep-synthwave-203118/",
+      "res://assets/audio/music/ambient5.mp3": "https://pixabay.com/music/synthwave-chill-synthwave-561437/",
+      "res://assets/audio/music/ambient6.mp3": "https://pixabay.com/music/synthwave-chill-synthwave-563935/",
+      "res://assets/audio/music/ambient7.mp3": "https://pixabay.com/music/upbeat-dreamy-synthwave-music-349457/",
+      "res://assets/audio/music/ambient8.mp3": "https://pixabay.com/music/beats-emerald-21054/",
+      "res://assets/audio/music/ambient9.mp3": "https://pixabay.com/music/synthwave-midnight-synthwave-317752/",
+      "res://assets/audio/music/ambient10.mp3": "https://pixabay.com/music/synthwave-synthwave-retro-80s-529570/",
+      "res://assets/audio/music/ambient11.mp3": "https://pixabay.com/music/synthwave-synthwave-retrowave-chillwave-vaporwave-starchill-198857/",
+      "res://assets/audio/music/ambient12.mp3": "https://pixabay.com/music/synthwave-80x-chill-synthwave-201658/",
+      "res://assets/audio/music/ambient13.mp3": "https://pixabay.com/music/high-non-rhythmic-drones-synthwave-soundscape-348458/",
+      "res://assets/audio/music/ambient14.mp3": "https://pixabay.com/music/synthwave-zhfynx-292990/"
     },
     "battle": { "stream": "res://assets/audio/music/battle.mp3", "start": 30.0 },
+    "battle_2": { "stream": "res://assets/audio/music/battle2.mp3", "start": 0.0,
+      "source": "https://pixabay.com/music/synthwave-midnight-run-90x27s-synthwave-384109/" },
     "space":  { "stream": "res://assets/audio/music/space.mp3", "start": 0.0 },
     "fade": 4.0,
     "battle_fade_in": 0.05,
     "battle_cut": 0.25,
-    "battle_hold": 15.0
+    "battle_hold": 15.0,
+    "battle_blend": 2.0
   }
 }

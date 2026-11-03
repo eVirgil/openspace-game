@@ -13,12 +13,14 @@ extends Node
 ##   Sound.club_vibe("hard")            Oda changes the song to one with that mood
 ##   Sound.radio_next()                 issue #291: J in a ship, the next station
 ##
-## The music is eight ambient tracks that play in a shuffled order (a new one
-## each game) with cross-fades, a battle track
-## (from 30 s in) while NPCs are shooting at you and for `battle_hold` seconds
-## after, and a space track during a fight in orbit (not for being up there:
-## nothing marks where space starts). Space beats battle beats
-## ambient. Credits going up or down make a coin sound wherever they changed.
+## The music is the ambient tracks, played in a shuffled order (a new one each
+## game) with cross-fades; a battle track (from 30 s in) while NPCs are shooting
+## at you and for `battle_hold` seconds after, and when it runs out with the fight
+## still on, `battle_2` blends in and loops for as long as it lasts (a long fight,
+## like the climb up the cruiser); the next fight starts on the first again. And a
+## space track during a fight in orbit (not for being up there: nothing marks where
+## space starts). Space beats battle beats ambient. Credits going up or down make
+## a coin sound wherever they changed.
 ##
 ## Issue #104: the club mix is a layer of its own (two more decks on the Club
 ## bus) over the score (the decks above, on the Score bus). Near a cantina it
@@ -51,6 +53,7 @@ var cfg: Dictionary
 var mode := ""                 ## what the music plays: "", "ambient", "battle", "space"
 var in_space := false
 var battle_left := 0.0
+var battle_part := 0           ## 1 the first battle track, 2 `battle_2` after it (0 not in a fight)
 var ambient_track := ""       ## the ambient path playing now
 var _ambient_bag: Array = []   ## issue #291: ambient paths still to play, shuffled
 var music_on := false
@@ -146,6 +149,12 @@ static func carried_loop(key: String) -> AudioStreamPlayer:
 static func battle() -> void:
 	var s := lib()
 	s.battle_left = float(s.cfg.get("music", {}).get("battle_hold", 15.0))
+
+
+## The fight is over (the general dead at the top of the cruiser): the battle
+## music ends now, not `battle_hold` later, and the next shot starts it afresh.
+static func end_battle() -> void:
+	lib().battle_left = 0.0
 
 
 static func set_space(on: bool) -> void:
@@ -257,12 +266,29 @@ func _process(dt: float) -> void:
 	var want := want_mode()
 	if want != mode:
 		_switch(want)
-	elif mode == "ambient" and _deck.playing and _deck.stream != null:
-		# Near the end of an ambient track: cross-fade into the next one.
-		if _deck.get_playback_position() >= _deck.stream.get_length() - _fade():
-			_switch("ambient")
+	elif _ends_soon():
+		_switch(mode)                  # the next ambient track, or battle 1 into battle 2
 	elif not _deck.playing:
 		_switch(mode)
+
+
+## Near the end of the track on the deck, with another to blend into: an ambient
+## track, or the first battle track when there is a `battle_2`.
+func _ends_soon() -> bool:
+	if not _deck.playing or _deck.stream == null:
+		return false
+	var blend := _fade()
+	if mode == "battle":
+		if battle_part != 1 or not _has_battle_2():
+			return false
+		blend = float(cfg.get("music", {}).get("battle_blend", 2.0))
+	elif mode != "ambient":
+		return false
+	return _deck.get_playback_position() >= _deck.stream.get_length() - blend
+
+
+func _has_battle_2() -> bool:
+	return str(cfg.get("music", {}).get("battle_2", {}).get("stream", "")) != ""
 
 
 ## What the music should be playing right now.
@@ -286,6 +312,8 @@ func _switch(to: String) -> void:
 	if to == "battle" or (mode == "battle" and to != "ambient"):
 		fade_in = float(m.get("battle_cut", 0.25))
 		fade_out = float(m.get("battle_cut", 0.25))
+	# Already fighting: the first battle track ran out, so the second takes over.
+	battle_part = (2 if mode == "battle" and _has_battle_2() else 1) if to == "battle" else 0
 	match to:
 		"ambient":
 			var list: Array = m.get("ambient", [])
@@ -301,16 +329,21 @@ func _switch(to: String) -> void:
 			path = str(_ambient_bag.pop_back())
 			ambient_track = path
 		"battle", "space":
-			var c: Dictionary = m.get(to, {})
+			var c: Dictionary = m.get("battle_2" if battle_part == 2 else to, {})
 			path = str(c.get("stream", ""))
 			start = float(c.get("start", 0.0))
-			if to == "battle":
+			if battle_part == 1:
 				fade_in = float(m.get("battle_fade_in", 0.05))
+			elif battle_part == 2:
+				fade_in = float(m.get("battle_blend", 2.0))
+				fade_out = fade_in
 	mode = to
 	var stream := _load(path)
 	if stream == null:
 		return
-	if to != "ambient":
+	# Every track but an ambient one loops, except a first battle track with a
+	# second to follow it.
+	if to != "ambient" and not (battle_part == 1 and _has_battle_2()):
 		stream = _looping(stream, start)
 	# Swap decks: the old track fades out while the new one fades in.
 	var old := _deck

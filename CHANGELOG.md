@@ -2,6 +2,17 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Chill 80s synth score, and a second battle track for long fights (2026-11-02)
+
+- **The background music is laid-back 80s synth now.** Eleven new tracks, picked
+  to sound like the owner's two favourites (slow, soft beat, long pads, no
+  vocals), replace the five that were too cinematic. Fourteen in the shuffle.
+- **Long fights get a second battle track.** When the battle music runs out and
+  people are still shooting at you, a second track takes over and lasts the whole
+  fight, which suits the climb up the cruiser.
+- **The cruiser's music ends at the top** when the general dies, and **starts
+  again when the dark master attacks you**. His sword fight has battle music now.
+
 ## New version is 1.4 (2026-11-02)
 
 - Share builds are now **OpenSpace V1.4**. Everything below, down to "New
