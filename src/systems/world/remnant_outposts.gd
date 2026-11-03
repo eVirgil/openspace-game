@@ -30,6 +30,9 @@ extends Node3D
 ## troopers and droids return the same way, once you are swap_dist away. Issue
 ## #393: the outpost's red band, door frame, lamps and banner turn the locals'
 ## green with the swap, and back (LookMaterials.repaint, this outpost's group).
+## Issue #425: once the cruiser has fallen the Remnant run short here too; a
+## friend of theirs pointed at the outpost's resupply quest hands a load over
+## on walking up (Territory.deliver_remnant).
 
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
@@ -207,6 +210,9 @@ func _tick_control(dt: float, p: Node3D) -> void:
 			if o.side == Territory.LOCALS and Territory.can_deliver(id) and away <= Territory.n("supply_reach", 25.0):
 				var pay := Territory.deliver(id)
 				_toast(Territory.line("supplied") % [o.label, pay])
+			elif o.side == Territory.REMNANT and Territory.can_deliver_remnant(id) and away <= Territory.n("supply_reach", 25.0):
+				var pay := Territory.deliver_remnant(id)     # issue #425: a load for the Remnant
+				_toast(Territory.line("remnant_supplied") % [o.label, pay])
 			continue
 		o.wait = float(o.wait) + dt
 		# Change hands out of sight; the locals also walk in while you watch.

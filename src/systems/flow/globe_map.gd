@@ -14,7 +14,9 @@ extends RefCounted
 ## Who holds a place (Territory): the Remnant's outposts and the port's barracks
 ## also carry { owner, short, hold, status }. The globe draws what the locals hold
 ## green (yellow-green and "Resupply needed" while their supplies run short), a
-## ring round a held outpost for the time left (`hold`, 0..1, -1 = none), and
+## ring round a held outpost for the time left (`hold`, 0..1, -1 = none; issue
+## #425: the Remnant's too once the cruiser has fallen, orange while they run
+## short and you could resupply them), and
 ## `status` joins the name on hover. Read when the pins are built, which the page
 ## does each time it opens.
 ##
@@ -216,6 +218,9 @@ static func _stamp_owner(pin: Dictionary, place: String) -> void:
 	pin["hold"] = Territory.hold_frac(place)
 	pin["status"] = ""
 	if who != Territory.LOCALS:
+		if float(pin.hold) >= 0.0:         # issue #425: the Remnant cut off, on a clock
+			var rleft := int(maxf(0.0, Territory.hold_left(place)))
+			pin["status"] = (line("short") if is_short else line("remnant_held_for")) % [rleft / 60, rleft % 60]
 		return
 	if place == Territory.BARRACKS or WorldState.has_flag(Territory.DRIVEN_OFF):
 		pin["status"] = line("held")

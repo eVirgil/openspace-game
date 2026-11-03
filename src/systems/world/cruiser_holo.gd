@@ -142,12 +142,15 @@ func _process(dt: float) -> void:
 
 
 ## Who holds `id` (an outpost, or Territory.BARRACKS for the port) as the holo's
-## colour: the Remnant's, the locals', or the locals' running short.
+## colour: the Remnant's, the locals', or either side running short (issue #425:
+## the Remnant once the cruiser has fallen).
 func owner_color(id: String) -> Color:
 	var cols: Dictionary = spec.get("owner_colors", {})
 	var key := Territory.owner(id)
 	if key == Territory.LOCALS and Territory.short_shown(id):
 		key = "short"
+	elif key == Territory.REMNANT and Territory.short_shown(id):
+		key = "remnant_short"
 	return Color(str(cols.get(key, spec.get("town_color", "#ffc23a"))))
 
 
