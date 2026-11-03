@@ -2,7 +2,7 @@
   "id": "barge_partygoer",
   "base": "local_resident",
   "label": "Partygoer",
-  "note": "A dancer on a party barge (src/systems/world/party_barge.gd) once you hurt anyone on board: swapped where they stand for this body, wearing their own look (the barge sets 'archetype'), holdout pistol out, run by the barge's own Townsfolk with standing off. They keep to the barge (short leashes, no cover out there) and go back to dancing once it is over. Only the blocks below differ from local_resident.json.",
+  "note": "An armed dancer on a party barge (src/systems/world/party_barge.gd; only the barge's 'armed_share' of the crowd, the rest keep dancing) once you hurt anyone on board: swapped where they stand for this body, wearing their own look (the barge sets 'archetype'), holdout pistol out, run by the barge's own Townsfolk with standing off. They keep to the barge (short leashes, no cover out there) and go back to dancing once it is over. Only the blocks below differ from local_resident.json.",
   "combat": {
     "cover_search_radius": 0.0,
     "search_leash": 8.0,

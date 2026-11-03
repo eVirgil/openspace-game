@@ -70,7 +70,7 @@ var home := Vector3.ZERO
 var travelled := 0.0
 var boss_hp := 400.0
 var party_frames := 0                 ## frames the crowd and band were animated (traces)
-var people: Array = []                ## { node, body, look, hit, deck, kind, perform, spot, yaw, off, hp, dead, back_at, fall, ragdoll, fighter }
+var people: Array = []                ## { node, body, look, hit, deck, kind, perform, spot, yaw, off, hp, dead, back_at, fall, ragdoll, fighter, armed }
 var band: Array = []                  ## the performers: the band on top, the DJ below
 var boss: Node3D
 var console_spot := Vector3.ZERO      ## local: where you stand at the panel
@@ -551,8 +551,16 @@ func _plan_people() -> void:
 	var crowd: Dictionary = cfg.get("crowd", {})
 	var looks: Array = cfg.get("crowd_looks", ["local"])
 	var top := float(_y[2])
+	# Only armed_share of the crowd carry a pistol, spread evenly through it; the rest
+	# keep dancing when a fight starts (_provoke).
+	var share := clampf(float(cfg.get("armed_share", 1.0)), 0.0, 1.0)
+	var dancers := [0]
 	var add := func(look_id: String, at: Vector3, deck: String, kind: String, yaw: float, perform: String) -> void:
-		_pending.append({ "look": look_id, "at": at, "deck": deck, "kind": kind, "yaw": yaw, "perform": perform })
+		var armed := true
+		if kind == "dancer":
+			armed = floori((dancers[0] + 1) * share) > floori(dancers[0] * share)
+			dancers[0] += 1
+		_pending.append({ "look": look_id, "at": at, "deck": deck, "kind": kind, "yaw": yaw, "perform": perform, "armed": armed })
 	for i in int(crowd.get("top", 12)):
 		add.call(looks[i % looks.size()], _free_spot("top"), "top", "dancer", INF, "")
 	for i in int(crowd.get("lower", 7)):
@@ -569,7 +577,7 @@ func _plan_people() -> void:
 	add.call(str(cfg.get("band_look", "club_band")), Vector3(0, _y[1], -_L * 0.5 + 0.4 + 3.0), "lower", "band", 0.0, "dj")
 	# Guards either side of the dais (they groove too; they never draw).
 	for i in int(cfg.get("guards", 2)):
-		add.call("desert_guard", _boss_home + Vector3((i * 2 - 1) * 2.6, 0, -0.5), "top", "guard", 0.0, "")
+		add.call(str(cfg.get("guard_look", "desert_guard")), _boss_home + Vector3((i * 2 - 1) * 2.6, 0, -0.5), "top", "guard", 0.0, "")
 	add.call(str(cfg.get("boss", {}).get("look", "barge_duke")), _boss_home, "top", "boss", 0.0, "")
 
 
@@ -583,6 +591,7 @@ func _build_party() -> void:
 		return
 	var s: Dictionary = _pending.pop_front()
 	var p := _add_person(s.look, s.at, s.deck, s.kind, s.yaw)
+	p.armed = s.armed
 	if s.perform != "":
 		p.perform = s.perform
 		band.append(p)
@@ -637,7 +646,7 @@ func _add_person(look_id: String, at: Vector3, deck: String, kind: String, yaw :
 		holder.add_child(body)
 	var p := { "node": holder, "body": body, "look": look_id, "deck": deck, "kind": kind, "perform": "", "off": _rng.randf() * 30.0,
 		"spot": at, "yaw": holder.rotation.y, "beat": 0.0, "hp": float(cfg.get("person_hp", 60)), "dead": false,
-		"back_at": 0.0, "fall": 0.0, "rest": body.transform, "ragdoll": null, "fighter": null }
+		"back_at": 0.0, "fall": 0.0, "rest": body.transform, "ragdoll": null, "fighter": null, "armed": true }
 	p.hit = _hit_for(p)
 	people.append(p)
 	return p
@@ -958,7 +967,8 @@ func _party_changed() -> void:
 
 ## The player hurt someone on board: the crowd and the guards fight back. Each is
 ## swapped where they stand for a real NpcBody (profiles content/core/soldiers/
-## barge_*.json, "fighters" in the barge's data, wearing their own look), one a
+## barge_*.json, "fighters" in the barge's data, wearing their own look; the
+## unarmed share of the crowd, "armed_share", keeps dancing), one a
 ## tick, nearest the player first, run by a Townsfolk of the barge's own with
 ## standing off, so the fight costs no one's standing. The band plays on and the
 ## boss only shouts. Once their alarm is down, each walks back to its spot (which
@@ -975,7 +985,7 @@ func _provoke() -> void:
 	_calm_t = 0.0
 	var kinds: Dictionary = cfg.get("fighters", {})
 	var ppos: Vector3 = player.global_position if player != null and is_instance_valid(player) else global_position
-	_rousing = people.filter(func(p): return not p.dead and p.fighter == null and kinds.has(p.kind))
+	_rousing = people.filter(func(p): return not p.dead and p.fighter == null and p.armed and kinds.has(p.kind))
 	_rousing.sort_custom(func(a, b): return to_global(a.spot).distance_to(ppos) < to_global(b.spot).distance_to(ppos))
 	# The nearest one now: an alarm raised with nobody alive to fight stands down at once.
 	if not _rousing.is_empty():
