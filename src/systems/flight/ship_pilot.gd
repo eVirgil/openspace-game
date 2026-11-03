@@ -63,6 +63,9 @@ extends Node
 ##     stand where you last left them (place_fleet). call_ship() flies the primary
 ##     to clear ground by where you called it from, with nobody at the controls
 ##     and nobody chasing it.
+##   - issue #401: a LAN guest's own ship (Fleet.LAN) stands on the landing pad the
+##     host gave it, in their livery, "Your ship" over it; the pit pad's ship is
+##     the host's in their game, so it is stowed in the guest's (lan_pad, _stow).
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -76,6 +79,7 @@ const Dogfight := preload("res://src/systems/flight/dogfight.gd")
 const SeekerWarning := preload("res://src/systems/flight/seeker_warning.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
+const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
 const SCENE_PATH := "res://scenes/town_demo.tscn"
 const CRASH_TOW_TIME := 2.5
 
@@ -2016,6 +2020,8 @@ func place_fleet() -> void:
 	if fleet_placed or berths.is_empty():
 		return
 	fleet_placed = true
+	if Fleet.lan() and not berths.is_empty():
+		_stow(0)            # issue #401: a LAN guest's pit pad is the host's (their ship shows there)
 	var here := GameFlow.current_planet_id()
 	for e in Fleet.owned():
 		var key := str(e.key)
@@ -2026,15 +2032,39 @@ func place_fleet() -> void:
 			var i := _spawn_owned(key, Fleet.spot_xf(s))
 			if i > 0 and _on_pad(i):
 				_move_aside(i)
-		elif s.is_empty() and here == PlanetGen.home_id():
-			var foot := clear_spot(_pad_foot(), GameFlow.setting("call_aside_min", 16.0))
+		elif s.is_empty() and (here == PlanetGen.home_id() or key == Fleet.LAN):
+			var at := lan_pad() if key == Fleet.LAN else []      # issue #401: on the pad the host gave it
+			var foot: Vector3 = at[0] if not at.is_empty() else clear_spot(_pad_foot(), GameFlow.setting("call_aside_min", 16.0))
 			var i := _spawn_owned(key, Transform3D(Basis.IDENTITY, foot)) if foot != Vector3.INF else -1
 			if i >= 0:
-				_stand(i, foot, float(berths[0].home_yaw))
+				_stand(i, foot, float(at[1]) if not at.is_empty() else float(berths[0].home_yaw))
 				_remember(i)
 	var p := berth_of(Fleet.primary(), true)
 	if p >= 0 and WorldState.has_flag(Fleet.WRECKED):
 		_patch_up(p)
+
+
+## Issue #401: the landing pad the host gave this LAN guest's ship: [foot, yaw], or
+## [] when there is none (no pad was free, or this town has no such box).
+func lan_pad() -> Array:
+	var box: Dictionary = demo.town.get_box(str(NetSession.ship.get("pad", ""))) if Fleet.lan() else {}
+	if box.is_empty():
+		return []
+	var c := Vector3((float(box.min[0]) + float(box.max[0])) * 0.5, float(box.min[1]), (float(box.min[2]) + float(box.max[2])) * 0.5)
+	return [c, deg_to_rad(float(box.get("parked_yaw_deg", 0.0)))]
+
+
+## Berth `i` is not here for you (a LAN guest's pit ship: the host's): out of sight,
+## nothing to hit or board. Not saved as lost.
+func _stow(i: int) -> void:
+	var b: Dictionary = berths[i]
+	b.destroyed = true
+	b.stowed = true
+	if is_instance_valid(b.visual):
+		(b.visual as Node3D).visible = false
+	if b.hull != null and is_instance_valid(b.hull):
+		b.hull.collision_layer = 0
+		b.hull.collision_mask = 0
 
 
 ## You woke in the pit (downed, killed, a fall, a lost stolen ship): your primary is
@@ -2295,13 +2325,16 @@ func _spawn_owned(key: String, xf: Transform3D) -> int:
 		return -1
 	var v: Node3D
 	var look_id := str(content.get_ship(sid).get("look", ""))
+	var livery := Fleet.look_of(key)          # issue #401: a LAN guest's ship in their colours
 	if demo.use_look and look_id != "":
-		v = kit.build(ShipUpgrades.look(sid, look_id))
+		v = kit.build(livery if livery != "" else ShipUpgrades.look(sid, look_id))
 		kit.dress(v, ShipUpgrades.fitted(sid))
 	else:
 		v = Node3D.new()
 	v.name = "Owned_" + key
 	v.set_meta("ship_id", sid)
+	if key == Fleet.LAN:
+		v.add_child(RemoteShip.make_tag(NetSession.label("ship_tag_yours")))
 	demo.add_child(v)
 	v.global_transform = xf
 	return add_berth(v, sid, "", key)

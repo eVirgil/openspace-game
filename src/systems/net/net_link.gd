@@ -4,7 +4,8 @@ extends Node
 ## and it outlives the town reloading.
 ##
 ## Host: listens, lets guests in (hello -> welcome, or a refusal when full or on
-## another version), keeps the roster and tells everyone who came and went. Every
+## another version), keeps the roster and tells everyone who came and went. Each
+## guest gets a livery and a free landing pad for their own ship (NetSession.ship). Every
 ## player sends their state (state) send_rate times a second; the host relays it
 ## (SceneMultiplayer's server relay). Each game puts a RemotePlayer in its town for
 ## every other player on the same planet.
@@ -20,6 +21,7 @@ signal host_left
 signal turned_away(id: int, why: String)     ## host: a guest refused (full, another version)
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
+const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -34,6 +36,8 @@ var my_outfit: Dictionary = {}
 var roster: Dictionary = {}        ## peer id -> { name, outfit } (the host is 1)
 var states: Dictionary = {}        ## peer id -> the last state heard ({ planet, pos, yaw, ... , t })
 var bodies: Dictionary = {}        ## peer id -> RemotePlayer in this town
+var ships: Dictionary = {}         ## peer id -> the last ship packet heard ({ planet, look, pos, rot })
+var ship_bodies: Dictionary = {}   ## peer id -> RemoteShip in this town
 var address := ""                  ## the host's (a guest), for the status line
 var host_name := ""
 var welcomed_in := false           ## a guest the host has let in
@@ -143,7 +147,8 @@ func hello(player_name: String, outfit: Dictionary, version: String) -> void:
 	for other in roster:
 		if other != 1:
 			joined.rpc_id(other, id, nm, fit)
-	roster[id] = { "name": nm, "outfit": fit }
+	var slot := _free_slot()
+	roster[id] = { "name": nm, "outfit": fit, "slot": slot, "livery": NetSession.livery(slot), "pad": free_pad() }
 	welcome.rpc_id(id, nm, GameFlow.current_planet_id(), roster)
 	_on_joined(id, nm)
 
@@ -181,6 +186,8 @@ func welcome(your_name: String, planet_id: String, who: Dictionary) -> void:
 	roster = who
 	host_name = str(who.get(1, {}).get("name", ""))
 	welcomed_in = true
+	var me: Dictionary = who.get(my_id(), {})
+	NetSession.ship = { "look": str(me.get("livery", "")), "pad": str(me.get("pad", "")) }    # your own ship, on that pad
 	welcomed.emit(planet_id)
 	if arrive_on_welcome:
 		_arrive(planet_id)
@@ -225,6 +232,7 @@ func left(id: int) -> void:
 func _gone(id: int) -> void:
 	_drop_body(id)
 	states.erase(id)
+	ships.erase(id)
 	if not roster.has(id):
 		return
 	var nm := str(roster[id].name)
@@ -277,6 +285,9 @@ func _physics_process(dt: float) -> void:
 		var pkt: Array = local_state.call() if local_state.is_valid() else town_state()
 		if not pkt.is_empty() and (_mp().is_server() or welcomed_in):
 			state.rpc(pkt)
+			var sp := town_ship()
+			if not sp.is_empty():
+				ship_state.rpc(sp)
 	if with_bodies:
 		_place_bodies()
 	_hook_shots()
@@ -347,6 +358,7 @@ func _place_bodies() -> void:
 			scene.add_child(b)
 			bodies[id] = b
 		b.hear(s)
+	_place_ships(scene, here, town)
 
 
 func _drop_body(id: int) -> void:
@@ -354,6 +366,7 @@ func _drop_body(id: int) -> void:
 	bodies.erase(id)
 	if b != null and is_instance_valid(b):
 		b.queue_free()
+	_drop_ship(id)
 
 
 # ------------------------------------------------------------------ shots and friendly fire
@@ -462,3 +475,110 @@ func status_line() -> String:
 
 func _max_shown() -> int:
 	return _max if _mp().is_server() else NetSession.max_players()
+
+
+# ------------------------------------------------------------------ ships
+
+## Host: the lowest join slot no guest holds (each slot is a livery).
+func _free_slot() -> int:
+	var held: Array = roster.values().map(func(r): return int(r.get("slot", -1)))
+	var k := 0
+	while held.has(k):
+		k += 1
+	return k
+
+
+## Host: a landing pad in this town for a new guest's ship, "" when none is free:
+## a box of kind "pad" (not a Remnant one) that no guest holds and no ship stands
+## on here, in the town data's order (the pit's spare pad, then the surface pads).
+func free_pad() -> String:
+	var scene := get_tree().current_scene
+	var town = scene.get("town") if scene != null else null
+	if town == null or not town.has_method("boxes"):
+		return ""
+	var held: Array = roster.values().map(func(r): return str(r.get("pad", "")))
+	var pilot = scene.get("pilot")
+	for box in town.boxes():
+		var id := str(box.get("id", ""))
+		if str(box.get("kind", "")) != "pad" or box.has("remnant_ship") or held.has(id):
+			continue
+		var c := Vector3((float(box.min[0]) + float(box.max[0])) * 0.5, 0.0, (float(box.min[2]) + float(box.max[2])) * 0.5)
+		var r := minf(float(box.max[0]) - float(box.min[0]), float(box.max[2]) - float(box.min[2])) * 0.5
+		if not _ship_near(pilot, c, r):
+			return id
+	return ""
+
+
+func _ship_near(pilot, c: Vector3, r: float) -> bool:
+	if pilot == null:
+		return false
+	for b in pilot.berths:
+		var v = b.get("visual")
+		if bool(b.get("destroyed", false)) or not (v is Node3D) or not is_instance_valid(v):
+			continue
+		var p := (v as Node3D).global_position
+		if Vector2(p.x - c.x, p.z - c.z).length() <= r:
+			return true
+	return false
+
+
+## This game's player's ship as a packet, [] when there is none here: the one they
+## fly, else the one Call would bring (their primary). [planet, look, where, rotation]
+func town_ship() -> Array:
+	var scene := get_tree().current_scene
+	var pilot = scene.get("pilot") if scene != null else null
+	if pilot == null or not is_instance_valid(pilot) or pilot.berths.is_empty():
+		return []
+	var i: int = pilot.berth if pilot.piloting or pilot.calling else pilot.berth_of(Fleet.primary(), true)
+	if i < 0 or i >= pilot.berths.size() or bool(pilot.berths[i].get("destroyed", false)):
+		return []
+	var v = pilot.berths[i].visual
+	if not (v is Node3D) or not is_instance_valid(v) or not (v as Node3D).is_visible_in_tree():
+		return []
+	var xf := (v as Node3D).global_transform
+	return [GameFlow.current_planet_id(), str(v.get_meta("look_id", "")), xf.origin,
+		xf.basis.orthonormalized().get_rotation_quaternion()]
+
+
+## Every player -> every other (the host relays): where my ship is.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func ship_state(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	if pkt.size() < 4 or not roster.has(id):
+		return
+	ships[id] = { "planet": str(pkt[0]), "look": str(pkt[1]), "pos": pkt[2] as Vector3,
+		"rot": pkt[3] as Quaternion, "t": Time.get_ticks_msec() / 1000.0 }
+
+
+## A ship in this town for every other player whose ship is on this planet. One not
+## heard of for ship_stale_s (put away, shot down, gone to space) goes.
+func _place_ships(scene: Node, here: String, town: bool) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for id in roster:
+		if id == my_id():
+			continue
+		var s: Dictionary = ships.get(id, {})
+		var show := town and not s.is_empty() and str(s.planet) == here \
+			and now - float(s.t) < NetSession.n("ship_stale_s", 2.0)
+		var b = ship_bodies.get(id, null)
+		if b != null and (not is_instance_valid(b) or b.get_parent() != scene):
+			_drop_ship(id)
+			b = null
+		if not show:
+			if b != null:
+				_drop_ship(id)
+			continue
+		if b == null:
+			var mats = scene.call("_flat_mats") if scene.has_method("_flat_mats") else null
+			b = RemoteShip.new()
+			b.setup(id, str(roster[id].name), str(s.look), mats)
+			scene.add_child(b)
+			ship_bodies[id] = b
+		b.hear(str(s.look), s.pos, s.rot)
+
+
+func _drop_ship(id: int) -> void:
+	var b = ship_bodies.get(id, null)
+	ship_bodies.erase(id)
+	if b != null and is_instance_valid(b):
+		b.queue_free()
