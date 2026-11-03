@@ -1,5 +1,5 @@
 {
-  "note": "Issue #401: LAN play. One player hosts from F11 > Game, friends on the same wifi join by the host's address. Read by src/systems/net/net_session.gd. port: the UDP port the host listens on. max_players counts the host. send_rate: state packets a second each player sends. name_max: letters in a player's name. spawn_by_t89_m: how far from T-89 a guest stands on arrival. smooth_rate: how fast a remote body closes on where it was last heard (1/s); snap_m: further off than this it jumps. name_height: metres above the feet of the floating name. connect_timeout: seconds a join waits for the host before giving up. friendly_fire: your bolts and blade hurt the other players (each game applies the hits on its own player, times friendly_fire_scale); off, they pass through. hitbox_radius / hitbox_height: the other players' bodies, for shots and for walking into. outfit_check_s: how often each game looks whether you changed what you wear, and tells the others.",
+  "note": "Issue #401: LAN play. One player hosts from F11 > Game, friends on the same wifi join by the host's address. Read by src/systems/net/net_session.gd. port: the UDP port the host listens on. max_players counts the host. send_rate: state packets a second each player sends. name_max: letters in a player's name. spawn_by_t89_m: how far from T-89 a guest stands on arrival. smooth_rate: how fast a remote body closes on where it was last heard (1/s); snap_m: further off than this it jumps. name_height: metres above the feet of the floating name. connect_timeout: seconds a join waits for the host before giving up. friendly_fire: your bolts and blade hurt the other players (each game applies the hits on its own player, times friendly_fire_scale); off, they pass through. hitbox_radius / hitbox_height: the other players' bodies, for shots and for walking into. outfit_check_s: how often each game looks whether you changed what you wear, and tells the others. Issue #401 (guests' ships): each guest arrives next to a free landing pad (a town box of kind 'pad' with no ship on it and no remnant_ship, the host's game decides, spawn_by_pad_m past its edge) with a ship of their own on it (guest_ship) in one of the liveries (content/look/ships.json looks), by join order, labelled ship_tag over it (ship_tag_height metres up). Call flies it to them. Every player's ship (the one they fly, else their primary) shows in the others' games; one not heard of for ship_stale_s seconds goes. No free pad: by T-89, the ship on clear ground beside the pit.",
   "port": 24890,
   "max_players": 5,
   "send_rate": 20.0,
@@ -15,6 +15,16 @@
   "hitbox_height": 1.8,
   "outfit_check_s": 1.0,
   "default_name": "Smuggler",
+  "liveries": [
+    "interceptor_locals",
+    "interceptor_crimson",
+    "interceptor_sand",
+    "interceptor_dark"
+  ],
+  "spawn_by_pad_m": 1.5,
+  "guest_ship": "interceptor",
+  "ship_tag_height": 3.2,
+  "ship_stale_s": 2.0,
   "labels": {
     "joined": "%s joined the game",
     "left": "%s left the game",
@@ -29,6 +39,8 @@
     "here": "Here: %s",
     "need_name": "Type your name first.",
     "need_address": "Type the host's address.",
-    "cannot_host": "Could not host on port %d (is another game hosting on this computer?)."
+    "cannot_host": "Could not host on port %d (is another game hosting on this computer?).",
+    "ship_tag": "%s's ship",
+    "ship_tag_yours": "Your ship"
   }
 }
