@@ -7,6 +7,20 @@ Plain English, newest on top. One entry per milestone.
 - Share builds are now **OpenSpace V1.5**. Everything below, down to "New
   version is 1.4", is in it.
 
+## LAN: you can find each other (2026-11-03)
+
+- **The other players were there, just hard to find.** A guest arrives by a
+  pad down in the pit, often 80 m or more from the host, and the name over
+  their head was a few centimetres of text the colour of an NPC's speech: past
+  a few metres you could not tell a player from a townsperson.
+- **Their name is the same size on screen at any distance.**
+- **On the F11 map** each other player on foot is a blue dot with their name.
+  Click one and they are your waypoint: the HUD's pointer follows them with a
+  blue diamond (the line stays white), and clears when you reach them or they
+  leave the game.
+- Tunable in `content/core/flow/lan.json` (`name_px`, `mark_color`,
+  `waypoint_arrive_m`).
+
 ## LAN: falls, wake-ups and the red sword show to the others (2026-11-03)
 
 - **A downed player falls as a ragdoll on every screen,** pushed away from the
