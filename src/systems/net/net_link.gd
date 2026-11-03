@@ -36,6 +36,7 @@ const F_AIM := 32                  ## trigger or aim held: the gun comes up
 const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
 const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
 const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
+const F_DOWNED := 512              ## downed: the others' copy falls as a ragdoll until they wake
 
 var my_name := ""
 var my_outfit: Dictionary = {}
@@ -282,7 +283,9 @@ func _on_host_gone() -> void:
 
 ## Every player -> every other (the host relays): where I am and what I am doing.
 ## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt,
-##  where the gun points (INF: along the pose), the blade's third-person pose, reload]
+##  where the gun points (INF: along the pose), the blade's third-person pose, reload,
+##  the sword's [colour, hilt] (issue #148: the red saber), the downing hit's
+##  [from, amount] (the ragdoll's push)]
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func state(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
@@ -293,6 +296,8 @@ func state(pkt: Array) -> void:
 		"flags": int(pkt[4]), "weapon": str(pkt[5]), "drawn": float(pkt[6]), "pitch": float(pkt[7]),
 		"tilt": pkt[8] as Quaternion, "aim_at": pkt[9] as Vector3,
 		"sword": pkt[10] if pkt[10] is Dictionary else {}, "reload": float(pkt[11]),
+		"blade": pkt[12] if pkt.size() > 12 and pkt[12] is Array and (pkt[12] as Array).size() >= 2 else [],
+		"hit": pkt[13] if pkt.size() > 13 and pkt[13] is Array and (pkt[13] as Array).size() >= 2 else [],
 		"t": Time.get_ticks_msec() / 1000.0,
 	}
 
@@ -357,6 +362,9 @@ func town_state() -> Array:
 		flags |= F_SLIDE
 	if body.is_visible_in_tree():
 		flags |= F_VISIBLE
+	var down: bool = body.get("is_downed") == true
+	if down:
+		flags |= F_DOWNED
 	var rig_node = scene.get("_rig")
 	var rig = rig_node.rig if rig_node != null and is_instance_valid(rig_node) else null
 	var kit = scene.get("player_kit")
@@ -365,8 +373,10 @@ func town_state() -> Array:
 	var aim_at := Vector3.INF
 	var sword: Dictionary = {}
 	var reload := -1.0
+	var blade: Array = [Color(0, 0, 0, 0), ""]
 	if kit != null and is_instance_valid(kit) and kit.avatar != null:
 		var av = kit.avatar
+		blade = [av.blade_color, str(av.blade_hilt)]
 		weapon = str(av.current)
 		drawn = float(av.drawn)
 		reload = float(av.reload)
@@ -389,7 +399,8 @@ func town_state() -> Array:
 	return [GameFlow.current_planet_id(), body.global_position, rig.yaw if rig != null else body.rotation.y,
 		body.velocity, flags, weapon, drawn, rig.pitch if rig != null else 0.0,
 		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY,
-		aim_at, sword, reload]
+		aim_at, sword, reload, blade,
+		[body.get("last_hit_from"), float(body.get("last_hit_amount"))] if down else []]
 
 
 ## A body in this town for every other player on this planet who is not in a ship.

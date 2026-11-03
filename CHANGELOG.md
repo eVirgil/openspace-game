@@ -2,6 +2,16 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## LAN: falls, wake-ups and the red sword show to the others (2026-11-03)
+
+- **A downed player falls as a ragdoll on every screen,** pushed away from the
+  hit that put them down, as their own body does in their game. Before, the
+  others saw them standing still.
+- **When they wake, the body on the ground goes.** It is gone from where it
+  fell and they stand up where they woke (the pit, wherever).
+- **The red saber is red to the others too,** on its black hilt. Before, every
+  other player's sword showed blue.
+
 ## The wreck field is cheaper to look at (2026-11-03)
 
 - **The four crashed cruisers look the same and cost far less to draw.** Their
