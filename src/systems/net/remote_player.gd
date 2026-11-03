@@ -47,6 +47,7 @@ var _hidden_weapon: Node3D
 ## HitFeedback reads this: never fresh, so your own game shows no marker for a hit
 ## here; it comes when that player's game says the hit landed (NetLink.hit_back).
 var damage_usec := -1000000000
+var velocity := Vector3.ZERO      ## as last heard (the host's NPCs lead their shots by it)
 
 
 func setup(id: int, nm: String, fit: Dictionary, mats: LookMaterials = null) -> void:
@@ -119,6 +120,7 @@ func _physics_process(dt: float) -> void:
 		return
 	var flags := int(_s.flags)
 	visible = (flags & 8) != 0          # NetLink.F_VISIBLE: not while they sit in a ship
+	velocity = _s.vel
 	_wear_blade(_s.get("blade", []))
 	if _ragdolled(dt, (flags & 512) != 0):   # NetLink.F_DOWNED
 		collision_layer = 0
@@ -155,6 +157,19 @@ func _physics_process(dt: float) -> void:
 		"aim_pitch": float(_s.pitch),
 		"upper": UPPER.get(weapon, BodyAnimator.UPPER_FREE),     # as PlayerWeapons.upper_mode: the avatar holsters by `drawn`
 	})
+
+
+## What the host's NPCs read of them (NpcBody.watches_guests), as for the player.
+func downed() -> bool:
+	return not _s.is_empty() and (int(_s.flags) & 512) != 0    # NetLink.F_DOWNED
+
+
+func crouched() -> bool:
+	return not _s.is_empty() and (int(_s.flags) & 2) != 0
+
+
+func armed() -> bool:
+	return not _s.is_empty() and str(_s.weapon) != ""
 
 
 # ------------------------------------------------------------------ downed
