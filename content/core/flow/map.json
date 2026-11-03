@@ -14,10 +14,11 @@
     "held": "Held by the locals",
     "held_for": "Held by the locals, %d:%02d left",
     "short": "Resupply needed, %d:%02d left",
+    "remnant_held_for": "Held by the Remnant, %d:%02d left",
     "resupply": "Resupply needed",
     "legend_held": "Held by locals",
     "legend_short": "Resupply needed",
-    "legend_hold": "Time the locals can hold",
+    "legend_hold": "Time left to hold",
     "no_globe": "No surface map here: this place is not a planet."
   },
   "kinds": {

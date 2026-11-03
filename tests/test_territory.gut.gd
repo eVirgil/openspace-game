@@ -253,3 +253,163 @@ func test_an_outposts_ship_goes_by_its_holders_name() -> void:
 	Territory.take(NEAR)
 	assert_string_contains(ShipPilot.berth_label(b), "(Local)", "the locals' once they hold the outpost")
 	assert_eq(ShipPilot.berth_label({ "cfg": { "label": "Pit ship" } }), "Pit ship", "a berth with no outpost keeps its label")
+
+
+# ------------------------------------------------------------------ issue #425: the Remnant cut off
+
+## The cruiser has fallen (the flag alone: what Territory reads), one tick to start the clocks.
+func _cut_off() -> void:
+	WorldState.set_flag("cruiser_taken")
+	Territory.tick(0.1)
+
+
+## The Remnant outpost with the least time left.
+func _shortest() -> String:
+	var best := ""
+	for id in Territory.remnant_clocked():
+		if best == "" or Territory.hold_left(str(id)) < Territory.hold_left(best):
+			best = str(id)
+	return best
+
+
+func _until_short(id: String) -> void:
+	Territory.tick(Territory.hold_left(id) - Territory.rn("warn_s", 2400.0) + 1.0)
+
+
+func test_before_the_cruiser_falls_the_remnant_hold_for_ever() -> void:
+	Territory.tick(100000.0)
+	assert_true(Territory.remnant_clocked().is_empty())
+	assert_eq(Territory.hold_frac(NEAR), -1.0)
+	assert_eq(Territory.lost(), 0)
+
+
+func test_once_cut_off_every_remnant_outpost_runs_down_one_at_a_time() -> void:
+	Territory.take(NEAR)
+	_cut_off()
+	assert_eq(Territory.remnant_clocked().size(), Story.OUTPOSTS.size() - 1, "every one of theirs, not the locals'")
+	assert_false(Territory.remnant_clocked().has(NEAR))
+	var lefts := {}
+	for id in Territory.remnant_clocked():
+		lefts[Territory.hold_left(str(id))] = true
+		assert_gt(Territory.hold_frac(str(id)), 0.0, "a clock the maps can draw")
+	assert_eq(lefts.size(), Territory.remnant_clocked().size(), "each with a different time left")
+	var first := _shortest()
+	_until_short(first)
+	assert_true(Territory.remnant_short(first))
+	assert_eq(Story.OUTPOSTS.filter(func(id): return Territory.remnant_short(str(id))).size(), 1, "one short at a time")
+	assert_true(WorldState.has_flag("remnant_outpost_short"))
+	assert_string_contains(" ".join(Territory.summary()), str(Territory.cfg().labels.remnant_short), "the F1 screen says so")
+
+
+func test_a_friend_of_the_remnant_resupplies_them() -> void:
+	_cut_off()
+	var id := _shortest()
+	var q := Territory.remnant_quest_id(id)
+	assert_eq(Quests.state(q), "", "not while they are well off")
+	_until_short(id)
+	assert_eq(Quests.state(q), "open", "offered to a friend once they run short")
+	assert_eq(str(Quests.cfg(q).target), "outpost:" + id, "pointed at the outpost")
+	assert_true(Territory.short_shown(id), "the maps mark it")
+	assert_eq(Territory.deliver_remnant(id), 0, "not without the quest's waypoint on")
+	assert_true(Quests.toggle_waypoint(q))
+	var cr := WorldState.credits
+	var rem := int(WorldState.standing.imperial_remnant)
+	var loc := int(WorldState.standing.locals)
+	var pay := Territory.deliver_remnant(id)
+	assert_gt(pay, 0)
+	assert_eq(WorldState.credits, cr + pay)
+	assert_almost_eq(Territory.hold_left(id), Territory.rn("hold_s", 6000.0), 0.01, "the clock fills back up")
+	assert_gt(int(WorldState.standing.imperial_remnant), rem, "the Remnant like it")
+	assert_lt(int(WorldState.standing.locals), loc, "the locals don't")
+	assert_eq(Quests.state(q), "done")
+	assert_eq(Territory.deliver_remnant(id), 0, "a full clock needs nothing")
+	_until_short(id)
+	assert_eq(Quests.state(q), "open", "offered again next time")
+
+
+func test_a_hostile_player_is_not_offered_the_job() -> void:
+	WorldState.standing.imperial_remnant = -60
+	_cut_off()
+	var id := _shortest()
+	_until_short(id)
+	assert_true(Territory.remnant_short(id))
+	assert_eq(Quests.state(Territory.remnant_quest_id(id)), "", "not for an enemy of theirs")
+	assert_false(Territory.short_shown(id))
+
+
+func test_turning_hostile_drops_the_quest() -> void:
+	_cut_off()
+	var id := _shortest()
+	_until_short(id)
+	WorldState.standing.imperial_remnant = -60
+	Territory.tick(1.0)
+	assert_eq(Quests.state(Territory.remnant_quest_id(id)), "failed")
+
+
+func test_running_out_hands_it_to_the_locals_with_no_credit() -> void:
+	_cut_off()
+	var id := _shortest()
+	var q := Territory.remnant_quest_id(id)
+	_until_short(id)
+	var loc := int(WorldState.standing.locals)
+	var taken := WorldState.count("outposts_taken")
+	Territory.tick(Territory.hold_left(id) + 1.0)
+	assert_eq(Territory.owner(id), Territory.LOCALS, "the locals move in")
+	assert_eq(int(WorldState.standing.locals), loc, "no standing for it")
+	assert_eq(WorldState.count("outposts_taken"), taken, "and no count")
+	assert_eq(Quests.state(q), "failed", "the load didn't get there")
+	assert_true(WorldState.events.any(func(e): return str(e.text) == Territory.line("remnant_gave_up") % Story.outpost_label(id)))
+	assert_almost_eq(Territory.hold_left(id), Territory.n("hold_s", 900.0), 0.01, "the locals' own clock starts")
+
+
+func test_clearing_a_short_one_fails_its_quest() -> void:
+	_cut_off()
+	var id := _shortest()
+	_until_short(id)
+	Territory.take(id)
+	assert_eq(Quests.state(Territory.remnant_quest_id(id)), "failed")
+
+
+func test_all_of_them_running_out_drives_the_remnant_off() -> void:
+	_cut_off()
+	Territory.tick(Territory.rn("hold_s", 6000.0) + 1.0)
+	assert_true(WorldState.has_flag(Territory.DRIVEN_OFF))
+	assert_eq(Territory.lost(), Story.OUTPOSTS.size())
+	assert_eq(Territory.owner(Territory.BARRACKS), Territory.LOCALS)
+	assert_true(Territory.remnant_clocked().is_empty())
+	assert_eq(Territory.hold_frac(NEAR), -1.0, "no clocks once they are gone")
+
+
+func test_one_retaken_after_the_cruiser_falls_gets_a_fresh_clock() -> void:
+	Territory.take(NEAR)
+	_cut_off()
+	Territory.guards_lost(NEAR)
+	Territory.tick(0.1)
+	assert_eq(Territory.owner(NEAR), Territory.REMNANT)
+	assert_true(Territory.remnant_clocked().has(NEAR), "it does not hold for ever")
+	assert_almost_eq(Territory.hold_left(NEAR), Territory.rn("hold_s", 6000.0), 0.2)
+
+
+func test_the_remnant_clocks_are_saved() -> void:
+	_cut_off()
+	Territory.tick(100.0)
+	var left := Territory.hold_left(NEAR)
+	var d := WorldState.to_save()
+	WorldState.reset()
+	WorldState.from_save(JSON.parse_string(JSON.stringify(d)))
+	assert_almost_eq(Territory.hold_left(NEAR), left, 0.01)
+	assert_eq(Territory.owner(NEAR), Territory.REMNANT)
+
+
+func test_the_map_shows_the_remnant_clock() -> void:
+	_cut_off()
+	var id := _shortest()
+	var pin := {}
+	GlobeMap._stamp_owner(pin, id)
+	assert_gt(float(pin.hold), 0.0, "a ring")
+	assert_false(bool(pin.short))
+	assert_string_contains(str(pin.status), "Remnant")
+	_until_short(id)
+	GlobeMap._stamp_owner(pin, id)
+	assert_true(bool(pin.short), "Resupply needed")
+	assert_string_contains(str(pin.status), "Resupply")

@@ -1,6 +1,6 @@
 {
   "id": "territory",
-  "note": "Issue #187: who holds each place (src/systems/flow/territory.gd). The seven desert outposts (three out the front gate, four round the other sides) start with the Remnant; killing every trooper at one hands it to the locals, who move in with their own desert guards and a white assassin droid. The locals hold it for hold_s seconds of play (about 100 minutes: slow enough that a lazy round of the desert still saves most of them); a supply run from Oda (j_supply on the bar board, and an optional quest per outpost: 'quest') resets that. The F11 map shows which held outposts are short only once you have taken that job; from then on Oda's card is off the board and walking up to any outpost that is short hands supplies over and pays (Territory.supplier, can_deliver). When it runs out (or the locals' guards there are all dead) the Remnant take it back, and their troopers return. Holding all seven at once drives the Remnant off the planet: nothing is retaken after that and the locals take the town's barracks too. The barracks also go to the locals when the story is done (the fleet beaten). Issue #303: when every local guard on the barracks posts is dead (control.barracks_dead), the Remnant take the town back (flag town_retaken; standing.town_retaken with the locals): hostile, or on your side on the dark master's oath. Holding all seven outposts again gives it back to the locals, and so does killing every Remnant trooper at the barracks once the fleet is beaten: a dead one stays dead (control.remnant_dead; standing.town_freed with the locals). Driven off, the Remnant come back only through the barracks: kill its local guards and they retake the town, and the outposts the locals hold start running down again. Either way the people swap over out of sight: no barracks post on screen and you at least barracks_unseen_dist away, or more than swap_dist away. 'posts': which soldier profile the locals put on each post (outposts: the location's guard points; barracks: the town's trooper markers; a post left out stays empty).",
+  "note": "Issue #187: who holds each place (src/systems/flow/territory.gd). The seven desert outposts (three out the front gate, four round the other sides) start with the Remnant; killing every trooper at one hands it to the locals, who move in with their own desert guards and a white assassin droid. The locals hold it for hold_s seconds of play (about 100 minutes: slow enough that a lazy round of the desert still saves most of them); a supply run from Oda (j_supply on the bar board, and an optional quest per outpost: 'quest') resets that. The F11 map shows which held outposts are short only once you have taken that job; from then on Oda's card is off the board and walking up to any outpost that is short hands supplies over and pays (Territory.supplier, can_deliver). When it runs out (or the locals' guards there are all dead) the Remnant take it back, and their troopers return. Holding all seven at once drives the Remnant off the planet: nothing is retaken after that and the locals take the town's barracks too. The barracks also go to the locals when the story is done (the fleet beaten). Issue #303: when every local guard on the barracks posts is dead (control.barracks_dead), the Remnant take the town back (flag town_retaken; standing.town_retaken with the locals): hostile, or on your side on the dark master's oath. Holding all seven outposts again gives it back to the locals, and so does killing every Remnant trooper at the barracks once the fleet is beaten: a dead one stays dead (control.remnant_dead; standing.town_freed with the locals). Driven off, the Remnant come back only through the barracks: kill its local guards and they retake the town, and the outposts the locals hold start running down again. Either way the people swap over out of sight: no barracks post on screen and you at least barracks_unseen_dist away, or more than swap_dist away. 'posts': which soldier profile the locals put on each post (outposts: the location's guard points; barracks: the town's trooper markers; a post left out stays empty). Issue #425: once the cruiser has fallen (cruiser_taken) the Remnant on the ground are cut off, and their outposts get a hold clock too ('remnant'): the first in the story's outpost order hold_s, each one after it stagger_s less, so they run short one at a time; one they take back from the locals gets a fresh hold_s. When a clock runs out the locals move in as if you had cleared it, but with no standing and no outposts_taken count (line remnant_gave_up); the last one falling this way drives the Remnant off as usual. A player the Remnant still deal with (imperial_remnant friend_from and up: the general's band) is offered a repeatable quest per outpost while it is short (warn_s left): resupply_remnant_<outpost id>, failed if it falls first or if you turn hostile. With its waypoint on you are carrying the load: walk up to the outpost (supply_reach) and it fills the clock again, pays 'pay' and moves standing by 'standing'.",
   "hold_s": 6000.0,
   "supply_warn_s": 2400.0,
   "supply_pay": 120,
@@ -29,6 +29,23 @@
     "town_retaken": -20,
     "town_freed": 10
   },
+  "remnant": {
+    "note": "Issue #425: the Remnant's clocks once the cruiser has fallen (Territory._tick_remnant). Seconds of play. 'quest': its title and text (%s is the outpost's name); 'text_oath' once you have sworn the dark master's oath.",
+    "hold_s": 6000.0,
+    "stagger_s": 540.0,
+    "warn_s": 2400.0,
+    "friend_from": -39,
+    "pay": 120,
+    "standing": {
+      "remnant": 3,
+      "locals": -2
+    },
+    "quest": {
+      "title": "Resupply %s for the Remnant",
+      "text": "The cruiser is gone and the Remnant holding %s are cut off, running out of water and charge packs. Bring them a load before the locals move in.",
+      "text_oath": "Your brothers at %s are cut off since the cruiser fell, running out of water and charge packs. Bring them a load before the locals move in."
+    }
+  },
   "gate": {
     "note": "While the Remnant hold the gate, each outpost they have lost makes them edgier: from strict_from lost outposts the checkpoint band is one worse, and every lost outpost raises bribes by bribe_per_lost (0.25 = +25%). Seven outposts: strict from three lost, bribes up to 2.75x.",
     "strict_from": 3,
@@ -45,7 +62,10 @@
     "town_retaken": "The last of the locals' guards at the barracks is dead. The Remnant are taking the town back.",
     "barracks_remnant": "The Remnant hold the barracks again.",
     "town_freed": "The last of the Remnant at the barracks is dead. The locals are taking the town back.",
-    "objective": "Take the supplies to the locals at %s"
+    "objective": "Take the supplies to the locals at %s",
+    "remnant_warn": "The Remnant at %s are running short.",
+    "remnant_gave_up": "The Remnant at %s have given up. The locals move in.",
+    "remnant_supplied": "Supplies delivered to the Remnant at %s. +%d cr"
   },
   "quest": {
     "note": "A repeatable optional quest per outpost (Quests: id resupply_<outpost id>, pointed at the outpost). Offered when the locals there start running short (supply_warn_s), done when supplies reach them, failed if the Remnant take it back first, and offered again the next time it runs short. Driving the Remnant off finishes any still open. 'text_supplier': its text once you have taken Oda's supply job (Territory.supplier), when there is no job to take again. %s is the outpost's name.",
@@ -56,6 +76,7 @@
   "labels": {
     "remnant": "REMNANT",
     "locals": "LOCALS",
-    "short": "LOCALS, LOW"
+    "short": "LOCALS, LOW",
+    "remnant_short": "REMNANT, LOW"
   }
 }

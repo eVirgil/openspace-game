@@ -91,7 +91,7 @@
       "gun": { "range": 18.0, "interval": 1.6, "damage": 6.0, "bolt_speed": 18.0, "spread_deg": 3.0, "color": "#ff3030" } }
   ],
   "holo": {
-    "note": "The bridge's holo table: the home planet as the cruiser sees it. The ball, the port, every crash site (the world's wreck landmarks) and this cruiser where they really are on it, and the moon in its real direction. Turned to the world (north and east as on the ground), spinning slowly about the planet's up. Issue #325: the port (by who holds the barracks) and the seven Remnant outposts (unnamed pins outpost_stalk tall) are coloured by owner_colors (remnant, locals, short = the locals running low, as on the F11 map), checked every refresh_s; a place that changes hands flashes for flash_s. town_color is only the fallback. radius is the ball's size in metres, lift how high its centre floats over the table top; heights over the ball are squeezed by squeeze (0: on the surface, 1: true to scale) so the cruiser's orbit fits over the table; the moon sits at moon_at times the ball's radius, in its true direction.",
+    "note": "The bridge's holo table: the home planet as the cruiser sees it. The ball, the port, every crash site (the world's wreck landmarks) and this cruiser where they really are on it, and the moon in its real direction. Turned to the world (north and east as on the ground), spinning slowly about the planet's up. Issue #325: the port (by who holds the barracks) and the seven Remnant outposts (unnamed pins outpost_stalk tall) are coloured by owner_colors (remnant, locals, short = the locals running low, remnant_short = the Remnant running low once the cruiser has fallen (issue #425), as on the F11 map), checked every refresh_s; a place that changes hands flashes for flash_s. town_color is only the fallback. radius is the ball's size in metres, lift how high its centre floats over the table top; heights over the ball are squeezed by squeeze (0: on the surface, 1: true to scale) so the cruiser's orbit fits over the table; the moon sits at moon_at times the ball's radius, in its true direction.",
     "radius": 1.1,
     "lift": 1.75,
     "squeeze": 0.3,
@@ -105,7 +105,7 @@
     "cruiser_color": "#ff3030",
     "moon_color": "#a9b8ff",
     "show_within": 400.0,
-    "owner_colors": { "remnant": "#ff3030", "locals": "#5fe07a", "short": "#e0e050" },
+    "owner_colors": { "remnant": "#ff3030", "locals": "#5fe07a", "short": "#e0e050", "remnant_short": "#ffa030" },
     "outpost_stalk": 0.12,
     "refresh_s": 0.5,
     "flash_s": 3.0,
