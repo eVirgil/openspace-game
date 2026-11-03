@@ -703,12 +703,66 @@
       "to": "Spine1",
       "radius": 0.11
     },
-    "cut": [],
+    "cut": [
+      {
+        "what": "the painted tank (rebuilt in attach)",
+        "min": [
+          -0.5,
+          0.476,
+          -0.5
+        ],
+        "max": [
+          0.5,
+          1.2,
+          0.5
+        ]
+      }
+    ],
     "min_island_tris": 0,
     "decimate": 90000,
     "emission": {
       "texture": "res://assets/characters/barge_duke/source/texture_emissive.png",
       "energy": 2.0
-    }
+    },
+    "attach": [
+      {
+        "what": "squid in its tank",
+        "note": "The generated tank is an opaque ball with the squid painted on (empty from the side), so it is cut and rebuilt: a separate Rodin squid (generation e2eb666a-46af-4ea6-a9cd-4a97afd13c93) in the middle of the old ball, then glowing yellow liquid and a glass shell around it, all on the head bone.",
+        "source": "res://assets/characters/barge_duke/source/squid.glb",
+        "bone": "Head",
+        "scale": 0.2,
+        "at": [
+          0.008,
+          0.69,
+          -0.025
+        ],
+        "decimate": 20000,
+        "spheres": [
+          {
+            "what": "liquid",
+            "center": [
+              0.008,
+              0.70,
+              -0.025
+            ],
+            "radius": 0.225,
+            "color": "#ffc4004d",
+            "energy": 0.3,
+            "rough": 0.3
+          },
+          {
+            "what": "glass",
+            "center": [
+              0.008,
+              0.70,
+              -0.025
+            ],
+            "radius": 0.237,
+            "color": "#ffffff0d",
+            "rough": 0.04
+          }
+        ]
+      }
+    ]
   }
 }

@@ -21,7 +21,11 @@ extends SceneTree
 ##   100% to `bone`, and `cut` boxes (prop space) drop triangles, only light-coloured
 ##   ones when `light` is set (the mannequin bust the generator put inside the mask).
 ##   `tint` multiplies its albedo; `discs` add flat glowing lenses (prop space centre
-##   and radius, facing +Z).
+##   and radius, facing +Z); `spheres` add see-through balls on the same bone (mesh
+##   space centre and radius, metres), drawn in order: the barge duke's tank of glowing
+##   liquid and its glass, around the squid (the generator can only paint a squid on
+##   an opaque ball). Each has a `color` with alpha, and optional `energy` (glow) and
+##   `rough`.
 ## - decimate: cut a surface (or an attached prop) down to about this many triangles.
 ## - split: cut the body into parts that are swapped and recoloured on their own (the
 ##   locals: head, torso, legs). A triangle goes to the first part whose `bones` (name
@@ -182,6 +186,33 @@ func _attach(out: ArrayMesh, mi: MeshInstance3D, a: Dictionary) -> void:
 		glow.emission = Color(str(d.color))
 		glow.emission_energy_multiplier = float(d.get("energy", 2.0))
 		out.surface_set_material(out.get_surface_count() - 1, glow)
+	for i in a.get("spheres", []).size():
+		var sp: Dictionary = a.spheres[i]
+		var ball := SphereMesh.new()
+		ball.radius = float(sp.radius)
+		ball.height = float(sp.radius) * 2.0
+		ball.radial_segments = 48
+		ball.rings = 24
+		var arr := ball.get_mesh_arrays()
+		var c := Vector3(sp.center[0], sp.center[1], sp.center[2])
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for j in v.size():
+			v[j] += c
+		arr[Mesh.ARRAY_VERTEX] = v
+		arr[Mesh.ARRAY_TANGENT] = null
+		_skin_to(arr, v.size(), bone, per)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, flags)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(str(sp.color))
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.metallic = 0.0
+		m.roughness = float(sp.get("rough", 0.1))
+		m.render_priority = i
+		if sp.has("energy"):
+			m.emission_enabled = true
+			m.emission = Color(str(sp.color))
+			m.emission_energy_multiplier = float(sp.energy)
+		out.surface_set_material(out.get_surface_count() - 1, m)
 	print("prep: attached %s to %s" % [a.get("what", ""), a.bone])
 
 
