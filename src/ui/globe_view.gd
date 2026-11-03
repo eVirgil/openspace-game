@@ -87,10 +87,16 @@ func _init() -> void:
 
 ## Pulse while the page shows: you and the waypoint. Finish the ground's bake.
 func _process(_dt: float) -> void:
-	if ground != null and ground.texture == null and is_visible_in_tree() and ground.poll():
-		queue_redraw()
+	if GlobeTerrain.busy():
+		GlobeTerrain.poll_all()
+		if ground != null and ground.texture != null and not _ground_layer.visible:
+			queue_redraw()
 	if is_visible_in_tree() and (player != Vector2.INF or goal_pin != "" or goal != Vector2.INF):
 		queue_redraw()
+
+
+func _exit_tree() -> void:
+	GlobeTerrain.finish_all()
 
 
 ## 0..1..0 about once a second.
@@ -213,7 +219,8 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ drawing
 
-func _ink() -> Color:
+## The globe's own lines (map.json "ink"; null = the player's HUD colour).
+static func ink_color() -> Color:
 	var c = GlobeMap.look().get("ink", null)
 	return Color(str(c)) if c != null else RetroUI.accent
 
@@ -222,7 +229,7 @@ func _draw() -> void:
 	var lk := GlobeMap.look()
 	var c := size * 0.5
 	var r := scale_px()
-	var ink := _ink()
+	var ink := ink_color()
 	if not _draw_ground(lk):
 		draw_circle(c, r, Color(str(lk.get("sea", "#141009"))))
 	_draw_grid(Color(ink, float(lk.get("grid_alpha", 0.14))))

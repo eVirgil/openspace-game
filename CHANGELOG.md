@@ -2,6 +2,17 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Maps of the moon and the Remnant cruiser (2026-11-03)
+
+- **Click the moon or the cruiser on the Map page (M) to open its own map.**
+  A button takes you back to your planet's map.
+- **The moon's map is its real ball,** craters and all, the same as the ground
+  you land on. Click anywhere on it to set a waypoint there: until you land,
+  the pointer leads you to the moon, then to the spot.
+- **The cruiser's map is a cutaway of the real ship** seen from the side: the
+  landing bay, the armoury, the crew room, the stairs up and the bridge on top.
+  Click a room to set a waypoint to it.
+
 ## Half the barge crowd is unarmed; the guards wear navy (2026-11-02)
 
 - **Only half the party barge's dancers carry a pistol.** Hurt anyone on
@@ -19,6 +30,7 @@ Plain English, newest on top. One entry per milestone.
   The dune fields, the mesas and (on the asteroid) the craters are drawn where
   they really are, from the same heights you walk on, lit softly from the top
   left. Zoomed right in, only a faint tint of high and low ground is left.
+
 ## The locals at Oda's bar are real people (2026-11-02)
 
 - **The three locals on the bar stools are solid and fight back.** You can no

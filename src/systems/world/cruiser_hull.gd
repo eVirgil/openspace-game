@@ -49,6 +49,8 @@ const APRON_X := 62.0              ## the bay floor runs out past the flank as a
 ## The corridor aft from the bay to the ramp shaft.
 const HALL_HALF := 5.0
 const HALL_TOP := -4.0
+## The corridor's two rooms: id, side (+1 starboard), and their fore and aft z.
+const ROOMS := [["armoury", 1.0, Vector2(110, 134)], ["crew", -1.0, Vector2(176, 200)]]
 ## The ramp shaft by the engines: six flights up to the bridge.
 const SHAFT_X := 24.0
 const SHAFT_Z := Vector2(270.0, 326.0)
@@ -183,6 +185,30 @@ static func aboard(local: Vector3) -> bool:
 	if absf(local.x) <= SHAFT_X and local.z >= SHAFT_Z.x and local.z <= SHAFT_Z.y:
 		return true
 	return absf(local.x) <= TOWER_X and local.z >= BRIDGE_Z.x - 2.0 and local.z <= BRIDGE_Z.y and local.y >= BRIDGE_Y - 4.0
+
+
+## The F11 map's side view (CruiserMapView): each place you can set a waypoint on,
+## { id, rect: Rect2 in (z, y) of the cruiser's frame, at: Vector3 (where the
+## pointer goes, on its floor) }: the bay, the corridor's rooms, the bridge.
+static func map_places() -> Array:
+	var out: Array = []
+	var pad: Vector3 = dock_pad().get("at", Vector3(24, 0, -62))
+	out.append({ "id": "bay", "rect": Rect2(BAY_Z.x, DECK_Y, BAY_Z.y - BAY_Z.x, BAY_TOP - DECK_Y), "at": pad })
+	for r in ROOMS:
+		var zs: Vector2 = r[2]
+		out.append({ "id": str(r[0]), "rect": Rect2(zs.x, DECK_Y, zs.y - zs.x, HALL_TOP - DECK_Y),
+			"at": Vector3(float(r[1]) * 15.0, DECK_Y + 1.0, (zs.x + zs.y) * 0.5) })
+	out.append({ "id": "bridge", "rect": Rect2(BRIDGE_Z.x, BRIDGE_Y, BRIDGE_Z.y - BRIDGE_Z.x, BRIDGE_TOP - BRIDGE_Y),
+		"at": Vector3(0, BRIDGE_Y + 1.0, (BRIDGE_Z.x + BRIDGE_Z.y) * 0.5) })
+	return out
+
+
+## A map place's point (cruiser frame), or INF.
+static func map_place(id: String) -> Vector3:
+	for p in map_places():
+		if str(p.id) == id:
+			return p.at
+	return Vector3.INF
 
 
 ## The foot of the ramp stack: where the first flight leaves the shaft's floor
@@ -391,10 +417,9 @@ static func _hall(out: Array) -> void:
 	# From under the bay's stern door (no gap between the decks) to the shaft's floor.
 	_slab(out, "hall_deck", Vector2(-HALL_HALF - 1.0, HALL_HALF + 1.0), Vector2(BAY_Z.y - 1.0, z1 + 1.0), DECK_Y, "deck", 2.0)
 	_box(out, "hall_ceiling", Vector3(HALL_HALF * 2.0 + 2.0, 1, z1 - z0), Vector3(0, HALL_TOP + 0.5, (z0 + z1) * 0.5), "wall")
-	var rooms := [["armoury", 1.0, Vector2(110, 134)], ["crew", -1.0, Vector2(176, 200)]]
 	for side: float in [-1.0, 1.0]:
 		var gaps: Array = []
-		for r in rooms:
+		for r in ROOMS:
 			if float(r[1]) == side:
 				gaps.append(r[2])
 		var from := z0
@@ -411,7 +436,7 @@ static func _hall(out: Array) -> void:
 				_wall(out, "hall_wall_%s_%d_b" % ["s" if side > 0 else "p", int(g.x)],
 					Vector3(side * (HALL_HALF + 0.5), DECK_Y, door.y), Vector3(side * (HALL_HALF + 0.5), HALL_TOP, g.y), 1.0)
 			from = g.y
-	for r in rooms:
+	for r in ROOMS:
 		var side: float = r[1]
 		var zs: Vector2 = r[2]
 		var xs := Vector2(HALL_HALF + 1.0, 26.0) if side > 0 else Vector2(-26.0, -HALL_HALF - 1.0)
@@ -569,7 +594,7 @@ static func _computers(out: Array) -> void:
 			_box(out, "bank_%s_%d_screen" % [tag, j], Vector3(0.08, 1.3, 4.6), Vector3(bx - side * 0.84, PIT_Y + 1.9, z), "screen")
 			out[-1]["kind"] = "decor"
 	# The corridor's rooms: a screen on each rack, a terminal on the fore wall.
-	for r in [["armoury", 1.0, Vector2(110, 134)], ["crew", -1.0, Vector2(176, 200)]]:
+	for r in ROOMS:
 		var side: float = r[1]
 		var zs: Vector2 = r[2]
 		var room := str(r[0])

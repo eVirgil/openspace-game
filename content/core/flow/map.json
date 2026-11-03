@@ -1,7 +1,11 @@
 {
-  "note": "The F11 Map page (src/systems/flow/globe_map.gd, src/ui/globe_view.gd): a globe of the planet with the places that stay put, each clickable to set a waypoint the HUD's objective pointer follows. Pins come from the world's landmarks (the Remnant's outposts and the port also say who holds them: Territory; 'held' lines are their hover text, 'legend_' lines the legend's) (content/core/worlds/), the planet's native camps and the town's markers; nothing that moves is on it. 'kinds' names each landmark kind ('location' landmarks use their location file's kind); a location's own 'label' wins over the kind's, and 'labels' wins over both. 'skip' lists landmark ids left off. 'town' are the port's own stops, shown once zoomed in past 'town_zoom' (the port's pin hides then); the town's vendors (content/core/vendors/) are added to them. 'arrive' is how close (m) counts as there: the waypoint clears itself. 'off_planet' are the places in the sky: every planet you can fly to from here, and the Remnant cruiser when this world has one. Looks: content/look/map.json.",
+  "note": "The F11 Map page (src/systems/flow/globe_map.gd, src/ui/globe_view.gd): a globe of the planet with the places that stay put, each clickable to set a waypoint the HUD's objective pointer follows. Pins come from the world's landmarks (the Remnant's outposts and the port also say who holds them: Territory; 'held' lines are their hover text, 'legend_' lines the legend's) (content/core/worlds/), the planet's native camps and the town's markers; nothing that moves is on it. 'kinds' names each landmark kind ('location' landmarks use their location file's kind); a location's own 'label' wins over the kind's, and 'labels' wins over both. 'skip' lists landmark ids left off. 'town' are the port's own stops, shown once zoomed in past 'town_zoom' (the port's pin hides then); the town's vendors (content/core/vendors/) are added to them. 'arrive' is how close (m) counts as there: the waypoint clears itself. 'off_planet' are the places in the sky: every planet you can fly to from here, and the Remnant cruiser when this world has one; clicking one opens its own map (another planet's globe, or the cruiser's side view with 'cruiser_places' named), and 'back' returns to this one. A waypoint set on another planet points there first ('waypoint_there'). Looks: content/look/map.json.",
   "lines": {
     "waypoint": "Waypoint: %s",
+    "waypoint_there": "Waypoint: %s, on %s",
+    "back": "< Back to %s",
+    "cruiser_title": "%s - side view",
+    "cruiser_hint": "Click a room to set a waypoint. The stairs run up to the bridge.",
     "marked": "Marked spot",
     "none": "Click a place to set a waypoint. Drag to turn, wheel or + / - to zoom.",
     "off_planet": "OFF PLANET",
@@ -33,13 +37,15 @@
     "vendor": { "label": "Stall", "arrive": 6 },
     "spot": { "label": "Marked spot", "legend": "Your mark", "arrive": 15 },
     "planet": { "label": "Planet" },
-    "cruiser": { "label": "Remnant cruiser", "arrive": 40 }
+    "cruiser": { "label": "Remnant cruiser", "arrive": 40 },
+    "cruiser_place": { "label": "Cruiser", "arrive": 10 }
   },
   "labels": {
     "skrugs_post": "Speeder stall",
     "mechanic_yard": "Mechanic's yard"
   },
   "skip": ["skrugs_ramp"],
+  "cruiser_places": { "bay": "Landing bay", "armoury": "Armoury", "crew": "Crew room", "bridge": "Bridge" },
   "camp_label": "%s camp",
   "town_zoom": 14.0,
   "town": [
