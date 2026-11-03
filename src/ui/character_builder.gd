@@ -4,6 +4,8 @@ extends HBoxContainer
 ## Character). A head, upper body and lower body piece, each in one of its colours
 ## (PlayerOutfit.catalog), shown on a turning model. Every change is saved at once
 ## (PlayerOutfit) and sent out as outfit_changed, so the player wears it live.
+## In free roam the guard's pieces show once the player has had its armour
+## (PlayerOutfit.unlocked); the lists are filled again each time it is shown.
 
 signal outfit_changed(outfit: Dictionary)
 
@@ -17,6 +19,7 @@ var _kit: CharacterKit
 var _turntable: Node3D
 var _pieces: Dictionary = {}   ## part -> OptionButton
 var _colours: Dictionary = {}  ## part -> OptionButton
+var _locked_note: Label        ## which item opens the pieces still locked
 
 
 func _init() -> void:
@@ -27,7 +30,6 @@ func _init() -> void:
 	v.add_theme_constant_override("separation", 8)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(v)
-	var cat := PlayerOutfit.pickable()
 	for part in PlayerOutfit.PARTS:
 		var title := Label.new()
 		title.text = LABELS[part]
@@ -36,9 +38,6 @@ func _init() -> void:
 		var h := HBoxContainer.new()
 		var piece := OptionButton.new()
 		piece.custom_minimum_size = Vector2(150, 0)
-		for p in cat.get(part, {}):
-			piece.add_item(str(p).capitalize())
-			piece.set_item_metadata(piece.item_count - 1, p)
 		piece.item_selected.connect(func(_i): _pick(part, true))
 		h.add_child(piece)
 		var colour := OptionButton.new()
@@ -59,6 +58,10 @@ func _init() -> void:
 	note.text = "Saved as you pick; worn at once."
 	note.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
 	v.add_child(note)
+	_locked_note = Label.new()
+	_locked_note.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+	_locked_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_locked_note)
 	show_outfit(PlayerOutfit.load_outfit())
 
 
@@ -70,6 +73,7 @@ func _process(dt: float) -> void:
 ## Put an outfit in the controls and on the preview (without saving it).
 func show_outfit(o: Dictionary) -> void:
 	_rebuild(PlayerOutfit.sanitize(o))
+	_fill_pieces()
 	for part in PlayerOutfit.PARTS:
 		var pc := PlayerOutfit.split(str(outfit.get(part, "")))
 		var piece: OptionButton = _pieces[part]
@@ -110,6 +114,23 @@ func _commit(o: Dictionary) -> void:
 	PlayerOutfit.save_outfit(o)
 	show_outfit(o)
 	outfit_changed.emit(outfit)
+
+
+## Each part's pieces from what can be picked now (a locked piece may have opened),
+## and a line naming the item that opens any still locked.
+func _fill_pieces() -> void:
+	var cat := PlayerOutfit.pickable()
+	for part in PlayerOutfit.PARTS:
+		var piece: OptionButton = _pieces[part]
+		piece.clear()
+		for p in cat.get(part, {}):
+			piece.add_item(str(p).capitalize())
+			piece.set_item_metadata(piece.item_count - 1, p)
+	var needs: Array = []
+	for item in PlayerOutfit.locked_items():
+		needs.append(str(WorldState._item(item).get("label", item)))
+	_locked_note.text = "More pieces open once you have: %s." % ", ".join(needs) if not needs.is_empty() else ""
+	_locked_note.visible = not needs.is_empty()
 
 
 func _fill_colours(part: String, piece: String) -> void:

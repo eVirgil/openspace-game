@@ -97,6 +97,7 @@
         "scene": "res://assets/characters/kit/parts.glb",
         "pieces": true, "colors": "res://assets/characters/kit/colors/%s.png",
         "parts": { "head": ["player"], "torso": ["player"], "legs": ["player"] },
+        "locked": { "guard": "quantonium_armour" },
         "bones": {
           "pelvis": "Hips", "spine": "Spine", "chest": "Spine2", "neck": "Neck", "head": "Head",
           "l_shoulder": "LeftArm", "l_elbow": "LeftForeArm", "l_wrist": "LeftHand",

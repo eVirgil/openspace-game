@@ -4,16 +4,21 @@ extends GutTest
 
 const SAVE := "user://test_player_outfit.json"
 const MIX := { "head": "player", "torso": "guard:gunmetal", "legs": "player:rust" }
+const ARMOUR := "quantonium_armour"
+const GUARD_COLOURS := ["black", "blood", "desert", "gunmetal", "locals", "navy", "oxblood", "void", "white"]
 
 
 func before_each() -> void:
 	PlayerOutfit.save_path = SAVE
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
+	WorldState.reset()
+	WorldState.inventory.add(ARMOUR)     # the guard's pieces open (they are locked without it)
 
 
 func after_each() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
 	PlayerOutfit.save_path = ""
+	WorldState.reset()
 
 
 func _meshes(body: Node3D) -> Array:
@@ -107,3 +112,44 @@ func test_builder_saves_each_pick_and_sends_it_out() -> void:
 	assert_has(_meshes(b.preview), "guard_torso", "the preview wears it")
 	b.randomize_outfit()
 	assert_eq(PlayerOutfit.load_outfit(), b.outfit, "random picks are saved too")
+
+
+# ------------------------------------------------------------------ the guard's armour, locked in free roam
+
+func test_free_roam_locks_the_guards_pieces_until_you_have_its_armour() -> void:
+	WorldState.reset()
+	assert_false(WorldState.story_mode())
+	assert_true(PlayerOutfit.catalog().torso.has("guard"), "the kit has them")
+	for part in PlayerOutfit.PARTS:
+		assert_false(PlayerOutfit.pickable()[part].has("guard"), part + ": not pickable without the armour")
+	assert_eq(PlayerOutfit.locked_items(), [ARMOUR])
+	PlayerOutfit.save_outfit(MIX)
+	assert_eq(PlayerOutfit.load_outfit(), { "head": "player", "legs": "player:rust" }, "the guard's torso can not be worn")
+	assert_eq(PlayerOutfit.sanitize(MIX, false), MIX, "another player's outfit keeps it (theirs to open)")
+	WorldState.inventory.add(ARMOUR)
+	for part in PlayerOutfit.PARTS:
+		assert_eq(PlayerOutfit.pickable()[part].get("guard"), GUARD_COLOURS, part + ": every colour once you have it")
+	assert_eq(PlayerOutfit.locked_items(), [])
+	WorldState.inventory.remove(ARMOUR)
+	assert_true(PlayerOutfit.pickable().torso.has("guard"), "open for good, even once it is sold")
+	var saved := WorldState.to_save()
+	WorldState.reset()
+	WorldState.from_save(saved)
+	assert_true(PlayerOutfit.pickable().head.has("guard"), "and after a load")
+
+
+func test_builder_shows_the_guard_once_the_armour_is_had() -> void:
+	WorldState.reset()
+	var b := CharacterBuilder.new()
+	add_child_autofree(b)
+	var torso := func() -> Array:
+		var out := []
+		for i in b._pieces.torso.item_count:
+			out.append(b._pieces.torso.get_item_metadata(i))
+		return out
+	assert_false(torso.call().has("guard"))
+	assert_true(b._locked_note.visible and b._locked_note.text.contains("Quantonium armour"), "says what opens it")
+	WorldState.inventory.add(ARMOUR)
+	b.show_outfit(b.outfit)
+	assert_true(torso.call().has("guard"), "filled again when shown")
+	assert_false(b._locked_note.visible)

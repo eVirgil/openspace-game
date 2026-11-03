@@ -15,9 +15,15 @@ extends RefCounted
 ##
 ## Issue #200: a story save is locked to the smuggler. Only the archetype's own
 ## pieces (its model's "parts") can be worn there; the colours stay free.
+##
+## In free roam a piece in the model's "locked" ({ piece: item id }) can not be
+## worn until the player has had that item (the guard's armour: the quantonium
+## armour). Then every part and colour of it is open, for good (a flag), even
+## once the item is sold.
 
 const ARCHETYPE := "player_smuggler"
 const PARTS := ["head", "torso", "legs"]
+const UNLOCK_FLAG := "outfit_unlocked_%s"   ## WorldState flag: a locked piece the player has opened
 static var save_path := ""         ## "" = the save being played's (SaveSlots); tests point this elsewhere
 static var _catalog: Dictionary = {}
 
@@ -26,8 +32,7 @@ static var _catalog: Dictionary = {}
 static func catalog() -> Dictionary:
 	if not _catalog.is_empty():
 		return _catalog
-	var model: Dictionary = CharacterKit._read_json(CharacterKit.PALETTES_PATH) \
-		.get("archetypes", {}).get(ARCHETYPE, {}).get("model", {})
+	var model := _model()
 	var scene_path := str(model.get("scene", ""))
 	if not bool(model.get("pieces", false)) or not ResourceLoader.exists(scene_path):
 		return {}
@@ -51,22 +56,55 @@ static func catalog() -> Dictionary:
 	return _catalog
 
 
-## What can be picked in this save: the whole catalog, or in a story save only
-## the archetype's own pieces.
-static func pickable() -> Dictionary:
-	if not WorldState.story_mode():
+## What can be picked in this save: the catalog without the pieces still locked,
+## or in a story save only the archetype's own pieces. `locks` false leaves the
+## locks out (another player's outfit, heard over the network: theirs to open).
+static func pickable(locks := true) -> Dictionary:
+	if not WorldState.story_mode() and not locks:
 		return catalog()
-	var own: Dictionary = CharacterKit._read_json(CharacterKit.PALETTES_PATH) \
-		.get("archetypes", {}).get(ARCHETYPE, {}).get("model", {}).get("parts", {})
+	var model := _model()
+	var own: Dictionary = model.get("parts", {})
 	var out := {}
 	for part in catalog():
 		var names: Array = (own.get(part, []) as Array).map(func(c): return split(str(c))[0])
 		var pieces := {}
 		for piece in catalog()[part]:
-			if names.has(piece):
+			if (names.has(piece) if WorldState.story_mode() else unlocked(piece, model)):
 				pieces[piece] = catalog()[part][piece]
 		out[part] = pieces
 	return out
+
+
+## A piece can be worn in free roam: not locked, or its item had (now or before).
+## Having the item opens it for good (UNLOCK_FLAG).
+static func unlocked(piece: String, model: Dictionary = {}) -> bool:
+	if model.is_empty():
+		model = _model()
+	var item := str(model.get("locked", {}).get(piece, ""))
+	if item == "" or WorldState.has_flag(UNLOCK_FLAG % piece):
+		return true
+	if WorldState.inventory == null or not WorldState.inventory.has(item):
+		return false
+	WorldState.set_flag(UNLOCK_FLAG % piece)
+	return true
+
+
+## The items that would open the pieces still locked in this save (none in a
+## story save: its own lock is the archetype's parts).
+static func locked_items() -> Array:
+	var out: Array = []
+	if WorldState.story_mode():
+		return out
+	var model := _model()
+	for piece in model.get("locked", {}):
+		var item := str(model.locked[piece])
+		if not unlocked(piece, model) and not out.has(item):
+			out.append(item)
+	return out
+
+
+static func _model() -> Dictionary:
+	return CharacterKit._read_json(CharacterKit.PALETTES_PATH).get("archetypes", {}).get(ARCHETYPE, {}).get("model", {})
 
 
 ## The colours of a piece's part, from the texture file names (as _wear_outfit
@@ -101,8 +139,8 @@ static func choice(piece: String, colour: String) -> String:
 
 ## Only the parts whose piece and colour can be picked (pickable); the rest are
 ## left out, so the kit gives them the archetype's default.
-static func sanitize(outfit: Dictionary) -> Dictionary:
-	var cat := pickable()
+static func sanitize(outfit: Dictionary, locks := true) -> Dictionary:
+	var cat := pickable(locks)
 	var out := {}
 	for part in PARTS:
 		if not outfit.has(part):
