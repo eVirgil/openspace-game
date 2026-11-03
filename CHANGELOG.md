@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.5 (2026-11-03)
+
+- Share builds are now **OpenSpace V1.5**. Everything below, down to "New
+  version is 1.4", is in it.
+
 ## LAN: you can find each other (2026-11-03)
 
 - **The other players were there, just hard to find.** A guest arrives by a
