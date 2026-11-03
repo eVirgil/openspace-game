@@ -11,6 +11,10 @@ extends Control
 ## waypoint there (`pin_clicked`), a click on bare ground drops a marked spot
 ## (`spot_clicked`). Shapes and colours: content/look/map.json.
 ##
+## Under the grid, faintly, the ground itself (`ground`, a GlobeTerrain bake of the
+## ball's own heights): dunes, craters and mesas where they really are, lit from the
+## top left. Until the bake is done the ball is the plain "sea" colour.
+##
 ## Orthographic: a place's direction from the planet's centre (map coordinates,
 ## GlobeMap.dir) is turned by the view (yaw about the screen's vertical, then
 ## pitch) and drawn where it lands; the half facing away is not drawn.
@@ -27,6 +31,7 @@ const DRAG := 4.0                        ## px: further than this and a press is
 const PITCH_MAX := 1.45
 ## Turns the map's frame (the port at +Y) so the port faces the viewer and map -z is up.
 const FACE := Basis(Vector3.RIGHT, PI / 2.0)
+const GroundShader := preload("res://src/systems/look/shaders/globe_ground.gdshader")
 
 var pins: Array = []                    ## GlobeMap.pins
 var radius_m := 5000.0                  ## the planet's radius (m)
@@ -42,6 +47,9 @@ var heading := Vector2.ZERO             ## the way you look, a map-space directi
 var goal_pin := ""                      ## the pin the F11 map's waypoint is on (it flashes), "" = none
 var goal := Vector2.INF                 ## where the pointer is otherwise (map x, z): the nearest pin
 										## showing within its arrive distance flashes, else its own marker
+var ground: GlobeTerrain = null         ## the ball's ground, drawn under the grid once baked
+
+var _ground_layer: Control              ## draws `ground` behind this control's own lines and pins
 
 var _press := Vector2.INF
 var _dragged := false
@@ -52,6 +60,17 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
 	custom_minimum_size = Vector2(220, 220)
+	_ground_layer = Control.new()
+	_ground_layer.name = "Ground"
+	_ground_layer.show_behind_parent = true
+	_ground_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ground_layer.visible = false
+	_ground_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var mat := ShaderMaterial.new()
+	mat.shader = GroundShader
+	_ground_layer.material = mat
+	_ground_layer.draw.connect(func(): _ground_layer.draw_rect(Rect2(Vector2.ZERO, _ground_layer.size), Color.WHITE))
+	add_child(_ground_layer)
 	var zb := VBoxContainer.new()
 	zb.position = Vector2(8, 8)
 	zb.add_theme_constant_override("separation", 4)
@@ -66,8 +85,10 @@ func _init() -> void:
 		zb.add_child(b)
 
 
-## Pulse while the page shows: you and the waypoint.
+## Pulse while the page shows: you and the waypoint. Finish the ground's bake.
 func _process(_dt: float) -> void:
+	if ground != null and ground.texture == null and is_visible_in_tree() and ground.poll():
+		queue_redraw()
 	if is_visible_in_tree() and (player != Vector2.INF or goal_pin != "" or goal != Vector2.INF):
 		queue_redraw()
 
@@ -202,7 +223,8 @@ func _draw() -> void:
 	var c := size * 0.5
 	var r := scale_px()
 	var ink := _ink()
-	draw_circle(c, r, Color(str(lk.get("sea", "#141009"))))
+	if not _draw_ground(lk):
+		draw_circle(c, r, Color(str(lk.get("sea", "#141009"))))
 	_draw_grid(Color(ink, float(lk.get("grid_alpha", 0.14))))
 	draw_arc(c, r, 0.0, TAU, 128, Color(ink, float(lk.get("rim_alpha", 0.85))), 1.5, true)
 	var font := get_theme_default_font()
@@ -248,6 +270,29 @@ func _draw() -> void:
 			var at := Vector2(clampf(s.x - w * 0.5, 4.0, size.x - w - 4.0), maxf(s.y - 14.0, fs + 4.0))
 			draw_rect(Rect2(at + Vector2(-4, -fs - 1), Vector2(w + 8, fs + 7)), Color(0, 0, 0, 0.7))
 			draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.96, 0.92, 0.84))
+
+
+## The baked ground on the ball, under everything else; false while there is none.
+func _draw_ground(lk: Dictionary) -> bool:
+	var ready := ground != null and ground.texture != null
+	_ground_layer.visible = ready
+	if not ready:
+		return false
+	var t: Dictionary = lk.get("terrain", {})
+	var mat := _ground_layer.material as ShaderMaterial
+	mat.set_shader_parameter("ground", ground.texture)
+	mat.set_shader_parameter("centre", size * 0.5)
+	mat.set_shader_parameter("radius_px", scale_px())
+	mat.set_shader_parameter("view", view())
+	mat.set_shader_parameter("slope_max", GlobeTerrain.SLOPE)
+	mat.set_shader_parameter("relief", float(t.get("relief", 4.0)))
+	mat.set_shader_parameter("shade", float(t.get("shade", 0.06)))
+	mat.set_shader_parameter("texel_px", scale_px() * TAU / ground.size.x)
+	var fade: Array = t.get("fade_px", [4.0, 12.0])
+	mat.set_shader_parameter("fade_px", Vector2(float(fade[0]), float(fade[1])))
+	for k in ["low", "high", "rock"]:
+		mat.set_shader_parameter(k, Color(str(t.get(k, lk.get("sea", "#141009")))))
+	return true
 
 
 ## Latitude and longitude lines every 30 degrees round the globe's own axis.

@@ -430,6 +430,8 @@ func _refresh_map(centre := false) -> void:
 		globe.radius_m = sphere.radius
 		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null else []
 		globe.pins = GlobeMap.pins(world, planet, town)
+		var mesas: Array = demo.landforms.mesa_spots if demo != null and demo.get("landforms") != null else []
+		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [GameFlow.current_planet_id(), mesas.size()], sphere, mesas)
 	var w := WorldState.map_waypoint
 	globe.selected = GlobeMap.waypoint_id() if str(w.get("planet", "")) == GameFlow.current_planet_id() else ""
 	var t := str(w.get("target", ""))

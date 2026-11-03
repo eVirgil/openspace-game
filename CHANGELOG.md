@@ -2,6 +2,12 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The map shows the real desert (2026-11-02)
+
+- **The globe on the Map page (M) shows the ground faintly under its lines.**
+  The dune fields, the mesas and (on the asteroid) the craters are drawn where
+  they really are, from the same heights you walk on, lit softly from the top
+  left. Zoomed right in, only a faint tint of high and low ground is left.
 ## The locals at Oda's bar are real people (2026-11-02)
 
 - **The three locals on the bar stools are solid and fight back.** You can no

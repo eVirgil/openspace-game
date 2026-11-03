@@ -19,6 +19,9 @@ var boulder_count := 0
 var boulder_spots := PackedVector3Array()   ## where they went (the renderer may not say)
 ## { center: Vector3 (on the ground), up, radius, height } for WorldGround.add_boulders.
 var boulders: Array = []
+## The ball's mesas where they went, { map: Vector2, radius, height } each, for the
+## F11 map's ground (GlobeTerrain).
+var mesa_spots: Array = []
 
 ## Made once a session: the port is built again when you fly home from the moon,
 ## and its rocks never change (~110 ms of noise, meshes and colliders on that
@@ -170,6 +173,7 @@ func _build_planet_mesas(terrain: PlanetTerrain, mats: LookMaterials, clear: Rec
 			Vector3(0, rng.randf_range(0, 360), 0))
 		if solid:
 			_solid(placed)
+		mesa_spots.append({ "map": map, "radius": radius, "height": height })
 
 
 ## The rock shader's ground height on the ball is metres above the bare ball.
