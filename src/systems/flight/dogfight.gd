@@ -517,6 +517,19 @@ func net_damage(id: int, amount: float, kind: String, point: Vector3, peer: int)
 	events = now
 
 
+## LAN (a guest's copy): one of the host's ships hit this game's player (NetFight.fight_hurt);
+## it lands here, between steps, as net_damage's do.
+func net_hurt(amount: float, kind: String, point: Vector3) -> void:
+	var me := get_ship(player_id)
+	if me.is_empty() or not me.alive or player_sheltered or state != State.RUNNING:
+		return
+	var now := events
+	events = _net_events
+	stats.hits += 1
+	_damage(me, { "owner": -1 }, kind, amount, point)
+	events = now
+
+
 ## How a ship's pilot is called out: '"Cinder" Lieutenant Varo Kesh', or just the
 ## name or the callsign, or "" when nobody named them.
 static func who(ship: Dictionary) -> String:
