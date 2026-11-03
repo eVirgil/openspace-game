@@ -174,3 +174,17 @@ func test_the_move_hint_shows_once_when_you_are_free() -> void:
 	gear.hud.toast_label.text = ""
 	gear._tick_move_hint(1.0)
 	assert_eq(gear.hud.toast_label.text, "", "once a run")
+
+
+func test_free_roam_armour_sets_the_character_and_says_so() -> void:
+	PlayerOutfit.save_path = "user://test_gear_g_outfit.json"
+	WorldState.mode = WorldState.FREEPLAY
+	WorldState.inventory.remove("jetpack")
+	assert_eq(gear.toggle_gear(), "attached")
+	assert_eq(PlayerOutfit.load_outfit(), { "head": "guard:desert", "torso": "guard:desert", "legs": "guard:desert" },
+		"saved as the player's outfit (changed back in the builder)")
+	assert_string_contains(gear.hud.toast_label.text, "off", "the put-on line first")
+	gear.hud._process(10.0)
+	assert_eq(gear.hud.toast_label.text, "Character set to Armor - Desert. Change in settings.")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerOutfit.save_path))
+	PlayerOutfit.save_path = ""
