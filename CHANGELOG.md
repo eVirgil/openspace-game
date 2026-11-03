@@ -2,6 +2,18 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Your speeder waits outside the back gate when you respawn (2026-11-03)
+
+- **Wake up after being downed and your speeder is in a row outside the back
+  gate,** on the sand by the wall, nose to the desert, wherever you left it.
+  Loading a save puts it there too. Nothing else brings it back: left out in
+  the desert, it stays there until you respawn.
+- **Every LAN player has their own spot in the row** (five, one each): the host
+  or a lone player the first, each guest the next by when they joined.
+- **A new speeder still waits in Skrugs's garage.**
+- **A destroyed speeder is gone for good,** respawn or not, and Skrugs sells
+  you another at full price (checked).
+
 ## LAN: friendly fire for ships, no seeker lock on friends (2026-11-03)
 
 - **Your ship's cannons hit your friends' ships.** Before, another player's

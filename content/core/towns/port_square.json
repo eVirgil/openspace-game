@@ -3210,6 +3210,57 @@
    "role": "waypoint"
   },
   {
+   "id": "speeder_spot_1",
+   "pos": [
+    -103.5,
+    0,
+    -54
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90,
+   "note": "Where each player's speeder waits after they respawn (SpeederPost.line_spot): a row on the back apron by the wall, either side of the back gap, one per LAN player, noses out to the desert. The round port's come from town_kit.json's speeder_line (tools/town/gen_port_round.py); these are by hand, the same numbers."
+  },
+  {
+   "id": "speeder_spot_2",
+   "pos": [
+    -103.5,
+    0,
+    -65
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_3",
+   "pos": [
+    -103.5,
+    0,
+    -50
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_4",
+   "pos": [
+    -103.5,
+    0,
+    -69
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_5",
+   "pos": [
+    -103.5,
+    0,
+    -46
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
    "id": "cantina_door",
    "pos": [
     -55,

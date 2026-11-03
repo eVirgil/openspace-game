@@ -97,6 +97,7 @@ signal left_atmosphere
 signal fight_started
 signal fight_ended(outcome: String)
 signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others (unlocked seekers too)
+signal woke                        ## the player respawned (woke_in_pit): SpeederPost lines their speeder up
 
 var demo                         ## the town scene (town_demo.gd)
 var content
@@ -2156,6 +2157,7 @@ func _stow(i: int) -> void:
 ## You woke in the pit (downed, killed, a fall, a lost stolen ship): your primary is
 ## on its pad, wherever it was, patched up if it was shot to pieces.
 func woke_in_pit() -> void:
+	woke.emit()
 	if piloting or berths.is_empty() or not Fleet.goes_to_pit():
 		return
 	calling = false

@@ -8335,6 +8335,56 @@
    "patrol": "stroll_market_6"
   },
   {
+   "id": "speeder_spot_1",
+   "pos": [
+    -144.5,
+    0,
+    -28.85
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_2",
+   "pos": [
+    -144.5,
+    0,
+    -39.85
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_3",
+   "pos": [
+    -144.5,
+    0,
+    -24.85
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_4",
+   "pos": [
+    -144.5,
+    0,
+    -43.85
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
+   "id": "speeder_spot_5",
+   "pos": [
+    -144.5,
+    0,
+    -20.85
+   ],
+   "role": "speeder_spot",
+   "yaw_deg": 90
+  },
+  {
    "id": "trooper_tower_s",
    "pos": [
     131.0,
@@ -9832,8 +9882,14 @@
     "note": "Issue #308: the barracks yard is a checkpoint zone. Below the wave band the nearest barracks trooper (a role below) who sees you walks up and the gate's card opens, on the gate's rules (content/core/soldiers/gate_guard.json checkpoint block; anything in this checkpoint block wins). The zone is the ground under the boxes in around (yard walls to the hall), so it follows the barracks in either layout. Leave it and the card closes; cleared, the yard leaves you alone for cleared_s.",
     "place": "the barracks",
     "zone": "barracks",
-    "around": ["yard_wall_w", "yard_wall_e", "barracks_hall"],
-    "roles": ["yard"],
+    "around": [
+     "yard_wall_w",
+     "yard_wall_e",
+     "barracks_hall"
+    ],
+    "roles": [
+     "yard"
+    ],
     "checkpoint": {
      "cleared_s": 240.0
     }

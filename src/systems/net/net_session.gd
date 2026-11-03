@@ -195,6 +195,14 @@ static func spot_by(t89: Vector3, peer_id: int) -> Vector3:
 	return t89 + Vector3(sin(a), 0.0, cos(a)) * r
 
 
+## This player's place among the players: 0 alone or hosting, a guest's join slot
+## + 1 (their speeder's spot in the row outside the back gate, SpeederPost.line_spot).
+static func my_slot() -> int:
+	if not is_guest():
+		return 0
+	return int(link.roster.get(link.my_id(), {}).get("slot", 0)) + 1
+
+
 ## A guest's ship's livery for join slot `slot` (0 = the first guest).
 static func livery(slot: int) -> String:
 	var all: Array = cfg().get("liveries", [])

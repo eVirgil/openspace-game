@@ -105,7 +105,7 @@ def arc(r, d0, d1, step):
 
 def marker_group(m, sq_zones):
 	mid = m["id"]
-	if mid in ("trooper_tower", "back_gap") or mid.startswith("resident"):
+	if mid in ("trooper_tower", "back_gap") or mid.startswith("resident") or mid.startswith("speeder_spot"):
 		return "special"
 	x, _, z = m["pos"]
 	if x >= 86 and abs(z) <= 14:
@@ -160,9 +160,10 @@ def wall_and_gates(cfg, sq_boxes, boxes, markers):
 	markers.append({"id": "back_gap", "pos": [r2(bp[0]), 0, r2(bp[1])], "role": "waypoint"})
 
 
-def ground(cfg, boxes, pit_r):
+def ground(cfg, boxes, markers, pit_r):
 	"""Floor slabs in strips under the whole round town, open over the bowl, and
-	aprons outside both gates (the desert exit, the dunes past the back gate)."""
+	aprons outside both gates (the desert exit, the dunes past the back gate),
+	and the row of speeder spots on the back one."""
 	Ro = cfg["radius"] + KIT_DATA["wall"]["thickness"]
 	step = cfg["ground_strip"]
 	edges = [-pit_r, -pit_r / 2, 0.0, pit_r / 2, pit_r]
@@ -190,6 +191,14 @@ def ground(cfg, boxes, pit_r):
 	z0, z1 = half(bz - ba["half"]), half(bz + ba["half"])
 	inner = max(-b["min"][0] for b in boxes if b["zone"] == "ground" and b["min"][2] < z1 and z0 < b["max"][2] and b["min"][0] < 0)
 	boxes.append(box("backgap_apron", "ground", "floor", [-(inner + ba["length"]), -0.5, z0], [-inner, 0, z1]))
+	# Where each player's speeder waits after they respawn: a row by the wall on
+	# the back apron, either side of the gate (turn about, the cantina's side
+	# first), noses out to the desert.
+	sl = cfg["speeder_line"]
+	for i in range(sl["count"]):
+		along = (sl["first"] + (i // 2) * sl["step"]) * (1 if i % 2 == 0 else -1)
+		markers.append({"id": "speeder_spot_%d" % (i + 1), "pos": [r2(-(inner + sl["out"])), 0, r2(bz + along)],
+			"role": "speeder_spot", "yaw_deg": 90})
 
 
 def spaceport(cfg, sq_boxes, boxes):
@@ -715,7 +724,7 @@ def main():
 
 	boxes, markers, routes, zones = [], [], [], []
 	wall_and_gates(cfg, SQ["boxes"], boxes, markers)
-	ground(cfg, boxes, cfg["pit"]["radius"])
+	ground(cfg, boxes, markers, cfg["pit"]["radius"])
 	spaceport(cfg, SQ["boxes"], boxes)
 	yards(cfg, boxes, markers)
 
