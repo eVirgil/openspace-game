@@ -96,6 +96,13 @@
       "length": 30.0,
       "half": 14.0
     },
+    "speeder_line": {
+      "count": 5,
+      "out": 3.5,
+      "first": 5.5,
+      "step": 4.0,
+      "note": "The speeder_spot markers: where each player's speeder waits after they respawn (SpeederPost.line_spot), one per LAN player (lan.json max_players). A row on the back apron along its edge by the wall, 'out' metres past that edge, either side of the back gate: spot 1 'first' metres toward the cantina's side, spot 2 as far the other way, then on out 'step' apart, turn about, so every one stands on the apron (its half). Noses out to the desert. The square port's are in port_square.json by hand, the same numbers."
+    },
     "pit": {
       "radius": 38.0,
       "ramp_from": 10.0

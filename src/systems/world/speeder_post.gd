@@ -23,7 +23,11 @@ extends Node3D
 ##   - buying: Skrugs proposes (offer_speeder), the chat box shows the price, and
 ##     only the player's click pays. 100 credits off, a speeder parked in his
 ##     garage (then beside it), his mood warm. Speeders you own are saved
-##     (WorldState counter "speeders_owned") and parked there again next time.
+##     (WorldState counter "speeders_owned"); next time, and whenever you respawn
+##     (ShipPilot.woke), yours waits in the row outside the back gate (the town's
+##     speeder_spot markers, one spot per LAN player: line_up). Nothing else
+##     brings one back: left in the desert, it stays there. A destroyed one is
+##     gone, and he sells you another.
 ##     One to a customer (his card's sale.max_owned): every parked speeder runs its
 ##     hover each physics tick, and a yard of seven cost the town its frame rate.
 ##     Once you own one he does not offer another, and a save with more keeps
@@ -116,7 +120,10 @@ func _ready() -> void:
 	display.place(world_point("display"), yaw + PI * 0.5)
 	_trim_owned()
 	for i in WorldState.count("speeders_owned"):
-		_park(i)
+		_spawn(i)
+	line_up()
+	if "pilot" in demo and demo.pilot != null:
+		demo.pilot.woke.connect(line_up)
 	# Issue #82: each speeder sold is a new paint job, an 8 MB model; load them
 	# now, off the main thread, so buying one does not hitch. Held here so they
 	# stay cached.
@@ -316,13 +323,46 @@ func _answer_line(text: String) -> void:
 ## the garage first, then beside it), nose the way the spot says.
 func _park(i: int) -> SpeederNode:
 	var s := _spawn(i)
+	var spot_at := parking_spot(i)
+	s.place(spot_at[0], spot_at[1])
+	return s
+
+
+## Where a bought speeder `i` waits: [position, yaw] (see _park).
+func parking_spot(i: int) -> Array:
 	var spot_cfg: Dictionary = parking[i % parking.size()] if not parking.is_empty() else {}
 	var at := _world(WorldGround._v3(spot_cfg.get("at", [0, 0, 0])))
 	at.y = ground.terrain.height_at(at.x, at.z)
 	var axis := { "+x": Vector3.RIGHT, "-x": Vector3.LEFT, "+z": Vector3.BACK, "-z": Vector3.FORWARD }
 	var nose: Vector3 = (axis.get(str(spot_cfg.get("nose", "-x")), Vector3.LEFT) as Vector3).rotated(Vector3.UP, yaw)
-	s.place(at, atan2(-nose.x, -nose.z))
-	return s
+	return [at, atan2(-nose.x, -nose.z)]
+
+
+## Where speeder `i` waits after you respawn: [position, yaw]. Your own spot in
+## the row outside the back gate (the town's speeder_spot markers, in order; a LAN
+## player's is NetSession.my_slot, so everyone has one), the next one on for each
+## more you own. His garage when the town has no row.
+func line_spot(i: int = 0) -> Array:
+	var town = demo.get("town")
+	var row: Array = town.markers_with_role("speeder_spot") if town != null else []
+	if row.is_empty():
+		return parking_spot(i)
+	row.sort_custom(func(a, b): return str(a.id).naturalnocasecmp_to(str(b.id)) < 0)
+	var m: Dictionary = row[(NetSession.my_slot() + i) % row.size()]
+	var at: Vector3 = town.marker_pos(str(m.id))
+	at.y = ground.terrain.height_at(at.x, at.z)
+	return [at, deg_to_rad(float(m.get("yaw_deg", 0.0)))]
+
+
+## The player respawned (ShipPilot.woke), or the town was just built: every
+## speeder they own goes to its spot in the row (line_spot), wherever it was. A
+## destroyed one is not brought back (it is no longer theirs: buy another).
+func line_up() -> void:
+	for s in speeders:
+		if not is_instance_valid(s) or s.riding:
+			continue
+		var spot_at := line_spot(int(s.get_meta("slot", 0)))
+		s.place(spot_at[0], spot_at[1])
 
 
 ## Issue #95: speeder `i` with its fit (paint and parts) from WorldState.speeder_fits.

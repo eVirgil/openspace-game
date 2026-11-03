@@ -216,7 +216,10 @@ to `test_results/m11/`.
 Walk out through the back gate (the gap in the wall at the far corner past the
 cantina). Skrugs, dressed all in red, sells speeders from a stall just outside.
 Press **E** at his counter to talk. When you want one, he shows a price card;
-only clicking **Buy** pays (100 credits). The speeder is parked behind his house.
+only clicking **Buy** pays (100 credits). A new speeder waits in his garage.
+When you respawn (or load a save), yours waits in a row on the sand outside the
+back gate, by the wall; in LAN play each player has their own spot. Left out in
+the desert, it stays there until you respawn. A destroyed one is gone: buy another.
 
 | Action | Key |
 |---|---|

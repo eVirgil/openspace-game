@@ -2,6 +2,22 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-03 — Speeders come back when the player does
+
+- **A respawn is ShipPilot.woke.** Every way back on your feet (the garrison's
+  pit, the beast, a fall off a platform, a lost stolen ship) already calls
+  `ShipPilot.woke_in_pit`; it now emits `woke` first, and SpeederPost lines the
+  speeder up on it. Alternative: a call at each wake site. Rejected: four sites,
+  and the next one would forget it.
+- **The row is town markers** (`speeder_spot_1..5`, role `speeder_spot`), on
+  the back apron so the town validator sees them stand on a floor. The round
+  port's come from `town_kit.json`'s `speeder_line` through
+  `tools/town/gen_port_round.py`; the square port's are by hand. Each player's
+  is `NetSession.my_slot()` (0 alone or hosting, a guest's join slot + 1).
+- **Loading a save puts it in the row too,** not the garage: the speeder's
+  place is not saved, and a load is a spawn. Only a purchase parks in the
+  garage, so the bench needs it driven in.
+
 ## 2026-11-03 — One speeder to a customer
 
 - **The limit is the fix.** Every owned speeder is a SpeederNode under the town,
