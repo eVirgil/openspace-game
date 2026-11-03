@@ -11,7 +11,8 @@
     "torso": "guard:desert",
     "legs": "guard:desert"
   },
-  "note": "Issues #209: the desert variation of the Remnant guard's armour, from the fence after the first bounty. Worn (slot 'armour', toggled in the inventory like the jetpack) it multiplies the player's health by health_mult. In a story save wearing it turns the whole character into the desert guard ('outfit'); in freeplay the outfit stays.",
+  "outfit_note": "Character set to Armor - Desert. Change in settings.",
+  "note": "Issues #209: the desert variation of the Remnant guard's armour, from the fence after the first bounty. Worn (slot 'armour', toggled in the inventory like the jetpack) it multiplies the player's health by health_mult. In a story save wearing it turns the whole character into the desert guard ('outfit'); in freeplay putting it on sets the player's outfit to it once (saved, outfit_note said; changed back in F11, Character).",
   "naming": {
     "kind": "equipment",
     "class": "armour"

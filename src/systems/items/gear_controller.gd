@@ -89,6 +89,7 @@ var last_trade := ""            ## what the last pick in it did: "sold", "bought
 var _trade_said := ""           ## the trade menu's body: the pitch, then what the last trade did
 var on_refit := Callable()      ## issue #208: () after an upgrade (the town refits the player's guns)
 var _armour_look := false       ## issue #209: the desert guard's look is on (story saves)
+var _dressed := ""              ## the outfit_note of armour just put on in free roam, said after the put-on line
 var _last_safe := Vector3.ZERO
 var _crates_built := false      ## wreck field: the site crates are out (they need `ground`)
 var rng := RandomNumberGenerator.new()   ## the crates' prizes
@@ -368,7 +369,10 @@ func inventory_page() -> InventoryPanel:
 	var page := InventoryPanel.new()
 	page.content = content
 	page.name_of = _shown
-	page.toggle_item = toggle_item
+	page.toggle_item = func(id: String) -> String:
+		var r := toggle_item(id)
+		_say_dressed()
+		return r
 	return page
 
 
@@ -703,8 +707,30 @@ func toggle_item(id: String) -> String:
 			inv().detach(on)
 		if inv().attach(id, item):
 			sync_gear()
+			_dressed = _dress_in(item)
 			return "attached"
 	return ""
+
+
+## Free roam: putting on armour with an "outfit" dresses the player in it (saved,
+## like a pick in the character builder) and says so ("outfit_note"); the
+## builder (F11, Character) changes it back. A story save's armour is its look
+## only while worn (_sync_armour). Returns the note to say ("" = none).
+func _dress_in(item: Dictionary) -> String:
+	if WorldState.story_mode() or not item.has("outfit"):
+		return ""
+	PlayerOutfit.save_outfit(item.outfit)
+	var avatar := player.get_node_or_null("Avatar") if player != null else null
+	if avatar != null and avatar.has_method("set_outfit"):
+		avatar.set_outfit(PlayerOutfit.load_outfit())
+	return str(item.get("outfit_note", ""))
+
+
+## The outfit note, queued behind whatever the put-on said.
+func _say_dressed() -> void:
+	if hud != null and _dressed != "":
+		hud.toast_after(_dressed)
+	_dressed = ""
 
 
 ## What [G] works on: the owned jetpack and armour, worn or in the pack.
@@ -739,6 +765,7 @@ func _toggle_worn(id: String) -> String:
 		var item: Dictionary = content.get_item(id)
 		var key := r if str(item.get("slot", "")) == SLOT_BACK else "%s_%s" % [r, str(item.get("slot", ""))]
 		hud.toast(_l(key) % str(item.get("label", id)))
+	_say_dressed()
 	return r
 
 
