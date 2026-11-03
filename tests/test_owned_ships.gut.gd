@@ -168,6 +168,40 @@ func test_call_from_another_planet_comes_down_out_of_the_sky() -> void:
 	assert_eq(pilot.atmo.state, AtmoFlight.State.PARKED, "and down")
 
 
+# ---- free roam's own interceptor ------------------------------------------------
+
+func test_a_free_roam_game_owns_its_interceptor_and_can_call_it() -> void:
+	WorldState.new_game(WorldState.FREEPLAY)
+	WorldState.set_flag(WorldState.FREE_OPENING, false)
+	assert_eq(Fleet.primary(), Fleet.FREE, "yours from the start")
+	assert_eq(Fleet.ship_of(Fleet.FREE), "interceptor")
+	var t = _town()
+	var pilot: ShipPilot = t.pilot
+	assert_eq(pilot.berth_key(0), Fleet.FREE, "the pit pad's ship is yours")
+	var pad := pilot._pad_foot()
+	var u := pilot.ground.up_at(pad)
+	t._player.global_position = pilot.ground.surface_below(pad + Vector3(200, 0, 150) + u * 300.0) + u * 0.05
+	assert_true(bool(pilot.call_state().ok))
+	assert_eq(pilot.call_ship(), "", "Call works in free roam")
+	assert_true(pilot.calling)
+
+
+func test_a_free_roam_save_from_before_gets_its_interceptor_and_a_story_save_does_not() -> void:
+	WorldState.story = { "chapter": "free", "told": true }
+	var d := WorldState.to_save()
+	WorldState.reset()
+	WorldState.from_save(d)
+	assert_true(Fleet.owns(Fleet.FREE), "an older free roam save")
+	Fleet.lose(Fleet.FREE)
+	assert_false(Fleet.owns(Fleet.FREE), "sold or lost for good")
+	d = WorldState.to_save()
+	WorldState.reset()
+	WorldState.from_save(d)
+	assert_false(Fleet.owns(Fleet.FREE), "and it stays gone")
+	WorldState.new_game(WorldState.STORY)
+	assert_false(Fleet.owns(Fleet.FREE), "a story save earns its ship")
+
+
 # ---- Skrugs --------------------------------------------------------------------
 
 func test_skrugs_cleans_up_a_stolen_ship_for_you_to_keep() -> void:
