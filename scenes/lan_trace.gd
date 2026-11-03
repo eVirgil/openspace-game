@@ -6,6 +6,7 @@ extends SceneTree
 ##     it is within 0.5 m of where it stopped inside 1 s,
 ##   - guest "late" is turned away: the game is full,
 ##   - the host's bolt lands on the walker: the walker's game hears the hit,
+##   - the walker changing outfit once it has walked reaches the host,
 ##   - the walker quitting takes it off the host's roster.
 ## No town is built: the players' state comes from `local_state`, not a body.
 ##
@@ -57,6 +58,7 @@ func _run() -> void:
 	link.with_bodies = false
 	link.arrive_on_welcome = false
 	link.local_state = _state
+	link.local_outfit = func(): return {"hat": "walked"} if walk_t > WALK_M / WALK_SPEED else {}
 	if role == "host":
 		await _host()
 	elif role == "walker":
@@ -120,6 +122,10 @@ func _host() -> void:
 		fails.append("the walker quit but is still on the roster")
 	else:
 		say("walker left; roster %s" % str(link.roster.keys()))
+	if link.outfits_heard < 1:
+		fails.append("the walker's outfit change never reached the host")
+	else:
+		say("heard the walker's outfit change")
 	await _done(true)
 
 
