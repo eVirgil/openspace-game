@@ -191,6 +191,12 @@ func briefing(world: Dictionary, rel, rumors: Array, jobs: Array) -> Dictionary:
 		L.append("JOBS ON YOUR BOARD:\n" + "\n".join(js))
 	for line in world.get("extra", []):
 		L.append(str(line))        # the character's own facts for this turn (T-89: what is on their pad)
+	# What they sell, closed for now (Skrugs: one speeder to a customer): say so,
+	# and the sale is not in the ids, so an offer_speeder is dropped.
+	var sale: Dictionary = card.get("sale", {})
+	var sale_open := bool(world.get("sale_open", true))
+	if not sale_open and str(sale.get("closed", "")) != "":
+		L.append(str(sale.closed))
 	# Issue #295: a ship of theirs Skrugs would buy, parked by his post right now.
 	var sb: Dictionary = world.get("ship_buy", {})
 	if not sb.is_empty():
@@ -209,7 +215,7 @@ func briefing(world: Dictionary, rel, rumors: Array, jobs: Array) -> Dictionary:
 	return {
 		"message": { "role": "system", "content": "YOUR BRIEFING (true right now):\n" + "\n".join(L) },
 		"ids": { "rumors": rumor_ids, "jobs": job_ids, "secrets": secret_ids, "drinks": drinks,
-			"allowed": actions(), "sale": card.get("sale", {}), "ships": ship_ids, "moods": moods,
+			"allowed": actions(), "sale": sale if sale_open else {}, "ships": ship_ids, "moods": moods,
 			"ship_buy": world.get("ship_buy", {}) },
 	}
 
