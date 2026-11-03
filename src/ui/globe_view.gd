@@ -4,7 +4,9 @@ extends Control
 ## icon at every place that stays put (GlobeMap.pins), you (a green triangle
 ## pointing the way the camera looks) and the waypoint, both pulsing. The
 ## waypoint flashes the pin it is at, or, out where no pin is (a drop in the
-## desert, a marked spot), shows as its own marker. No people that move.
+## desert, a marked spot), shows as its own marker. No people that move, but the
+## other LAN players on foot (`others`): a blue dot each, named; a click on one
+## makes them the waypoint.
 ##
 ## Drag turns it, the wheel or the + / - buttons in its top left zoom (zoomed in past the data's town_zoom the
 ## port's pin opens into its own stops). Hover names a pin; a click sets the
@@ -45,6 +47,7 @@ var spot := Vector2.INF                 ## a marked spot's map position (drawn a
 var player := Vector2.INF               ## where you are (map x, z), INF = not on this planet
 var heading := Vector2.ZERO             ## the way you look, a map-space direction (ZERO = none)
 var goal_pin := ""                      ## the pin the F11 map's waypoint is on (it flashes), "" = none
+var others: Array = []                  ## LAN: the other players on foot, [{ id, map (x, z), name }]
 var goal := Vector2.INF                 ## where the pointer is otherwise (map x, z): the nearest pin
 										## showing within its arrive distance flashes, else its own marker
 var ground: GlobeTerrain = null         ## the ball's ground, drawn under the grid once baked
@@ -91,7 +94,7 @@ func _process(_dt: float) -> void:
 		GlobeTerrain.poll_all()
 		if ground != null and ground.texture != null and not _ground_layer.visible:
 			queue_redraw()
-	if is_visible_in_tree() and (player != Vector2.INF or goal_pin != "" or goal != Vector2.INF):
+	if is_visible_in_tree() and (player != Vector2.INF or goal_pin != "" or goal != Vector2.INF or not others.is_empty()):
 		queue_redraw()
 
 
@@ -200,8 +203,15 @@ func set_zoom(z: float) -> void:
 	queue_redraw()
 
 
-## A click at screen point `p`: a pin sets the waypoint, bare ground marks a spot.
+## A click at screen point `p`: another player or a pin sets the waypoint, bare
+## ground marks a spot.
 func click(p: Vector2) -> void:
+	for o in others:
+		var s := project(o.map)
+		if s.z > 0.0 and p.distance_to(Vector2(s.x, s.y)) < HIT:
+			pin_clicked.emit({ "id": "player_%d" % int(o.id), "kind": "player", "label": str(o.name),
+				"target": "player:%d" % int(o.id), "map": o.map, "arrive": NetSession.n("waypoint_arrive_m", 10.0) })
+			return
 	var i := pin_at(p)
 	if i >= 0:
 		pin_clicked.emit(pins[i])
@@ -257,6 +267,10 @@ func _draw() -> void:
 		var s := project(mark)
 		if s.z > 0.0:
 			_draw_goal(Vector2(s.x, s.y))
+	for o in others:
+		var s := project(o.map)
+		if s.z > 0.0:
+			_draw_other(Vector2(s.x, s.y), str(o.name), font)
 	if player != Vector2.INF:
 		var s := project(player)
 		if s.z > 0.0:
@@ -448,6 +462,18 @@ func _draw_player(at: Vector2) -> void:
 	var pts := PackedVector2Array([at + fwd * r * 1.45, at - fwd * r * 0.75 + side * r * 0.7, at - fwd * r * 0.75 - side * r * 0.7])
 	draw_colored_polygon(pts, col)
 	draw_polyline(pts + PackedVector2Array([pts[0]]), Color(0, 0, 0, 0.9), 1.5, true)
+
+
+## Another LAN player: a blue dot with a soft pulsing ring, their name beside it.
+func _draw_other(at: Vector2, nm: String, font: Font) -> void:
+	var t := pulse()
+	var col := NetSession.mark_color()
+	draw_arc(at, 8.0 + 3.0 * t, 0.0, TAU, 32, Color(col, 0.4 + 0.4 * t), 1.5, true)
+	draw_circle(at, 5.0, col)
+	draw_arc(at, 5.0, 0.0, TAU, 24, Color(0, 0, 0, 0.9), 1.5, true)
+	if font != null:
+		draw_string_outline(font, at + Vector2(12, 5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
+		draw_string(font, at + Vector2(12, 5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
 
 
 ## A pin's shape on any canvas item (the legend draws with it too).

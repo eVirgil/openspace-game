@@ -8,7 +8,8 @@ extends CanvasLayer
 ## It only reads. `demo` (town_demo.gd) turns the objective's target word into a
 ## place: live bodies, town markers, the smuggling drop (near it, issue #251),
 ## the range, the pit, the desert outposts, the crashed cruiser ("wreck", issue #205),
-## and a waypoint set on the F11 map (a ground spot, or another planet's port).
+## and a waypoint set on the F11 map (a ground spot, another planet's port, or
+## another LAN player).
 ##
 ## Quest news (QuestNews: a quest or job started, cargo found, a target killed)
 ## goes up big in the upper middle, with a sound: the QuestBanner it carries.
@@ -74,9 +75,14 @@ func _process(dt: float) -> void:
 
 
 ## Re-read the objective and find its place. A waypoint set on the F11 map
-## clears itself once the player is there.
+## clears itself once the player is there, and one on another LAN player once
+## they leave.
 func refresh() -> void:
 	objective = Objective.current()
+	var tg := str(objective.get("target", ""))
+	if tg.begins_with("player:") and not NetSession.in_game(int(tg.get_slice(":", 1))):
+		GlobeMap.clear_waypoint()             # they left the game (or you did)
+		objective = Objective.current()
 	target_pos = where(str(objective.get("target", "")))
 	if objective.get("map", false) and target_pos != Vector3.INF:
 		var d := distance()
@@ -181,6 +187,10 @@ func where(target: String) -> Vector3:
 				for b in tr.bodies:
 					if str(b.id) == id:
 						return b.offset
+		"player":
+			# A LAN player picked on the F11 map: where they stand now (INF while
+			# they sit in a ship or are on another planet: the line alone).
+			return NetSession.player_pos(int(id))
 		"outpost":
 			if demo.outposts != null:
 				for o in demo.outposts.outposts:
@@ -198,13 +208,15 @@ func _marker(id: String) -> Vector3:
 # ------------------------------------------------------------------ drawing
 
 ## The arrow before the line (the target's bearing from where the camera looks),
-## and the diamond over the target while it is in front of the camera.
+## and the diamond over the target while it is in front of the camera. Another
+## LAN player as the waypoint: both in the players' blue (NetSession.mark_color).
 func _draw_marks() -> void:
 	if objective.is_empty() or target_pos == Vector3.INF or not label.visible:
 		return
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
+	var col := NetSession.mark_color() if str(objective.get("target", "")).begins_with("player:") else AMBER
 	var size := marks.size
 	var to := target_pos - cam.global_position
 	# Bearing in the camera's frame (works round a ball planet too): 0 = straight
@@ -214,13 +226,18 @@ func _draw_marks() -> void:
 	var tip := Vector2(sin(bearing), -cos(bearing))
 	var side := Vector2(-tip.y, tip.x)
 	var pts := PackedVector2Array([c + tip * 11.0, c - tip * 7.0 + side * 8.0, c - tip * 3.0, c - tip * 7.0 - side * 8.0])
-	marks.draw_colored_polygon(pts, AMBER)
+	marks.draw_colored_polygon(pts, col)
 	marks.draw_polyline(pts + PackedVector2Array([pts[0]]), Color.BLACK, 1.5)
-	if cam.is_position_behind(target_pos + Vector3.UP * 2.0):
+	var player := col != AMBER
+	var over := NetSession.n("name_height", 2.15) if player else 2.0
+	if cam.is_position_behind(target_pos + Vector3.UP * over):
 		return
-	var at := cam.unproject_position(target_pos + Vector3.UP * 2.0)
+	var at := cam.unproject_position(target_pos + Vector3.UP * over)
+	if player:
+		at.y -= 22.0                       # over their name, which is the same size at any distance
 	at = at.clamp(Vector2(EDGE, TOP + 50.0), size - Vector2(EDGE, EDGE + 40.0))
 	var r := 9.0
 	var dia := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
-	marks.draw_colored_polygon(dia, Color(AMBER, 0.85))
+	marks.draw_colored_polygon(dia, Color(col, 0.85))
 	marks.draw_polyline(dia + PackedVector2Array([dia[0]]), Color.BLACK, 1.5)
+
