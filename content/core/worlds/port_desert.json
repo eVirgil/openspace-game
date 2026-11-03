@@ -113,23 +113,24 @@
       "id": "remnant_outpost_near",
       "kind": "location",
       "location": "remnant_outpost_near",
-      "at": [0, 0, 250],
-      "yaw_deg": 90,
+      "note": "The Remnant's seven outposts stand 0.85 to 1.6 km out (each moved 0.6 to 1 km further than it first stood), so each is a real drive from the port and sits among the rest of the desert: the west one by the Ridgeback droid relay, the far one under the east mesa, the mid one on the way to the first wreck, the south and mid ones either side of the Bone Teeth's loop and the near and west ones on the Red Wind's. Each is turned so its door (+x) faces the town.",
+      "at": [-120, 0, 840],
+      "yaw_deg": 82,
       "clear": 45
     },
     {
       "id": "remnant_outpost_mid",
       "kind": "location",
       "location": "remnant_outpost_mid",
-      "at": [430, 0, -160],
-      "yaw_deg": 200,
+      "at": [950, 0, -600],
+      "yaw_deg": 212,
       "clear": 45
     },
     {
       "id": "remnant_outpost_far",
       "kind": "location",
       "location": "remnant_outpost_far",
-      "at": [700, 0, 300],
+      "at": [1430, 0, 615],
       "yaw_deg": 157,
       "clear": 45
     },
@@ -138,7 +139,7 @@
       "kind": "location",
       "location": "remnant_outpost_north",
       "note": "Issue #187: the four outposts round the other sides of the town, each turned so its door (+x) faces the town.",
-      "at": [80, 0, 520],
+      "at": [215, 0, 1400],
       "yaw_deg": 99,
       "clear": 45
     },
@@ -146,7 +147,7 @@
       "id": "remnant_outpost_south",
       "kind": "location",
       "location": "remnant_outpost_south",
-      "at": [-60, 0, -540],
+      "at": [-150, 0, -1335],
       "yaw_deg": 276,
       "clear": 45
     },
@@ -154,7 +155,7 @@
       "id": "remnant_outpost_west",
       "kind": "location",
       "location": "remnant_outpost_west",
-      "at": [-560, 0, 180],
+      "at": [-1320, 0, 425],
       "yaw_deg": 18,
       "clear": 45
     },
@@ -162,7 +163,7 @@
       "id": "remnant_outpost_southwest",
       "kind": "location",
       "location": "remnant_outpost_southwest",
-      "at": [-520, 0, -380],
+      "at": [-1310, 0, -955],
       "yaw_deg": 324,
       "clear": 45
     },

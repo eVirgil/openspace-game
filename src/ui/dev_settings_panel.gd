@@ -530,26 +530,57 @@ func _world_page(v: VBoxContainer) -> void:
 	_hour.custom_minimum_size = Vector2(380, 0)
 	_hour_label = Label.new()
 	_hour_label.custom_minimum_size = Vector2(110, 0)
+	# Issue #381: Auto moves the day on by itself (DayClock); a preset fixes it.
+	# Moving the slider or pressing a preset sets the picker to where it lands.
+	var day := OptionButton.new()
+	for id in DayClock.PICKS:
+		day.add_item(str(id).capitalize())
+	day.item_selected.connect(func(i):
+		var p := DayClock.pick(str(DayClock.PICKS[i]))
+		if p != "":
+			demo.set_preset(p)
+		refresh())
+	_row(tod, "Time of day", day)
 	_hour.value_changed.connect(func(h):
+		if DayClock.locked():
+			return
 		demo.set_hour(h)
+		DayClock.set_by_hand(str(demo.preset))
 		_show_hour())
 	var hr := _row(tod, "Hour", _hour)
 	hr.add_child(_hour_label)
 	var presets := HBoxContainer.new()
+	var buttons: Array[Button] = []
 	for id in ["golden", "noon", "dusk"]:
 		var btn := Button.new()
 		btn.text = id.capitalize()
 		btn.pressed.connect(func():
+			if DayClock.locked():
+				return
 			demo.set_preset(id)
+			DayClock.set_by_hand(id)
 			_hour.set_value_no_signal(maxf(0.0, demo.look.hour_of(id)) if demo.look != null else 0.0)
-			_show_hour())
+			refresh())
 		presets.add_child(btn)
+		buttons.append(btn)
 	_row(tod, "Preset", presets)
+	var day_note := Label.new()
+	day_note.text = "Story save: the chapters set the time of day; it is yours to pick once the cruiser is won."
+	day_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_note.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	tod.add_child(day_note)
 	_refreshers.append(func():
 		var h: float = demo.look.hour if demo.look != null and demo.look.hour >= 0.0 else \
 			(demo.look.hour_of(demo.preset) if demo.look != null else 0.0)
 		_hour.set_value_no_signal(maxf(0.0, h))
-		_show_hour())
+		_show_hour()
+		var locked := DayClock.locked()
+		day.select(maxi(0, DayClock.PICKS.find(WorldState.day_pick)))
+		day.disabled = locked
+		_hour.editable = not locked
+		for b in buttons:
+			b.disabled = locked
+		day_note.visible = locked)
 
 	_section(v, "Game")
 	_story_note(v, "credits are earned and the Remnant fleet always meets you in orbit.")
@@ -870,6 +901,9 @@ func _story_page(v: VBoxContainer) -> void:
 	skip_confirm.cancel_button_text = "No"
 	skip_confirm.confirmed.connect(func():
 		Story.skip_to(_skip_to)
+		var t := DayClock.story_due()     # issue #381: open on the chapter's time
+		if t != "":
+			demo.set_preset(t)
 		refresh())
 	v.add_child(skip_confirm)
 	_refreshers.append(func():

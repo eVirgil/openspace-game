@@ -124,6 +124,10 @@ var cruiser: RemnantCruiser
 var _town_withdrawn := false          ## issue #64: the garrison left town after the fleet was beaten
 var _town_synced := false             ## the barracks' side was set once (at load); later swaps wait until you can't see it
 var _respawned := 0
+var _day_fixed := false               ## issue #381: a scene set to one `preset` (look-dev, traces) keeps its light
+var _day_roofs: Array = []            ## issue #381: [Rect2 (x, z), ceiling y] of the roofs over the cantina
+var _day_inside := false              ## issue #381: indoors last frame
+var _day_seen := false                ## the first look, at load, is no trigger
 
 
 func _ready() -> void:
@@ -390,10 +394,14 @@ func _build_look() -> void:
 	look = LookEnvironment.new()
 	_lay_sky(look, planet.get("sky", {}))
 	add_child(look)
-	set_preset(preset)
+	# Issue #381: the world's time of day (moved on after a faded trip, or the
+	# story chapter's); a scene given its own preset keeps it, and a LAN guest
+	# waits for the host's.
+	var arr: Dictionary = GameFlow.arrival
+	_day_fixed = preset != ""
+	set_preset(preset if _day_fixed or NetSession.is_guest() else DayClock.on_arrival(str(arr.get("mode", ""))))
 	# Issue #99: flown in from another planet with no fade: the same time of day,
 	# so the sun is where it was.
-	var arr: Dictionary = GameFlow.arrival
 	if str(arr.get("mode", "")) == "handoff":
 		if float(arr.get("hour", -1.0)) >= 0.0:
 			set_hour(float(arr.hour))
@@ -1366,6 +1374,7 @@ func _build_ship() -> void:
 
 func _physics_process(dt: float) -> void:
 	WorldState.tick(dt)
+	_tick_day()
 	# The barracks change hands out of sight (the first look, at load, is free).
 	var swap_now := not _town_synced or _barracks_unseen()
 	if not _town_withdrawn and not Story.town_garrison():
@@ -1375,6 +1384,54 @@ func _physics_process(dt: float) -> void:
 		if swap_now:
 			_return_town_remnant()
 	_town_synced = true
+
+
+## Issue #381: walking indoors (under the cantina's roof, or aboard the cruiser)
+## moves the day on; in a story save, the chapter's time comes in while you are
+## inside (Oda tells most chapters in the cantina), so you walk out into it.
+func _tick_day() -> void:
+	if _day_fixed or NetSession.is_guest() or _player == null or not is_instance_valid(_player) or not (_player is Node3D):
+		return
+	var inside := indoors((_player as Node3D).global_position)
+	if inside and _day_seen and not _day_inside:
+		day_trigger("indoors")
+	elif inside:
+		var due := DayClock.story_due()
+		if due != "":
+			set_preset(due)
+	_day_inside = inside
+	_day_seen = true
+
+
+## Issue #381: a moment the sky can't be seen ("indoors", "respawn"): the time
+## of day may move on (DayClock), as a plain preset swap.
+func day_trigger(trigger: String) -> void:
+	if _day_fixed or NetSession.is_guest():
+		return
+	var p := DayClock.trigger(trigger)
+	if p != "":
+		set_preset(p)
+
+
+## Under a roof over this town's cantina, or aboard the Remnant cruiser.
+func indoors(p: Vector3) -> bool:
+	if _day_roofs.is_empty() and town != null:
+		_day_roofs = [[]]                  # looked once: a town with no roofed cantina stays [[]]
+		for z in town.zones():
+			if str(z.get("id", "")) != "cantina":
+				continue
+			var zr := Rect2(float(z.min[0]), float(z.min[1]), float(z.max[0]) - float(z.min[0]), float(z.max[1]) - float(z.min[1]))
+			for b in town.boxes():
+				if str(b.get("kind", "")) != "roof":
+					continue
+				var r := Rect2(float(b.min[0]), float(b.min[2]), float(b.max[0]) - float(b.min[0]), float(b.max[2]) - float(b.min[2]))
+				if r.intersects(zr):
+					_day_roofs.append([r, float(b.min[1])])
+	for r in _day_roofs:
+		if r is Array and r.size() == 2 and (r[0] as Rect2).has_point(Vector2(p.x, p.z)) \
+				and p.y < float(r[1]) and p.y > float(r[1]) - 12.0:
+			return true
+	return cruiser != null and is_instance_valid(cruiser) and cruiser.aboard(p)
 
 
 ## No barracks post on screen and you at least barracks_unseen_dist from each,
@@ -1674,6 +1731,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_F4 and not WorldState.story_mode():
 		NpcBody.show_debug = not NpcBody.show_debug   # what each guard sees and hears (free roam only)
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_L:
-		# L cycles the lighting (1/2/3 are weapons since M11).
+		# L cycles the lighting (1/2/3 are weapons since M11). Issue #381: not
+		# while the story sets the time; the picker holds where it lands.
+		if DayClock.locked():
+			return
 		var ids := ["golden", "noon", "dusk"]
 		set_preset(ids[(ids.find(preset) + 1) % ids.size()])
+		DayClock.set_by_hand(preset)

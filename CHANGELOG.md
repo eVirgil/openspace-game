@@ -9,6 +9,24 @@ Plain English, newest on top. One entry per milestone.
   they really are, from the same heights you walk on, lit softly from the top
   left. Zoomed right in, only a faint tint of high and low ground is left.
 
+## Rifle held properly (2026-11-02)
+
+- **The rifle's hands sit where they should.** The right hand wraps the outside
+  of the pistol grip instead of sinking into it, and the left hand holds further
+  forward, off the magazine and onto the front of the gun. Same for the player in
+  first and third person and for the Remnant troopers.
+
+## Skrugs's yard: real lamps on the clock, and a workbench (2026-11-02)
+
+- **Skrugs's garage has a work light, his house door a lamp,** a lamp over his bench, and with the
+  lamp over his counter all four are real lights on the look's lamp clock: on by day,
+  full at dusk and night. The string bulbs and a new teal sign over the garage
+  mouth brighten with them (issue #458, `src/systems/world/speeder_post.gd`).
+- **His bench is a workbench** like Dorrin's: a vise, a pegboard of tools behind
+  it, his toolbox and coil still on top. Both town layouts.
+- **Dorrin's counter hangs the same lamp**, a real light now, and his bulbs and
+  garage sign follow the clock too. The lamp is `HangingLamp`
+  (`src/systems/look/hanging_lamp.gd`), for any outpost dressing.
 ## No freeze on the first blaster shot (2026-11-02)
 
 - **The first shot no longer stops the game for a few seconds.** The bolt, the

@@ -60,4 +60,5 @@ func test_a_story_save_wears_only_the_smugglers_pieces() -> void:
 	assert_false(o.has("torso"), "no other character's pieces")
 	assert_eq(o.get("head"), "player")
 	WorldState.new_game(WorldState.FREEPLAY)
+	WorldState.inventory.add("quantonium_armour")      # free roam opens the guard's pieces with its armour
 	assert_eq(PlayerOutfit.sanitize({ "torso": "guard:gunmetal" }).get("torso"), "guard:gunmetal")
