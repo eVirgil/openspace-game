@@ -10,8 +10,12 @@ extends Node3D
 ##     garage (wall pieces you drive into) and its bench, and the sand ramp out past
 ##     the back gate (the "skrugs_ramp" landmark, with its sloped collider: a box
 ##     would be a wall),
-##     string lights and fuel canisters in and around the garage, and a hanging
-##     lamp over his counter (a real light, always on),
+##     string lights and fuel canisters in and around the garage (issue #435), and
+##     issue #458: hanging lamps over his counter and his house door, a work light
+##     in the garage, a lamp over his bench and a sign over the garage mouth, all
+##     real lights on the look's lamp
+##     clock (on by day, full at dusk and night), and his bench dressed as a
+##     workbench like Dorrin's (a vise, a pegboard of tools),
 ##   - Skrugs: an all-red local behind the counter, a TalkSpot on the town's
 ##     ConversationHost, run by the same NpcBrain as the Cantina Owner from his
 ##     own card (content/core/npcs/skrugs_card.json),
@@ -37,6 +41,14 @@ const RAMP := "skrugs_ramp"
 const CARD_PATH := "res://content/core/npcs/skrugs_card.json"
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 const RED := { "head": "local:red", "torso": "local:red", "legs": "local:red" }
+## Issue #458: his lamps (HangingLamp). LAMP_DAY: the fraction of each lamp's
+## energy it keeps at the presets that turn the town's lamps off (golden, noon);
+## full at dusk and night. Energies and reach in metres.
+const LAMP_DAY := 0.7
+const STALL_LAMP := { "energy": 3.7, "reach": 7.0 }
+const GARAGE_LIGHT := { "energy": 3.2, "reach": 9.0 }
+const DOOR_LAMP := { "energy": 2.4, "reach": 5.0 }
+const BENCH_LAMP := { "energy": 2.6, "reach": 4.5 }
 
 var demo                              ## town_demo.gd
 var ground: WorldGround
@@ -132,6 +144,16 @@ func world_point(id: String) -> Vector3:
 
 func _world(lp: Vector3) -> Vector3:
 	return origin + lp.rotated(Vector3.UP, yaw)
+
+
+## The post's frame (HangingLamp places things in it).
+func _xf() -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, yaw), origin)
+
+
+## The scene's look, for its lamp clock; null in a bare dressing (tests, lookdev).
+func _look() -> LookEnvironment:
+	return demo.get("look") as LookEnvironment if demo != null else null
 
 
 ## Issue #295: where to start a straight run at the ramp, and the way up it
@@ -599,6 +621,9 @@ func _dress(loc: Dictionary) -> void:
 				_dome_collider(c + Vector3(0, s.y, 0), dr)
 				_mesh(_box(Vector3(0.12, 2.1, 1.3)), wood, c + Vector3(s.x * 0.5 + 0.02, 1.05, 2.2))
 				_mesh(_box(Vector3(1.6, 0.08, 2.4)), red_cloth, c + Vector3(s.x * 0.5 + 0.8, 2.5, 2.2), Vector3(0, 0, -14))
+				# Issue #458: a lamp under the awning, over the door.
+				HangingLamp.build(self, _xf(), c + Vector3(s.x * 0.5 + 0.5, 2.15, 2.2), mats, _look(), "DoorLamp",
+					float(DOOR_LAMP.energy), float(DOOR_LAMP.reach), LAMP_DAY, 0.2)
 			"stall":
 				_mesh(_box(s), wood, c + Vector3(0, s.y * 0.5, 0))
 				_mesh(_box(Vector3(s.x + 0.3, 0.08, s.z + 0.3)), red, c + Vector3(0, s.y + 0.04, 0))
@@ -611,11 +636,7 @@ func _dress(loc: Dictionary) -> void:
 			"display_pad":
 				_mesh(_box(s), metal, c + Vector3(0, s.y * 0.5, 0))
 			"bench":
-				# Issue #295: his garage bench, a few parts lying on it.
-				_mesh(_box(s), metal, c + Vector3(0, s.y * 0.5, 0))
-				_mesh(_box(Vector3(s.x + 0.1, 0.06, s.z + 0.1)), wood, c + Vector3(0, s.y + 0.03, 0))
-				_mesh(_box(Vector3(0.4, 0.3, 0.4)), red, c + Vector3(0, s.y + 0.15, 0))
-				_mesh(_cyl(0.12, 0.3), metal, c + Vector3(0.3, s.y + 0.15, 0.6) if s.z > s.x else c + Vector3(0.6, s.y + 0.15, 0.3))
+				_workbench(mats, c, s, wood, metal, red)
 			_:
 				if str(b.id).begins_with("garage_"):
 					# Issue #295: back wall, two side walls and a red roof; one side stands open.
@@ -623,10 +644,64 @@ func _dress(loc: Dictionary) -> void:
 	_dress_garage(mats, loc, metal)
 
 
-## String lights and fuel canisters in and around his garage, and a hanging lamp
-## (a real light) over his counter. Placed from the garage and stall boxes, so it
-## fits both layouts: the garage opens toward +x, its side walls run along x. Look
-## only: no colliders, nothing on the way into the bay or behind the counter.
+## Issue #458: his bench (the "bench" box, outside his garage in both layouts),
+## dressed like Dorrin's: planks on painted metal, a vise at one end, the toolbox
+## and coil it had (issue #295), a pegboard of tools standing behind it, on the
+## far side from the `bench` point where the player stands, and a lamp on an arm
+## off the pegboard over the bench. Look only.
+func _workbench(mats: LookMaterials, c: Vector3, s: Vector3, wood: Material, metal: Material, red: Material) -> void:
+	var dark := mats.painted(Color("#2b2c30"), 0.5, 0.6)
+	var d: Vector3 = points.get("bench", c + Vector3(1, 0, 0)) - c
+	var along_x := absf(d.x) >= absf(d.z)       # the player stands off the bench's x side (square port) or z side (round)
+	var toward := Vector3(1.0 if d.x >= 0.0 else -1.0, 0, 0) if along_x else Vector3(0, 0, 1.0 if d.z >= 0.0 else -1.0)
+	var across := Vector3(0, 0, 1) if along_x else Vector3(1, 0, 0)
+	var depth := s.x if along_x else s.z        # the bench toward the player
+	var width := s.z if along_x else s.x        # ... and along the pegboard
+	_mesh(_box(s), metal, c + Vector3(0, s.y * 0.5, 0))
+	_mesh(_box(Vector3(s.x + 0.1, 0.06, s.z + 0.1)), wood, c + Vector3(0, s.y + 0.03, 0))
+	var top := c + Vector3(0, s.y + 0.06, 0)
+	# The toolbox and the coil (#295), and a vise at the near end, its screw toward the player.
+	_mesh(_box(Vector3(0.4, 0.3, 0.4)), red, top + Vector3(0, 0.15, 0))
+	_mesh(_cyl(0.12, 0.3), metal, top + across * 0.6 + Vector3(0, 0.15, 0))
+	var vise := top - across * (width * 0.5 - 0.35)
+	_mesh(_box(Vector3(0.3, 0.25, 0.3)), dark, vise + Vector3(0, 0.125, 0))
+	_mesh(_box(Vector3(0.34, 0.1, 0.34)), metal, vise + Vector3(0, 0.3, 0))
+	var lay := Vector3(0, 0, 90) if along_x else Vector3(90, 0, 0)      # a cylinder laid along `toward`
+	var bar := Vector3(90, 0, 0) if along_x else Vector3(0, 0, 90)      # ... and along `across`
+	_mesh(_cyl(0.03, 0.4), metal, vise + toward * 0.25 + Vector3(0, 0.14, 0), lay)
+	_mesh(_cyl(0.015, 0.22), metal, vise + toward * 0.44 + Vector3(0, 0.14, 0), bar)
+	# The pegboard on two posts, and its tools.
+	var board := c - toward * (depth * 0.5 + 0.12) + Vector3(0, s.y + 0.9, 0)
+	var panel := _mesh(_box(Vector3(0.08, 1.6, width + 0.2) if along_x else Vector3(width + 0.2, 1.6, 0.08)),
+		mats.wood(Color("#4a3a2a"), 0.9), board)
+	panel.set_meta("decor", "workbench")
+	for side: float in [-1.0, 1.0]:
+		var post: Vector3 = Vector3(board.x, c.y + (s.y + 1.75) * 0.5, board.z) - toward * 0.06 + across * side * (width * 0.5 + 0.08)
+		_mesh(_cyl(0.05, s.y + 1.75), wood, post)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 458
+	var n := 9 if width > 2.0 else 5
+	var step := (width - 0.3) / float(n - 1)
+	for k in n:
+		var h := rng.randf_range(0.3, 0.6)
+		var tool := _mesh(_box(Vector3(0.04, h, 0.06) if along_x else Vector3(0.06, h, 0.04)), metal if k % 3 else red,
+			board + toward * 0.06 + across * (-(width - 0.3) * 0.5 + k * step) + Vector3(0, 0.05 + rng.randf_range(-0.3, 0.3), 0),
+			(Vector3(rng.randf_range(-23.0, 23.0), 0, 0) if along_x else Vector3(0, 0, rng.randf_range(-23.0, 23.0))))
+		tool.set_meta("decor", "tool")
+	# The lamp: an arm from the pegboard's top out over the bench, the lamp hanging from its end.
+	var arm_y := c.y + s.y + 1.95
+	var reach := depth * 0.5 + 0.12
+	_mesh(_cyl(0.025, reach), metal, Vector3(board.x, arm_y, board.z) + toward * reach * 0.5, lay)
+	HangingLamp.build(self, _xf(), Vector3(c.x, arm_y - 0.37, c.z), mats, _look(), "BenchLamp",
+		float(BENCH_LAMP.energy), float(BENCH_LAMP.reach), LAMP_DAY, 0.2)
+
+
+## String lights and fuel canisters in and around his garage (issue #435), and
+## issue #458: a work light under the roof, a sign over the mouth and the hanging
+## lamp over his counter, on the look's lamp clock. Placed from the garage and
+## stall boxes, so it fits both layouts: the garage opens toward +x, its side
+## walls run along x. Look only: no colliders, nothing on the way into the bay or
+## behind the counter.
 func _dress_garage(mats: LookMaterials, loc: Dictionary, metal: Material) -> void:
 	var box := {}
 	for b in loc.get("buildings", []):
@@ -670,7 +745,7 @@ func _dress_garage(mats: LookMaterials, loc: Dictionary, metal: Material) -> voi
 		for k in range(1, pts.size() - 1):
 			bulbs.append(pts[k] + Vector3(0, -0.08, 0))
 	var bulb := mats.glow(Color("#ffd27a"))
-	bulb.emission_energy_multiplier = 2.5         # always lit, as Dorrin's
+	HangingLamp.track_glow(bulb, _look(), LAMP_DAY)      # on by day, full at dusk
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = _ball(0.07)
@@ -715,28 +790,26 @@ func _dress_garage(mats: LookMaterials, loc: Dictionary, metal: Material) -> voi
 	var down := spots[spots.size() - 3] + Vector3(-0.9, 0.2, out * 0.2)
 	_mesh(_cyl(0.2, 0.7), paints[0], down, Vector3(90, 0, 0))
 
-	# The lamp: a shade and a glowing bulb hanging from the canopy over the counter,
-	# between Skrugs and the customer, and its light. Always on (not one of the
-	# town's dusk lamps): the stall is lit at any hour.
-	var at := stall + Vector3(0.1, 2.25, 0)
-	_mesh(_cyl(0.01, 0.3), cable, at + Vector3(0, 0.3, 0))
-	var shade := CylinderMesh.new()
-	shade.top_radius = 0.06
-	shade.bottom_radius = 0.2
-	shade.height = 0.18
-	shade.radial_segments = 12
-	_mesh(shade, mats.painted(Color("#2b2c30"), 0.5, 0.6), at + Vector3(0, 0.08, 0))
-	var glow := mats.glow(Color("#ffc070"))
-	glow.emission_energy_multiplier = 4.0
-	_mesh(_ball(0.08), glow, at)
-	var l := OmniLight3D.new()
-	l.name = "StallLamp"
-	l.light_color = Color("#ffb860")
-	l.light_energy = 2.6
-	l.omni_range = 7.0
-	l.shadow_enabled = false
-	add_child(l)
-	l.global_position = _world(at - Vector3(0, 0.15, 0))
+	# The lamp hanging from the canopy over the counter, between Skrugs and the
+	# customer (issue #435; #458: on the lamp clock, never off).
+	HangingLamp.build(self, _xf(), stall + Vector3(0.1, 2.25, 0), mats, _look(), "StallLamp",
+		float(STALL_LAMP.energy), float(STALL_LAMP.reach), LAMP_DAY)
+
+	# Issue #458: the work light, a strip fixture under the roof over the bay, so
+	# the speeder inside (and the bench, by the wall) is lit.
+	var fixture := mats.painted(Color("#2b2c30"), 0.5, 0.6)
+	var mid := Vector3((back + mouth) * 0.5, roof - 0.12, (lo + hi) * 0.5)
+	_mesh(_box(Vector3(1.2, 0.1, 0.3)), fixture, mid)
+	var strip := mats.glow(Color("#fff0d0"))
+	_mesh(_box(Vector3(1.1, 0.03, 0.22)), strip, mid + Vector3(0, -0.06, 0))
+	HangingLamp.light(self, _xf(), mid + Vector3(0, -0.5, 0), _look(), "GarageLight",
+		float(GARAGE_LIGHT.energy), float(GARAGE_LIGHT.reach), LAMP_DAY, strip)
+	# The sign over the mouth: a teal glow tube on a dark backing, like Dorrin's.
+	var w := (hi - lo) * 0.55
+	_mesh(_box(Vector3(0.2, 0.5, w + 0.3)), fixture, Vector3(mouth + 0.12, roof - 0.5, (lo + hi) * 0.5))
+	var tube := mats.glow(Color("#7fe0d0"))
+	HangingLamp.track_glow(tube, _look(), LAMP_DAY)
+	_mesh(_box(Vector3(0.1, 0.12, w)), tube, Vector3(mouth + 0.25, roof - 0.5, (lo + hi) * 0.5))
 
 
 ## Issue #355: what Skrugs deals in, on his counter (`top`: the middle of its top,
