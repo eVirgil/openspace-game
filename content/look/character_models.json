@@ -693,5 +693,22 @@
         }
       }
     }
+  },
+  "barge_duke": {
+    "note": "The party barge's boss, a fat squid-cyborg: a potbelly-stove robot body in dark metal and a glass tank of glowing yellow liquid for a head, a little squid wired up inside. Hyper3D Rodin Gen-2.5 from a prompt alone (generation ee19d53d-6a9f-4712-ba47-b2c3fd8930ef; with the reference image it came back white, the image's colour), rigged with the human template (392ddbcd-db15-4fd8-9ece-5d6a3b74b8c2). Arm weights on the belly move to the spine.",
+    "source": "res://assets/characters/barge_duke/source/barge_duke_rigged.glb",
+    "out": "res://assets/characters/barge_duke/barge_duke.glb",
+    "flatten": [],
+    "reweight": {
+      "to": "Spine1",
+      "radius": 0.11
+    },
+    "cut": [],
+    "min_island_tris": 0,
+    "decimate": 90000,
+    "emission": {
+      "texture": "res://assets/characters/barge_duke/source/texture_emissive.png",
+      "energy": 2.0
+    }
   }
 }

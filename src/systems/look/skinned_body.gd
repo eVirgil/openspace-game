@@ -15,6 +15,8 @@ extends RefCounted
 ## Config (content/look/characters.json, "model" on an archetype):
 ##   scene:   res:// path to the rigged .glb
 ##   height:  metres from the soles to the top of the hat, used to fit the model
+##   fit:     "height" fits `height` even with a pelvis bone (a body whose hips sit
+##            far lower than a person's, like the barge duke's stubby legs)
 ##   yaw_deg: extra turn if the model does not face +Z
 ##   bones:   { kit joint name: bone name }
 
@@ -102,13 +104,14 @@ static func _find_skeleton(n: Node) -> Skeleton3D:
 
 ## Stand the model on y = 0 facing +Z, scaled so its hips sit at the kit's pelvis
 ## height: the legs then match the kit's legs, which keeps the feet on the ground
-## whatever the hat adds on top. Without a pelvis bone, fit `height` instead.
+## whatever the hat adds on top. Without a pelvis bone (or with fit "height"), fit
+## `height` instead.
 func _fit(cfg: Dictionary) -> void:
 	model.rotation_degrees.y = float(cfg.get("yaw_deg", 0.0))
 	var aabb := _aabb(model, Transform3D())
 	var s := float(cfg.get("height", 1.8)) / maxf(aabb.size.y, 0.001)
 	var hips := skeleton.find_bone(str(cfg.get("bones", {}).get("pelvis", "")))
-	if hips >= 0 and joints.has("pelvis"):
+	if hips >= 0 and joints.has("pelvis") and str(cfg.get("fit", "")) != "height":
 		var hy := (_rel(model, skeleton) * skeleton.get_bone_global_rest(hips).origin).y - aabb.position.y
 		if hy > 0.001:
 			s = (joints.pelvis as Node3D).position.y / hy

@@ -156,6 +156,21 @@
       "armor": "#e6dfcf", "armor_light": "#f4efe2", "under": "#5a4632", "trim": "#3f8a4a",
       "cloth": "#c9a77c", "visor": "#7fe0a0",
       "model": { "parts": { "head": ["guard:locals"], "torso": ["guard:locals"], "legs": ["guard:locals"] } }
+    },
+    "barge_duke": {
+      "note": "The party barge's boss (party_barge.json boss.look): a fat squid-cyborg, a little squid wired up in a glass tank of glowing yellow liquid on a potbelly-stove robot body in dark metal, very small hands. One rigged model (character_models.json barge_duke), the player's height. Its hips sit far lower than a person's (stubby legs), so it is fitted by height, not by the kit's pelvis.",
+      "height": 1.94, "bulk": 1.0,
+      "model": {
+        "scene": "res://assets/characters/barge_duke/barge_duke.glb",
+        "height": 1.94, "fit": "height",
+        "bones": {
+          "pelvis": "Hips", "spine": "Spine", "chest": "Spine2", "neck": "Neck", "head": "Head",
+          "l_shoulder": "LeftArm", "l_elbow": "LeftForeArm", "l_wrist": "LeftHand",
+          "r_shoulder": "RightArm", "r_elbow": "RightForeArm", "r_wrist": "RightHand",
+          "l_hip": "LeftUpLeg", "l_knee": "LeftLeg", "l_ankle": "LeftFoot",
+          "r_hip": "RightUpLeg", "r_knee": "RightLeg", "r_ankle": "RightFoot"
+        }
+      }
     }
   }
 }
