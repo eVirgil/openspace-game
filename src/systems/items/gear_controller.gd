@@ -400,7 +400,7 @@ func prompt_text() -> String:
 	if bool(v.get("bounties", false)) and WorldState.bounty_collectable():
 		return str(Story.bounty_cfg().get("collect", "%s %d")) % [str(WorldState.bounty.name), int(WorldState.bounty.pay)]
 	var opts := trade_options(v)
-	if opts.size() == 1 and str(opts[0].id) == "talk":
+	if (opts.size() == 1 and str(opts[0].id) == "talk") or talks_first(v):
 		return _l("talk_to") % str(v.get("label", "vendor")).to_lower()
 	if not opts.is_empty():
 		return _l("trade") % str(v.get("label", "vendor")).to_lower()
@@ -556,10 +556,57 @@ func _trade(v: Dictionary) -> String:
 		if hud != null:
 			hud.toast(str(Story.bounty_cfg().get("collected", "%d %s")) % [pay, who], 4.0)
 		return "bounty"
+	if talks_first(v):
+		vendor_talk[str(v.get("id", ""))].call()
+		return "talk"
 	if trade_options(v).is_empty():
 		return ""
 	open_trade(v)
 	return "menu"
+
+
+## Issue #305: a keeper with a brain (the fence) talks first; his stall's menu is
+## a keyword in the chat. Not while a run for his stall waits on the sale: then
+## the goods go straight on his menu, as before.
+func talks_first(v: Dictionary) -> bool:
+	var talk: Callable = vendor_talk.get(str(v.get("id", "")), Callable())
+	return talk.is_valid() and not WorldState.fence_run_open(str(v.get("location", "")))
+
+
+## Issue #305: the fence's offers on sale now, as his offer_item's wares.
+func offer_wares() -> Array:
+	var out: Array = []
+	for o in GearUpgrades.open_offers():
+		out.append({ "id": str(o.id), "name": str(o.label), "price": int(o.price), "text": str(o.get("about", "")) })
+	return out
+
+
+## Issue #188, #305: stall `v`'s keeper talks (the fence): [E] starts the chat,
+## "Trade" over the chat box opens his stall's menu (whose "Talk" comes back), and
+## his offer_item puts one of his offers' price cards in the chat box.
+func add_talk(v: Dictionary, spot: TalkSpot, host) -> void:
+	var id := str(v.get("id", ""))
+	vendor_talk[id] = func(): host.start_talk(spot)
+	spot.shortcuts = func(): return [{ "id": "go_trade", "label": _l("key_trade") }]
+	spot.on_shortcut = func(_k: String) -> void:
+		host.end_talk()
+		open_trade(v)
+	spot.brain.wares = offer_wares
+	var offered := {}
+	spot.brain.item_offered.connect(func(item: Dictionary) -> void:
+		if host.active != spot:
+			return
+		offered.clear()
+		offered.merge(item)
+		offered["text"] = str(GearUpgrades.offer(str(item.id)).get("about", ""))
+		host.panel.show_sale(offered, WorldState.credits))
+	host.panel.sale_answered.connect(func(item_id: String, accepted: bool) -> void:
+		if not accepted or host.active != spot or item_id != str(offered.get("id", "")):
+			return
+		offered.clear()
+		buy_offer(item_id)
+		host.panel.set_line(_trade_said)
+		host.panel.set_money(WorldState.credits, spot.brain.rel.tab))
 
 
 ## Sell one `id` to vendor `v`. Returns "sold" or "" (it does not buy that, or

@@ -1246,7 +1246,7 @@ func _build_fence() -> void:
 				spot.manual = true
 				spot.radius = float(v.cfg.get("reach", 3.5))
 				bar.add_spot(spot)
-				gear.vendor_talk["fence"] = func(): bar.start_talk(spot)
+				gear.add_talk(v.cfg, spot, bar)        # issue #305: talk first, trade a keyword away
 				return
 
 

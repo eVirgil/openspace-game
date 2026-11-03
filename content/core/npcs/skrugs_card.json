@@ -25,6 +25,7 @@
     "skrugs_post_round": "WHERE YOU ARE: your yard inside the town wall, right behind the cantina, on the back lane a short walk from the back gate. Your house, your stall, the display speeder and your garage, which opens onto the lane. A speeder drives out of the garage, down the lane and out through the back gate into the desert. Your stall stands at the gate end of the yard, beside your garage, facing the back gate. Ships can't land inside the wall: to sell you one, they land it within a hundred metres of your stall, just outside the back gate is best.",
     "skrugs_post": "WHERE YOU ARE: out in the sand past the back gate, a short walk from it. Your house, your stall, the display speeder and your garage beside the house. To sell you a ship, they land it right by your post. Your sand ramp is out past it."
   },
+  "shortcuts": { "note": "Issue #305: the keyword row over his chat box.", "speeder": "Buy a speeder", "sell_ship": "Sell my ship" },
   "garage": {
     "free": "YOUR GARAGE: you fit speeder parts at your garage bench, the same parts and prices as the mechanic out in the desert (paint, looks, engines, thrusters, cannons, the Grav Lifter), and you take a speeder for scrap. They park their speeder in your garage and use the bench (E there). You never take money in the chat for parts.",
     "story": "YOUR GARAGE: it holds the speeders you sell. You don't fit parts: send them to the mechanic out in the desert for that."

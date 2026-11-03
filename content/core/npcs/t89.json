@@ -72,6 +72,7 @@
     "rebuilt": "Good as new! Your %s is on the pit pad, and she is all yours.",
     "cant_afford_rebuild": "The rebuild is %d credits. You have %d. Oda at the cantina has work.",
     "fitted": "%s, fitted to your %s. Fly her gently for the first hour. Or do not!",
+    "fit_card": "Fitted to your %s here in the pit, by T-89. It stays on that ship.",
     "cant_afford_fit": "%s is %d credits. You have %d.",
     "ships_pitch": "Every ship on my lot is fuelled and ready. Which one takes your fancy, pilot?",
     "upgrades_pitch": "What shall I fit, pilot? Each one goes on for good.",
@@ -80,6 +81,10 @@
   },
   "labels": {
     "talk": "[E] Talk to %s",
+    "key_ships": "Ships",
+    "key_upgrades": "Upgrades",
+    "key_menu": "Menu",
+    "fit_name": "%s for your %s",
     "chat": "Talk (ask which ship suits you)",
     "menu_title": "%s  -  you have %d cr",
     "yes_tutorial": "Yes, show me the basics",

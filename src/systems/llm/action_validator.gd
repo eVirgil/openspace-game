@@ -87,6 +87,17 @@ static func validate(actions: Array, briefing: Dictionary, ctx: Dictionary) -> D
 					out["id"] = str(sb.id)
 					out["name"] = str(sb.name)
 					out["price"] = int(sb.price)          # the game's price, never the model's
+			"offer_item":
+				# Issue #305: an upgrade or piece of gear from the briefing's YOU CAN SELL list,
+				# at the game's price.
+				var wares: Dictionary = briefing.get("wares", {})
+				var wid := str(a.get("id", ""))
+				if not wares.has(wid):
+					why = "not for sale here"
+				else:
+					out["id"] = wid
+					out["name"] = str(wares[wid].name)
+					out["price"] = int(wares[wid].price)          # the game's price, never the model's
 			"club_vibe":
 				# Issue #261: a music request. Free and never refused, but only a mood
 				# the club's playlist has.

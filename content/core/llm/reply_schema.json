@@ -25,6 +25,7 @@
               "call_guards",
               "offer_speeder",
               "offer_ship",
+              "offer_item",
               "comrade",
               "let_go",
               "search",
