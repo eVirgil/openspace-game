@@ -28,6 +28,10 @@ const F_CROUCH := 2
 const F_SPRINT := 4
 const F_VISIBLE := 8
 const F_SLIDE := 16
+const F_AIM := 32                  ## trigger or aim held: the gun comes up
+const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
+const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
+const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
 
 var my_name := ""
 var my_outfit: Dictionary = {}
@@ -243,16 +247,19 @@ func _on_host_gone() -> void:
 # ------------------------------------------------------------------ state
 
 ## Every player -> every other (the host relays): where I am and what I am doing.
-## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt]
+## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt,
+##  where the gun points (INF: along the pose), the blade's third-person pose, reload]
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func state(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
-	if pkt.size() < 9 or (_mp().is_server() and not roster.has(id)):
+	if pkt.size() < 12 or (_mp().is_server() and not roster.has(id)):
 		return
 	states[id] = {
 		"planet": str(pkt[0]), "pos": pkt[1] as Vector3, "yaw": float(pkt[2]), "vel": pkt[3] as Vector3,
 		"flags": int(pkt[4]), "weapon": str(pkt[5]), "drawn": float(pkt[6]), "pitch": float(pkt[7]),
-		"tilt": pkt[8] as Quaternion, "t": Time.get_ticks_msec() / 1000.0,
+		"tilt": pkt[8] as Quaternion, "aim_at": pkt[9] as Vector3,
+		"sword": pkt[10] if pkt[10] is Dictionary else {}, "reload": float(pkt[11]),
+		"t": Time.get_ticks_msec() / 1000.0,
 	}
 
 
@@ -313,13 +320,34 @@ func town_state() -> Array:
 	var kit = scene.get("player_kit")
 	var weapon := ""
 	var drawn := 0.0
+	var aim_at := Vector3.INF
+	var sword: Dictionary = {}
+	var reload := -1.0
 	if kit != null and is_instance_valid(kit) and kit.avatar != null:
-		weapon = str(kit.avatar.current)
-		drawn = float(kit.avatar.drawn)
+		var av = kit.avatar
+		weapon = str(av.current)
+		drawn = float(av.drawn)
+		reload = float(av.reload)
+		if av.aim_wanted:
+			flags |= F_AIM
+		if av.sprint_lowered:
+			flags |= F_SPRINT_LOW
+		if av.first_person:
+			flags |= F_FIRST_PERSON
+		if av.sword_trail_on:
+			flags |= F_CUTTING
+		var w = kit.weapons
+		if weapon == "energy_blade" and w != null and w.combo != null:
+			sword = w.combo.pose(false)        # the others see you from outside, even in first person
+		# Where the gun points: the crosshair's spot in third person, and in first
+		# person where the eye looks (the avatar has no aim_target then).
+		if weapon != "" and weapon != "energy_blade" and w != null and w.has_method("aim_point"):
+			aim_at = av.aim_target if av.aim_target != Vector3.INF else w.aim_point()
 	var tilt = body.get("tilt")
 	return [GameFlow.current_planet_id(), body.global_position, rig.yaw if rig != null else body.rotation.y,
 		body.velocity, flags, weapon, drawn, rig.pitch if rig != null else 0.0,
-		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY]
+		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY,
+		aim_at, sword, reload]
 
 
 ## A body in this town for every other player on this planet who is not in a ship.
@@ -391,6 +419,8 @@ func shot(pkt: Array) -> void:
 	b.streak_length = float(pkt[6])
 	b.stylize = true
 	b.shooter = bodies.get(id, null)
+	if b.shooter != null and is_instance_valid(b.shooter) and b.shooter.avatar != null:
+		b.shooter.avatar.fire_kick()       # their gun kicks and flashes here too
 	scene.add_child(b)
 	b.global_position = pkt[1] as Vector3
 	b.monitoring = false               # a picture of the shot, never a hit

@@ -70,7 +70,7 @@ func _state() -> Array:
 	if walk_t >= 0.0:
 		x = minf(walk_t * WALK_SPEED, WALK_M)
 	var moving := walk_t >= 0.0 and x < WALK_M
-	return ["port_desert", Vector3(x, 0, 0), 0.0, Vector3(WALK_SPEED if moving else 0.0, 0, 0), 8, "", 0.0, 0.0, Quaternion.IDENTITY]
+	return ["port_desert", Vector3(x, 0, 0), 0.0, Vector3(WALK_SPEED if moving else 0.0, 0, 0), 8, "", 0.0, 0.0, Quaternion.IDENTITY, Vector3.INF, {}, -1.0]
 
 
 func _done(ok: bool) -> void:
