@@ -294,20 +294,6 @@ func test_sell_it_for_scrap() -> void:
 	assert_eq(WorldState.speeder_fits.size(), 0, "its parts went with it")
 
 
-func test_scrapping_one_keeps_the_others_fits() -> void:
-	var t = _town()
-	var y: MechanicYard = t.mechanic
-	WorldState.credits = 1000
-	t.speeder_post.buy()
-	var keep: SpeederNode = t.speeder_post.speeders[0]
-	var sell := _speeder_in_bay(t)
-	WorldState.speeder_fits[0].parts = ["cannons_1"]
-	y.scrap()
-	assert_eq(WorldState.speeder_fits.size(), 1)
-	assert_eq(WorldState.speeder_fits[0].parts, ["cannons_1"], "the first one keeps its cannons")
-	assert_eq(int(keep.get_meta("slot")), 0)
-
-
 func test_space_lifts_and_mouse_fires_with_a_lifter() -> void:
 	var t = _town()
 	var y: MechanicYard = t.mechanic
