@@ -39,6 +39,8 @@
   "fight_lead_max_s": 0.3,
   "fight_snap_m": 60.0,
   "fight_stale_s": 2.0,
+  "pig_snap_m": 12.0,
+  "pig_catch_up": 1.15,
   "labels": {
     "joined": "%s joined the game",
     "left": "%s left the game",

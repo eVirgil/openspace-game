@@ -373,9 +373,11 @@ func _ready() -> void:
 var action := ""
 var action_t := 0.0
 var action_len := 0.0
+var acts := 0                         ## moves played (issue #402: a LAN host sends each one)
 
 
 func act(move: String, seconds: float = -1.0) -> void:
+	acts += 1
 	action = move
 	action_t = 0.0
 	action_len = seconds if seconds > 0.0 else NativeMoves.length(move)

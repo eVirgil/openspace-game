@@ -37,6 +37,12 @@ extends Node3D
 ## over the walk by NpcBody.act(). They never speak through the voice service.
 ## Animals: each roams alone (SandPig); kill one and [E] at the carcass cuts food.
 ##
+## Issue #402: in a LAN guest's town on the host's planet (TownDemo.lan_shared)
+## the packs, camps and animals are the host's: this director builds them as ever
+## but drives none of them; NetWorld moves them where the host's are, sends their
+## hits to the host's game and kills them when the host's die. Trading, chests and
+## resting stay this game's own, by the host's pack's mood (net_friendly).
+##
 ## Not built yet: packs fighting each other and the Remnant, sandstorms (#175),
 ## stealing vehicles (#176).
 
@@ -71,6 +77,9 @@ var _timer_label: Label
 var _fade: ColorRect
 var _clock := 0.0
 var _camp_check := 0.0
+## Issue #402 (a LAN guest): pack id -> the host's pack turns on you, for a pack
+## this game saw stealing or tearing its tents (NetWorld sets it).
+var net_provoke: Callable
 
 
 func setup(town_demo, n: Dictionary, world_ground: WorldGround, p_gear: GearController) -> void:
@@ -479,6 +488,9 @@ func _physics_process(dt: float) -> void:
 	_clock += dt
 	WorldState.game_hours += dt * float(_camp_cfg().get("game_hours_per_real_min", 0.5)) / 60.0
 	var ppos := _player_pos()
+	if net_copy():
+		_net_tick(dt, ppos)
+		return
 	var timer_text := ""
 	for p in packs:
 		if not (p is Dictionary) or not p.has("members"):
@@ -497,6 +509,104 @@ func _physics_process(dt: float) -> void:
 		_camp_check = 2.0
 		_check_camps(ppos)
 	_tick_prompts()
+
+
+## Issue #402: a guest's copies: the camps' fires and lids, the prompts; nobody walks
+## or fights here (NetWorld moves them).
+func _net_tick(dt: float, ppos: Vector3) -> void:
+	_timer_label.visible = false
+	for pig in pigs:
+		if is_instance_valid(pig):
+			(pig as SandPig).net_copy = true
+	for npc in members():
+		if not npc.has_meta("net_copy") and not npc.dead:
+			net_slide(npc, npc.global_position)    # not the host's yet: held, not walking off
+	for c in camps:
+		if is_instance_valid(c):
+			(c as NativeCamp).tick(dt, ppos)
+	_camp_check -= dt
+	if _camp_check <= 0.0:
+		_camp_check = 2.0
+		for p in packs:
+			_refresh_lids(p)
+	_tick_prompts()
+
+
+## Whether this game's natives are copies of a LAN host's (issue #402).
+func net_copy() -> bool:
+	return demo != null and bool(demo.get("lan_shared"))
+
+
+## Every pack member built, alive or dead.
+func members() -> Array:
+	var out: Array = []
+	for p in packs:
+		if p is Dictionary and p.has("members"):
+			for m in p.members:
+				if is_instance_valid(m.npc):
+					out.append(m.npc)
+	return out
+
+
+## Issue #402: [pack id, slot] for a member (how a LAN host names it to a guest),
+## or [] if it is none of theirs.
+func net_key(npc: NpcBody) -> Array:
+	for p in packs:
+		for m in p.get("members", []):
+			if m.npc == npc:
+				return [str(p.id), int(m.slot)]
+	return []
+
+
+## Issue #402: the member at `slot` of pack `id` here (a guest's copy of the host's), or null.
+func net_member(id: String, slot: int) -> NpcBody:
+	for m in pack(id).get("members", []):
+		if int(m.slot) == slot and is_instance_valid(m.npc):
+			return m.npc
+	return null
+
+
+## Issue #402: a member this game has that the host's does not (killed there): gone.
+func net_drop(npc: NpcBody) -> void:
+	for p in packs:
+		var list: Array = p.get("members", [])
+		for m in list.duplicate():
+			if m.npc == npc:
+				list.erase(m)
+	npc.queue_free()
+
+
+## Issue #402: a guest's copy far from this game's player (or with no collider under
+## it) is slid to `at` along the ground with no physics, as the host slides its own
+## (true); near, it walks (false: NetWorld drives it).
+func net_slide(npc: NpcBody, at: Vector3) -> bool:
+	var ppos := _player_pos()
+	var lod := float(people.get("pack", {}).get("far_lod_m", 90.0))
+	if ppos != Vector3.INF and at.distance_to(ppos) <= lod and _has_floor(at):
+		if npc.process_mode == Node.PROCESS_MODE_DISABLED:
+			npc.process_mode = Node.PROCESS_MODE_INHERIT
+			npc.global_position = _on_ground(at)
+		_keep_up(npc)
+		return false
+	npc.process_mode = Node.PROCESS_MODE_DISABLED
+	var g := _on_ground(at)
+	npc.global_position = g
+	npc.velocity = Vector3.ZERO
+	if "controller" in npc and npc.controller != null:
+		npc.controller.velocity = Vector3.ZERO
+		npc.controller.body_pos = g
+	return true
+
+
+## How pack `p` takes you: the host's word in a LAN guest's game, else its record.
+func is_friendly(p: Dictionary) -> bool:
+	return bool(p.get("net_friendly", p.rec.friendly))
+
+
+## A LAN guest's shot (their body in the host's game) counts as the player's against
+## a pack: the pack is the same in every game (issue #402).
+static func _by_guest(shooter) -> bool:
+	return shooter != null and is_instance_valid(shooter) and shooter.get("peer_id") != null
 
 
 func _player_pos() -> Vector3:
@@ -843,7 +953,7 @@ func _win_over(p: Dictionary) -> void:
 
 
 func _on_member_hit(shooter: Node, _amount: float, p: Dictionary) -> void:
-	if not DroidController.by_player(shooter, player):
+	if not DroidController.by_player(shooter, player) and not _by_guest(shooter):
 		return
 	if bool(p.rec.friendly) and not bool(p.rec.get("won", false)):
 		p.rec.friendly = false            # you started it
@@ -854,7 +964,10 @@ func _on_member_hit(shooter: Node, _amount: float, p: Dictionary) -> void:
 
 
 func _on_member_died(p: Dictionary, npc: NpcBody) -> void:
-	if not DroidController.by_player(npc.last_hit_by, player):
+	if net_copy():
+		return                            # the host's pack keeps the count
+	var by = npc.last_hit_by
+	if not DroidController.by_player(by, player) and not _by_guest(by) and not (by == null and npc.has_meta("net_hit_by")):
 		return
 	p.rec.kills = int(p.rec.get("kills", 0)) + 1
 	p.rec.friendly = false
@@ -869,6 +982,9 @@ func _on_member_died(p: Dictionary, npc: NpcBody) -> void:
 ## A friendly pack caught you at it (stealing, or tearing its tents down): it turns
 ## on you. Not for good: survive them without a kill and they come round again.
 func _provoke(p: Dictionary) -> void:
+	if net_provoke.is_valid():
+		net_provoke.call(str(p.id))      # a guest: the host's pack turns
+		return
 	if bool(p.rec.friendly):
 		p.rec.friendly = false
 		p.rec.won = false
@@ -912,7 +1028,7 @@ func trade_pack() -> Dictionary:
 		return {}
 	var reach := float(people.get("pack", {}).get("trade_reach", 4.5))
 	for p in packs:
-		if not bool(p.rec.friendly) or not (p.state in ["greet", "truce", "travel", "camp"]):
+		if not is_friendly(p) or not (p.state in ["greet", "truce", "travel", "camp"]):
 			continue
 		var lead := leader(p)
 		if lead != null and lead.global_position.distance_to(ppos) <= reach:
@@ -944,7 +1060,7 @@ func open_trade(p: Dictionary, keep_cursor := false) -> void:
 			trade(str(p.id))
 		else:
 			trade_goods(str(p.id), id)
-		if bool(p.rec.friendly):
+		if is_friendly(p):
 			open_trade(p, true)
 	menu.open(_line("trade_menu") % [str(p.label), WorldState.inventory.count("food")], opts, pick, "", keep_cursor)
 
@@ -960,7 +1076,7 @@ func trade_goods(id: String, item: String) -> String:
 	var p := pack(id)
 	if p.is_empty():
 		return "none"
-	if not bool(p.rec.friendly):
+	if not is_friendly(p):
 		return "hostile"
 	var price := -1
 	for g in goods():
@@ -999,7 +1115,7 @@ func trade(id: String) -> String:
 	var p := pack(id)
 	if p.is_empty():
 		return "none"
-	if not bool(p.rec.friendly):
+	if not is_friendly(p):
 		return "hostile"
 	var inv := WorldState.inventory
 	var tcfg: Dictionary = people.get("trade", {})
@@ -1142,7 +1258,8 @@ func _on_tent_hit(shooter: Node, _amount: float, p: Dictionary) -> void:
 
 
 func _on_camp_wrecked(p: Dictionary) -> void:
-	WorldState.native_camp(str(p.id)).wrecked_h = WorldState.game_hours
+	if not net_copy():                    # a guest's: the host's camp keeps the hours
+		WorldState.native_camp(str(p.id)).wrecked_h = WorldState.game_hours
 	_toast(_line("camp_wrecked") % str(p.label))
 	WorldState.log_event("The %s's camp was torn down." % str(p.label))
 
@@ -1169,7 +1286,7 @@ func rest_tent() -> Dictionary:
 	if ppos == Vector3.INF or bool(player.get("piloting")):
 		return {}
 	for p in packs:
-		if p.camp == null or not bool(p.rec.friendly) or p.state == "attack":
+		if p.camp == null or not is_friendly(p) or p.state == "attack":
 			continue
 		var i := (p.camp as NativeCamp).tent_at(ppos)
 		if i >= 0 and not bool((p.camp as NativeCamp).tents[i].down):

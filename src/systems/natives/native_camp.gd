@@ -25,6 +25,9 @@ var tents: Array = []                 ## see _tent
 var fires: Array = []                 ## { root, light, flames: [MeshInstance3D] }
 var spots: Array = []                 ## where members stand round the fire (world)
 var is_wrecked := false
+## Issue #402: a LAN guest's copy of the host's camp. Hits on its tents go here,
+## (tent, amount, shooter), instead of tearing them: the host's game says which fall.
+var net_hit: Callable
 var lit_near := 140.0                 ## lights and flicker only this close to the player
 var _near := false
 var _near_t := 0.0
@@ -420,6 +423,9 @@ func chest_near(p: Vector3, reach: float = 1.6) -> int:
 func _on_tent_hit(i: int, amount: float, shooter: Node) -> void:
 	var t: Dictionary = tents[i]
 	tent_hit.emit(shooter, amount)
+	if net_hit.is_valid():
+		net_hit.call(i, amount, shooter)
+		return
 	if bool(t.down):
 		return
 	t.hp = float(t.hp) - amount
@@ -446,6 +452,27 @@ func knock_down(i: int) -> void:
 func show_wrecked() -> void:
 	for t in tents:
 		knock_down(int(t.index))
+
+
+## Which tents are down: bit i for tent i (issue #402: what a LAN host sends).
+func down_mask() -> int:
+	var mask := 0
+	for t in tents:
+		if bool(t.down):
+			mask |= 1 << int(t.index)
+	return mask
+
+
+## Issue #402: a guest's copy takes the host's word on which tents are down (all
+## up again is the camp put back).
+func net_down(mask: int) -> void:
+	if mask == 0:
+		if down_mask() != 0:
+			rebuild()
+		return
+	for t in tents:
+		if mask & (1 << int(t.index)) and not bool(t.down):
+			knock_down(int(t.index))
 
 
 ## Back up: every tent standing and whole again.
