@@ -116,6 +116,10 @@ var hold_pose: Dictionary = {} ## joint -> degrees, held over the walk while no 
 ## Issue #303: (amount, shooter, by_blade) -> the damage that gets through (0 = turned
 ## aside). The dark master's red blade deflects bolts and parries cuts.
 var guard_hit: Callable
+## Issue #402: a LAN guest's copy of one of the host's people (NetWorld). Hits on it
+## go here, (amount, shooter, blade sweep or INF), instead of hurting it: the host's
+## game applies them to the real one and says when it dies.
+var net_hit: Callable
 var sips := 0
 var _sip_wait := 0.0
 const SIP_EVERY := Vector2(6.0, 14.0)
@@ -737,6 +741,9 @@ func target_chest_height() -> float:
 func apply_damage_from(amount: float, shooter: Node) -> void:
 	if dead:
 		return
+	if net_hit.is_valid():
+		net_hit.call(amount, shooter, Vector3.INF)
+		return
 	if shooter != null and is_instance_valid(shooter) and "faction" in shooter and str(shooter.faction) == faction and faction != "":
 		return                         # (issue #187: a droid on the same side too)
 	last_hit_by = shooter
@@ -753,7 +760,7 @@ func apply_damage_from(amount: float, shooter: Node) -> void:
 
 ## Bolts and blades call this (bolt.gd looks for apply_damage).
 func apply_damage(amount: float) -> void:
-	if dead:
+	if dead or net_hit.is_valid():
 		return
 	hits_taken += 1
 	damage_usec = Time.get_ticks_usec()
@@ -769,6 +776,9 @@ func apply_damage(amount: float) -> void:
 ## the blade was moving (flat); a killing cut flings the body that way.
 func apply_blade_hit(amount: float, sweep: Vector3) -> void:
 	if dead:
+		return
+	if net_hit.is_valid():
+		net_hit.call(amount, target, Vector3(sweep.x, 0.0, sweep.z))
 		return
 	cut_unaware = not perception.noticed
 	_blade_sweep = Vector3(sweep.x, 0.0, sweep.z).normalized()

@@ -5,6 +5,13 @@ extends RefCounted
 ##   - "wreck": the wreck T-89 rebuilt (WorldState.SHIP_REBUILT + wreck_ship),
 ##   - "t89":   the ship he sold you (WorldState.hangar),
 ##   - "kept_N": a stolen ship Skrugs cleaned up for you (WorldState.kept_ships).
+##   - "free":  a free roam game's own interceptor, the pit pad's ship, yours from
+##              the start (WorldState.FREE_SHIP; its ship id is the story data's
+##              "free_roam_ship"), so Call brings it in free roam too.
+##   - "lan":   issue #401: a LAN guest's own ship, in their livery, on the landing
+##              pad the host gave them (NetSession.ship). While it is there it is
+##              the only one: the guest's saved ships stay in their save, and the
+##              pit pad is the host's. Not saved.
 ## Each is known by that key. One is the primary (WorldState.primary_ship): it waits
 ## on the pit pad wherever you wake (ShipPilot.woke_in_pit) and it is the one Call
 ## brings to you (ShipPilot.call_ship). The others stay where you last left them,
@@ -15,12 +22,18 @@ extends RefCounted
 
 const WRECK := "wreck"
 const T89 := "t89"
+const FREE := "free"
+const LAN := "lan"
 const WRECKED := "primary_wrecked"         ## the flag: the primary was shot to pieces, not yet repaired
 
 
 ## Every ship you own, in order: [{ key, ship }].
 static func owned() -> Array:
 	var out: Array = []
+	if lan():
+		return [{ "key": LAN, "ship": str(NetSession.cfg().get("guest_ship", "interceptor")) }]
+	if WorldState.has_flag(WorldState.FREE_SHIP) and not WorldState.story_mode() and free_ship() != "":
+		out.append({ "key": FREE, "ship": free_ship() })
 	if WorldState.has_flag(WorldState.SHIP_REBUILT) and WorldState.wreck_ship != "":
 		out.append({ "key": WRECK, "ship": WorldState.wreck_ship })
 	if WorldState.hangar != "":
@@ -28,6 +41,21 @@ static func owned() -> Array:
 	for k in WorldState.kept_ships:
 		out.append({ "key": str(k.get("key", "")), "ship": str(k.get("ship", "")) })
 	return out
+
+
+## A LAN guest's own ship is here (and theirs are not).
+static func lan() -> bool:
+	return not NetSession.ship.is_empty()
+
+
+## The look `key` is built in ("" = its ship's own): a LAN guest's livery.
+static func look_of(key: String) -> String:
+	return str(NetSession.ship.get("look", "")) if key == LAN and lan() else ""
+
+
+## The ship id of a free roam game's own interceptor.
+static func free_ship() -> String:
+	return str(Story.data().get("free_roam_ship", ""))
 
 
 static func owns(key: String) -> bool:
@@ -45,6 +73,8 @@ static func ship_of(key: String) -> String:
 ## The primary's key, "" when you own nothing. The first ship you get becomes it on
 ## its own, and so does the next one when it goes.
 static func primary() -> String:
+	if lan():
+		return LAN                         # the save's own primary is left as it is
 	if not owns(WorldState.primary_ship):
 		var all := owned()
 		WorldState.primary_ship = str(all[0].key) if not all.is_empty() else ""
@@ -52,16 +82,18 @@ static func primary() -> String:
 
 
 static func set_primary(key: String) -> bool:
-	if not owns(key):
+	if not owns(key) or lan():
 		return false
 	WorldState.primary_ship = key
 	return true
 
 
 ## Whether the primary waits on the pit pad. Not in a story save before T-89 rebuilt
-## the wreck: the pad is the wreck's until then (issue #206).
+## the wreck: the pad is the wreck's until then (issue #206). Not a LAN guest's: it
+## waits on its own pad (the pit is the host's).
 static func goes_to_pit() -> bool:
-	return primary() != "" and not (WorldState.story_mode() and not WorldState.has_flag(WorldState.SHIP_REBUILT))
+	return primary() != "" and primary() != LAN \
+		and not (WorldState.story_mode() and not WorldState.has_flag(WorldState.SHIP_REBUILT))
 
 
 ## The ship on the pit pad when the town is built: the one you flew in on, else the
@@ -94,6 +126,11 @@ static func keep(ship_id: String) -> String:
 ## `key` is gone for good: sold, or shot to pieces when it was not the primary.
 static func lose(key: String) -> void:
 	match key:
+		LAN:
+			return                          # the session's: back on its pad when you wake
+		FREE:
+			WorldState.set_flag(WorldState.FREE_SHIP, false)
+			WorldState.set_flag(WorldState.FREE_SHIP_GONE)
 		WRECK:
 			WorldState.wreck_ship = ""
 		T89:
@@ -110,6 +147,8 @@ static func lose(key: String) -> void:
 
 ## Where `key` was last left: { planet, pos: [x, y, z], rot: [x, y, z, w] }, or {}.
 static func spot(key: String) -> Dictionary:
+	if key == LAN:
+		return NetSession.ship.get("spot", {})
 	return WorldState.ship_spots.get(key, {})
 
 
@@ -117,8 +156,12 @@ static func remember(key: String, xf: Transform3D) -> void:
 	if not owns(key):
 		return
 	var q := xf.basis.orthonormalized().get_rotation_quaternion()
-	WorldState.ship_spots[key] = { "planet": GameFlow.current_planet_id(),
+	var s := { "planet": GameFlow.current_planet_id(),
 		"pos": [xf.origin.x, xf.origin.y, xf.origin.z], "rot": [q.x, q.y, q.z, q.w] }
+	if key == LAN:
+		NetSession.ship["spot"] = s        # this session's, not the save's
+	else:
+		WorldState.ship_spots[key] = s
 
 
 ## A spot's transform (the ship's own, as it stood).

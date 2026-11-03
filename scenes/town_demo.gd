@@ -17,6 +17,7 @@ extends Node3D
 
 const TownLayout := preload("res://src/systems/world/town_layout.gd")
 const Greybox := preload("res://src/systems/world/greybox.gd")
+const NetWorld := preload("res://src/systems/net/net_world.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const StairTower := preload("res://src/systems/world/stair_tower.gd")
 const PitBowl := preload("res://src/systems/world/pit_bowl.gd")
@@ -50,6 +51,9 @@ const ROLE_COLORS := {
 @export var with_npcs := true         ## NPCs on foot: trooper posts with a "soldier" profile get a body, pathing and senses
 @export var nav_async := true         ## bake the navmesh on a worker thread (traces may bake in place)
 @export var npc_brains := true        ## M15: guards and locals think (patrol, challenge, fight). Off = bodies hold their posts
+## Issue #402: a LAN guest's town on the host's planet: its people are the host's
+## (NetWorld drives copies of them), so none of them think here.
+var lan_shared := false
 
 var town := TownLayout.new()
 var look: LookEnvironment
@@ -605,8 +609,13 @@ func _spawn_player() -> void:
 		var c: Vector3 = from_pad.center
 		yaw = atan2(c.x - from_pad.arrive.x, c.z - from_pad.arrive.z)
 	elif _arrival.is_empty() and NetSession.take_guest_spawn():
-		var t89 := guest_t89()                      # issue #401: a LAN guest arrives beside T-89, facing him
-		if t89 != Vector3.INF:
+		var pad: Dictionary = town.get_box(str(NetSession.ship.get("pad", "")))
+		var t89 := guest_t89()                      # issue #401: a LAN guest arrives beside T-89, facing him,
+		if not pad.is_empty():                      # or by the pad their own ship stands on, facing it
+			var at: Array = NetSession.spot_by_pad(pad, town.spawn_pos())
+			_player.position = (at[0] as Vector3) + Vector3(0, 0.05, 0)
+			yaw = float(at[1])
+		elif t89 != Vector3.INF:
 			_player.position = NetSession.spot_by(t89, multiplayer.get_unique_id()) + Vector3(0, 0.05, 0)
 			yaw = atan2(t89.x - _player.position.x, t89.z - _player.position.z)
 	elif _arrival.is_empty():
@@ -752,6 +761,12 @@ func _build_outposts(now: bool = true) -> void:
 
 ## Then the brains that run them all.
 func _npc_brains() -> void:
+	lan_shared = NetWorld.shared_town(GameFlow.current_planet_id())
+	if lan_shared:
+		# The host's game runs the town's people; this one only counts you out when
+		# you are downed (a garrison of nobody), as in a town with no Remnant left.
+		garrison = _make_garrison("Garrison", [], true)
+		return
 	if npc_brains:
 		# The town's garrison, and (issue #64) one per desert outpost: each has its
 		# own alarm, so a fight out there never puts the town on alert. The town's

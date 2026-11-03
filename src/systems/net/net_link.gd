@@ -4,12 +4,13 @@ extends Node
 ## and it outlives the town reloading.
 ##
 ## Host: listens, lets guests in (hello -> welcome, or a refusal when full or on
-## another version), keeps the roster and tells everyone who came and went. Every
+## another version), keeps the roster and tells everyone who came and went. Each
+## guest gets a livery and a free landing pad for their own ship (NetSession.ship). Every
 ## player sends their state (state) send_rate times a second; the host relays it
 ## (SceneMultiplayer's server relay). Each game puts a RemotePlayer in its town for
 ## every other player on the same planet.
 ##
-## Tests: `local_state` replaces reading the town's player, `with_bodies` false
+## Tests: `local_state` (and `local_outfit`) replace reading the town's player, `with_bodies` false
 ## keeps bodies out, `arrive_on_welcome` false keeps a guest's town from reloading.
 
 signal welcomed(planet_id: String)
@@ -20,6 +21,8 @@ signal host_left
 signal turned_away(id: int, why: String)     ## host: a guest refused (full, another version)
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
+const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
+const NetWorld := preload("res://src/systems/net/net_world.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -28,16 +31,23 @@ const F_CROUCH := 2
 const F_SPRINT := 4
 const F_VISIBLE := 8
 const F_SLIDE := 16
+const F_AIM := 32                  ## trigger or aim held: the gun comes up
+const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
+const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
+const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
 
 var my_name := ""
 var my_outfit: Dictionary = {}
 var roster: Dictionary = {}        ## peer id -> { name, outfit } (the host is 1)
 var states: Dictionary = {}        ## peer id -> the last state heard ({ planet, pos, yaw, ... , t })
 var bodies: Dictionary = {}        ## peer id -> RemotePlayer in this town
+var ships: Dictionary = {}         ## peer id -> the last ship packet heard ({ planet, look, pos, rot })
+var ship_bodies: Dictionary = {}   ## peer id -> RemoteShip in this town
 var address := ""                  ## the host's (a guest), for the status line
 var host_name := ""
 var welcomed_in := false           ## a guest the host has let in
 var local_state: Callable = Callable()
+var local_outfit: Callable = Callable()   ## tests: replaces reading the town's avatar
 var with_bodies := true
 var arrive_on_welcome := true
 var _max := 5
@@ -45,7 +55,10 @@ var _send_left := 0.0
 var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
+var _fit_left := 0.0               ## seconds to the next look at what you wear
+var outfits_heard := 0             ## the others' outfit changes heard (tests)
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var hits_answered := 0             ## your hits on the others their games answered (tests)
 var _light_left := 0.0             ## host: seconds to the next word on the lighting
 var _light_sent := []              ## host: the lighting last sent [planet, preset, hour]
 var shots_seen := 0                ## the others' bolts shown here (tests)
@@ -53,6 +66,9 @@ var shots_seen := 0                ## the others' bolts shown here (tests)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS       # the F11 panel pauses the game; the others still move
+	var w := NetWorld.new()
+	w.name = "World"                               # issue #402: the host's people, on everyone's screen
+	add_child(w)
 
 
 func _mp() -> MultiplayerAPI:
@@ -69,6 +85,7 @@ func start_host(port: int, max_players: int) -> Error:
 	roster[1] = { "name": my_name, "outfit": my_outfit }
 	host_name = my_name
 	_mp().peer_disconnected.connect(_on_peer_gone)
+	_mp().peer_connected.connect(func(id): _patient(id))
 	return OK
 
 
@@ -99,6 +116,16 @@ func close() -> void:
 	states.clear()
 
 
+## Give peer `id` peer_timeout_s before counting it gone: a game loading a town
+## does not answer for a few seconds (ENet's own five would drop it).
+func _patient(id: int) -> void:
+	var peer := _mp().multiplayer_peer as ENetMultiplayerPeer
+	var p := peer.get_peer(id) if peer != null else null
+	if p != null:
+		var ms := int(NetSession.n("peer_timeout_s", 30.0) * 1000.0)
+		p.set_timeout(32, ms, ms)
+
+
 func _exit_tree() -> void:
 	close()
 
@@ -111,6 +138,7 @@ func my_id() -> int:
 
 func _on_connected() -> void:
 	_wait_left = -1.0
+	_patient(1)
 	hello.rpc_id(1, my_name, my_outfit, _version())
 
 
@@ -145,7 +173,8 @@ func hello(player_name: String, outfit: Dictionary, version: String) -> void:
 	for other in roster:
 		if other != 1:
 			joined.rpc_id(other, id, nm, fit)
-	roster[id] = { "name": nm, "outfit": fit }
+	var slot := _free_slot()
+	roster[id] = { "name": nm, "outfit": fit, "slot": slot, "livery": NetSession.livery(slot), "pad": free_pad() }
 	welcome.rpc_id(id, nm, GameFlow.current_planet_id(), roster)
 	_on_joined(id, nm)
 
@@ -183,6 +212,8 @@ func welcome(your_name: String, planet_id: String, who: Dictionary) -> void:
 	roster = who
 	host_name = str(who.get(1, {}).get("name", ""))
 	welcomed_in = true
+	var me: Dictionary = who.get(my_id(), {})
+	NetSession.ship = { "look": str(me.get("livery", "")), "pad": str(me.get("pad", "")) }    # your own ship, on that pad
 	welcomed.emit(planet_id)
 	if arrive_on_welcome:
 		_arrive(planet_id)
@@ -227,6 +258,7 @@ func left(id: int) -> void:
 func _gone(id: int) -> void:
 	_drop_body(id)
 	states.erase(id)
+	ships.erase(id)
 	if not roster.has(id):
 		return
 	var nm := str(roster[id].name)
@@ -245,16 +277,19 @@ func _on_host_gone() -> void:
 # ------------------------------------------------------------------ state
 
 ## Every player -> every other (the host relays): where I am and what I am doing.
-## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt]
+## [planet, position, yaw, velocity, flags, weapon, drawn, aim pitch, ground tilt,
+##  where the gun points (INF: along the pose), the blade's third-person pose, reload]
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func state(pkt: Array) -> void:
 	var id := _mp().get_remote_sender_id()
-	if pkt.size() < 9 or (_mp().is_server() and not roster.has(id)):
+	if pkt.size() < 12 or (_mp().is_server() and not roster.has(id)):
 		return
 	states[id] = {
 		"planet": str(pkt[0]), "pos": pkt[1] as Vector3, "yaw": float(pkt[2]), "vel": pkt[3] as Vector3,
 		"flags": int(pkt[4]), "weapon": str(pkt[5]), "drawn": float(pkt[6]), "pitch": float(pkt[7]),
-		"tilt": pkt[8] as Quaternion, "t": Time.get_ticks_msec() / 1000.0,
+		"tilt": pkt[8] as Quaternion, "aim_at": pkt[9] as Vector3,
+		"sword": pkt[10] if pkt[10] is Dictionary else {}, "reload": float(pkt[11]),
+		"t": Time.get_ticks_msec() / 1000.0,
 	}
 
 
@@ -280,9 +315,16 @@ func _physics_process(dt: float) -> void:
 		var pkt: Array = local_state.call() if local_state.is_valid() else town_state()
 		if not pkt.is_empty() and (_mp().is_server() or welcomed_in):
 			state.rpc(pkt)
+			var sp := town_ship()
+			if not sp.is_empty():
+				ship_state.rpc(sp)
 	if with_bodies:
 		_place_bodies()
 	_hook_shots()
+	_fit_left -= dt
+	if _fit_left <= 0.0:
+		_fit_left = NetSession.n("outfit_check_s", 1.0)
+		_send_outfit()
 
 
 func _connected() -> bool:
@@ -316,13 +358,34 @@ func town_state() -> Array:
 	var kit = scene.get("player_kit")
 	var weapon := ""
 	var drawn := 0.0
+	var aim_at := Vector3.INF
+	var sword: Dictionary = {}
+	var reload := -1.0
 	if kit != null and is_instance_valid(kit) and kit.avatar != null:
-		weapon = str(kit.avatar.current)
-		drawn = float(kit.avatar.drawn)
+		var av = kit.avatar
+		weapon = str(av.current)
+		drawn = float(av.drawn)
+		reload = float(av.reload)
+		if av.aim_wanted:
+			flags |= F_AIM
+		if av.sprint_lowered:
+			flags |= F_SPRINT_LOW
+		if av.first_person:
+			flags |= F_FIRST_PERSON
+		if av.sword_trail_on:
+			flags |= F_CUTTING
+		var w = kit.weapons
+		if weapon == "energy_blade" and w != null and w.combo != null:
+			sword = w.combo.pose(false)        # the others see you from outside, even in first person
+		# Where the gun points: the crosshair's spot in third person, and in first
+		# person where the eye looks (the avatar has no aim_target then).
+		if weapon != "" and weapon != "energy_blade" and w != null and w.has_method("aim_point"):
+			aim_at = av.aim_target if av.aim_target != Vector3.INF else w.aim_point()
 	var tilt = body.get("tilt")
 	return [GameFlow.current_planet_id(), body.global_position, rig.yaw if rig != null else body.rotation.y,
 		body.velocity, flags, weapon, drawn, rig.pitch if rig != null else 0.0,
-		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY]
+		(tilt as Basis).get_rotation_quaternion() if tilt is Basis else Quaternion.IDENTITY,
+		aim_at, sword, reload]
 
 
 ## A body in this town for every other player on this planet who is not in a ship.
@@ -350,6 +413,7 @@ func _place_bodies() -> void:
 			scene.add_child(b)
 			bodies[id] = b
 		b.hear(s)
+	_place_ships(scene, here, town)
 
 
 func _drop_body(id: int) -> void:
@@ -357,6 +421,45 @@ func _drop_body(id: int) -> void:
 	bodies.erase(id)
 	if b != null and is_instance_valid(b):
 		b.queue_free()
+	_drop_ship(id)
+
+
+# ------------------------------------------------------------------ outfits
+
+## What you wear changed (the character builder, another save's outfit): tell the
+## others. Read off the town's avatar, so every way of changing it is caught.
+func _send_outfit() -> void:
+	var fit: Dictionary = {}
+	if local_outfit.is_valid():
+		fit = local_outfit.call()
+	else:
+		var scene := get_tree().current_scene
+		var kit = scene.get("player_kit") if scene != null else null
+		if kit == null or not is_instance_valid(kit) or kit.avatar == null:
+			return
+		fit = kit.avatar.worn_outfit()
+	if fit.is_empty() or fit.hash() == my_outfit.hash():
+		return
+	my_outfit = fit
+	if roster.has(my_id()):
+		roster[my_id()]["outfit"] = fit
+	if _mp().is_server() or welcomed_in:
+		outfit.rpc(fit)
+
+
+## Every player -> every other (the host relays): what I wear now. The host keeps
+## it on the roster, so someone joining later sees it too.
+@rpc("any_peer", "call_remote", "reliable")
+func outfit(fit: Dictionary) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id):
+		return
+	var clean := PlayerOutfit.sanitize(fit)
+	roster[id]["outfit"] = clean
+	outfits_heard += 1
+	var b = bodies.get(id, null)
+	if b != null and is_instance_valid(b):
+		b.wear(clean)
 
 
 # ------------------------------------------------------------------ shots and friendly fire
@@ -394,6 +497,8 @@ func shot(pkt: Array) -> void:
 	b.streak_length = float(pkt[6])
 	b.stylize = true
 	b.shooter = bodies.get(id, null)
+	if b.shooter != null and is_instance_valid(b.shooter) and b.shooter.avatar != null:
+		b.shooter.avatar.fire_kick()       # their gun kicks and flashes here too
 	scene.add_child(b)
 	b.global_position = pkt[1] as Vector3
 	b.monitoring = false               # a picture of the shot, never a hit
@@ -420,13 +525,50 @@ func hit(amount: float, from: Vector3) -> void:
 	var scene := get_tree().current_scene
 	var p = scene.get("_player") if scene != null else null
 	if not (p is CharacterBody3D) or not is_instance_valid(p) or dmg <= 0.0:
+		hit_back.rpc_id(id, false, false)
 		return
+	var hp_was := int(p.health.hp)
+	var down_was := bool(p.is_downed)
 	var shooter = bodies.get(id, null)
 	if shooter != null and is_instance_valid(shooter):
 		p.apply_damage_from(dmg, shooter)
 	else:
 		p.last_hit_from = from
 		p.apply_damage(dmg)
+	hit_back.rpc_id(id, int(p.health.hp) < hp_was, bool(p.is_downed) and not down_was)
+
+
+## The player you hit -> you: whether it hurt them (not while they were already
+## down or in a grace period) and whether it put them down. Your hit marker comes
+## from this, white for a hit, red for a down, as for a guard (HitFeedback).
+@rpc("any_peer", "call_remote", "reliable")
+func hit_back(took: bool, downed: bool) -> void:
+	if not roster.has(_mp().get_remote_sender_id()):
+		return
+	hits_answered += 1
+	var scene := get_tree().current_scene
+	var kit = scene.get("player_kit") if scene != null else null
+	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
+	var fb = w.feedback if w != null else null
+	if took and fb != null and is_instance_valid(fb):
+		fb.confirm(downed)
+
+
+## Issue #402 (host): one of the town's people shot player `id`'s body here.
+func send_town_hit(id: int, amount: float, from: Vector3) -> void:
+	if roster.has(id) and id != my_id():
+		town_hit.rpc_id(id, amount, from)
+
+
+## Host -> a guest: the town (a guard, a local) hit you for `amount`, from `from`.
+@rpc("authority", "call_remote", "reliable")
+func town_hit(amount: float, from: Vector3) -> void:
+	var scene := get_tree().current_scene
+	var p = scene.get("_player") if scene != null else null
+	if not (p is CharacterBody3D) or not is_instance_valid(p):
+		return
+	p.last_hit_from = from
+	p.apply_damage(clampf(amount, 0.0, 500.0))
 
 
 # ------------------------------------------------------------------ words
@@ -465,6 +607,113 @@ func status_line() -> String:
 
 func _max_shown() -> int:
 	return _max if _mp().is_server() else NetSession.max_players()
+
+
+# ------------------------------------------------------------------ ships
+
+## Host: the lowest join slot no guest holds (each slot is a livery).
+func _free_slot() -> int:
+	var held: Array = roster.values().map(func(r): return int(r.get("slot", -1)))
+	var k := 0
+	while held.has(k):
+		k += 1
+	return k
+
+
+## Host: a landing pad in this town for a new guest's ship, "" when none is free:
+## a box of kind "pad" (not a Remnant one) that no guest holds and no ship stands
+## on here, in the town data's order (the pit's spare pad, then the surface pads).
+func free_pad() -> String:
+	var scene := get_tree().current_scene
+	var town = scene.get("town") if scene != null else null
+	if town == null or not town.has_method("boxes"):
+		return ""
+	var held: Array = roster.values().map(func(r): return str(r.get("pad", "")))
+	var pilot = scene.get("pilot")
+	for box in town.boxes():
+		var id := str(box.get("id", ""))
+		if str(box.get("kind", "")) != "pad" or box.has("remnant_ship") or held.has(id):
+			continue
+		var c := Vector3((float(box.min[0]) + float(box.max[0])) * 0.5, 0.0, (float(box.min[2]) + float(box.max[2])) * 0.5)
+		var r := minf(float(box.max[0]) - float(box.min[0]), float(box.max[2]) - float(box.min[2])) * 0.5
+		if not _ship_near(pilot, c, r):
+			return id
+	return ""
+
+
+func _ship_near(pilot, c: Vector3, r: float) -> bool:
+	if pilot == null:
+		return false
+	for b in pilot.berths:
+		var v = b.get("visual")
+		if bool(b.get("destroyed", false)) or not (v is Node3D) or not is_instance_valid(v):
+			continue
+		var p := (v as Node3D).global_position
+		if Vector2(p.x - c.x, p.z - c.z).length() <= r:
+			return true
+	return false
+
+
+## This game's player's ship as a packet, [] when there is none here: the one they
+## fly, else the one Call would bring (their primary). [planet, look, where, rotation]
+func town_ship() -> Array:
+	var scene := get_tree().current_scene
+	var pilot = scene.get("pilot") if scene != null else null
+	if pilot == null or not is_instance_valid(pilot) or pilot.berths.is_empty():
+		return []
+	var i: int = pilot.berth if pilot.piloting or pilot.calling else pilot.berth_of(Fleet.primary(), true)
+	if i < 0 or i >= pilot.berths.size() or bool(pilot.berths[i].get("destroyed", false)):
+		return []
+	var v = pilot.berths[i].visual
+	if not (v is Node3D) or not is_instance_valid(v) or not (v as Node3D).is_visible_in_tree():
+		return []
+	var xf := (v as Node3D).global_transform
+	return [GameFlow.current_planet_id(), str(v.get_meta("look_id", "")), xf.origin,
+		xf.basis.orthonormalized().get_rotation_quaternion()]
+
+
+## Every player -> every other (the host relays): where my ship is.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func ship_state(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	if pkt.size() < 4 or not roster.has(id):
+		return
+	ships[id] = { "planet": str(pkt[0]), "look": str(pkt[1]), "pos": pkt[2] as Vector3,
+		"rot": pkt[3] as Quaternion, "t": Time.get_ticks_msec() / 1000.0 }
+
+
+## A ship in this town for every other player whose ship is on this planet. One not
+## heard of for ship_stale_s (put away, shot down, gone to space) goes.
+func _place_ships(scene: Node, here: String, town: bool) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for id in roster:
+		if id == my_id():
+			continue
+		var s: Dictionary = ships.get(id, {})
+		var show := town and not s.is_empty() and str(s.planet) == here \
+			and now - float(s.t) < NetSession.n("ship_stale_s", 2.0)
+		var b = ship_bodies.get(id, null)
+		if b != null and (not is_instance_valid(b) or b.get_parent() != scene):
+			_drop_ship(id)
+			b = null
+		if not show:
+			if b != null:
+				_drop_ship(id)
+			continue
+		if b == null:
+			var mats = scene.call("_flat_mats") if scene.has_method("_flat_mats") else null
+			b = RemoteShip.new()
+			b.setup(id, str(roster[id].name), str(s.look), mats)
+			scene.add_child(b)
+			ship_bodies[id] = b
+		b.hear(str(s.look), s.pos, s.rot)
+
+
+func _drop_ship(id: int) -> void:
+	var b = ship_bodies.get(id, null)
+	ship_bodies.erase(id)
+	if b != null and is_instance_valid(b):
+		b.queue_free()
 
 
 # ------------------------------------------------------------------ lighting
