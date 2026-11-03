@@ -154,11 +154,13 @@ func _you() -> Node:
 
 
 ## Bolts (and a ship cannon's splash) call this. Issue #402: in the host's game an
-## NPC's bolt that lands on a guest's body is a hit on that guest, from the town.
+## NPC's bolt that lands on a guest's body is a hit on that guest, from the town,
+## and so is a Remnant (or locals') droid's.
 func apply_damage_from(amount: float, shooter: Node) -> void:
 	if shooter != null and is_instance_valid(shooter) and shooter == _you():
 		_send_hit(amount)
-	elif shooter is NpcBody and NetSession.is_host() and amount > 0.0:
+	elif (shooter is NpcBody or (shooter is DroidController.DroidUnit and shooter.faction != "")) \
+			and NetSession.is_host() and amount > 0.0:
 		NetSession.link.send_town_hit(peer_id, amount, (shooter as Node3D).global_position)
 
 

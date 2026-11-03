@@ -7,6 +7,10 @@ extends Node3D
 ##
 ## The root never turns, so the beams keep the way ClubDressing aimed them; only
 ## the look banks and turns as it drifts.
+##
+## Issue #402: in a LAN guest's town on the host's planet it is the host's
+## (net_copy): it drifts in step with the host's (NetWorld sets `t`), your hit goes
+## to the host's game (net_hit) and it falls when the host's does (shoot_down).
 
 const SCALE := 1.5
 const BODY := { "body": "#141418", "trim": "#ff2bd6", "eye": "#ff2bd6" }
@@ -25,12 +29,15 @@ var _fall := 0.0              ## speed it is falling at, once shot
 var _ring: TorusMesh
 var _ring_mat: StandardMaterial3D
 var _lamp: OmniLight3D
+var net_copy := false         ## issue #402: a LAN guest's copy of the host's
+var net_hit: Callable         ## (amount, shooter) -> your hit on the copy, for the host's game
 
 signal shot_down
 
 
 func _init() -> void:
 	name = "RaveDroid"
+	add_to_group("rave_droids")
 	lasers = Node3D.new()
 	lasers.name = "Lasers"
 	lasers.position = Vector3(0, -0.4 * SCALE, 0)     # the emitter hangs under its belly
@@ -87,7 +94,23 @@ func _process(dt: float) -> void:
 	look.rotation.y = atan2(-fwd.x, -fwd.z) + sin(t * 0.31) * 0.6
 
 
-func apply_damage(_amount: float) -> void:
+func apply_damage(amount: float) -> void:
+	hit(amount, null)
+
+
+## A bolt or a blade from `shooter` (null: unknown).
+func hit(amount: float, shooter: Node) -> void:
+	if not alive:
+		return
+	if net_copy:
+		if net_hit.is_valid():
+			net_hit.call(amount, shooter)
+		return
+	shoot_down()
+
+
+## It pops, the lasers go out, and it drops.
+func shoot_down() -> void:
 	if not alive:
 		return
 	alive = false
@@ -116,4 +139,12 @@ func _drop(dt: float) -> void:
 ## The droid's shootable body: hits go to the droid.
 class Hull extends StaticBody3D:
 	func apply_damage(amount: float) -> void:
-		(get_parent() as RaveDroid).apply_damage(amount)
+		(get_parent() as RaveDroid).hit(amount, null)
+
+	func apply_damage_from(amount: float, shooter: Node) -> void:
+		(get_parent() as RaveDroid).hit(amount, shooter)
+
+	## Only the player's energy sword calls this.
+	func apply_blade_hit(amount: float, _dir: Vector3) -> void:
+		var scene := get_tree().current_scene
+		(get_parent() as RaveDroid).hit(amount, scene.get("_player") if scene != null else null)

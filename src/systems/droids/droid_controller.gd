@@ -36,6 +36,11 @@ extends Node3D
 ##     at 0 hp is knocked out a while, then reboots,
 ##   - in a fight your assassin and floating droids walk up to ten steps toward
 ##     what they see (their kind's "engage"), and come back to you once it is dead.
+##   - issue #402: in a LAN guest's town on the host's planet (TownDemo.lan_shared)
+##     the Remnant's droids, the locals' and the haulers are the host's: none are
+##     built or think here (net_copy); NetWorld makes copies (net_unit) and moves
+##     them, and a hit on one goes to the host's game (net_hit). Every other
+##     player's droids walk here too, as pictures (net_picture).
 ## Up to max_owned droids: a fourth asks which one to sell to make room.
 ## Words, prices and tuning: content/core/droids/droids.json. Looks: DroidKit.
 ##
@@ -49,6 +54,8 @@ const REJOIN_LAG_S := 5.0           ## a lost droid turns up where you were this
 const REJOIN_MAX := 25.0            ## ...or nearer, if that is further back than this (m)
 const BLOCK_PROBE_H := 0.5          ## an engaged droid looks for walls this high off the ground (m)...
 const BLOCK_PROBE_R := 0.4          ## ...this far past its next step (about half a body)
+
+signal unit_down(u: DroidUnit, sweep: Vector3)   ## one of the Remnant's (or the locals') died; sweep INF: it ran off
 
 var demo                            ## the town scene (town, terrain, garrison, npcs, training_range)
 var player: CharacterBody3D
@@ -77,6 +84,8 @@ var _follow_t := 0.0
 var _trail: Array = []              ## [[_follow_t, player position], ...], newest last: where a lost droid rejoins
 var _mats: LookMaterials
 var _was_locked := false
+var net_copy := false               ## issue #402: the host's game runs this town's droids (see the top)
+var net_hit := Callable()           ## (u, amount, shooter, sweep): a hit on a copy, for the host's game
 
 
 func setup(p_demo, p_player: CharacterBody3D, p_gear: GearController) -> void:
@@ -116,6 +125,7 @@ func _ready() -> void:
 	if demo != null and "droid_merchant_outposts" in demo and demo.droid_merchant_outposts != null:
 		for site in demo.droid_merchant_outposts.sites:
 			vendor_sites.append(site)
+	net_copy = demo != null and "lan_shared" in demo and bool(demo.lan_shared)
 	if _on_ball() and not roster().wrecks_seeded:
 		var starting_count := int(cfg.get("wrecks", {}).get("ball_starting_count", 8))
 		while roster().wrecks.size() < starting_count:
@@ -124,8 +134,9 @@ func _ready() -> void:
 		roster().wrecks_seeded = true
 	for w in roster().wrecks:
 		_build_wreck(w)
-	_build_remnant()
-	_build_hauler()
+	if not net_copy:
+		_build_remnant()
+		_build_hauler()
 	if demo != null and "training_range" in demo and demo.training_range != null:
 		demo.training_range.remote_tamed.connect(_on_remote_tamed)
 
@@ -155,7 +166,8 @@ func _physics_process(dt: float) -> void:
 		_companion_guns(dt)
 		_tick_fix(dt)
 		_tick_focus()
-	_remnant_step(dt)
+	if not net_copy:
+		_remnant_step(dt)
 	_hauler_step(dt)
 	_tick_wrecks(dt)
 	_chirps(dt)
@@ -1079,6 +1091,13 @@ func _build_hauler() -> void:
 ## It walks its round of the pit, stopping a while at each point, and the
 ## pickup it carries rides on its back (GearController still owns the pickup).
 func _hauler_step(dt: float) -> void:
+	if net_copy:
+		# The copies walk where the host's do; the loads still ride on their backs.
+		if hauler != null and is_instance_valid(hauler):
+			_carry(hauler, cfg.get("pit_hauler", {}))
+		if wreck_hauler != null and is_instance_valid(wreck_hauler):
+			_carry(wreck_hauler, cfg.get("wreck", {}).get("hauler", {}))
+		return
 	if hauler != null:
 		_hauler_pause = _haul(hauler, cfg.get("pit_hauler", {}), _hauler_pause, dt)
 	if wreck_hauler != null:
@@ -1103,6 +1122,12 @@ func _haul(u: DroidUnit, hc: Dictionary, pause: float, dt: float) -> float:
 			_face(u, to)
 			moving = true
 	u.walk(dt, moving, float(hc.get("walk_speed", 1.3)) if moving else 0.0)
+	_carry(u, hc)
+	return pause
+
+
+## The pickup a hauler `u` carries (its config's "carries") rides on its back.
+func _carry(u: DroidUnit, hc: Dictionary) -> void:
 	var load = gear.pickup_node(str(hc.get("carries", ""))) if gear != null else null
 	# Only while the pickup is its load: a story save puts the pit jetpack on the
 	# cantina tower instead (pickups/port_town.json, "modes"), and the hauler roams empty.
@@ -1112,7 +1137,6 @@ func _haul(u: DroidUnit, hc: Dictionary, pause: float, dt: float) -> float:
 		load.base = at
 		load.global_position = at
 		load.visible = true
-	return pause
 
 
 # ------------------------------------------------------------------ the Remnant's droids
@@ -1190,6 +1214,8 @@ func _side_spec(side: Dictionary, spec: Dictionary) -> Dictionary:
 ## Issue #187: the droids of outpost `id` for whoever holds it now (the Remnant's
 ## three, or the locals' white assassin droid).
 func build_outpost_units(id: String) -> void:
+	if net_copy:
+		return
 	var outposts = demo.outposts if demo != null and "outposts" in demo else null
 	if outposts == null:
 		return
@@ -1210,6 +1236,8 @@ func build_outpost_units(id: String) -> void:
 
 ## And gone: everyone's droids at outpost `id` (it changed hands).
 func clear_outpost_units(id: String) -> void:
+	if net_copy:
+		return
 	for u in remnant.duplicate():
 		if str(u.spec.get("outpost", "")) == id:
 			remnant.erase(u)
@@ -1298,6 +1326,8 @@ func _spawn_remnant(spec: Dictionary, start: int, at := Vector3.INF) -> DroidUni
 ## Issue #193: a Remnant droid at a site of its own (the cruiser), from its spec:
 ## { kind, variant, hp, gun?, patrol: [Vector3], site, hostile, respawn, garrison? }.
 func spawn_site_unit(spec: Dictionary) -> DroidUnit:
+	if net_copy:
+		return null
 	var route: Array = spec.get("patrol", [])
 	if route.is_empty():
 		return null
@@ -1314,6 +1344,8 @@ func remove_site_unit(u: DroidUnit) -> void:
 ## Issue #64: the fleet is beaten; the town's droids leave with the garrison.
 ## Issue #187: and the locals' two take the street.
 func withdraw_town_remnant() -> void:
+	if net_copy:
+		return
 	for u in remnant.duplicate():
 		if not u.spec.has("outpost") and not u.spec.has("site"):
 			remnant.erase(u)
@@ -1323,6 +1355,8 @@ func withdraw_town_remnant() -> void:
 
 ## Issue #303: the Remnant take the town back: the locals' street droids go, theirs return.
 func return_town_remnant() -> void:
+	if net_copy:
+		return
 	for u in remnant.duplicate():
 		if not u.spec.has("outpost") and not u.spec.has("site") and u.faction == "locals":
 			remnant.erase(u)
@@ -1524,6 +1558,7 @@ func _strand(u: DroidUnit) -> void:
 	u.visible = false
 	u.collision_layer = 0
 	u.respawn_left = float(Story.remnant_cfg().get("outpost_respawn_s", 180.0))
+	unit_down.emit(u, Vector3.INF)
 
 
 ## A bolt hit a droid. Wrecks shrug it off, and so do yours unless someone else
@@ -1534,6 +1569,10 @@ func _strand(u: DroidUnit) -> void:
 func on_unit_hit(u: DroidUnit, amount: float, shooter: Node, sweep := Vector3.ZERO) -> void:
 	_beep(u)
 	if u.dead:
+		return
+	if u.has_meta("net_id"):
+		if net_hit.is_valid():
+			net_hit.call(u, amount, shooter, sweep)    # the host's game says what it did
 		return
 	if u.faction == "":
 		if not u.broken and companions.get(u.uid) == u and shooter != null and is_instance_valid(shooter) \
@@ -1553,14 +1592,8 @@ func on_unit_hit(u: DroidUnit, amount: float, shooter: Node, sweep := Vector3.ZE
 	if folk != null and by_player(shooter, player):
 		folk._attacked = true          # issue #187: shooting the locals' droid is shooting the locals
 	if u.hp <= 0.0:
-		u.dead = true
-		ExplosionFx.small(u.get_parent(), u.center())
-		Sound.play("droid_pop", u.center())
-		u.collision_layer = 0
-		if sweep != Vector3.ZERO:
-			_bat(u, sweep)
-		else:
-			_lay_down(u)
+		_fall(u, sweep)
+		unit_down.emit(u, sweep)
 		var rsc := Story.remnant_cfg()
 		u.respawn_left = float(rsc.get("outpost_respawn_s" if u.spec.has("outpost") else "town_respawn_s", 60.0))
 		if u.spec.has("site"):
@@ -1574,6 +1607,80 @@ func on_unit_hit(u: DroidUnit, amount: float, shooter: Node, sweep := Vector3.ZE
 			WorldState.log_event(_l("event_remnant_droid"))
 
 
+## It blows: the pop, and down it goes (batted along a blade's `sweep`).
+func _fall(u: DroidUnit, sweep: Vector3) -> void:
+	u.dead = true
+	ExplosionFx.small(u.get_parent(), u.center())
+	Sound.play("droid_pop", u.center())
+	u.collision_layer = 0
+	if sweep != Vector3.ZERO:
+		_bat(u, sweep)
+	else:
+		_lay_down(u)
+
+
+# ------------------------------------------------------------------ LAN copies (issue #402)
+
+## A copy of one of the host's droids from its description (NetWorld.droid_meta):
+## { kind, variant, faction, hp, max_hp, gun, outpost, site, hauler, pos, yaw }.
+## It thinks nothing; NetWorld moves it, and a hit on it goes to net_hit.
+func net_unit(m: Dictionary) -> DroidUnit:
+	var u := _make_unit(str(m.kind), str(m.variant))
+	u.faction = str(m.get("faction", ""))
+	u.max_hp = float(m.get("max_hp", 40.0))
+	u.hp = float(m.get("hp", u.max_hp))
+	u.gun = m.get("gun", {})
+	for k in ["outpost", "site"]:
+		if str(m.get(k, "")) != "":
+			u.spec[k] = str(m[k])
+	add_child(u)
+	u.global_position = m.pos
+	u.yaw = float(m.get("yaw", 0.0))
+	_orient(u)
+	DroidKit.set_awake(u.look, true)
+	match str(m.get("hauler", "")):
+		"pit":
+			hauler = u
+		"wreck":
+			wreck_hauler = u
+		_:
+			remnant.append(u)              # your droids fight it, it chirps
+	return u
+
+
+## Another player's droid, shown here: it looks and walks like theirs and does
+## nothing else (a bolt that lands on it is stopped and does no harm).
+func net_picture(kind: String, variant: String) -> DroidUnit:
+	var u := _make_unit(kind, variant)
+	u.set_meta("net_picture", true)
+	add_child(u)
+	DroidKit.set_awake(u.look, true)
+	return u
+
+
+## The host's one died (sweep INF: it ran off and broke down out there).
+func net_down(u: DroidUnit, sweep: Vector3) -> void:
+	if u.dead:
+		return
+	if sweep == Vector3.INF:
+		u.dead = true
+		u.visible = false
+		u.collision_layer = 0
+		return
+	_fall(u, sweep)
+
+
+## A droid's harmless bolt at `aim`: a picture of a shot fired in another game.
+func net_fire(u: DroidUnit, aim: Vector3, gun: Dictionary) -> void:
+	var b = fire(u, aim, gun)
+	b.damage = 0.0
+	b.splash_damage = 0.0
+	b.sweep = false
+	b.monitoring = false               # what it hit is the other game's to say
+	b.collision_mask = 0
+	b.remove_from_group("bolts")
+
+
 # ------------------------------------------------------------------ guns
 
 ## A bolt from a droid's gun (its kind's "gun" block) at a point.
@@ -1585,6 +1692,8 @@ func fire(u: DroidUnit, aim: Vector3, gun: Dictionary) -> Node:
 	var axis := dir.cross(Vector3.UP)
 	if axis.length() > 0.01:
 		dir = dir.rotated(axis.normalized(), rng.randf_range(-spread, spread))
+	u.shots += 1
+	u.last_aim = aim
 	var b = BoltScene.instantiate()
 	b.direction = dir
 	b.speed = float(gun.get("bolt_speed", 30.0))
@@ -1811,6 +1920,8 @@ class DroidUnit extends StaticBody3D:
 	var engaged: Node3D             ## the enemy one of yours is going after (see _engage)
 	var engage_from := Vector3.INF  ## where it stood when that fight found it
 	var down_left := 0.0            ## a knocked-out droid of yours: seconds until it reboots
+	var shots := 0                  ## issue #402: bolts it has fired (NetWorld sends each one)...
+	var last_aim := Vector3.INF     ## ...and where the last went
 
 	## This droid's own small differences, 0..1 each, steady for its uid.
 	func quirk() -> Vector3:
