@@ -32,27 +32,62 @@ static func save_indirect_level(level: float) -> void:
 ## The player's "Low graphics" setting (F11 > Options), for slower PCs: holds the
 ## expensive render features off on the ground too (as AltitudeDetail does high up),
 ## shortens the sun's shadows, draws the 3D world at a lower resolution and thins
-## the blowing sand. What it changes: time_of_day.json "low_graphics". Saved per machine.
-static var _low := -1
+## the blowing sand. Each of those is a piece (time_of_day.json "low_graphics"
+## pieces) with its own checkbox, so one can be tried at a time; Low graphics is
+## all of them. Saved per machine, a key per piece.
+static var _cut := {}                ## piece id -> true when cut; empty until loaded
 static var _low_cfg: Dictionary = {}
-
-
-static func low_graphics() -> bool:
-	if _low < 0:
-		var f := ConfigFile.new()
-		_low = int(bool(f.get_value("quality", "low", false))) if f.load(SETTINGS_PATH) == OK else 0
-	return _low == 1
-
-
-static func save_low_graphics(on: bool) -> void:
-	_low = int(on)
-	_save_setting("quality", "low", on)
 
 
 static func low_cfg() -> Dictionary:
 	if _low_cfg.is_empty():
 		_low_cfg = load_presets().get("low_graphics", {})
 	return _low_cfg
+
+
+static func pieces() -> Array:
+	return low_cfg().get("pieces", [])
+
+
+## Is this piece of Low graphics on (its feature cut)?
+static func cut(id: String) -> bool:
+	if _cut.is_empty():
+		var f := ConfigFile.new()
+		var loaded := f.load(SETTINGS_PATH) == OK
+		var all := loaded and bool(f.get_value("quality", "low", false))   # saved before the pieces
+		for p in pieces():
+			var in_low := bool(p.get("low", true))
+			_cut[p.id] = bool(f.get_value("quality", p.id, all and in_low)) if loaded else false
+	return bool(_cut.get(id, false))
+
+
+static func save_cut(id: String, on: bool) -> void:
+	cut(id)
+	_cut[id] = on
+	_save_setting("quality", id, on)
+
+
+## Every piece Low graphics takes in is cut (bloom is not one of them).
+static func low_graphics() -> bool:
+	for p in pieces():
+		if bool(p.get("low", true)) and not cut(p.id):
+			return false
+	return not pieces().is_empty()
+
+
+static func save_low_graphics(on: bool) -> void:
+	for p in pieces():
+		if bool(p.get("low", true)):
+			save_cut(p.id, on)
+
+
+## The render features the cut pieces hold off ("sdfgi", "volumetric", "glow"...).
+static func cut_features() -> Array:
+	var out := []
+	for p in pieces():
+		if cut(p.id):
+			out.append_array(p.get("off", []))
+	return out
 
 
 static func _save_setting(section: String, key: String, value: Variant) -> void:
@@ -233,7 +268,7 @@ func set_space_level(level: float) -> void:
 
 
 func ambient_now() -> float:
-	var low := float(low_cfg().get("ambient", 1.0)) if low_graphics() else 1.0
+	var low := float(low_cfg().get("ambient", 1.0)) if cut("fill") else 1.0
 	return lerpf(_ambient_energy_base * ambient_energy_scale, _ambient_space, space_level) * indirect_level() * low
 
 
@@ -248,6 +283,17 @@ func set_indirect(level: float) -> void:
 ## Set (and save) the Low graphics setting, and show it at once.
 func set_low_graphics(on: bool) -> void:
 	save_low_graphics(on)
+	apply_low()
+
+
+## Set (and save) one piece of Low graphics ("fog", "shadows"...), and show it at once.
+func set_cut(id: String, on: bool) -> void:
+	save_cut(id, on)
+	apply_low()
+
+
+## Show the saved Low graphics pieces (after save_cut / save_low_graphics).
+func apply_low() -> void:
 	if env != null:
 		env.ambient_light_energy = ambient_now()
 	_apply_quality()
@@ -265,7 +311,7 @@ func _apply_render_scale() -> void:
 	if not is_inside_tree():
 		return
 	var vp := get_viewport()
-	var low := low_graphics()
+	var low := cut("resolution")
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if low else Viewport.SCALING_3D_MODE_BILINEAR
 	vp.scaling_3d_scale = clampf(float(low_cfg().get("render_scale", 1.0)), 0.25, 1.0) if low else 1.0
 
@@ -439,7 +485,7 @@ func _apply_shadow_range() -> void:
 	if sun == null or _shadow_distance <= 0.0:
 		return
 	var d := minf(_shadow_distance, shadow_cap) if shadow_cap > 0.0 else _shadow_distance
-	if low_graphics():
+	if cut("shadows"):
 		d = minf(d, float(low_cfg().get("shadow_m", d)))
 	sun.directional_shadow_max_distance = d
 
@@ -447,7 +493,7 @@ func _apply_shadow_range() -> void:
 func _apply_quality() -> void:
 	if env == null:
 		return
-	var low: Array = low_cfg().get("off", []) if low_graphics() else []
+	var low := cut_features()
 	var on := func(k: String) -> bool: return bool(_wanted.get(k, true)) and not suppressed.has(k) and not low.has(k)
 	var indirect := indirect_level()
 	env.ssao_enabled = on.call("ssao")
@@ -456,14 +502,15 @@ func _apply_quality() -> void:
 	env.sdfgi_enabled = on.call("sdfgi") and indirect > 0.0
 	env.sdfgi_energy = indirect
 	env.volumetric_fog_enabled = on.call("volumetric")
+	env.glow_enabled = not low.has("glow")
 	# Without SDFGI nothing bounces the sand's warmth back up: low graphics mixes
 	# a sand colour into the sky's fill instead.
-	var bounce := float(low_cfg().get("bounce_share", 0.0)) if low_graphics() else 0.0
+	var bounce := float(low_cfg().get("bounce_share", 0.0)) if cut("fill") else 0.0
 	env.ambient_light_sky_contribution = 1.0 - bounce
 	env.ambient_light_color = Color.html(str(low_cfg().get("bounce", "#000000"))) if bounce > 0.0 else Color.BLACK
 	if sun != null:
 		sun.shadow_enabled = on.call("shadows")
-		sun.directional_shadow_mode = (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if low_graphics()
+		sun.directional_shadow_mode = (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if cut("shadows")
 			else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
 
 

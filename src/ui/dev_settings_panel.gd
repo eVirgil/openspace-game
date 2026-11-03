@@ -1267,26 +1267,43 @@ func _graphics_page(v: VBoxContainer) -> void:
 			LookEnvironment.save_indirect_level(x / 100.0))
 	_row(v, "Indirect light", s)
 	var note := Label.new()
-	note.text = "Turn down if hands or ship interiors look washed out or glow."
+	note.text = "How strong the bounce light and the sky's fill are."
 	note.add_theme_font_size_override("font_size", 12)
 	v.add_child(note)
 	_refreshers.append(func(): s.set_value_no_signal(roundf(LookEnvironment.indirect_level() * 100.0)))
 	# For slower PCs (LookEnvironment.low_graphics): what it turns off is in time_of_day.json.
+	# Its pieces have a checkbox each below it, to try one at a time.
 	var low := CheckBox.new()
-	low.button_pressed = LookEnvironment.low_graphics()
-	low.toggled.connect(func(on):
+	var boxes := {}
+	var sync := func():
+		low.set_pressed_no_signal(LookEnvironment.low_graphics())
+		for id in boxes:
+			boxes[id].set_pressed_no_signal(LookEnvironment.cut(id))
+	var show_now := func():
 		if demo != null and demo.look != null:
-			demo.look.set_low_graphics(on)
+			demo.look.apply_low()
 			if demo.draw_distance != null:
 				demo.draw_distance.apply_low_graphics()
-		else:
-			LookEnvironment.save_low_graphics(on))
+	low.toggled.connect(func(on):
+		LookEnvironment.save_low_graphics(on)
+		show_now.call()
+		sync.call())
 	_row(v, "Low graphics", low)
 	var low_note := Label.new()
-	low_note.text = "Faster on slower PCs: no bounce light, fog volumes or soft shadows in corners,\nshorter sun shadows, a lower 3D resolution, less blowing sand and small things\ndrawn less far off."
+	low_note.text = "Faster on slower PCs. The same, one piece at a time (to find what causes a glare):"
 	low_note.add_theme_font_size_override("font_size", 12)
 	v.add_child(low_note)
-	_refreshers.append(func(): low.set_pressed_no_signal(LookEnvironment.low_graphics()))
+	for p in LookEnvironment.pieces():
+		var id := str(p.id)
+		var b := CheckBox.new()
+		b.toggled.connect(func(on):
+			LookEnvironment.save_cut(id, on)
+			show_now.call()
+			sync.call())
+		boxes[id] = b
+		_row(v, "    " + str(p.get("label", id)), b)
+	sync.call()
+	_refreshers.append(sync)
 
 
 func _set_hud_color(c: Color) -> void:

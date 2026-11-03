@@ -12,7 +12,7 @@ extends Node
 ## Rules are data: the "draw_distance" block of content/look/world.json. A mesh or
 ## light that already set its own range (the barge, the wreck field, the camps'
 ## canisters) keeps it. Pure maths in end_for() and light_begin_for(), for tests.
-## Low graphics (apply_low_graphics) shortens every range it gave out by one scale.
+## Low graphics' "draw" piece (apply_low_graphics) shortens every range it gave out by one scale.
 
 const LOOK_PATH := "res://content/look/world.json"
 const PERSON := "person"
@@ -62,10 +62,10 @@ func watch(rule: String, nodes: Array) -> void:
 			_apply(c)
 
 
-## Take the Low graphics setting (LookEnvironment.low_cfg "draw_scale"): every
+## Take Low graphics' "draw" piece (LookEnvironment.low_cfg "draw_scale"): every
 ## range this has given out is set again at the new scale, and later ones follow it.
 func apply_low_graphics() -> void:
-	var s := float(LookEnvironment.low_cfg().get("draw_scale", 1.0)) if LookEnvironment.low_graphics() else 1.0
+	var s := float(LookEnvironment.low_cfg().get("draw_scale", 1.0)) if LookEnvironment.cut("draw") else 1.0
 	if is_equal_approx(s, scale):
 		return
 	scale = s

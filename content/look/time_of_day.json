@@ -10,8 +10,18 @@
     { "hour": 19.5, "preset": "dusk" }
   ],
   "low_graphics": {
-    "note": "F11 > Options > Graphics > Low graphics (saved per machine in user://settings/graphics.cfg). Read by src/systems/look/look_environment.gd and src/systems/look/dust_wind.gd. off: render features held off on the ground as well as in the sky (the same names as the worlds' 'detail' tiers: sdfgi, ssil, ssao, volumetric, shadows). shadow_m: the sun's shadows end this many metres out (the presets ask for 700-900), in 2 splits instead of 4. render_scale: the 3D world is drawn at this fraction of the window and scaled up with FSR (0.75 draws ~56% of the pixels; the HUD stays sharp). ambient: the sky's fill is multiplied by this, standing in for the bounce light SDFGI no longer adds, so shade does not go black. bounce / bounce_share: that share of the fill comes from this sand colour instead of the sky, for the warm light SDFGI bounces off the ground. dust: the share of blowing sand still drawn. draw_scale: every range in world.json 'draw_distance' (small things and lamps stop being drawn further off) times this; ranges a system set itself (the barge, the wreck field, the camps') stay as they are.",
-    "off": ["sdfgi", "ssil", "ssao", "volumetric"],
+    "note": "F11 > Options > Graphics > Low graphics, and its pieces one by one under it (saved per machine in user://settings/graphics.cfg). Read by src/systems/look/look_environment.gd, dust_wind.gd and draw_distance.gd. pieces: what Low graphics changes, each its own checkbox so one can be tried at a time (to find which one stops a glare on one PC). id: the saved key; label: the checkbox; off: render features it holds off (the worlds' 'detail' tier names: sdfgi, ssil, ssao, volumetric, plus glow); low: false for a piece Low graphics leaves alone (bloom is only there to try). The numbers below belong to one piece each. shadows: the sun's shadows end shadow_m metres out (the presets ask for 700-900), in 2 splits instead of 4. resolution: the 3D world is drawn at render_scale of the window and scaled up with FSR (0.75 draws ~56% of the pixels; the HUD stays sharp). fill: the sky's fill times ambient, and bounce_share of it from the bounce sand colour instead of the sky, standing in for the warm light SDFGI bounces off the ground. dust: the share of blowing sand still drawn. draw: every range in world.json 'draw_distance' times draw_scale; ranges a system set itself (the barge, the wreck field, the camps') stay as they are.",
+    "pieces": [
+      { "id": "gi", "label": "No bounce light", "off": ["sdfgi", "ssil"] },
+      { "id": "fill", "label": "Sand-coloured fill light" },
+      { "id": "fog", "label": "No fog volumes", "off": ["volumetric"] },
+      { "id": "ssao", "label": "No corner shadows", "off": ["ssao"] },
+      { "id": "shadows", "label": "Short sun shadows" },
+      { "id": "resolution", "label": "Lower 3D resolution" },
+      { "id": "dust", "label": "Less blowing sand" },
+      { "id": "draw", "label": "Shorter draw distance" },
+      { "id": "bloom", "label": "No bloom (not in Low graphics)", "off": ["glow"], "low": false }
+    ],
     "shadow_m": 150.0,
     "render_scale": 0.75,
     "ambient": 1.3,
