@@ -24,6 +24,17 @@ Plain English, newest on top. One entry per milestone.
   `content/look/characters.json`), so they read as the boss's own men, not
   the locals' guards. Still killable, rifles up as before.
 
+## The barge boss is a squid in a tank (2026-11-02)
+
+- **The party barge's boss is the barge duke now.** A fat squid-cyborg: a
+  potbelly-stove robot body in dark metal with very small hands, and a glass
+  tank of glowing yellow liquid for a head, a little squid wired up inside.
+  He is the player's height (the old boss was a stretched, warty Oda), and
+  bolts find him in a capsule his size. One Hyper3D model, rigged, worn like
+  the smuggler's (`barge_duke` in `content/look/characters.json`).
+- **He stands in front of his lounger, not in it.** The seat moved back
+  against its backrest.
+
 ## The map shows the real desert (2026-11-02)
 
 - **The globe on the Map page (M) shows the ground faintly under its lines.**

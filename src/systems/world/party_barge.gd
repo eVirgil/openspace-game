@@ -456,10 +456,10 @@ func _build_top() -> void:
 	# The bar (starboard).
 	_box(Vector3(1.0, 1.1, 6.0), Vector3(_W * 0.5 - 1.2, top + 0.55, -1.0), "bar")
 	_box(Vector3(1.2, 0.08, 6.2), Vector3(_W * 0.5 - 1.2, top + 1.14, -1.0), "brass", false)
-	# The boss's dais and lounger, facing the stern.
-	_boss_home = Vector3(0, top + 0.12, 10.5)
+	# The boss's dais and lounger, facing the stern: he stands in front of the seat.
+	_boss_home = Vector3(0, top + 0.12, 11.1)
 	_box(Vector3(4.0, 0.12, 3.0), Vector3(0, top + 0.06, 10.5), "brass")
-	_box(Vector3(3.2, 0.6, 1.6), Vector3(0, top + 0.42, 11.3), "velvet", false)
+	_box(Vector3(3.2, 0.6, 1.1), Vector3(0, top + 0.42, 10.1), "velvet", false)
 	_box(Vector3(3.2, 1.6, 0.3), Vector3(0, top + 0.92, 9.4), "velvet", false)
 	# The control panel near the stern, starboard: you stand aft of it, facing the bow.
 	console_spot = Vector3(3.6, top + 0.05, 17.1)
@@ -578,7 +578,7 @@ func _plan_people() -> void:
 	# Guards either side of the dais (they groove too; they never draw).
 	for i in int(cfg.get("guards", 2)):
 		add.call(str(cfg.get("guard_look", "desert_guard")), _boss_home + Vector3((i * 2 - 1) * 2.6, 0, -0.5), "top", "guard", 0.0, "")
-	add.call("cantina_owner", _boss_home, "top", "boss", 0.0, "")
+	add.call(str(cfg.get("boss", {}).get("look", "barge_duke")), _boss_home, "top", "boss", 0.0, "")
 
 
 ## The next person on the list, once the player has come within party_m.
@@ -663,8 +663,9 @@ func _hit_for(p: Dictionary) -> StaticBody3D:
 	hit.collision_mask = 0
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.9 if p.kind == "boss" else 0.35
-	cap.height = 2.6 if p.kind == "boss" else 1.8
+	var bc: Dictionary = cfg.get("boss", {})
+	cap.radius = float(bc.get("hit_radius", 0.6)) if p.kind == "boss" else 0.35
+	cap.height = float(bc.get("hit_height", 1.94)) if p.kind == "boss" else 1.8
 	cs.shape = cap
 	cs.position = Vector3(0, cap.height * 0.5, 0)
 	hit.add_child(cs)
@@ -700,10 +701,16 @@ func _sphere(r: float) -> SphereMesh:
 	return sm
 
 
-## The boss: big, wide and ugly, warts and all, on his dais.
+## The boss on his dais: the barge duke's own model (boss.look). Without it (no
+## asset, or the look layer off) a stand-in body, made big, wide and ugly, warts
+## and all.
 func _build_boss(p: Dictionary) -> void:
 	boss = p.node
 	var body: Node3D = p.body
+	if body.has_meta("skin"):
+		if owned:
+			_boss_below()
+		return
 	body.scale *= Vector3(2.0, 1.25, 2.0)
 	p.rest = body.transform
 	var head := _joint(body, "head")
