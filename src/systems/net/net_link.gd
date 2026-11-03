@@ -46,6 +46,7 @@ var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var hits_answered := 0             ## your hits on the others their games answered (tests)
 var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
@@ -417,13 +418,33 @@ func hit(amount: float, from: Vector3) -> void:
 	var scene := get_tree().current_scene
 	var p = scene.get("_player") if scene != null else null
 	if not (p is CharacterBody3D) or not is_instance_valid(p) or dmg <= 0.0:
+		hit_back.rpc_id(id, false, false)
 		return
+	var hp_was := int(p.health.hp)
+	var down_was := bool(p.is_downed)
 	var shooter = bodies.get(id, null)
 	if shooter != null and is_instance_valid(shooter):
 		p.apply_damage_from(dmg, shooter)
 	else:
 		p.last_hit_from = from
 		p.apply_damage(dmg)
+	hit_back.rpc_id(id, int(p.health.hp) < hp_was, bool(p.is_downed) and not down_was)
+
+
+## The player you hit -> you: whether it hurt them (not while they were already
+## down or in a grace period) and whether it put them down. Your hit marker comes
+## from this, white for a hit, red for a down, as for a guard (HitFeedback).
+@rpc("any_peer", "call_remote", "reliable")
+func hit_back(took: bool, downed: bool) -> void:
+	if not roster.has(_mp().get_remote_sender_id()):
+		return
+	hits_answered += 1
+	var scene := get_tree().current_scene
+	var kit = scene.get("player_kit") if scene != null else null
+	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
+	var fb = w.feedback if w != null else null
+	if took and fb != null and is_instance_valid(fb):
+		fb.confirm(downed)
 
 
 # ------------------------------------------------------------------ words
