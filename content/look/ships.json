@@ -1,5 +1,21 @@
 {
   "note": "Issue #401: interceptor_crimson and interceptor_sand are LAN guests' liveries (content/core/flow/lan.json): the locals' recolour with another band. Issue #76: a look with 'darken' { body_mul, accent_mul, glow } shows its model through the dark-gun shader (weapon_dark.gdshader): the Remnant's dark interceptor and freighter. Ship looks, keyed by the 'look' id in content/core/ships/*.json. Shapes for the stand-ins live in src/systems/look/ship_kit.gd; colours and sizes live here. To use a real model, set 'scene' to a .tscn/.glb path (forward = -Z, 1 unit = 1 metre); the stand-in is then skipped. See docs/ADDING_SHIPS.md. Issue #43: the four flyable ships (interceptor, freighter, courier, gunship) use Hyper3D models from assets/vehicles/ (content/look/vehicle_models.json, tools/look/prep_vehicle.gd); their stand-in fields stay as the fallback. 'flames_at' [[x, y, z, radius], ...] puts an engine flame (lit by the throttle, ShipKit.throttle_flames) at each of a model's nozzles, pointing aft (+Z); a stand-in gets one at each engine glow. 'flame_length' (default 6) is a flame's length in nozzle radii.",
+  "wreck": {
+    "note": "Issue #206: how a story save's ship looks until T-89 rebuilds it (src/systems/flight/wreck_look.gd): a grime overlay multiplied over every mesh (a noise texture from grime_dark to grime_light, triplanar at grime_scale, grime_frequency the patch size) and scorch marks projected onto the hull ('at': across its top, 0..1 in x and z; 'size': a share of its length).",
+    "seed": 89,
+    "grime_dark": "#9a8874",
+    "grime_light": "#e2d6c2",
+    "grime_scale": 0.18,
+    "grime_frequency": 0.035,
+    "scorch_color": "#1c1612",
+    "scorch_mix": 0.9,
+    "scorch": [
+      { "at": [0.3, 0.35], "size": 0.32 },
+      { "at": [0.72, 0.6], "size": 0.22 },
+      { "at": [0.45, 0.82], "size": 0.18 },
+      { "at": [0.6, 0.2], "size": 0.14 }
+    ]
+  },
   "looks": {
     "interceptor": {
       "frame": "dart",

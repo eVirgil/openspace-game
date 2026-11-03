@@ -238,6 +238,7 @@ func _ready() -> void:
 	chase.cine.blocked = _cine_clear
 	_gather_berths()
 	_use_berth(0)
+	refresh_wreck_look()
 	if "planet" in demo and not demo.planet.is_empty():
 		travel = SpaceTravel.new()
 		travel.staged = "staging" in demo and bool(demo.staging)    # issue #121: a handoff's first frame
@@ -324,6 +325,17 @@ static func berth_label(b: Dictionary) -> String:
 	if b.has("outpost") and Territory.owner(str(b.outpost)) == Territory.LOCALS:
 		return str(cfg.get("locals_label", cfg.get("label", "")))
 	return str(cfg.get("label", ""))
+
+
+## Issue #206: the pit pad's ship looks wrecked (WreckLook) while a story save's
+## ship waits for T-89, and like new once he has rebuilt it.
+func refresh_wreck_look() -> void:
+	if berths.is_empty() or not is_instance_valid(berths[0].visual):
+		return
+	if ShipSalesman.needs_rebuild() and GameFlow.flown_ship == "":
+		WreckLook.apply(berths[0].visual)
+	else:
+		WreckLook.remove(berths[0].visual)
 
 
 ## May the player board berth `i`? (berth_open: the rule.)
@@ -1325,6 +1337,9 @@ func _read_keys(dt: float) -> void:
 	# used to drop the autopilot, and from any height land() refuses: dead stop, free).
 	if st == AtmoFlight.State.FLYING and _just("crouch_act") and not bay_landing and not docking:
 		land()
+	elif st == AtmoFlight.State.LANDING and _just("crouch_act") and atmo.abort_landing():
+		_throttle = 0.0          # C again: flying on, coasting to a stop
+		hud.toast(GameFlow.label("landing_off"), 2.0)
 	if st == AtmoFlight.State.FLYING and _just("bay_land"):
 		if bay_landing or docking:
 			bay_landing = false          # Z again: take her back

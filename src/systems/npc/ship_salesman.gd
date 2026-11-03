@@ -626,6 +626,9 @@ func rebuild() -> String:
 	WorldState.set_flag(WorldState.SHIP_REBUILT)
 	WorldState.wreck_ship = wreck_id()
 	WorldState.log_event(_l("event_rebuilt") % ship_label(wreck_id()))
+	var pilot = demo.pilot if demo != null and "pilot" in demo else null
+	if pilot != null:
+		pilot.refresh_wreck_look()          # good as new
 	Story.event("ship_rebuilt")
 	_beep()
 	_say(_line("rebuilt") % ship_label(wreck_id()))

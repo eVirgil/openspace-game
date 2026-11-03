@@ -17,6 +17,8 @@ extends RefCounted
 ##               faster than `crash_speed` crashes it.
 ##   LANDING  -- land() within `land_max_agl` of the ground: brakes to a stop,
 ##               levels, and settles straight down onto whatever is below.
+##               abort_landing() calls it off: FLYING again at zero throttle,
+##               coasting to a stop over `land_abort_coast` seconds.
 ##   CRASHED  -- stopped; the scene decides what happens next.
 ##   ADRIFT   -- issue #276: nobody at the controls (the pilot ejected). Zero
 ##               throttle, so nothing holds her up: she carries on with the momentum
@@ -47,6 +49,8 @@ var air_cap := INF              ## the most air_scale() may be here (ShipPilot e
 var last_hit := ""
 var crash_point := Vector3.ZERO
 var drift := Vector3.ZERO       ## issue #276: her velocity while ADRIFT (m/s, world)
+var coast_left := 0.0           ## landing called off (C again): seconds left of easing to a stop
+var _coast_rate := 0.0          ## m/s per second she slows by while coasting
 
 var _command := { "pitch": 0.0, "yaw": 0.0, "roll": 0.0, "throttle": 0.0, "boost": false }
 
@@ -206,7 +210,21 @@ func land() -> bool:
 	if not can_land():
 		return false
 	state = State.LANDING
+	coast_left = 0.0
 	events.append({ "type": "landing" })
+	return true
+
+
+## C again while LANDING: called off. FLYING at zero throttle, the way she was going
+## easing to a stop over `land_abort_coast` seconds (any throttle or boost ends that).
+func abort_landing() -> bool:
+	if state != State.LANDING:
+		return false
+	state = State.FLYING
+	flight.throttle = 0.0
+	_command.throttle = 0.0
+	coast_left = p("land_abort_coast", 2.0)
+	_coast_rate = float(flight.speed) / maxf(coast_left, 0.01)
 	return true
 
 
@@ -245,6 +263,12 @@ func _step_flying(dt: float) -> void:
 	var climb: float = flight.forward().dot(up())
 	flight.speed_scale = air_scale() * (1.0 - p("climb_drag", 0.3) * maxf(0.0, climb))
 	flight.accel_scale = maxf(air_scale(), 1.0)   # capped under 1, she still brakes as hard as ever
+	if coast_left > 0.0:
+		coast_left -= dt
+		if float(_command.get("throttle", 0.0)) > 0.0 or bool(_command.get("boost", false)):
+			coast_left = 0.0
+		else:
+			flight.accel_scale = _coast_rate / maxf(float(flight.cfg.get("accel", 25.0)), 0.01)
 	_shed_overspeed(dt)
 	flight.set_command_dict(_command)
 	var before: Vector3 = flight.position
