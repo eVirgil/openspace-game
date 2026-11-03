@@ -41,6 +41,13 @@ var nav: TownNav               ## where paths come from (null = cannot walk anyw
 var target: Node3D             ## who the senses watch (the player)
 var target_armed: Callable     ## -> bool; is the target holding a weapon out
 var target_crouched: Callable  ## -> bool
+## LAN (the host's game): the senses turn to whichever player is nearest, this
+## game's own (home_target) or a guest's body here (RemotePlayer), so a guest is
+## seen, warned and shot on the same standing as the player. The directors turn
+## it on (Garrison, Townsfolk); target_armed / target_crouched stay the player's.
+var watches_guests := false
+var home_target: Node3D        ## this game's player (set on the first pick)
+var _pick_left := 0.0
 ## Issue #55: a garrison trooper also watches the target's speeder or ship while
 ## it is a threat in town (the vehicle's hostile_in_town()). Townsfolk do not.
 var sees_vehicles := false
@@ -660,14 +667,16 @@ func _sense(dt: float) -> void:
 	if _was_crouched and not bool(command.crouch):
 		perception.force_ray()
 	_was_crouched = bool(command.crouch)
+	_pick_target(dt)
 	var tpos := Vector3.INF
 	# A player in a ship's seat is not someone on foot to watch; a trooper still
 	# watches the speeder or ship they are in while it is a threat in town.
 	if target != null and is_instance_valid(target) and target.is_inside_tree() \
 			and (target.get("piloting") != true or hostile_vehicle() != null):
 		tpos = target.global_position
-	var crouched: bool = target_crouched.call() if target_crouched.is_valid() else false
-	var armed: bool = target_armed.call() if target_armed.is_valid() else false
+	var crouched := _target_crouched()
+	var armed: bool = guest_target().armed() if guest_target() != null \
+		else (target_armed.call() if target_armed.is_valid() else false)
 	perception.cone_update(global_position, forward(), tpos, crouched)
 	if perception.wants_ray(dt):
 		_los_clear = _ray_clear(tpos)
@@ -686,12 +695,62 @@ func _sense(dt: float) -> void:
 	_was_noticed = perception.noticed
 
 
+## LAN host: every half second (at once if the guest watched went down or into a
+## ship), the nearest of the player and the guests' bodies here.
+func _pick_target(dt: float) -> void:
+	if not watches_guests or not NetSession.is_host():
+		return
+	if home_target == null:
+		home_target = target
+	_pick_left -= dt
+	if _pick_left > 0.0 and (target == home_target or guest_target() != null):
+		return
+	_pick_left = 0.5
+	var best: Node3D = home_target
+	var bd := INF
+	if you() != null and (you().get("piloting") != true or hostile_vehicle(you()) != null):
+		bd = global_position.distance_to(you().global_position)
+	for b in NetSession.link.bodies.values():
+		if _guest_up(b) and global_position.distance_to(b.global_position) < bd:
+			best = b
+			bd = global_position.distance_to(b.global_position)
+	if best != target:
+		target = best
+		perception.force_ray()
+
+
+## The guest's body the senses are on now (LAN host, a RemotePlayer), null for the player.
+func guest_target():
+	return target if watches_guests and target != home_target and _guest_up(target) else null
+
+
+static func _guest_up(b) -> bool:
+	return is_guest(b) and b.is_inside_tree() and b.visible and not b.downed()
+
+
+## A LAN guest's body in this game (RemotePlayer): a shooter or someone to watch.
+static func is_guest(n) -> bool:
+	return n != null and is_instance_valid(n) and n is Node3D and n.get("peer_id") != null
+
+
+## This game's player (the one whose sword and HUD are here), whoever the senses watch.
+func you() -> Node3D:
+	return home_target if home_target != null and is_instance_valid(home_target) else target
+
+
+func _target_crouched() -> bool:
+	if guest_target() != null:
+		return guest_target().crouched()
+	return target_crouched.call() if target_crouched.is_valid() else false
+
+
 ## Issue #55: the vehicle the target is in, if this trooper should treat it as a
-## threat right now; null otherwise.
-func hostile_vehicle() -> Node:
-	if not sees_vehicles or target == null or not is_instance_valid(target):
+## threat right now (or the one `of` is in); null otherwise.
+func hostile_vehicle(of: Node3D = null) -> Node:
+	var who := of if of != null else target
+	if not sees_vehicles or who == null or not is_instance_valid(who):
 		return null
-	var v = target.get("vehicle")
+	var v = who.get("vehicle")
 	if v == null or not is_instance_valid(v):
 		return null
 	if not v.hostile_in_town() and not (vehicles_anywhere and v.targetable()):
@@ -730,8 +789,7 @@ func _ray_clear(tpos: Vector3) -> bool:
 func target_chest_height() -> float:
 	if hostile_vehicle() != null:
 		return 0.0                # aim at the hull, not a rider's chest above it
-	var crouched: bool = target_crouched.call() if target_crouched.is_valid() else false
-	if crouched:
+	if _target_crouched():
 		return float(profile.get("perception", {}).get("target_chest_crouched", 0.75))
 	return perception.target_chest
 
@@ -780,15 +838,15 @@ func apply_blade_hit(amount: float, sweep: Vector3) -> void:
 	if dead:
 		return
 	if net_hit.is_valid():
-		net_hit.call(amount, target, Vector3(sweep.x, 0.0, sweep.z))
+		net_hit.call(amount, you(), Vector3(sweep.x, 0.0, sweep.z))
 		return
 	cut_unaware = not perception.noticed
 	_blade_sweep = Vector3(sweep.x, 0.0, sweep.z).normalized()
 	last_hit_from = global_position - _blade_sweep     # the kick follows the blade too
 	if guard_hit.is_valid():
-		amount = float(guard_hit.call(amount, target, true))
+		amount = float(guard_hit.call(amount, you(), true))
 		if amount > 0.0:
-			hit_by.emit(target, amount)          # (issue #303: he knows who cut him)
+			hit_by.emit(you(), amount)          # (issue #303: he knows who cut him)
 	if amount > 0.0:
 		apply_damage(amount)
 	_blade_sweep = Vector3.ZERO
@@ -875,8 +933,8 @@ func _animate_lod(dt: float, move: Vector3) -> void:
 		anim_frames += 1
 		return
 	var d := 0.0
-	if target != null and is_instance_valid(target):
-		d = global_position.distance_to(target.global_position)
+	if you() != null:
+		d = global_position.distance_to(you().global_position)
 	_anim_dist = d
 	if d > ANIM_FAR:
 		_anim_acc = 0.0
@@ -1189,8 +1247,8 @@ func _update_health_bar() -> void:
 	if _bar_bg == null:
 		return
 	var hurt: bool = health.hp < health.max_hp
-	var near: bool = target != null and is_instance_valid(target) \
-		and global_position.distance_to(target.global_position) <= HEALTH_BAR_RANGE
+	var near: bool = you() != null \
+		and global_position.distance_to(you().global_position) <= HEALTH_BAR_RANGE
 	var show: bool = not dead and (hostile or hurt) and near
 	_bar_bg.visible = show
 	_bar_fill.visible = show

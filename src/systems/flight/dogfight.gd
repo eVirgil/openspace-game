@@ -517,17 +517,27 @@ func net_damage(id: int, amount: float, kind: String, point: Vector3, peer: int)
 	events = now
 
 
-## LAN friendly fire: another player's cannon hit your ship (they are not in this
-## director: their ship is a RemoteShip, NetFight). It lands between steps, as
-## net_damage does. Returns 0 if it did nothing, 1 if it hurt, 2 if it was the kill.
+## LAN (a guest's copy): one of the host's ships hit this game's player (NetFight.fight_hurt);
+## it lands here, between steps, as net_damage's do.
+func net_hurt(amount: float, kind: String, point: Vector3) -> void:
+	var me := get_ship(player_id)
+	if me.is_empty() or not me.alive or player_sheltered or state != State.RUNNING:
+		return
+	var now := events
+	events = _net_events
+	stats.hits += 1
+	_damage(me, { "owner": -1 }, kind, amount, point)
+	events = now
+
+
+## LAN friendly fire: another player's cannon or seeker hit your ship (their ship is a
+## RemoteShip here, NetFight). It lands as net_hurt's do. Returns 0 if it did
+## nothing, 1 if it hurt, 2 if it was the kill.
 func friendly_damage(amount: float) -> int:
 	var me := get_ship(player_id)
 	if me.is_empty() or not me.alive or player_sheltered or state != State.RUNNING or amount <= 0.0:
 		return 0
-	var now := events
-	events = _net_events
-	_damage(me, { "owner": -1 }, "bolt", amount, me.flight.position)
-	events = now
+	net_hurt(amount, "bolt", me.flight.position)
 	return 1 if me.alive else 2
 
 

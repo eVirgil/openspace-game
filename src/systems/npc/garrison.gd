@@ -214,6 +214,7 @@ func _adopt(g: NpcBody) -> void:
 			z.guards.append(g)
 	g.sees_vehicles = true
 	g.vehicles_anywhere = vehicles_anywhere
+	g.watches_guests = true
 	g.died.connect(_on_guard_died.bind(g))
 	g.hit_by.connect(_on_guard_hit.bind(g))
 
@@ -288,15 +289,21 @@ func _physics_process(dt: float) -> void:
 	var nearest := INF
 	var recent_shot := false
 	var shot_window := float(profile.get("checkpoint", {}).get("recent_shot_s", 30.0))
+	var seen_at := Vector3.INF        ## the player where seen, else a guest (LAN)
 	for g in alive:
 		var p: Perception = g.perception
+		var gt = g.guest_target()
+		var tpos: Vector3 = gt.global_position if gt != null else ppos
 		seen = seen or p.visible
-		if guards.has(g):
+		if p.visible and (gt == null or seen_at == Vector3.INF):
+			seen_at = tpos
+		# The gate asks the player for papers; a guest it knows by standing (_watch_for_trouble).
+		if guards.has(g) and gt == null:
 			gate_noticed = gate_noticed or p.noticed
 		if p.heard_kind == "shot" and p.since_heard < shot_window:
 			recent_shot = true
-		if ppos != Vector3.INF:
-			nearest = minf(nearest, g.global_position.distance_to(ppos))
+		if tpos != Vector3.INF:
+			nearest = minf(nearest, g.global_position.distance_to(tpos))
 	var night := (profile.get("checkpoint", {}).get("night_times", ["dusk"]) as Array).has(WorldState.time_of_day)
 	var vehicle := _hostile_vehicle()
 
@@ -332,7 +339,7 @@ func _physics_process(dt: float) -> void:
 		_raise("attacked")
 	_attacked = false
 
-	alarm.update(dt, { "seen": seen and _ko_left <= 0.0, "player_pos": ppos,
+	alarm.update(dt, { "seen": seen and _ko_left <= 0.0, "player_pos": seen_at if seen_at != Vector3.INF else ppos,
 		"nearest_dist": nearest, "alive": alive.size() })
 	_handle(alarm.drain())
 	if alarm.active():
@@ -358,7 +365,7 @@ func _tick_zones(dt: float, alive: Array, ppos: Vector3, night: bool, recent_sho
 		var mine := alive.filter(func(g): return z.guards.has(g))
 		var noticed := false
 		for g in mine:
-			noticed = noticed or g.perception.noticed
+			noticed = noticed or (g.perception.noticed and g.guest_target() == null)
 		var cp: Checkpoint = z.checkpoint
 		cp.strict = Territory.gate_strict() if remnant() else 0
 		cp.bribe_mult = Territory.bribe_mult() if remnant() else 1.0
@@ -380,14 +387,20 @@ func _watch_for_trouble(dt: float, alive: Array, night: bool) -> void:
 	# Issue #64: after the fleet is beaten, what is left of them shoots on sight.
 	var wanted := (checkpoint.base_band(standing) == "hostile" and not night) or _shoot_on_sight()
 	for g in alive:
-		if guards.has(g) or not bool(g.profile.get("alarm", {}).get("raise_on_hostile_sight", false)):
+		# LAN: a guest the gate guards too know only by standing, as a sentry does
+		# (the gate's papers are the player's business).
+		var gt = g.guest_target()
+		var sentry := bool(g.profile.get("alarm", {}).get("raise_on_hostile_sight", false))
+		var gate := guards.has(g)
+		if not ((sentry and not gate) or (gate and gt != null)):
 			continue
 		if not g.perception.noticed:
 			_warn_left.erase(g)
 			continue
+		var at: Vector3 = gt.global_position if gt != null else Vector3.INF
 		if alarm.remembers() and not g.has_meta("fresh"):
 			_say(g, "contact")
-			_raise("remembered")
+			_raise("remembered", at)
 			return
 		if wanted:
 			if not _warn_left.has(g):
@@ -395,14 +408,14 @@ func _watch_for_trouble(dt: float, alive: Array, night: bool) -> void:
 				_say(g, "halt_hostile")
 			_warn_left[g] -= dt
 			if _warn_left[g] <= 0.0:
-				_raise("spotted")
+				_raise("spotted", at)
 				return
 
 
 ## Sound the town alarm. The checkpoint's own "hostile" already took the standing
-## hit for a gate fight; anything else costs it here.
-func _raise(why: String) -> void:
-	if not alarm.raise(why, _player_pos()):
+## hit for a gate fight; anything else costs it here. `at`: where (a guest), else the player.
+func _raise(why: String, at := Vector3.INF) -> void:
+	if not alarm.raise(why, at if at != Vector3.INF else _player_pos()):
 		return
 	_handle(alarm.drain())
 	if why != "gate":
@@ -462,10 +475,14 @@ func _order_brains() -> void:
 func _run_brain(g: NpcBody, dt: float, ppos: Vector3) -> void:
 	var b: GuardBrain = brains[g]
 	var vel := Vector3.ZERO
-	if ppos != Vector3.INF:
-		var v := target_vehicle()
-		vel = v.threat_velocity() if v != null else player.velocity
-	g.brief(b, ppos, vel)
+	var gt = g.guest_target()
+	if gt != null:
+		g.brief(b, gt.global_position, gt.velocity)      # LAN: the guest it is watching
+	else:
+		if ppos != Vector3.INF:
+			var v := target_vehicle()
+			vel = v.threat_velocity() if v != null else player.velocity
+		g.brief(b, ppos, vel)
 	b.update(dt)
 	if b.want_cover:
 		b.want_cover = false
@@ -742,7 +759,7 @@ func choose(id: String) -> bool:
 # ------------------------------------------------------------------ troopers
 
 func _on_guard_hit(shooter: Node, _amount: float, g: NpcBody) -> void:
-	if _is_player(shooter):
+	if _is_player(shooter) or NpcBody.is_guest(shooter):
 		if SilentKill.unaware_cut(g):
 			_check_cut.call_deferred(g)        # issue #307: silent if the cut killed him unseen
 			return
