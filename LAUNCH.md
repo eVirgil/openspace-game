@@ -64,6 +64,8 @@ and Windows firewalls): say yes. The port is in `content/core/flow/lan.json`.
 The same address works over Tailscale or ZeroTier, though that is not supported.
 
 Test: `./scripts/test_lan.sh` runs a host and two guests on loopback.
+`./scripts/test_lan_world.sh` runs a host and a guest, each with a town, and checks
+the guest's people are the host's and a guest's kill counts in both (issue #402).
 
 ## The demo: the town, and flight from the pit (M9)
 
