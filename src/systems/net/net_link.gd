@@ -9,7 +9,7 @@ extends Node
 ## (SceneMultiplayer's server relay). Each game puts a RemotePlayer in its town for
 ## every other player on the same planet.
 ##
-## Tests: `local_state` replaces reading the town's player, `with_bodies` false
+## Tests: `local_state` (and `local_outfit`) replace reading the town's player, `with_bodies` false
 ## keeps bodies out, `arrive_on_welcome` false keeps a guest's town from reloading.
 
 signal welcomed(planet_id: String)
@@ -42,6 +42,7 @@ var address := ""                  ## the host's (a guest), for the status line
 var host_name := ""
 var welcomed_in := false           ## a guest the host has let in
 var local_state: Callable = Callable()
+var local_outfit: Callable = Callable()   ## tests: replaces reading the town's avatar
 var with_bodies := true
 var arrive_on_welcome := true
 var _max := 5
@@ -49,7 +50,10 @@ var _send_left := 0.0
 var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
+var _fit_left := 0.0               ## seconds to the next look at what you wear
+var outfits_heard := 0             ## the others' outfit changes heard (tests)
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var hits_answered := 0             ## your hits on the others their games answered (tests)
 var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
@@ -287,6 +291,10 @@ func _physics_process(dt: float) -> void:
 	if with_bodies:
 		_place_bodies()
 	_hook_shots()
+	_fit_left -= dt
+	if _fit_left <= 0.0:
+		_fit_left = NetSession.n("outfit_check_s", 1.0)
+		_send_outfit()
 
 
 func _connected() -> bool:
@@ -384,6 +392,44 @@ func _drop_body(id: int) -> void:
 		b.queue_free()
 
 
+# ------------------------------------------------------------------ outfits
+
+## What you wear changed (the character builder, another save's outfit): tell the
+## others. Read off the town's avatar, so every way of changing it is caught.
+func _send_outfit() -> void:
+	var fit: Dictionary = {}
+	if local_outfit.is_valid():
+		fit = local_outfit.call()
+	else:
+		var scene := get_tree().current_scene
+		var kit = scene.get("player_kit") if scene != null else null
+		if kit == null or not is_instance_valid(kit) or kit.avatar == null:
+			return
+		fit = kit.avatar.worn_outfit()
+	if fit.is_empty() or fit.hash() == my_outfit.hash():
+		return
+	my_outfit = fit
+	if roster.has(my_id()):
+		roster[my_id()]["outfit"] = fit
+	if _mp().is_server() or welcomed_in:
+		outfit.rpc(fit)
+
+
+## Every player -> every other (the host relays): what I wear now. The host keeps
+## it on the roster, so someone joining later sees it too.
+@rpc("any_peer", "call_remote", "reliable")
+func outfit(fit: Dictionary) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id):
+		return
+	var clean := PlayerOutfit.sanitize(fit)
+	roster[id]["outfit"] = clean
+	outfits_heard += 1
+	var b = bodies.get(id, null)
+	if b != null and is_instance_valid(b):
+		b.wear(clean)
+
+
 # ------------------------------------------------------------------ shots and friendly fire
 
 ## Send the town's player's shots to the others (a new town builds new weapons).
@@ -447,13 +493,33 @@ func hit(amount: float, from: Vector3) -> void:
 	var scene := get_tree().current_scene
 	var p = scene.get("_player") if scene != null else null
 	if not (p is CharacterBody3D) or not is_instance_valid(p) or dmg <= 0.0:
+		hit_back.rpc_id(id, false, false)
 		return
+	var hp_was := int(p.health.hp)
+	var down_was := bool(p.is_downed)
 	var shooter = bodies.get(id, null)
 	if shooter != null and is_instance_valid(shooter):
 		p.apply_damage_from(dmg, shooter)
 	else:
 		p.last_hit_from = from
 		p.apply_damage(dmg)
+	hit_back.rpc_id(id, int(p.health.hp) < hp_was, bool(p.is_downed) and not down_was)
+
+
+## The player you hit -> you: whether it hurt them (not while they were already
+## down or in a grace period) and whether it put them down. Your hit marker comes
+## from this, white for a hit, red for a down, as for a guard (HitFeedback).
+@rpc("any_peer", "call_remote", "reliable")
+func hit_back(took: bool, downed: bool) -> void:
+	if not roster.has(_mp().get_remote_sender_id()):
+		return
+	hits_answered += 1
+	var scene := get_tree().current_scene
+	var kit = scene.get("player_kit") if scene != null else null
+	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
+	var fb = w.feedback if w != null else null
+	if took and fb != null and is_instance_valid(fb):
+		fb.confirm(downed)
 
 
 # ------------------------------------------------------------------ words
