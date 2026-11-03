@@ -87,7 +87,9 @@ func test_low_graphics_shortens_the_ranges_and_gives_them_back() -> void:
 	var path := LookEnvironment.SETTINGS_PATH
 	var had := FileAccess.file_exists(path)
 	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
-	var was_low := LookEnvironment.low_graphics()
+	var was := {}
+	for pc in LookEnvironment.pieces():
+		was[pc.id] = LookEnvironment.cut(pc.id)
 	var k := float(LookEnvironment.low_cfg()["draw_scale"])
 	var small := _box(1.0)
 	var own := _box(1.0)
@@ -115,7 +117,8 @@ func test_low_graphics_shortens_the_ranges_and_gives_them_back() -> void:
 	assert_eq(later.visibility_range_end, 220.0)
 	assert_eq(lamp.distance_fade_begin, 300.0)
 
-	LookEnvironment.save_low_graphics(was_low)
+	for id in was:
+		LookEnvironment.save_cut(id, was[id])
 	if had:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		f.store_buffer(saved)

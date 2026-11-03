@@ -21,7 +21,9 @@ func test_low_graphics_turns_the_expensive_features_off_and_back_on() -> void:
 	var path := LookEnvironment.SETTINGS_PATH
 	var had := FileAccess.file_exists(path)
 	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
-	var was_low := LookEnvironment.low_graphics()
+	var was := {}
+	for pc in LookEnvironment.pieces():
+		was[pc.id] = LookEnvironment.cut(pc.id)
 	var cfg := LookEnvironment.low_cfg()
 	var look := LookEnvironment.new()
 	add_child_autofree(look)
@@ -38,6 +40,7 @@ func test_low_graphics_turns_the_expensive_features_off_and_back_on() -> void:
 	assert_false(look.env.ssao_enabled, "no SSAO")
 	assert_false(look.env.volumetric_fog_enabled, "no volumetric fog")
 	assert_true(look.sun.shadow_enabled, "the sun still casts shadows")
+	assert_true(look.env.glow_enabled, "bloom is not part of Low graphics")
 	assert_eq(look.sun.directional_shadow_mode, DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS)
 	assert_almost_eq(look.sun.directional_shadow_max_distance, float(cfg["shadow_m"]), 0.01)
 	assert_almost_eq(look.env.ambient_light_energy, ambient * float(cfg["ambient"]), 0.001)
@@ -56,7 +59,53 @@ func test_low_graphics_turns_the_expensive_features_off_and_back_on() -> void:
 	assert_almost_eq(look.env.ambient_light_sky_contribution, 1.0, 0.001)
 	assert_almost_eq(look.get_viewport().scaling_3d_scale, 1.0, 0.001)
 
-	LookEnvironment.save_low_graphics(was_low)
+	for id in was:
+		LookEnvironment.save_cut(id, was[id])
+	if had:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(saved)
+		f.close()
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## One piece at a time (F11 > Options, under Low graphics): cutting the fog leaves
+## everything else as it was, and bloom, which Low graphics leaves alone, has its own.
+func test_one_piece_cut_on_its_own() -> void:
+	var path := LookEnvironment.SETTINGS_PATH
+	var had := FileAccess.file_exists(path)
+	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
+	var was := {}
+	for pc in LookEnvironment.pieces():
+		was[pc.id] = LookEnvironment.cut(pc.id)
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.set_low_graphics(false)
+	look.set_cut("bloom", false)
+	look.apply("golden")
+	var shadow_m := look.sun.directional_shadow_max_distance
+
+	look.set_cut("fog", true)
+	assert_false(look.env.volumetric_fog_enabled, "no fog volumes")
+	assert_true(look.env.ssao_enabled, "corner shadows kept")
+	assert_true(look.env.sdfgi_enabled or LookEnvironment.indirect_level() == 0.0, "bounce light kept")
+	assert_eq(look.sun.directional_shadow_max_distance, shadow_m, "sun shadows kept")
+	assert_almost_eq(look.get_viewport().scaling_3d_scale, 1.0, 0.001, "full resolution kept")
+	assert_false(LookEnvironment.low_graphics(), "one piece is not Low graphics")
+	look.apply("noon")
+	assert_false(look.env.volumetric_fog_enabled, "a new preset keeps the piece cut")
+
+	look.set_cut("bloom", true)
+	assert_false(look.env.glow_enabled, "no bloom")
+	look.set_low_graphics(true)
+	assert_true(LookEnvironment.low_graphics())
+	assert_true(LookEnvironment.cut("bloom"), "Low graphics leaves bloom as it was")
+	look.set_low_graphics(false)
+	look.set_cut("bloom", false)
+	assert_true(look.env.glow_enabled and look.env.volumetric_fog_enabled, "everything back")
+
+	for id in was:
+		LookEnvironment.save_cut(id, was[id])
 	if had:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		f.store_buffer(saved)
