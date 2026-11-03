@@ -2,6 +2,12 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Blaster pops are sparks, not grit (2026-11-03)
+
+- **A blaster bolt landing is a clean pop now:** the flash and the spray of
+  sparks as before, a smaller lick of fire, and no bits of casing flying out.
+  Droids going pop still throw bits and a wisp of smoke.
+
 ## Maps of the moon and the Remnant cruiser (2026-11-03)
 
 - **Click the moon or the cruiser on the Map page (M) to open its own map.**

@@ -6,8 +6,9 @@ extends RefCounted
 ##
 ##   small(): a droid going pop. A blue-white flash, a spray of sparks, a few bits
 ##            of casing and a wisp of smoke. About a second.
-##   bolt():  a blaster bolt or a blade landing. small() without the smoke, and its
-##            fire burns out red rather than to soot.
+##   bolt():  a blaster bolt or a blade landing. small()'s flash and sparks with a
+##            smaller lick of fire that burns out red rather than to soot; no bits
+##            of casing and no smoke.
 ##   clash(): two energy blades meeting in a parry. A white-hot flash, a little
 ##            shock ring and a spray of sparks, no fire, smoke or bits. Half a second.
 ##   big():   a ship or speeder going up. A white flash and a shock ring, a fireball
@@ -50,10 +51,11 @@ static func small(parent: Node, at: Vector3) -> Node3D:
 	return r
 
 
-## A blaster bolt (any gun's) or a blade landing at `at`: small()'s pop, but the
-## fire burns out red instead of cooling to soot and no smoke hangs about.
+## A blaster bolt (any gun's) or a blade landing at `at`: small()'s flash and
+## sparks with a smaller lick of fire that burns out red instead of cooling to
+## soot. No bits of casing fly and no smoke hangs about: a clean pop.
 static func bolt(parent: Node, at: Vector3) -> Node3D:
-	var r := _pop(parent, at, "fire_clean")
+	var r := _pop(parent, at, "fire_clean", 0.55, false)
 	if r == null:
 		return null
 	_free_after(r, 1.0)
@@ -75,19 +77,24 @@ static func clash(parent: Node, at: Vector3, tint := Color("#ffd2a0")) -> Node3D
 	return r
 
 
-## The flash, fire, sparks and hot bits small() and bolt() share. `fire`: its ramp.
-static func _pop(parent: Node, at: Vector3, fire: String) -> Node3D:
+## The flash, fire and sparks small() and bolt() share. `fire`: the fire's ramp.
+## `smoke`: how much fire there is, 1 being a droid's worth (fewer, smaller puffs
+## below that). `bits`: whether hot bits of casing fly out too.
+static func _pop(parent: Node, at: Vector3, fire: String, smoke := 1.0, bits := true) -> Node3D:
 	var r := _root(parent, at)
 	if r == null:
 		return null
 	_light(r, Color("#bfe0ff"), 6.0, 7.0, 0.3)
 	_emit(r, _quad(), _mat("flash"), 1, 0.12, { "scale": Vector2(2.4, 2.4), "grow": _curve("pop"), "ramp": _ramp("flash_cold"), "radius": 0.01, "speed": Vector2.ZERO })
-	_emit(r, _quad(), _mat("fire"), 7, 0.5, { "radius": 0.2, "speed": Vector2(1.0, 2.6), "damping": Vector2(5.0, 7.0),
-		"gravity": Vector3(0, 1.0, 0), "scale": Vector2(0.9, 1.4), "grow": _curve("billow"), "ramp": _ramp(fire) })
+	var puffs := maxi(1, roundi(7.0 * smoke))
+	var puff_scale := lerpf(0.75, 1.0, clampf(smoke, 0.0, 1.0))
+	_emit(r, _quad(), _mat("fire"), puffs, 0.5, { "radius": 0.2, "speed": Vector2(1.0, 2.6), "damping": Vector2(5.0, 7.0),
+		"gravity": Vector3(0, 1.0, 0), "scale": Vector2(0.9, 1.4) * puff_scale, "grow": _curve("billow"), "ramp": _ramp(fire) })
 	_emit(r, _spark_mesh(), _mat("spark"), 26, 0.6, { "speed": Vector2(4.0, 9.0), "gravity": Vector3(0, -9.8, 0), "damping": Vector2(1.0, 2.0),
 		"scale": Vector2(0.3, 0.5), "grow": _curve("shrink"), "ramp": _ramp("spark_cold"), "streak": true, "spin": 0.0, "life_rand": 0.5 })
-	_emit(r, _chunk_mesh(), _mat("chunk"), 6, 0.9, { "speed": Vector2(2.5, 5.5), "dir": Vector3.UP, "spread": 70.0, "gravity": Vector3(0, -12.0, 0),
-		"scale": Vector2(0.06, 0.12), "grow": _curve("shrink"), "spin_speed": 540.0 })
+	if bits:
+		_emit(r, _chunk_mesh(), _mat("chunk"), 6, 0.9, { "speed": Vector2(2.5, 5.5), "dir": Vector3.UP, "spread": 70.0, "gravity": Vector3(0, -12.0, 0),
+			"scale": Vector2(0.06, 0.12), "grow": _curve("shrink"), "spin_speed": 540.0 })
 	return r
 
 
