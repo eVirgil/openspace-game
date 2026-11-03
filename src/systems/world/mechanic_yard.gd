@@ -228,7 +228,9 @@ func _dress_garage(loc: Dictionary, mats: LookMaterials, rust: Material, dark: M
 	var mid := (lo + hi) * 0.5
 	_mesh(_box(Vector3(hi.x - lo.x - 1.0, 0.05, hi.z - lo.z - 1.0)), dark, Vector3(mid.x, 0.03, mid.z))
 	_mesh(_box(Vector3(0.2, 0.9, 4.0)), rust, Vector3(hi.x + 0.3, hi.y - 0.4, mid.z))
-	_mesh(_box(Vector3(0.1, 0.12, 3.4)), mats.glow(Color("#7fe0d0")), Vector3(hi.x + 0.42, hi.y - 0.4, mid.z))
+	var tube := mats.glow(Color("#7fe0d0"))
+	HangingLamp.track_glow(tube, _look())          # issue #458: brighter at dusk
+	_mesh(_box(Vector3(0.1, 0.12, 3.4)), tube, Vector3(hi.x + 0.42, hi.y - 0.4, mid.z))
 
 
 ## Issue #100: the shop dressed up. An awning over Dorrin's counter with a string
@@ -246,15 +248,17 @@ func _dress_shop(mats: LookMaterials, rust: Material, steel: Material, dark: Mat
 	for k in 6:
 		var m := _mesh(_box(Vector3(3.4, 0.05, 0.8)), cloth if k % 2 == 0 else stripe, bench + Vector3(0.1, 3.05, -2.0 + k * 0.8))
 		m.rotation.z = -0.12
-	# String lights along the awning's front edge.
+	# String lights along the awning's front edge (issue #458: on the lamp clock,
+	# never off, like Skrugs's).
 	var bulb := mats.glow(Color("#ffd27a"))
-	bulb.emission_energy_multiplier = 2.5
+	HangingLamp.track_glow(bulb, _look())
 	for k in 9:
 		var z := -2.2 + k * 0.55
 		_mesh(_ball(0.07), bulb, bench + Vector3(1.75, 2.75 - 0.12 * sin(float(k) / 8.0 * PI), z))
-	# Parts and a lamp on his counter.
+	# Parts on his counter, and a lamp hanging from the awning over it (issue
+	# #458: a real light, the same lamp as Skrugs's).
 	_mesh(_box(Vector3(0.5, 0.35, 0.4)), hazard, bench + Vector3(0.0, 1.2, -1.0))
-	_mesh(_cyl(0.12, 0.3), steel, bench + Vector3(-0.2, 1.15, 0.6))
+	HangingLamp.build(self, xf, bench + Vector3(0.3, 2.35, 0.2), mats, _look(), "CounterLamp", 3.2, 6.0, 0.7, 0.5)
 	_mesh(_box(Vector3(0.6, 0.08, 0.3)), dark, bench + Vector3(0.1, 1.05, 1.1))
 	# The tool bench, a vise and a pegboard of tools behind it.
 	var tb := Vector3(-4.6, 0, 9.4)
@@ -361,6 +365,11 @@ func _drive_droids(dt: float) -> void:
 		var tangent := Vector3(-sin(a) * rx, 0, cos(a) * rz).normalized() * signf(float(d.speed))
 		var yaw := atan2(-tangent.x, -tangent.z)
 		look.global_transform = Transform3D(xf.basis * Basis(Vector3.UP, yaw), _ground(local))
+
+
+## The scene's look, for its lamp clock; null in a bare dressing (tests, lookdev).
+func _look() -> LookEnvironment:
+	return demo.get("look") as LookEnvironment if demo != null else null
 
 
 ## A mesh at a point in the yard's own frame.
