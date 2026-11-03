@@ -147,7 +147,8 @@ func escort_id() -> String:
 
 ## Where the objective arrow points: the bay from outside, the general once aboard;
 ## or `part` by name: "bay" (the dock pad), "stairs" (the foot of the ramp stack),
-## "general" (him alive, else his place on the bridge).
+## "general" (him alive, else his place on the bridge), or a place on the F11 map's
+## side view ("armoury", "crew", "bridge": CruiserHull.map_places).
 func objective_point(from: Vector3, part: String = "") -> Vector3:
 	var alive := general != null and is_instance_valid(general) and not general.dead
 	match part:
@@ -157,6 +158,8 @@ func objective_point(from: Vector3, part: String = "") -> Vector3:
 			return frame * CruiserHull.stairs_foot()
 		"general":
 			return general.global_position if alive else frame * WorldGround._v3(cfg.get("general", {}).get("at", [0, 58, 219]))
+		"armoury", "crew", "bridge":
+			return frame * CruiserHull.map_place(part)
 	if alive and aboard(from):
 		return general.global_position
 	if aboard(from):

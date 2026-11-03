@@ -49,6 +49,12 @@ var skip_confirm: ConfirmationDialog   ## a story save asks before skipping a ch
 var _skip_to := ""
 var _anchors: Dictionary = {}          ## a name open_tab knows -> the section label it scrolls to
 var globe: GlobeView                   ## the Map page's globe
+var cruiser_view: CruiserMapView       ## the Map page's side view of the cruiser
+var _map_view := ""                    ## what the Map page shows: "" here, a planet id, or "cruiser"
+var _map_title: Label
+var _map_back: Button
+var _map_you: Button
+var _map_home: Button
 var _off_planet: Array = []            ## GlobeMap.off_planet, last refresh
 var _off_box: VBoxContainer
 var _map_note: Label
@@ -310,7 +316,9 @@ func _hud_refresh() -> void:
 
 ## The globe (GlobeView) with the places that stay put, and beside it the places
 ## off planet, a legend, and the waypoint's own buttons. Not a scroll page: the
-## wheel zooms the globe.
+## wheel zooms the globe. Clicking a place off planet opens its own map in the same
+## spot (another planet's globe, or the cruiser's side view: CruiserMapView), with
+## a button back to this planet's; a waypoint set there stays on that planet.
 func _map_tab() -> Control:
 	var page := VBoxContainer.new()
 	page.name = "Map"
@@ -322,6 +330,15 @@ func _map_tab() -> Control:
 	var left := VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(left)
+	var head := HBoxContainer.new()
+	left.add_child(head)
+	_map_title = Label.new()
+	_map_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_title.add_theme_font_size_override("font_size", 18)
+	head.add_child(_map_title)
+	_map_back = Button.new()
+	_map_back.pressed.connect(func(): open_map(""))
+	head.add_child(_map_back)
 	globe = GlobeView.new()
 	globe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	globe.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -329,6 +346,12 @@ func _map_tab() -> Control:
 	globe.pin_clicked.connect(map_pick)
 	globe.spot_clicked.connect(func(m): map_pick(GlobeMap.spot_pin(m)))
 	left.add_child(globe)
+	cruiser_view = CruiserMapView.new()
+	cruiser_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cruiser_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cruiser_view.visible = false
+	cruiser_view.place_clicked.connect(map_pick)
+	left.add_child(cruiser_view)
 	_no_globe = Label.new()
 	_no_globe.text = GlobeMap.line("no_globe")
 	_no_globe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -367,18 +390,18 @@ func _map_tab() -> Control:
 	var gap := Control.new()
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	side.add_child(gap)
-	var you := Button.new()
-	you.text = GlobeMap.line("centre_you")
-	you.pressed.connect(func():
+	_map_you = Button.new()
+	_map_you.text = GlobeMap.line("centre_you")
+	_map_you.pressed.connect(func():
 		if globe.player != Vector2.INF:
 			globe.focus(globe.player))
-	side.add_child(you)
-	var home := Button.new()
-	home.text = GlobeMap.line("home")
-	home.pressed.connect(func():
+	side.add_child(_map_you)
+	_map_home = Button.new()
+	_map_home.text = GlobeMap.line("home")
+	_map_home.pressed.connect(func():
 		globe.zoom = 1.0
 		globe.focus(Vector2.ZERO))
-	side.add_child(home)
+	side.add_child(_map_home)
 	var clear := Button.new()
 	clear.text = GlobeMap.line("clear")
 	clear.pressed.connect(func():
@@ -417,32 +440,67 @@ func _pin_icon(look: Dictionary, r := 5.0) -> Control:
 	return icon
 
 
+## Show `view` on the Map page: "" where you are, a planet's id, or "cruiser".
+func open_map(view: String) -> void:
+	_map_view = view
+	globe.zoom = 1.0
+	_refresh_map()
+	if view != "":
+		globe.focus(Vector2.ZERO)
+
+
+## The planet a waypoint picked on the Map page now goes on: the one shown (the
+## cruiser hangs over this one).
+func _map_planet() -> String:
+	return _map_view if _map_view != "" and _map_view != "cruiser" else GameFlow.current_planet_id()
+
+
 ## Rebuild the map's pins and off-planet list from the scene (the town's stops
 ## and the planets in the sky only exist once it is built), you and the waypoint.
-## `centre`: turn the globe to you (on opening the panel).
+## `centre`: back to where you are, the globe turned to you (on opening the panel).
+## Another planet is drawn from its data (GlobeMap.other_planet): its ball, its
+## ground, its places, no town stops and no you.
 func _refresh_map(centre := false) -> void:
-	var sphere := PlanetSphere.current
-	var world: Dictionary = demo.world if demo != null else {}
-	var planet: Dictionary = demo.planet if demo != null else {}
-	globe.visible = sphere != null
-	_no_globe.visible = sphere == null
-	if sphere != null:
-		globe.radius_m = sphere.radius
-		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null else []
-		globe.pins = GlobeMap.pins(world, planet, town)
-		var mesas: Array = demo.landforms.mesa_spots if demo != null and demo.get("landforms") != null else []
-		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [GameFlow.current_planet_id(), mesas.size()], sphere, mesas)
+	if centre:
+		_map_view = ""
+	var here := GameFlow.current_planet_id()
+	var live := _map_view == ""
+	var on_cruiser := _map_view == "cruiser"
+	var other: Dictionary = {} if live or on_cruiser else GlobeMap.other_planet(_map_view)
+	var sphere: PlanetSphere = PlanetSphere.current if live else other.get("sphere", null)
+	var world: Dictionary = (demo.world if demo != null else {}) if live else other.get("planet", {}).get("world", {})
+	var planet: Dictionary = (demo.planet if demo != null else {}) if live else other.get("planet", {})
+	var shown := _map_planet()
+	globe.visible = sphere != null and not on_cruiser
+	_no_globe.visible = sphere == null and not on_cruiser
+	cruiser_view.visible = on_cruiser
+	_map_back.visible = not live
+	_map_back.text = GlobeMap.line("back") % GlobeMap.planet_name(here)
+	_map_you.visible = live
+	_map_home.visible = not on_cruiser
 	var w := WorldState.map_waypoint
-	globe.selected = GlobeMap.waypoint_id() if str(w.get("planet", "")) == GameFlow.current_planet_id() else ""
+	var w_here := str(w.get("planet", "")) == shown
+	if on_cruiser:
+		_refresh_cruiser(w_here)
+	else:
+		_map_title.text = GlobeMap.planet_name(shown)
+	if sphere != null and not on_cruiser:
+		globe.radius_m = sphere.radius
+		globe.town_zoom = float(GlobeMap.cfg().get("town_zoom", 14.0)) if live else INF
+		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null and live else []
+		globe.pins = GlobeMap.pins(world, planet, town)
+		var mesas: Array = DesertLandforms.mesa_spots if DesertLandforms.mesa_planet == shown else []
+		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [shown, mesas.size()], sphere, mesas)
+	globe.selected = GlobeMap.waypoint_id() if w_here and not str(w.get("target", "")).begins_with("cruiser") else ""
 	var t := str(w.get("target", ""))
 	globe.spot = Vector2(float(t.get_slice(":", 1).get_slice(",", 0)), float(t.get_slice(",", 1))) \
 		if globe.selected == "spot" and t.begins_with("map:") else Vector2.INF
-	_map_marks(sphere)
+	_map_marks(sphere if live else null)
 	if centre and globe.player != Vector2.INF:
 		globe.focus(globe.player)
 	globe.queue_redraw()
 	var travel = demo.pilot.travel if demo != null and demo.get("pilot") != null and demo.pilot.travel != null else null
-	_off_planet = GlobeMap.off_planet(travel.bodies if travel != null else [], world)
+	_off_planet = GlobeMap.off_planet(travel.bodies if travel != null else [], demo.world if demo != null else {})
 	for c in _off_box.get_children():
 		c.queue_free()
 	var pins_look: Dictionary = GlobeMap.look().get("pins", {})
@@ -454,8 +512,9 @@ func _refresh_map(centre := false) -> void:
 		b.toggle_mode = true
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.set_pressed_no_signal(GlobeMap.waypoint_id() == str(o.id))
-		b.pressed.connect(func(): map_pick(o))
+		var view := "cruiser" if str(o.kind) == "cruiser" else str(o.target).get_slice(":", 1)
+		b.set_pressed_no_signal(view == _map_view)
+		b.pressed.connect(func(): open_map(view))
 		row.add_child(b)
 		_off_box.add_child(row)
 	if _off_planet.is_empty():
@@ -500,12 +559,27 @@ func _map_marks(sphere: PlanetSphere) -> void:
 	globe.goal = sphere.world_to_map(pos)
 
 
-## Set the waypoint on a pin or an off-planet place; the one already set clears.
+## The cruiser's side view: its places, the waypoint's, and you when aboard.
+func _refresh_cruiser(w_here: bool) -> void:
+	var c = demo.get("cruiser") if demo != null else null
+	_map_title.text = GlobeMap.line("cruiser_title") % (c.label() if c != null else str(GlobeMap.kind_cfg("cruiser").get("label", "")))
+	cruiser_view.pins = GlobeMap.cruiser_pins()
+	cruiser_view.selected = GlobeMap.waypoint_id() if w_here else ""
+	cruiser_view.player = Vector3.INF
+	var p = demo.get("_player") if demo != null else null
+	if c != null and p is Node3D and is_instance_valid(p) and c.aboard((p as Node3D).global_position):
+		cruiser_view.player = c.to_local_point((p as Node3D).global_position)
+	cruiser_view.queue_redraw()
+
+
+## Set the waypoint on a pin (on the planet shown, or a place on the cruiser); the
+## one already set clears.
 func map_pick(pin: Dictionary) -> void:
-	if GlobeMap.waypoint_id() == str(pin.id) and str(pin.id) != "spot":
+	var planet := _map_planet()
+	if GlobeMap.waypoint_id() == str(pin.id) and str(pin.id) != "spot" and str(WorldState.map_waypoint.get("planet", "")) == planet:
 		GlobeMap.clear_waypoint()
 	else:
-		GlobeMap.set_waypoint(pin, GameFlow.current_planet_id())
+		GlobeMap.set_waypoint(pin, planet)
 	_refresh_map()
 	_hud_refresh()
 

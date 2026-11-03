@@ -58,11 +58,36 @@ static func for_sphere(key: String, sphere: PlanetSphere, mesas: Array = []) -> 
 	return t
 
 
-## Moves the bake on when its worker tasks are done. True once the texture is ready.
-func poll() -> bool:
+## Moves every bake still under way on (one for a map you have since left too: its
+## worker group has to be waited on). The globe calls it each frame while any is.
+static func poll_all() -> void:
+	for t: GlobeTerrain in _kept.values():
+		t.poll()
+
+
+## Waits out every bake still under way: the globe leaving the tree (the game
+## quitting, the scene going) must not leave worker tasks running GDScript behind
+## it, or the engine's shutdown waits on them for ever. At most about a second.
+static func finish_all() -> void:
+	for t: GlobeTerrain in _kept.values():
+		while not t.poll(true):
+			pass
+
+
+## Any bake still under way.
+static func busy() -> bool:
+	for t: GlobeTerrain in _kept.values():
+		if t._stage < 2:
+			return true
+	return false
+
+
+## Moves the bake on when its worker tasks are done (`block`: waits for them).
+## True once the texture is ready.
+func poll(block := false) -> bool:
 	if _stage >= 2:
 		return true
-	if not WorkerThreadPool.is_group_task_completed(_group):
+	if not block and not WorkerThreadPool.is_group_task_completed(_group):
 		return false
 	WorkerThreadPool.wait_for_group_task_completion(_group)
 	if _stage == 0:

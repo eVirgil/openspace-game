@@ -28,6 +28,11 @@ extends RefCounted
 ## off, and switching a quest's on clears it (Quests.toggle_waypoint). Its target
 ## is a word ObjectiveHud.where understands: map:<x>,<z>, planet:<id>, cruiser.
 ##
+## The page can also show somewhere you are not (GlobeMap.other_planet: another
+## planet's ball, from its data; CruiserMapView: the Remnant cruiser's side view,
+## cruiser_pins). A waypoint set there keeps its own planet: until you are on it
+## the pointer leads to that planet ("planet:<id>"), then to the place itself.
+##
 ## Every line and label: content/core/flow/map.json.
 
 const PATH := "res://content/core/flow/map.json"
@@ -186,9 +191,10 @@ static func waypoint_id() -> String:
 	return str(WorldState.map_waypoint.get("id", ""))
 
 
-## { text, target, arrive, map } for the pointer, or {} when there is none here.
-## A surface or cruiser waypoint only shows on its own planet; a planet's shows
-## anywhere but that planet, and clears itself once you are there.
+## { text, target, arrive, map } for the pointer, or {} when there is none.
+## A planet's shows anywhere but that planet, and clears itself once you are there.
+## A surface or cruiser waypoint on another planet leads to that planet first (and
+## never clears itself on the way: arrive -1), then to the place once you land.
 static func waypoint() -> Dictionary:
 	var w := WorldState.map_waypoint
 	if w.is_empty():
@@ -200,9 +206,51 @@ static func waypoint() -> Dictionary:
 			clear_waypoint()
 			return {}
 	elif str(w.get("planet", "")) != here:
-		return {}
+		var there := str(w.get("planet", ""))
+		if there == "":
+			return {}
+		return { "text": line("waypoint_there") % [str(w.get("label", "")), planet_name(there)],
+			"target": "planet:" + there, "arrive": -1.0, "map": true }
 	return { "text": line("waypoint") % str(w.get("label", "")), "target": target,
 		"arrive": float(w.get("arrive", 30.0)), "map": true }
+
+
+# ------------------------------------------------------------------ elsewhere
+
+static var _others := {}                ## planet id -> { planet, sphere }
+
+
+## Another planet's map, from its data (the page shows it without going there):
+## { planet: PlanetGen.build, sphere: its ball seated on its town as its scene
+## seats it (PlanetTerrain.for_planet) }, or {} when it is not a ball. Once a session.
+static func other_planet(id: String) -> Dictionary:
+	if _others.has(id):
+		return _others[id]
+	var planet := PlanetGen.build(id)
+	var out := {}
+	var pt := PlanetTerrain.for_planet(planet)
+	if pt != null:
+		out = { "planet": planet, "sphere": pt.sphere }
+		pt.free()
+	_others[id] = out
+	return out
+
+
+## A planet's name for the map's title and its lines.
+static func planet_name(id: String) -> String:
+	var n := PlanetGen.display_name(PlanetGen.build(id))
+	return n if n != "" else id.capitalize()
+
+
+## The cruiser's places for its side view (CruiserHull.map_places), as pins:
+## { id, kind, label, target, rect, arrive }.
+static func cruiser_pins() -> Array:
+	var out: Array = []
+	var names: Dictionary = cfg().get("cruiser_places", {})
+	for p in CruiserHull.map_places():
+		out.append({ "id": "cruiser_" + str(p.id), "kind": "cruiser_place", "label": str(names.get(str(p.id), str(p.id).capitalize())),
+			"target": "cruiser:" + str(p.id), "rect": p.rect, "arrive": float(kind_cfg("cruiser_place").get("arrive", 10.0)) })
+	return out
 
 
 # ------------------------------------------------------------------ helpers
