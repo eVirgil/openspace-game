@@ -2,6 +2,14 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The locals at Oda's bar are real people (2026-11-02)
+
+- **The three locals on the bar stools are solid and fight back.** You can no
+  longer walk through them, they can be shot and cut down, and hurting one
+  turns the whole cantina (and the town) on you, like the club crowd. They are
+  live `local_patron`s now, with a drink in hand. Both port layouts, and every
+  other planet's cantina (`src/systems/planets/town_gen.gd`).
+
 ## Rifle held properly (2026-11-02)
 
 - **The rifle's hands sit where they should.** The right hand wraps the outside

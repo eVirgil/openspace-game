@@ -7709,12 +7709,13 @@
     -4.8
    ],
    "role": "ambient",
+   "soldier": "local_patron",
    "face": [
     -109.0,
     0,
     0.0
    ],
-   "note": "A local on a bar stool, facing the cantina owner."
+   "note": "A local on a bar stool, facing the cantina owner. A live local_patron like the club crowd: solid, with a drink, and fights back with the rest of the town."
   },
   {
    "id": "patron_2",
@@ -7724,12 +7725,13 @@
     2.4
    ],
    "role": "ambient",
+   "soldier": "local_patron",
    "face": [
     -109.0,
     0,
     0.0
    ],
-   "note": "A local on a bar stool, facing the cantina owner."
+   "note": "A local on a bar stool, facing the cantina owner. A live local_patron like the club crowd: solid, with a drink, and fights back with the rest of the town."
   },
   {
    "id": "patron_3",
@@ -7739,12 +7741,13 @@
     3.6
    ],
    "role": "ambient",
+   "soldier": "local_patron",
    "face": [
     -109.0,
     0,
     0.0
    ],
-   "note": "A local on a bar stool, facing the cantina owner."
+   "note": "A local on a bar stool, facing the cantina owner. A live local_patron like the club crowd: solid, with a drink, and fights back with the rest of the town."
   },
   {
    "id": "band_dj",
