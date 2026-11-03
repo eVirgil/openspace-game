@@ -284,7 +284,7 @@ func _cantina(x0: float, l: float, w: float, h: float, door: float, opts: Dictio
 		var n := 1
 		for z in [cz0 + 3.2, cz1 - 1.6]:
 			_markers.append({ "id": "patron_%d" % n, "pos": [cx0 + 2.75, 0, snappedf(z, 0.1)], "role": "ambient",
-				"face": [cx0 - 2.0, 0, 0] })
+				"soldier": "local_patron", "face": [cx0 - 2.0, 0, 0] })
 			n += 1
 	_core.append(Rect2(x0, z0, l, w))
 	_zones.append({ "id": "cantina", "min": [x0, z0], "max": [x1, z1] })

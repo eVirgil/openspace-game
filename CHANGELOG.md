@@ -2,6 +2,14 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The locals at Oda's bar are real people (2026-11-02)
+
+- **The three locals on the bar stools are solid and fight back.** You can no
+  longer walk through them, they can be shot and cut down, and hurting one
+  turns the whole cantina (and the town) on you, like the club crowd. They are
+  live `local_patron`s now, with a drink in hand. Both port layouts, and every
+  other planet's cantina (`src/systems/planets/town_gen.gd`).
+
 ## Skrugs's yard: real lamps on the clock, and a workbench (2026-11-02)
 
 - **Skrugs's garage has a work light, his house door a lamp,** a lamp over his bench, and with the
