@@ -46,6 +46,8 @@ var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
 var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
 var hits_taken := 0                ## friendly fire landed on you (tests)
+var _light_left := 0.0             ## host: seconds to the next word on the lighting
+var _light_sent := []              ## host: the lighting last sent [planet, preset, hour]
 var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
@@ -264,6 +266,7 @@ func _physics_process(dt: float) -> void:
 			var peer := _mp().multiplayer_peer as ENetMultiplayerPeer
 			if peer != null:
 				peer.disconnect_peer(id)
+	_tick_lighting(dt)
 	if _wait_left >= 0.0:
 		_wait_left -= dt
 		if _wait_left < 0.0:
@@ -462,3 +465,37 @@ func status_line() -> String:
 
 func _max_shown() -> int:
 	return _max if _mp().is_server() else NetSession.max_players()
+
+
+# ------------------------------------------------------------------ lighting
+
+## The host's time of day is everyone's: the host sends it when it changes and
+## every light_resend_s anyway (someone just joined, a town reloaded). Guests have
+## no Time of day in F11 (DevSettingsPanel).
+func _tick_lighting(dt: float) -> void:
+	if not _connected() or not _mp().is_server() or roster.size() < 2:
+		return
+	var scene := get_tree().current_scene
+	var look = scene.get("look") if scene != null else null
+	if look == null or not is_instance_valid(look):
+		return
+	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour)]
+	_light_left -= dt
+	if now != _light_sent or _light_left <= 0.0:
+		_light_sent = now
+		_light_left = NetSession.n("light_resend_s", 3.0)
+		lighting.rpc(now[0], now[1], now[2])
+
+
+## Host -> guests: the time of day in its town (an hour, or -1 for a preset).
+@rpc("authority", "call_remote", "reliable")
+func lighting(planet: String, preset: String, hour: float) -> void:
+	var scene := get_tree().current_scene
+	var look = scene.get("look") if scene != null else null
+	if look == null or not is_instance_valid(look) or planet != GameFlow.current_planet_id():
+		return
+	if hour >= 0.0:
+		if not is_equal_approx(float(look.hour), hour):
+			scene.set_hour(hour)
+	elif preset != "" and (str(scene.get("preset")) != preset or float(look.hour) >= 0.0):
+		scene.set_preset(preset)
