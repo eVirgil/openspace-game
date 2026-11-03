@@ -746,8 +746,8 @@
               -0.025
             ],
             "radius": 0.225,
-            "color": "#ffc4004d",
-            "energy": 0.3,
+            "color": "#ffc40026",
+            "energy": 0.15,
             "rough": 0.3
           },
           {
@@ -758,7 +758,7 @@
               -0.025
             ],
             "radius": 0.237,
-            "color": "#ffffff0d",
+            "color": "#ffffff08",
             "rough": 0.04
           }
         ]
