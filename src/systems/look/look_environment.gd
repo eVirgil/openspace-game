@@ -514,9 +514,12 @@ func _apply_quality() -> void:
 			else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
 
 
+## Issue #458: a lamp or glow with a "min_level" meta (HangingLamp) never drops
+## below that fraction of full, so it stays on by day and brightens at dusk.
 func _apply_lamps() -> void:
 	for l in _lamps:
-		l.visible = lamp_level > 0.01
-		l.light_energy = lamp_level * float(l.get_meta("base_energy", 1.0))
+		var level := maxf(lamp_level, float(l.get_meta("min_level", 0.0)))
+		l.visible = level > 0.01
+		l.light_energy = level * float(l.get_meta("base_energy", 1.0))
 	for m in _lamp_mats:
-		m.emission_energy_multiplier = 0.15 + lamp_level * 3.0
+		m.emission_energy_multiplier = 0.15 + maxf(lamp_level, float(m.get_meta("min_level", 0.0))) * 3.0

@@ -497,6 +497,7 @@ func test_his_card_offers_only_the_ship_the_game_says() -> void:
 
 class FakeDemo extends Node:
 	var use_look := true
+	var look: LookEnvironment          # issue #458: his lamps track it when there is one
 	func _flat_mats() -> LookMaterials:
 		return LookMaterials.new()
 
@@ -520,3 +521,77 @@ func test_no_price_board() -> void:
 		and (n.mesh as BoxMesh).size.is_equal_approx(Vector3(0.06, 0.7, 1.2)))
 	assert_eq(boards.size(), 0, "no price board in either town")
 	assert_gt(post.get_children().size(), 10, "the rest is dressed")
+
+
+# ---- issue #458: his lamps and his workbench -----------------------------------------------
+
+## The post dressed with a look to track its lamps (as town_demo gives it), for a
+## layout. Origin and yaw stay zero, so positions read in the post's own frame.
+func _lit_post(loc_id: String) -> Array:
+	var demo := FakeDemo.new()
+	demo.look = LookEnvironment.new()
+	demo.add_child(demo.look)
+	add_child_autofree(demo)
+	var post := BarePost.new()
+	post.demo = demo
+	var loc: Dictionary = content.get_location(loc_id)
+	for k in loc.get("points", {}):
+		post.points[k] = WorldGround._v3(loc.points[k])
+	add_child_autofree(post)
+	post._dress(loc)
+	return [post, demo.look, loc]
+
+
+func _lamps_of(post: Node) -> Array:
+	return post.get_children().filter(func(n): return n is OmniLight3D)
+
+
+func test_four_lamps_on_by_day_and_brighter_at_dusk() -> void:
+	for loc_id in ["skrugs_post", "skrugs_post_round"]:
+		var r := _lit_post(loc_id)
+		var post: SpeederPost = r[0]
+		var look: LookEnvironment = r[1]
+		var lamps := _lamps_of(post)
+		var names: Array = lamps.map(func(l): return str(l.name))
+		names.sort()
+		assert_eq(names, ["BenchLamp", "DoorLamp", "GarageLight", "StallLamp"], "%s: the counter, the garage, the house door and the bench" % loc_id)
+		for l in lamps:
+			assert_true(look._lamps.has(l), "%s: %s is on the look's lamp clock" % [loc_id, l.name])
+			assert_false(l.shadow_enabled, "%s: %s casts no shadow (cheap)" % [loc_id, l.name])
+		look.apply("noon")
+		var day := {}
+		for l in lamps:
+			assert_true(l.visible and l.light_energy > 0.0, "%s: %s stays on at noon" % [loc_id, l.name])
+			day[l.name] = l.light_energy
+		look.apply("dusk")
+		for l in lamps:
+			assert_gt(l.light_energy, float(day[l.name]), "%s: %s is brighter at dusk" % [loc_id, l.name])
+
+
+func test_his_bench_has_a_pegboard_behind_it() -> void:
+	for loc_id in ["skrugs_post", "skrugs_post_round"]:
+		var r := _lit_post(loc_id)
+		var post: SpeederPost = r[0]
+		var loc: Dictionary = r[2]
+		var boards: Array = post.get_children().filter(func(n): return str(n.get_meta("decor", "")) == "workbench")
+		assert_eq(boards.size(), 1, "%s: one pegboard" % loc_id)
+		var tools: Array = post.get_children().filter(func(n): return str(n.get_meta("decor", "")) == "tool")
+		assert_gt(tools.size(), 3, "%s: tools on it" % loc_id)
+		var bench: Dictionary = loc.buildings.filter(func(b): return str(b.id) == "bench")[0]
+		var c := WorldGround._v3(bench.position)
+		var stand: Vector3 = post.points["bench"] - c
+		var board: Vector3 = (boards[0] as Node3D).position - c
+		stand.y = 0.0
+		board.y = 0.0
+		assert_lt(board.dot(stand), 0.0, "%s: the pegboard stands on the far side from where the player stands" % loc_id)
+		assert_lt(board.length(), 2.0, "%s: ... right behind the bench" % loc_id)
+
+
+func test_the_look_off_has_no_lamps_and_no_pegboard() -> void:
+	WorldState.new_game(WorldState.FREEPLAY)
+	var t = _town()
+	var post: SpeederPost = t.speeder_post
+	assert_not_null(post, "the post is built")
+	assert_eq(_lamps_of(post).size(), 0, "look off: no lamps")
+	assert_eq(post.get_children().filter(func(n): return n.has_meta("decor")).size(), 0, "look off: no dressing")
+	assert_not_null(post.shop, "free roam: his bench still works")
