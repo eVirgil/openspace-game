@@ -5,6 +5,7 @@ extends SceneTree
 ##   - guest "walker" is let in, walks 10 m (4 m/s along x) and the host's copy of
 ##     it is within 0.5 m of where it stopped inside 1 s,
 ##   - guest "late" is turned away: the game is full,
+##   - the host's bolt lands on the walker: the walker's game hears the hit,
 ##   - the walker quitting takes it off the host's roster.
 ## No town is built: the players' state comes from `local_state`, not a body.
 ##
@@ -110,6 +111,7 @@ func _host() -> void:
 	say("host's copy of the walker at %s" % str(seen.get("pos", "nothing")))
 	if not arrived:
 		fails.append("the host's copy never got within 0.5 m of %.1f" % WALK_M)
+	link.send_hit(walker[0], 25.0, Vector3.ZERO)       # friendly fire: the host shoots the walker
 	if not await _wait(10.0, func(): return refused[0] > 0):
 		fails.append("the late guest was never refused")
 	else:
@@ -135,8 +137,12 @@ func _walker() -> void:
 	while walk_t < walk_end + 2.0:
 		await physics_frame
 		walk_t = Time.get_ticks_msec() / 1000.0 - start[0]
-	# Stay a while so the late guest finds the game full, then quit.
+	# Stay a while so the late guest finds the game full (and the host's shot lands), then quit.
 	await _wait(4.0)
+	if link.hits_taken < 1:
+		fails.append("the host's hit never reached the walker")
+	else:
+		say("hit by the host (friendly fire)")
 	say("quitting")
 	await _done(true)
 

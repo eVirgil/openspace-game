@@ -56,6 +56,8 @@ out. Friends type their name and that address and press **Join**. Up to five pla
 free roam together: each joiner's own free roam save opens on the host's planet,
 beside T-89, with no opening landing and no tutorial. The host gets a toast when
 someone joins or leaves. Hosting from a story save opens the free roam save first.
+Friendly fire is on: your bolts and blade hurt your friends, and a friend who goes
+down wakes in the pit, as after the guards ("friendly_fire" in lan.json turns it off).
 
 The host's computer may ask to let OpenSpace accept incoming connections (macOS
 and Windows firewalls): say yes. The port is in `content/core/flow/lan.json`.

@@ -1,5 +1,5 @@
 {
-  "note": "Issue #401: LAN play. One player hosts from F11 > Game, friends on the same wifi join by the host's address. Read by src/systems/net/net_session.gd. port: the UDP port the host listens on. max_players counts the host. send_rate: state packets a second each player sends. name_max: letters in a player's name. spawn_by_t89_m: how far from T-89 a guest stands on arrival. smooth_rate: how fast a remote body closes on where it was last heard (1/s); snap_m: further off than this it jumps. name_height: metres above the feet of the floating name. connect_timeout: seconds a join waits for the host before giving up.",
+  "note": "Issue #401: LAN play. One player hosts from F11 > Game, friends on the same wifi join by the host's address. Read by src/systems/net/net_session.gd. port: the UDP port the host listens on. max_players counts the host. send_rate: state packets a second each player sends. name_max: letters in a player's name. spawn_by_t89_m: how far from T-89 a guest stands on arrival. smooth_rate: how fast a remote body closes on where it was last heard (1/s); snap_m: further off than this it jumps. name_height: metres above the feet of the floating name. connect_timeout: seconds a join waits for the host before giving up. friendly_fire: your bolts and blade hurt the other players (each game applies the hits on its own player, times friendly_fire_scale); off, they pass through. hitbox_radius / hitbox_height: the other players' bodies, for shots and for walking into.",
   "port": 24890,
   "max_players": 5,
   "send_rate": 20.0,
@@ -9,6 +9,10 @@
   "snap_m": 8.0,
   "name_height": 2.15,
   "connect_timeout": 6.0,
+  "friendly_fire": true,
+  "friendly_fire_scale": 1.0,
+  "hitbox_radius": 0.35,
+  "hitbox_height": 1.8,
   "default_name": "Smuggler",
   "labels": {
     "joined": "%s joined the game",

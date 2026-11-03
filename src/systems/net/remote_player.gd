@@ -1,8 +1,14 @@
-extends Node3D
+extends StaticBody3D
 ## Issue #401: another LAN player, in this town. The smuggler's own avatar
 ## (PlayerAvatar) in that player's outfit, their name floating over it, walking,
 ## sprinting, crouching and jumping as they do, the weapon in their hand and aimed
-## where they look. No collider, no damage: it only shows where they are.
+## where they look.
+##
+## Friendly fire (lan.json "friendly_fire"): the body is solid, like a guard's, and
+## your bolts and blade land on it. It takes no damage itself: the hit goes to
+## that player's game (NetLink.hit), which applies it to their own player, so
+## being downed works there as it always does. Only your own hits are sent (a
+## guard's bolt in your game is not one in theirs). Off: nothing to hit or bump.
 ##
 ## NetLink hands it every state packet heard (hear); between packets it closes on
 ## where the player should be by now (the last spot plus the velocity since),
@@ -35,6 +41,15 @@ func setup(id: int, nm: String, fit: Dictionary, mats: LookMaterials = null) -> 
 
 func _ready() -> void:
 	name = "Remote_%d" % peer_id
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = NetSession.n("hitbox_radius", 0.35)
+	cap.height = NetSession.n("hitbox_height", 1.8)
+	cs.shape = cap
+	cs.position.y = cap.height * 0.5
+	add_child(cs)
+	collision_layer = 1 if friendly_fire() else 0
+	collision_mask = 0
 	avatar = PlayerAvatar.new(_mats, outfit)
 	add_child(avatar)
 	avatar.build_weapons(UPPER.keys())
@@ -77,6 +92,7 @@ func _physics_process(dt: float) -> void:
 		return
 	var flags := int(_s.flags)
 	visible = (flags & 8) != 0          # NetLink.F_VISIBLE: not while they sit in a ship
+	collision_layer = 1 if visible and friendly_fire() else 0
 	var to := wanted()
 	if global_position.distance_to(to) > NetSession.n("snap_m", 8.0):
 		global_position = to
@@ -97,3 +113,37 @@ func _physics_process(dt: float) -> void:
 		"aim_pitch": float(_s.pitch),
 		"upper": UPPER.get(weapon, BodyAnimator.UPPER_FREE),     # as PlayerWeapons.upper_mode: the avatar holsters by `drawn`
 	})
+
+
+# ------------------------------------------------------------------ friendly fire
+
+static func friendly_fire() -> bool:
+	return bool(NetSession.cfg().get("friendly_fire", true))
+
+
+## Your game's player, the only shooter whose hits are sent.
+func _you() -> Node:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	return scene.get("_player") if scene != null else null
+
+
+## Bolts (and a ship cannon's splash) call this.
+func apply_damage_from(amount: float, shooter: Node) -> void:
+	if shooter != null and is_instance_valid(shooter) and shooter == _you():
+		_send_hit(amount)
+
+
+## Your blade calls this (it is the only one that does).
+func apply_blade_hit(amount: float, _dir: Vector3) -> void:
+	_send_hit(amount)
+
+
+## Anything else that hurts without saying who (a fall, a hazard) is not a hit from you.
+func apply_damage(_amount: float) -> void:
+	pass
+
+
+func _send_hit(amount: float) -> void:
+	var you = _you()
+	if friendly_fire() and NetSession.active() and amount > 0.0 and you is Node3D:
+		NetSession.link.send_hit(peer_id, amount, (you as Node3D).global_position)

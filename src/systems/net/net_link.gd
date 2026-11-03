@@ -20,6 +20,7 @@ signal host_left
 signal turned_away(id: int, why: String)     ## host: a guest refused (full, another version)
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
+const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
 const F_GROUNDED := 1
@@ -43,6 +44,9 @@ var _max := 5
 var _send_left := 0.0
 var _wait_left := -1.0             ## a join's time left to hear from the host
 var _kick: Dictionary = {}         ## peer id -> seconds until a refused guest is dropped
+var _hooked: Object = null         ## the town's PlayerWeapons whose shots are being sent
+var hits_taken := 0                ## friendly fire landed on you (tests)
+var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
 func _ready() -> void:
@@ -275,6 +279,7 @@ func _physics_process(dt: float) -> void:
 			state.rpc(pkt)
 	if with_bodies:
 		_place_bodies()
+	_hook_shots()
 
 
 func _connected() -> bool:
@@ -349,6 +354,76 @@ func _drop_body(id: int) -> void:
 	bodies.erase(id)
 	if b != null and is_instance_valid(b):
 		b.queue_free()
+
+
+# ------------------------------------------------------------------ shots and friendly fire
+
+## Send the town's player's shots to the others (a new town builds new weapons).
+func _hook_shots() -> void:
+	var scene := get_tree().current_scene
+	var kit = scene.get("player_kit") if scene != null else null
+	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
+	if w == null or w == _hooked:
+		return
+	_hooked = w
+	w.bolt_fired.connect(func(origin: Vector3, dir: Vector3, reach: float, b: Node):
+		if _connected() and (_mp().is_server() or welcomed_in):
+			shot.rpc([GameFlow.current_planet_id(), origin, dir, float(b.speed), b.color, reach, float(b.streak_length)]))
+
+
+## Every player -> every other: a bolt I fired, from, which way, how fast, its
+## colour and how far it went before it hit something (in my game). Shown here as
+## a streak that flies that far and touches nothing: what it hit is the shooter's
+## game's to say (a hit on you comes as `hit`).
+@rpc("any_peer", "call_remote", "reliable")
+func shot(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	var scene := get_tree().current_scene
+	if pkt.size() < 7 or not roster.has(id) or scene == null or scene.get("_player") == null \
+			or str(pkt[0]) != GameFlow.current_planet_id():
+		return
+	var b = BoltScene.instantiate()
+	b.direction = (pkt[2] as Vector3).normalized()
+	b.speed = float(pkt[3])
+	b.damage = 0.0
+	b.range_m = float(pkt[5])
+	b.color = pkt[4] as Color
+	b.streak_length = float(pkt[6])
+	b.stylize = true
+	b.shooter = bodies.get(id, null)
+	scene.add_child(b)
+	b.global_position = pkt[1] as Vector3
+	b.monitoring = false               # a picture of the shot, never a hit
+	b.collision_mask = 0
+	b.remove_from_group("bolts")       # your blade does not deflect it either
+	shots_seen += 1
+
+
+## Your bolt or blade landed on player `id`'s body here: tell their game.
+func send_hit(id: int, amount: float, from: Vector3) -> void:
+	if roster.has(id) and id != my_id():
+		hit.rpc_id(id, amount, from)
+
+
+## A player's bolt or blade -> the player it landed on: take `amount`, from `from`.
+## Your own game applies it, through the same door as a guard's bolt.
+@rpc("any_peer", "call_remote", "reliable")
+func hit(amount: float, from: Vector3) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id) or not RemotePlayer.friendly_fire():
+		return
+	var dmg := clampf(amount, 0.0, 500.0) * NetSession.n("friendly_fire_scale", 1.0)
+	hits_taken += 1
+	var scene := get_tree().current_scene
+	var p = scene.get("_player") if scene != null else null
+	if not (p is CharacterBody3D) or not is_instance_valid(p) or dmg <= 0.0:
+		return
+	var shooter = bodies.get(id, null)
+	if shooter != null and is_instance_valid(shooter):
+		p.apply_damage_from(dmg, shooter)
+	else:
+		p.last_hit_from = from
+		p.apply_damage(dmg)
 
 
 # ------------------------------------------------------------------ words
