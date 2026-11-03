@@ -32,6 +32,10 @@ Plain English, newest on top. One entry per milestone.
   He is the player's height (the old boss was a stretched, warty Oda), and
   bolts find him in a capsule his size. One Hyper3D model, rigged, worn like
   the smuggler's (`barge_duke` in `content/look/characters.json`).
+- **You can see the squid from every side.** The generated tank was a solid
+  ball with the squid painted on, so it looked empty side-on. It is cut off
+  and rebuilt: a separate squid model floats in clear, faintly glowing yellow
+  liquid inside a glass shell, all moving with his head.
 - **He stands in front of his lounger, not in it.** The seat moved back
   against its backrest.
 
