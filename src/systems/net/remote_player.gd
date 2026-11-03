@@ -1,6 +1,6 @@
 extends StaticBody3D
 ## Issue #401: another LAN player, in this town. The smuggler's own avatar
-## (PlayerAvatar) in that player's outfit, their name floating over it, walking,
+## (PlayerAvatar) in that player's outfit (kept up as they change it), their name floating over it, walking,
 ## sprinting, crouching and jumping as they do, the weapon in their hand and aimed
 ## where they look.
 ##
@@ -70,6 +70,13 @@ func _ready() -> void:
 	tag.modulate = Color(1.0, 0.93, 0.78)
 	add_child(tag)
 	visible = false               # until the first packet places it
+
+
+## That player changed what they wear.
+func wear(fit: Dictionary) -> void:
+	outfit = fit
+	if avatar != null:
+		avatar.set_outfit(fit)
 
 
 ## The latest state packet (NetLink.state's dictionary).

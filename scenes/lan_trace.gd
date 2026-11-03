@@ -8,6 +8,7 @@ extends SceneTree
 ##   - the host's bolt lands on the walker: the walker's game hears the hit and
 ##     answers (the host's hit marker), and the walker's hit on the host is
 ##     answered the same way (the guest's hit marker),
+##   - the walker changing outfit once it has walked reaches the host,
 ##   - the walker quitting takes it off the host's roster.
 ## No town is built: the players' state comes from `local_state`, not a body.
 ##
@@ -59,6 +60,7 @@ func _run() -> void:
 	link.with_bodies = false
 	link.arrive_on_welcome = false
 	link.local_state = _state
+	link.local_outfit = func(): return {"hat": "walked"} if walk_t > WALK_M / WALK_SPEED else {}
 	if role == "host":
 		await _host()
 	elif role == "walker":
@@ -128,6 +130,10 @@ func _host() -> void:
 		say("walker left; roster %s" % str(link.roster.keys()))
 	if link.hits_taken < 1:
 		fails.append("the walker's hit never reached the host")
+	if link.outfits_heard < 1:
+		fails.append("the walker's outfit change never reached the host")
+	else:
+		say("heard the walker's outfit change")
 	await _done(true)
 
 
