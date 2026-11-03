@@ -2,6 +2,19 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-03 — One speeder to a customer
+
+- **The limit is the fix.** Every owned speeder is a SpeederNode under the town,
+  and a parked one still runs HoverModel.step (drive, move, hover, with ground
+  queries) every physics tick: about 1.8 ms each. Seven pushed a tick to 22 ms
+  and the game into catch-up ticks (7.5 fps). Skrugs's card now says
+  `sale.max_owned` (1); his brain gets `sale_open`, so the briefing tells him and
+  an offer_speeder is dropped, and `buy()` refuses. Saves with more keep the
+  first (`SpeederPost._trim_owned`).
+- **Alternative: let a parked, settled speeder skip its step.** Not done: the
+  user chose the rule. It is still the way to go if more speeders ever come
+  back (a step at rest changes nothing, so waking on mount or a hit is enough).
+
 ## 2026-11-02 — The party barge parks out of the town's sight
 
 - **Its hull now has a draw distance, and its home is past it.** The barge's merged
