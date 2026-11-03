@@ -59,7 +59,8 @@ someone joins or leaves. Hosting from a story save opens the free roam save firs
 Friendly fire is on: your bolts and blade hurt your friends, and a friend who goes
 down wakes in the pit, as after the guards ("friendly_fire" in lan.json turns it off).
 Ships too: your cannons hit a friend's ship while they fly it, in the sky or in
-space, and can shoot it down. Seekers never hit a friend's ship; they fly through.
+space, and can shoot it down. Seekers never lock on a friend's ship, but an
+unlocked one fired straight into it hits.
 
 The host's computer may ask to let OpenSpace accept incoming connections (macOS
 and Windows firewalls): say yes. The port is in `content/core/flow/lan.json`.

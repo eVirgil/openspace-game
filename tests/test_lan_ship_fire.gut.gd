@@ -1,7 +1,7 @@
 extends GutTest
 ## LAN friendly fire for ships: another player's ship (RemoteShip) is solid to bolts
-## only while they fly it, your seekers fly through it, your bolts in a space fight
-## that cross it go to their game (NetFight), and a friend's hit lands on your ship in
+## only while they fly it, a seeker flying straight hits it as a cannon bolt does,
+## your bolts and seekers in a space fight that cross it go to their game (NetFight), and a friend's hit lands on your ship in
 ## the fight's director (Dogfight.friendly_damage). The network itself is
 ## scripts/test_lan.sh's; here a fake NetLink takes what would be sent.
 
@@ -61,26 +61,17 @@ func test_remote_ship_is_solid_only_in_the_air() -> void:
 	assert_eq(rs.hull.collision_mask, 0, "it bumps into nothing itself")
 
 
-func test_seekers_fly_through_the_others_ships() -> void:
+func test_a_straight_seeker_hits_a_friends_ship() -> void:
 	var rs = _remote(Vector3(0, 30, 0), true)
-	var link := FakeLink.new()
-	add_child_autofree(link)
-	link.ship_bodies[7] = rs
-	NetSession.role = NetSession.HOST
-	NetSession.link = link
-	var pilot = ShipPilot.new()
-	autofree(pilot)
-	var friends: Array = pilot._lan_hulls()
-	assert_eq(friends, [rs.hull], "the seeker's friends are the others' hulls")
 	var seeker = BoltScene.instantiate()
-	seeker.friends = friends
+	seeker.blast_size = 1.0
 	add_child_autofree(seeker)
 	seeker._on_body_entered(rs.hull)
-	assert_true(seeker._alive, "a seeker passes a friend's ship")
+	assert_false(seeker._alive, "an unlocked seeker stops on it (and its hit is sent)")
 	var bolt = BoltScene.instantiate()
 	add_child_autofree(bolt)
 	bolt._on_body_entered(rs.hull)
-	assert_false(bolt._alive, "a cannon bolt stops on it")
+	assert_false(bolt._alive, "so does a cannon bolt")
 
 
 func test_space_bolts_on_a_friends_ship_go_to_their_game() -> void:
@@ -106,14 +97,14 @@ func test_space_bolts_on_a_friends_ship_go_to_their_game() -> void:
 	df.projectiles.items.back().prev = Vector3(0, 0, -45)
 	df.projectiles.items.back().pos = Vector3(0, 0, -55)
 	nf._hit_players(fight)
-	assert_eq(link.sent, [[7, 12.0]], "your bolt's hit is sent, once")
-	assert_eq(df.projectiles.items.size(), 2, "it stops there; the seeker and the other's bolt fly on")
-	assert_eq(str(df.projectiles.items[0].kind), "missile")
+	assert_eq(link.sent, [[7, 12.0], [7, 12.0]], "your bolt's hit and your seeker's are sent, once each")
+	assert_eq(df.projectiles.items.size(), 1, "they stop there; the other's bolt flies on")
+	assert_eq(int(df.projectiles.items[0].owner), 999)
 	rs.hear("", Vector3(0, 0, -50), Quaternion.IDENTITY, false)
 	df.projectiles.items.clear()
 	crossing.call("bolt")
 	nf._hit_players(fight)
-	assert_eq(link.sent.size(), 1, "a parked ship is not hit")
+	assert_eq(link.sent.size(), 2, "a parked ship is not hit")
 
 
 func test_a_friends_hit_lands_on_your_ship_in_the_fight() -> void:

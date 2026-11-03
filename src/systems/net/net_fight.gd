@@ -13,7 +13,7 @@ extends Node
 ## For now the host's fighters only go for the host: a guest is in nobody's sights,
 ## and the host's bolts are pictures in a guest's game.
 ##
-## Friendly fire (lan.json "friendly_fire"): your own bolts (not seekers) that cross
+## Friendly fire (lan.json "friendly_fire"): your own bolts and seekers that cross
 ## another player's ship (their RemoteShip, within its radius) stop there and the
 ## hit goes to their game (NetLink.send_ship_hit), in a shared fight or not.
 ##
@@ -280,8 +280,9 @@ func _sync_copies(fight, dt: float) -> void:
 
 # ------------------------------------------------------------------ shots
 
-## Friendly fire: this step's bolts of yours that crossed another player's ship.
-## Seekers never count.
+## Friendly fire: this step's bolts and seekers of yours that crossed another
+## player's ship. A seeker cannot lock on one (it is not in the director), so only
+## one flying straight, or after a fighter, gets there.
 func _hit_players(fight) -> void:
 	var df = fight.df
 	var targets: Array = []
@@ -293,7 +294,7 @@ func _hit_players(fight) -> void:
 	var keep: Array = []
 	for p in df.projectiles.items:
 		var hit = null
-		if int(p.owner) == df.player_id and str(p.kind) != "missile" and not p.get("ghost", false):
+		if int(p.owner) == df.player_id and not p.get("ghost", false):
 			for rs in targets:
 				if df.projectiles.segment_hits_sphere(p.prev, p.pos, rs.global_position, rs.radius()):
 					hit = rs

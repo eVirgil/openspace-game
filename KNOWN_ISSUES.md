@@ -5,7 +5,7 @@ Honest list of what is broken or faked. Updated every milestone.
 ## After LAN friendly fire for ships (2026-11-03)
 
 **Checked:** tests/test_lan_ship_fire.gut.gd (4/4: the hull is solid only in the
-air, seekers pass, space bolts on a friend's ship are sent once, a friend's hit
+air, a straight seeker hits it, space bolts and seekers on a friend's ship are sent once, a friend's hit
 lands in the fight's director and can lose it), test_smoke, test_ship_combat,
 test_seeker_warning, `scripts/test_lan.sh`, and a headless town boot. Two
 players were not flown against each other on two computers.
@@ -21,7 +21,10 @@ half of `scripts/test_lan_world.sh` ("people here are not all copies") fail on
 - **A friend's ship in space is hit as a sphere** (half its longest side),
   not its box, as the fight's own ships are.
 - **Their cannon fire in the sky is a picture** that flies to where their guns
-  crossed and stops; it can pass through a hill in your game.
+  crossed and stops; it can pass through a hill in your game. Their seekers
+  show only when unlocked (a locked one would turn after the interceptor).
+- **A seeker locked on the interceptor still hits a friend in its way.** Nothing
+  locks on a friend, but nothing steers round one either.
 
 ## After the Low graphics setting (2026-11-02)
 

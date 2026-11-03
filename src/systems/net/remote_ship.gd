@@ -5,8 +5,9 @@ extends Node3D
 ## game. Friendly fire (lan.json "friendly_fire"): while they fly it, it carries a
 ## ShipHull your ship's cannons hit (in the town's sky; out in space NetFight tests
 ## the fight's bolts against `radius()`), and each hit goes to their game
-## (NetLink.send_ship_hit), which lands it on the ship they fly. Seekers fly through
-## it (ShipPilot._launch_seeker; the fight's never count). Parked, it is a picture.
+## (NetLink.send_ship_hit), which lands it on the ship they fly. Nothing locks on
+## it, but a seeker flying straight that runs into it hits it too. Parked, it is a
+## picture.
 ##
 ## NetLink hands it every ship packet heard (hear); between packets it runs on at
 ## the speed it had, smoothed, and jumps when it is snap_m off.

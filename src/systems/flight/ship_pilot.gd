@@ -71,7 +71,8 @@ extends Node
 ##     up there when it starts (join_net_fight).
 ##   - LAN friendly fire: your cannons hit the other players' ships while they fly
 ##     (RemoteShip's hull; NetFight out in space) and theirs hit yours
-##     (lan_ship_hit); your seekers fly through theirs (_launch_seeker).
+##     (lan_ship_hit). Seekers never lock on them (the lock is on the Remnant
+##     interceptor only), but one flying straight that runs into one hits it.
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -95,7 +96,7 @@ signal ejected                   ## issue #275: out of the seat in the air
 signal left_atmosphere
 signal fight_started
 signal fight_ended(outcome: String)
-signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others
+signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others (unlocked seekers too)
 
 var demo                         ## the town scene (town_demo.gd)
 var content
@@ -1851,23 +1852,16 @@ func _launch_seeker(s: Dictionary, seek: Node3D) -> void:
 	b.seek = seek
 	b.turn_rate = float(s.get("turn_rate", 0.0))
 	b.blast_size = float(s.get("blast_size", 0.0))
-	b.friends = _lan_hulls()                     # LAN: no friendly fire from seekers
 	b.connect("on_hit", hud.on_gun_hit)
 	b.connect("on_splash", hud.on_gun_hit)
 	demo.add_child(b)
 	b.global_position = s.origin
 	seekers += 1
 	Sound.play("ship_missile", s.origin)
-
-
-## LAN: the other players' ships here (RemoteShip hulls), which seekers fly through.
-func _lan_hulls() -> Array:
-	var out: Array = []
-	if NetSession.active():
-		for rs in NetSession.link.ship_bodies.values():
-			if is_instance_valid(rs) and rs.hull != null:
-				out.append(rs.hull)
-	return out
+	if seek == null:
+		# LAN: a straight one shows to the others, out to whatever is under the nose.
+		var cross := _gun_cross()
+		cannon_fired.emit(s.origin, b.direction, cross + 2.0 if cross < _gun_reach else b.range_m, b)
 
 
 ## LAN: whether the others' cannons can hit the ship you fly (RemoteShip): off the
