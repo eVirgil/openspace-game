@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.4 (2026-11-02)
+
+- Share builds are now **OpenSpace V1.4**. Everything below, down to "New
+  version is 1.3", is in it.
+
 ## Scripted lines are voiced without an ElevenLabs key (2026-11-01)
 
 - **Non-AI lines now play recorded voices from the repo.** Every fixed line
