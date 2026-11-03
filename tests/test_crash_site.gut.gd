@@ -304,7 +304,7 @@ func test_every_surface_wears_the_wreck_metal() -> void:
 	for pair in [["starboard_deck", 5], ["starboard_deck_fill_s3", 5], ["upper_catwalk", 6], ["mid_catwalk", 6],
 			["bridge_platform", 8], ["bridge_ramp", 7], ["gallery_ramp", 7], ["stern_ramp", 7],
 			["speeder_kicker", 0], ["starboard_deck_rail_0", 3]]:
-		var mi := scenery.find_child(ID + "_" + str(pair[0]), true, false) as MeshInstance3D
+		var mi := scenery.wreck_part(ID + "/" + str(pair[0]))
 		assert_not_null(mi, pair[0])
 		if mi != null:
 			var mat := mi.material_override as ShaderMaterial

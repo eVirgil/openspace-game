@@ -2,6 +2,13 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The wreck field is cheaper to look at (2026-11-03)
+
+- **The four crashed cruisers look the same and cost far less to draw.** Their
+  2,561 hull plates were drawn one by one, from anywhere the field can be seen;
+  they are now 56 meshes, one per wreck and finish. Looking east from the port
+  that is about 2,700 fewer draw calls a frame (about 5 ms on a Mac).
+
 ## Blaster pops are sparks, not grit (2026-11-03)
 
 - **A blaster bolt landing is a clean pop now:** the flash and the spray of

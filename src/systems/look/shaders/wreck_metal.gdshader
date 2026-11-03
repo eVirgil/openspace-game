@@ -25,8 +25,10 @@ void vertex() {
 	hull_normal = normalize((wreck_from_world * MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	level_pos = (level_from_world * MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	level_normal = normalize((level_from_world * MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	plate_pos = VERTEX;
-	plate_normal = NORMAL;
+	// The wreck field is drawn merged (WorldScenery._merge_wreck_plates): each
+	// vertex carries its plate's own position and normal.
+	plate_pos = CUSTOM0.xyz;
+	plate_normal = CUSTOM1.xyz;
 }
 
 float grain(vec3 p, float scale) {
