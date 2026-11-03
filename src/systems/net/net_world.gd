@@ -12,6 +12,10 @@ extends Node
 ## and npc_died. Guests -> host: npc_ask (what is id N? the answer is npc_meta, all
 ## a guest needs to make or find the body) and npc_hit.
 ##
+## The planet's beast (the centipede) the same way: beast_snap, beast_hit and
+## beast_died; a guest's own is the copy (PlanetBeast.net_copy), or goes when the
+## host's planet has none.
+##
 ## A guest's copies are its own town's bodies where they match the host's (same
 ## node, same soldier), else made from npc_meta; its own bodies the host does not
 ## have go. The copies keep their looks, animator, ragdoll and health bar; NpcBody
@@ -125,6 +129,7 @@ func _host_tick(dt: float) -> void:
 	var chunk := maxi(1, int(NetSession.n("npc_chunk", 14)))
 	for i in range(0, rows.size(), chunk):
 		npc_snap.rpc(GameFlow.current_planet_id(), rows.slice(i, i + chunk))
+	_send_beast(scene)
 
 
 ## Everyone's feet here: the host's and every guest's on this planet.
@@ -210,6 +215,71 @@ func npc_hit(id: int, amount: float, sweep: Vector3) -> void:
 	n.set_meta("net_hit_by", _mp().get_remote_sender_id())
 	n.apply_damage_from(dmg, shooter)
 	n._blade_sweep = Vector3.ZERO
+
+
+# ------------------------------------------------------------------ the beast
+
+const BEAST_NONE := 0
+const BEAST_ALIVE := 1
+const BEAST_DEAD := 2
+var _beast_hooked: Object = null
+var _beast_by := 0                 ## host: the guest whose hit landed on it last (0 = none)
+
+
+func _send_beast(scene: Node) -> void:
+	var b = scene.get("beast")
+	if b == null or not is_instance_valid(b):
+		beast_snap.rpc(GameFlow.current_planet_id(), BEAST_NONE, Vector3.ZERO, Vector3.ZERO, false, 0.0)
+		return
+	if b != _beast_hooked:
+		_beast_hooked = b
+		b.slain.connect(func(): if _live(): beast_died.rpc(GameFlow.current_planet_id(), _beast_by))
+	beast_snap.rpc(GameFlow.current_planet_id(), BEAST_DEAD if b.dead else BEAST_ALIVE, b._head_ground, b.heading, b.chasing, b.hp)
+
+
+## Guest -> host: my bolt or blade landed on the beast.
+@rpc("any_peer", "call_remote", "reliable")
+func beast_hit(amount: float) -> void:
+	var scene := _town()
+	var b = scene.get("beast") if scene != null else null
+	if not _mp().is_server() or b == null or not is_instance_valid(b) or b.dead:
+		return
+	_beast_by = _mp().get_remote_sender_id()
+	b._hurt(clampf(amount, 0.0, 500.0), false)       # it hurts; it chases nobody for it here
+	_beast_by = 0 if not b.dead else _beast_by
+
+
+## Host -> guests: where the beast is (or that there is none, or it is dead).
+@rpc("authority", "call_remote", "unreliable_ordered")
+func beast_snap(planet: String, state: int, at: Vector3, head: Vector3, chase: bool, hp: float) -> void:
+	var scene := _town()
+	if scene == null or planet != GameFlow.current_planet_id() or not bool(scene.get("lan_shared")):
+		return
+	var b = scene.get("beast")
+	if b == null or not is_instance_valid(b):
+		return                          # this game has none (killed in the guest's own save)
+	if state == BEAST_NONE:
+		scene.set("beast", null)        # the host's planet has none: nor does this town
+		b.queue_free()
+		return
+	if not b.net_copy:
+		b.net_copy = true
+		b.net_hit = func(amount): beast_hit.rpc_id(1, amount)
+	if state == BEAST_DEAD:
+		b.net_die()
+		return
+	b.net_hear(at, head, chase, hp)
+
+
+## Host -> guests: the beast died; `killer` is the guest whose hit it was (0: not a guest's).
+@rpc("authority", "call_remote", "reliable")
+func beast_died(planet: String, killer: int) -> void:
+	if killer == _mp().get_unique_id():
+		_marker(true)
+	var scene := _town()
+	var b = scene.get("beast") if scene != null and planet == GameFlow.current_planet_id() else null
+	if b != null and is_instance_valid(b) and b.net_copy:
+		b.net_die()
 
 
 # ------------------------------------------------------------------ guest
