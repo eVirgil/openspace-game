@@ -32,6 +32,13 @@ var lod_stride := 4
 var _lod_dt := 0.0
 var _lod_n := 0
 var _lod_slot := 0
+## Issue #402: a LAN guest's copy of the host's animal. It goes where the host's
+## goes (net_hear), its hits go to net_hit (amount, shooter) instead of hurting it,
+## and it dies when the host's does (net_die).
+var net_copy := false
+var net_hit: Callable
+var _net_at := Vector3.INF
+var _net_run := false
 
 
 func setup(fauna_cfg: Dictionary, world_ground: WorldGround, at: Vector3, rng_seed: int, mats: LookMaterials = null) -> void:
@@ -137,6 +144,9 @@ func _physics_process(dt: float) -> void:
 	_t += dt
 	if dead:
 		return
+	if net_copy:
+		_net_step(dt)
+		return
 	var speed := float(cfg.get("walk_speed", 1.4))
 	if target != null and is_instance_valid(target) and not bool(target.get("piloting")):
 		var d := target.global_position.distance_to(global_position)
@@ -209,9 +219,58 @@ func _spook(from: Vector3) -> void:
 	_rest = 0.0
 
 
+## A copy: trot (or run) to where the host's one was heard; jump there when far off.
+func _net_step(dt: float) -> void:
+	if _net_at == Vector3.INF:
+		return
+	var up := ground.up_at(global_position) if ground != null else Vector3.UP
+	var to := _net_at - global_position
+	to -= up * to.dot(up)
+	if to.length() > NetSession.n("pig_snap_m", 12.0):
+		_place(_net_at)
+		return
+	if to.length() < 0.3:
+		_flee = 0.0
+		return
+	_flee = 1.0 if _net_run else 0.0     # (the trot in _place)
+	var speed := float(cfg.get("run_speed" if _net_run else "walk_speed", 1.4)) * NetSession.n("pig_catch_up", 1.15)
+	_heading = _heading.lerp(to.normalized(), minf(1.0, dt * 4.0)).normalized()
+	_place(global_position + _heading * minf(speed * dt, to.length()))
+
+
+## Issue #402: where the host's one is now, and whether it is running.
+func net_hear(at: Vector3, running: bool) -> void:
+	net_copy = true
+	_net_at = at
+	_net_run = running
+
+
+## Whether it is bolting now (what a LAN host sends).
+func fleeing() -> bool:
+	return _flee > 0.0
+
+
+## Issue #402: the host's one died: so does this one, its own way (`count`: it was
+## this game's player's kill, so it counts here too).
+func net_die(count: bool) -> void:
+	if dead:
+		return
+	hp = 0
+	dead = true
+	if _look != null:
+		_look.rotation.z = PI * 0.5
+		_look.position.y = 0.35
+	if count:
+		killed.emit(self)
+
+
 # ------------------------------------------------------------------ hurt, dead, food
 
 func apply_damage_from(amount: float, shooter: Node) -> void:
+	if net_hit.is_valid():
+		if not dead:
+			net_hit.call(amount, shooter)
+		return
 	apply_damage(amount)
 	if not dead and shooter is Node3D:
 		_spook((shooter as Node3D).global_position)
@@ -219,6 +278,9 @@ func apply_damage_from(amount: float, shooter: Node) -> void:
 
 func apply_damage(amount: float) -> void:
 	if dead:
+		return
+	if net_hit.is_valid():
+		net_hit.call(amount, null)
 		return
 	hp -= int(ceil(amount))
 	if hp <= 0:

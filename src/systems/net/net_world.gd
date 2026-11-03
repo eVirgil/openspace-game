@@ -16,6 +16,13 @@ extends Node
 ## beast_died; a guest's own is the copy (PlanetBeast.net_copy), or goes when the
 ## host's planet has none.
 ##
+## And the planet's natives (NativesDirector): the packs' members ride npc_snap with
+## the town's people (npc_meta names one by its pack and slot, and the guest's copy
+## is its own member there, never a new body), their moves (a swing, a throw, a
+## wave) by npc_act. The camps by camp_snap (each pack's mood and which tents are
+## down; camp_hit sends a guest's shot on a tent, native_provoke a pack that saw a
+## guest steal), the animals by pig_snap, pig_hit and pig_died.
+##
 ## A guest's copies are its own town's bodies where they match the host's (same
 ## node, same soldier), else made from npc_meta; its own bodies the host does not
 ## have go. The copies keep their looks, animator, ragdoll and health bar; NpcBody
@@ -45,6 +52,8 @@ var snaps_heard := 0               ## tests
 var heard_at: Dictionary = {}      ## guest: net id -> where the host's one stood last (tests)
 var _heard_t: Dictionary = {}      ## guest: net id -> when
 var hits_sent := 0                 ## tests
+var _acts: Dictionary = {}         ## host: net id -> acts last seen
+var _natives_built := -1.0         ## guest: when this town's natives were all built
 
 
 func _ready() -> void:
@@ -89,6 +98,20 @@ static func people(scene: Node) -> Array:
 	return out
 
 
+## The planet's natives here (NativesDirector), or null.
+static func natives(scene: Node) -> Node:
+	var d = scene.get("natives") if scene != null else null
+	return d if d != null and is_instance_valid(d) else null
+
+
+## The packs' members here.
+static func pack_members(scene: Node) -> Array:
+	var d := natives(scene)
+	if d == null:
+		return []
+	return (d.members() as Array).filter(func(n): return (n as NpcBody).is_inside_tree())
+
+
 func _physics_process(dt: float) -> void:
 	if not _live():
 		return
@@ -104,13 +127,16 @@ func _host_tick(dt: float) -> void:
 	var scene := _town()
 	if scene == null or _link().roster.size() < 2:
 		return
-	var all := people(scene)
+	var all := people(scene) + pack_members(scene)
 	for n in all:
 		var id := _id_of(n)
 		var was := int(_shots.get(id, n.shots_fired))
 		if n.shots_fired > was:
 			npc_fire.rpc(GameFlow.current_planet_id(), id, n.aim_point)
 		_shots[id] = n.shots_fired
+		if n.acts > int(_acts.get(id, n.acts)) and not n.dead:
+			npc_act.rpc(GameFlow.current_planet_id(), id, n.action)
+		_acts[id] = n.acts
 	_snap_left -= dt
 	if _snap_left > 0.0:
 		return
@@ -130,6 +156,7 @@ func _host_tick(dt: float) -> void:
 	for i in range(0, rows.size(), chunk):
 		npc_snap.rpc(GameFlow.current_planet_id(), rows.slice(i, i + chunk))
 	_send_beast(scene)
+	_send_natives(scene, near, far_m, _round % far_every == 0)
 
 
 ## Everyone's feet here: the host's and every guest's on this planet.
@@ -187,13 +214,19 @@ func npc_ask(ids: Array) -> void:
 		return
 	var out: Array = []
 	var scene := _town()
+	var d := natives(scene)
 	for id in ids:
 		var n = _bodies.get(int(id), null)
 		if n == null or not is_instance_valid(n) or scene == null:
 			continue
-		out.append({ "id": int(id), "key": str(scene.get_path_to(n)), "soldier": n.soldier_id, "post": n.post_id,
+		var m := { "id": int(id), "key": str(scene.get_path_to(n)), "soldier": n.soldier_id, "post": n.post_id,
 			"name": n.display_name, "pos": n.global_position, "yaw": n.rotation.y,
-			"home": n.post_pos, "home_yaw": n.post_facing, "dead": n.dead })
+			"home": n.post_pos, "home_yaw": n.post_facing, "dead": n.dead }
+		var key: Array = d.net_key(n) if d != null and n.free_walk else []
+		if not key.is_empty():
+			m["pack"] = str(key[0])          # one of a pack: the guest's own member at this slot
+			m["slot"] = int(key[1])
+		out.append(m)
 	if not out.is_empty():
 		npc_meta.rpc_id(_mp().get_remote_sender_id(), out)
 
@@ -326,6 +359,7 @@ func _enter(scene: Node) -> void:
 	_bodies.clear()
 	_claimed.clear()
 	_first_snap = -1.0
+	_natives_built = -1.0
 
 
 ## Host -> a guest: what it asked about.
@@ -346,6 +380,8 @@ func _copy(id: int) -> NpcBody:
 	var m: Dictionary = _meta[id]
 	if bool(m.get("dead", false)):
 		return null
+	if m.has("pack"):
+		return _native_copy(id, m)
 	# This town's own body at the same spot in the tree, the same soldier, not yet
 	# copying another: it is that one. Else one is made from the host's word.
 	var own = _scene.get_node_or_null(NodePath(str(m.key)))
@@ -359,6 +395,19 @@ func _copy(id: int) -> NpcBody:
 	if own == null:
 		return null
 	own.display_name = str(m.get("name", own.display_name))
+	_claimed[own.get_instance_id()] = true
+	_bodies[id] = own
+	_puppet(own)
+	return own
+
+
+## One of a pack: this game's own member at the same slot of the same pack (the
+## packs are built the same in every game); none made when it is not here.
+func _native_copy(id: int, m: Dictionary) -> NpcBody:
+	var d := natives(_scene)
+	var own = d.net_member(str(m.pack), int(m.slot)) if d != null else null
+	if own == null or own.dead or _claimed.has(own.get_instance_id()):
+		return null
 	_claimed[own.get_instance_id()] = true
 	_bodies[id] = own
 	_puppet(own)
@@ -390,6 +439,9 @@ func _drive(n: NpcBody, r: Array, vel: Vector3) -> void:
 	var at := r[1] as Vector3
 	var yaw := float(r[2])
 	var f := int(r[3])
+	var d := natives(_scene) if n.free_walk else null
+	if d != null and d.net_slide(n, at):
+		return                          # far off: slid along the ground, as the host's
 	var off := n.global_position.distance_to(at)
 	if off > NetSession.n("npc_snap_m", 6.0):
 		n.global_position = at
@@ -420,6 +472,16 @@ func npc_fire(planet: String, id: int, aim: Vector3) -> void:
 		return
 	n.aim_point = aim
 	n.fire_at(aim, 1.0)
+
+
+## Host -> guests: NPC `id` played `move` (a swing, a throw, a gesture).
+@rpc("authority", "call_remote", "reliable")
+func npc_act(planet: String, id: int, move: String) -> void:
+	if planet != GameFlow.current_planet_id() or _mp().is_server():
+		return
+	var n = _bodies.get(id, null)
+	if n != null and is_instance_valid(n) and not n.dead and move != "":
+		n.act(move)
 
 
 ## Host -> guests: NPC `id` died there (hit from `from`, a blade's `sweep`); `killer`
@@ -471,16 +533,33 @@ func _yours(shooter: Node) -> bool:
 
 func _guest_tick() -> void:
 	var scene := _town()
-	if scene == null or not bool(scene.get("lan_shared")) or _scene != scene or _first_snap < 0.0:
+	if scene == null or not bool(scene.get("lan_shared")):
+		return
+	_hook_natives(scene)
+	if _scene != scene or _first_snap < 0.0:
 		return
 	# Once the host's people are all here, this town's own that copy none of them go.
-	if Time.get_ticks_msec() / 1000.0 - _first_snap < NetSession.n("npc_claim_s", 4.0):
+	var now := Time.get_ticks_msec() / 1000.0
+	var claim_s := NetSession.n("npc_claim_s", 4.0)
+	if now - _first_snap < claim_s:
 		return
 	for n in people(scene):
 		if not _claimed.has(n.get_instance_id()):
 			for list in [scene.get("npcs"), scene.get("locals")]:
 				(list as Array).erase(n)
 			n.queue_free()
+	# The same for the packs, once this town has built all of its own.
+	var d := natives(scene)
+	if d == null or not d.is_built():
+		_natives_built = -1.0
+		return
+	if _natives_built < 0.0:
+		_natives_built = now
+	if now - _natives_built < claim_s:
+		return
+	for n in pack_members(scene):
+		if not _claimed.has(n.get_instance_id()):
+			d.net_drop(n)
 
 
 func _marker(kill: bool) -> void:
@@ -489,3 +568,156 @@ func _marker(kill: bool) -> void:
 	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
 	if w != null and w.feedback != null:
 		w.feedback.confirm(kill)
+
+
+# ------------------------------------------------------------------ the natives' camps and animals
+
+var _pig_by := 0                   ## host: the guest whose hit landed on an animal just now
+
+
+## Each pack's mood and its camp's tents (every far round), and the animals.
+func _send_natives(scene: Node, near: Array, far_m: float, far_round: bool) -> void:
+	var d := natives(scene)
+	if d == null:
+		return
+	var here := GameFlow.current_planet_id()
+	if far_round:
+		var camps: Array = []
+		for p in d.packs:
+			if p is Dictionary and p.has("rec"):
+				var c = p.get("camp")
+				camps.append([str(p.id), str(p.state), d.is_friendly(p), (c as NativeCamp).down_mask() if c != null else 0])
+		if not camps.is_empty():
+			camp_snap.rpc(here, camps)
+	var rows: Array = []
+	for i in d.pigs.size():
+		var pig = d.pigs[i]
+		if not is_instance_valid(pig):
+			continue
+		if not pig.has_meta("net_hooked"):
+			pig.set_meta("net_hooked", true)
+			pig.killed.connect(func(_p): if _live(): pig_died.rpc(GameFlow.current_planet_id(), i, _pig_by))
+		if not far_round and (pig.dead or not near.any(func(q): return (q as Vector3).distance_to(pig.global_position) <= far_m)):
+			continue
+		rows.append([i, pig.global_position, pig.fleeing(), pig.dead])
+	var chunk := maxi(1, int(NetSession.n("npc_chunk", 14)))
+	for i in range(0, rows.size(), chunk):
+		pig_snap.rpc(here, rows.slice(i, i + chunk))
+
+
+## Hooks a guest's natives to the host's: a pack this game sees you rob, or a tent
+## you shoot, is the host's.
+func _hook_natives(scene: Node) -> void:
+	var d := natives(scene)
+	if d == null:
+		return
+	if not d.net_provoke.is_valid():
+		d.net_provoke = func(pack_id: String): native_provoke.rpc_id(1, pack_id)
+	for c in d.camps:
+		if is_instance_valid(c) and not (c as NativeCamp).net_hit.is_valid():
+			var pack_id := str((c as NativeCamp).id)
+			c.net_hit = func(i: int, amount: float, shooter: Node):
+				if _yours(shooter) and amount > 0.0:
+					hits_sent += 1
+					camp_hit.rpc_id(1, pack_id, i, amount)
+
+
+func _guest_natives(planet: String) -> Node:
+	var scene := _town()
+	if scene == null or planet != GameFlow.current_planet_id() or not bool(scene.get("lan_shared")):
+		return null
+	return natives(scene)
+
+
+## Host -> guests: each pack: [id, state, friendly, tents down (bit i: tent i)].
+@rpc("authority", "call_remote", "unreliable_ordered")
+func camp_snap(planet: String, rows: Array) -> void:
+	var d := _guest_natives(planet)
+	if d == null:
+		return
+	for r in rows:
+		if not (r is Array) or (r as Array).size() < 4:
+			continue
+		var p: Dictionary = d.pack(str(r[0]))
+		if p.is_empty():
+			continue
+		p.state = str(r[1])
+		p["net_friendly"] = bool(r[2])
+		var c = p.get("camp")
+		if c != null and is_instance_valid(c):
+			(c as NativeCamp).net_down(int(r[3]))
+
+
+## Host -> guests: the animals: [index, where, running, dead].
+@rpc("authority", "call_remote", "unreliable_ordered")
+func pig_snap(planet: String, rows: Array) -> void:
+	var d := _guest_natives(planet)
+	if d == null:
+		return
+	for r in rows:
+		if not (r is Array) or (r as Array).size() < 4 or int(r[0]) < 0 or int(r[0]) >= d.pigs.size():
+			continue
+		var pig = d.pigs[int(r[0])]
+		if not is_instance_valid(pig):
+			continue
+		if not (pig as SandPig).net_hit.is_valid():
+			pig.net_hit = _on_pig_hit.bind(int(r[0]))
+		if bool(r[3]):
+			pig.net_die(false)
+		else:
+			pig.net_hear(r[1] as Vector3, bool(r[2]))
+
+
+## Host -> guests: animal `i` died; `killer` is the guest whose hit it was.
+@rpc("authority", "call_remote", "reliable")
+func pig_died(planet: String, i: int, killer: int) -> void:
+	var mine := killer == _mp().get_unique_id()
+	if mine:
+		_marker(true)
+	var d := _guest_natives(planet)
+	if d != null and i >= 0 and i < d.pigs.size() and is_instance_valid(d.pigs[i]):
+		d.pigs[i].net_die(mine)
+
+
+## A guest's copy of animal `i` was hit (only yours are sent).
+func _on_pig_hit(amount: float, shooter: Node, i: int) -> void:
+	if not _yours(shooter) or amount <= 0.0:
+		return
+	hits_sent += 1
+	pig_hit.rpc_id(1, i, amount)
+
+
+## Guest -> host: my bolt or blade landed on animal `i`.
+@rpc("any_peer", "call_remote", "reliable")
+func pig_hit(i: int, amount: float) -> void:
+	var d := natives(_town())
+	if not _mp().is_server() or d == null or i < 0 or i >= d.pigs.size():
+		return
+	var pig = d.pigs[i]
+	if not is_instance_valid(pig) or pig.dead:
+		return
+	_pig_by = _mp().get_remote_sender_id()
+	pig.apply_damage_from(clampf(amount, 0.0, 500.0), _link().bodies.get(_pig_by, null))   # it bolts from their body
+	_pig_by = 0
+
+
+## Guest -> host: my shot landed on tent `i` of pack `pack_id`'s camp.
+@rpc("any_peer", "call_remote", "reliable")
+func camp_hit(pack_id: String, i: int, amount: float) -> void:
+	var d := natives(_town())
+	if not _mp().is_server() or d == null:
+		return
+	var c = d.pack(pack_id).get("camp")
+	if c != null and is_instance_valid(c) and i >= 0 and i < (c as NativeCamp).tents.size():
+		(c as NativeCamp)._on_tent_hit(i, clampf(amount, 0.0, 500.0), _link().bodies.get(_mp().get_remote_sender_id(), null))
+
+
+## Guest -> host: pack `pack_id` saw me rob it (or tear at its tents): it turns.
+@rpc("any_peer", "call_remote", "reliable")
+func native_provoke(pack_id: String) -> void:
+	var d := natives(_town())
+	if not _mp().is_server() or d == null:
+		return
+	var p: Dictionary = d.pack(pack_id)
+	if not p.is_empty():
+		d._provoke(p)
