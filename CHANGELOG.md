@@ -2,6 +2,13 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Rifle held properly (2026-11-02)
+
+- **The rifle's hands sit where they should.** The right hand wraps the outside
+  of the pistol grip instead of sinking into it, and the left hand holds further
+  forward, off the magazine and onto the front of the gun. Same for the player in
+  first and third person and for the Remnant troopers.
+
 ## No freeze on the first blaster shot (2026-11-02)
 
 - **The first shot no longer stops the game for a few seconds.** The bolt, the
