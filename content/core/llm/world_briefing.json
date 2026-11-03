@@ -12,6 +12,7 @@
     "range_record": "Someone cleared the practice range under twenty seconds.",
     "blade_trained": "The player has been seen deflecting bolts with a blade."
   },
+  "gossip": { "note": "Issue #188: how long word takes to reach a character who was not there (seconds of play). A card overrides it with gossip_delay; its hears lists the places it hears at once.", "delay": 90 },
   "time": { "golden": "Late afternoon, long shadows.", "noon": "Noon. Brutal heat.", "dusk": "Dusk. The lamps are coming on." },
   "factions": { "imperial_remnant": "the Remnant", "locals": "the locals", "smuggler": "the smugglers" }
 }

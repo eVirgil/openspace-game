@@ -188,7 +188,7 @@ static func repair() -> int:
 	WorldState.set_flag(WRECKED, false)
 	var fee := mini(repair_fee(ship_of(primary())), maxi(WorldState.credits, 0))
 	WorldState.credits -= fee
-	WorldState.log_event("T-89 patched up a ship that was shot to pieces.")
+	WorldState.log_event("T-89 patched up a ship that was shot to pieces.", "pit")
 	return fee
 
 

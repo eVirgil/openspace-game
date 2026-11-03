@@ -781,7 +781,7 @@ func _on_guard_died(g: NpcBody) -> void:
 	var delta := int(g.profile.get("checkpoint", profile.get("checkpoint", {})).get("standing", {}).get("guard_killed", -15))
 	# An outpost's garrison has no gate: its dead never take the checkpoint down.
 	if remnant():
-		WorldState.on_guard_killed(delta, handles_gate() and left.filter(func(x): return guards.has(x)).is_empty())
+		WorldState.on_guard_killed(delta, handles_gate() and left.filter(func(x): return guards.has(x)).is_empty(), "gate" if handles_gate() else "")
 	elif _is_player(g.last_hit_by):
 		WorldState.change_standing(faction, delta, "One of the locals' guards was killed.")
 	# Issue #76: a Remnant soldier you killed is worth its kill_reward (20 cr).

@@ -70,7 +70,7 @@ static func buy(id: String) -> String:
 		WorldState.gear_fits.append(id)
 	if o.has("item"):
 		WorldState.inventory.add(str(o.item))
-	WorldState.log_event("Bought %s from the fence." % str(o.get("label", id)).to_lower())
+	WorldState.log_event("Bought %s from the fence." % str(o.get("label", id)).to_lower(), "market")
 	return "bought"
 
 

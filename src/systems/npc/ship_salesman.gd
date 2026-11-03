@@ -564,7 +564,7 @@ func buy(ship_id: String) -> String:
 		return "cant_afford"
 	WorldState.credits -= cost
 	WorldState.hangar = ship_id
-	WorldState.log_event(_l("event_bought") % ship_label(ship_id))
+	WorldState.log_event(_l("event_bought") % ship_label(ship_id), "pit")
 	park_owned()
 	Sound.play("droid_wake", pos)
 	_say(_line("bought") % ship_label(ship_id))
@@ -628,7 +628,7 @@ func rebuild() -> String:
 	WorldState.credits -= cost
 	WorldState.set_flag(WorldState.SHIP_REBUILT)
 	WorldState.wreck_ship = wreck_id()
-	WorldState.log_event(_l("event_rebuilt") % ship_label(wreck_id()))
+	WorldState.log_event(_l("event_rebuilt") % ship_label(wreck_id()), "pit")
 	var pilot = demo.pilot if demo != null and "pilot" in demo else null
 	if pilot != null:
 		pilot.refresh_wreck_look()          # good as new
@@ -645,7 +645,7 @@ func comrade(say: String = "comrade") -> bool:
 		_say(_line("comrade_again") % rebuild_price())
 		return false
 	WorldState.set_flag(WorldState.COMRADE)
-	WorldState.log_event("T-89 and the player found they agree about the Remnant.")
+	WorldState.log_event("T-89 and the player found they agree about the Remnant.", "pit")
 	if needs_rebuild():
 		_say(_line(say) % rebuild_price())
 	return true
@@ -710,7 +710,7 @@ func fit(ship_id: String, up: String) -> String:
 		return "cant_afford"
 	WorldState.credits -= cost
 	ShipUpgrades.fit(ship_id, up)
-	WorldState.log_event(_l("event_fitted") % [ShipUpgrades.label(up).to_lower(), ship_label(ship_id)])
+	WorldState.log_event(_l("event_fitted") % [ShipUpgrades.label(up).to_lower(), ship_label(ship_id)], "pit")
 	var pilot = demo.pilot if demo != null and "pilot" in demo else null
 	if pilot != null:
 		pilot.refit()

@@ -172,7 +172,7 @@ static func event(name: String) -> bool:
 		# Issue #303: at the kill, not the end card: the locals hold the barracks by
 		# the time you are home (the dark master's oath needs their guards there).
 		WorldState.set_flag("remnant_fleet_beaten")
-		WorldState.log_event("The Remnant fleet in orbit was broken. The garrison is pulling out of town.")
+		WorldState.log_event("The Remnant fleet in orbit was broken. The garrison is pulling out of town.", "orbit")
 	catch_up()
 	var next_line := str(Objective.chapter_objective().get("text", ""))
 	if next_line != "":
@@ -309,7 +309,7 @@ static func _told_news(c: Dictionary) -> void:
 static func _tell(c: Dictionary, first: bool) -> Dictionary:
 	if first and int(c.get("pays", 0)) > 0:
 		WorldState.credits += int(c.pays)
-		WorldState.log_event("Oda paid %d cr for the practice." % int(c.pays))
+		WorldState.log_event("Oda paid %d cr for the practice." % int(c.pays), "cantina")
 	if chapter() == "fleet":
 		WorldState.set_flag("ships_unlocked")
 	if chapter() == "free":

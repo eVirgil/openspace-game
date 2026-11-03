@@ -4,6 +4,8 @@
   "label": "Remnant General",
   "note": "Issue #203: persona card for the Remnant general in the port (src/systems/npc/general_post.gd). Same brain as Oda and Skrugs (NpcBrain), his own card: combative, a bully to newcomers, in love with the Hegemony. He meets the player in the pit in a story save, then walks the barracks yard with a guard and an assassin droid. Issue #204: his job (giver 'general' on the board) is bringing him assassin droids from the desert. Issue #205: in good standing he tips the player off about the crashed cruiser ('hints'). Draft content: the product owner edits freely. Issue #251: his second job (j_general_repossess) is the smuggling drops inside the town, which he calls repossessing contraband for the garrison; the goods are handed to him, not the fence.",
   "temperature": 0.7,
+  "hears": ["gate", "barracks"],
+  "gossip_delay": 60,
   "actions": [
     "offer_job",
     "trust",
