@@ -1,9 +1,10 @@
 {
   "id": "main",
-  "note": "Issue #215: chapters land -> general -> t89 -> meet_oda -> range -> remote -> smuggle_1 -> droid_merchant -> bounty -> fleet -> debrief (issue #303) -> end -> free. 'done_on' may be a list: any of its events ends the chapter. 'modes': the save modes a chapter is in (default all; land, general and t89 are story only, so a freeplay story starts at meet_oda). 'chapter_renames': old chapter ids a save may hold. Issue #64: the main story line. Issue #193: 'done_flag': a chapter whose flag is already set when it starts is over at once (the cruiser taken before Oda asked). 'pays': credits the teller hands over with the intro. 'skipped': what finishing the chapter leaves behind, given when the settings skip past it (Story.skip_to): flags, counters (at least this many: the fence's armour wants a bounty paid) credits (the first bounty's first_pay, the cruiser's reward) and standing (the cruiser's reward); the chapter's 'pays' comes with them. Credits and standing are given once: not for a chapter already played, nor when its done_flag is set or its counters are already met. A skipped chapter's one-off job card (one with 'completes_on') is done, and in a story save the quests its telling unlocks ('told:<chapter>') are offered. A smuggling run pays what the fence gives for its goods, so skipping it pays nothing. Read by src/systems/flow/story.gd. Chapters run in order; each one ends on a game event ('done_on', reported to Story.event()). 'intro' is what the teller says the first time you talk to them in that chapter (it replaces their greeting), 'remind' what they say on later visits while it is still open. 'job' puts that job's card in front of the player with the line. T-89 (the droid in the pit) points you at Oda; Oda tells every other chapter. The last chapter ('free') never ends: smuggling runs and bounty contracts on repeat.",
+  "note": "Issue #215: chapters land -> general -> t89 -> meet_oda -> range -> remote -> smuggle_1 -> droid_merchant -> bounty -> fleet -> debrief (issue #303) -> end -> free. 'done_on' may be a list: any of its events ends the chapter. 'modes': the save modes a chapter is in (default all; land, general and t89 are story only, so a freeplay story starts at meet_oda). 'chapter_renames': old chapter ids a save may hold. Issue #64: the main story line. Issue #193: 'done_flag': a chapter whose flag is already set when it starts is over at once (the cruiser taken before Oda asked). 'pays': credits the teller hands over with the intro. 'skipped': what finishing the chapter leaves behind, given when the settings skip past it (Story.skip_to): flags, counters (at least this many: the fence's armour wants a bounty paid) credits (the first bounty's first_pay, the cruiser's reward) and standing (the cruiser's reward); the chapter's 'pays' comes with them. Credits and standing are given once: not for a chapter already played, nor when its done_flag is set or its counters are already met. A skipped chapter's one-off job card (one with 'completes_on') is done, and in a story save the quests its telling unlocks ('told:<chapter>') are offered. A smuggling run pays what the fence gives for its goods, so skipping it pays nothing. Read by src/systems/flow/story.gd. Chapters run in order; each one ends on a game event ('done_on', reported to Story.event()). 'intro' is what the teller says the first time you talk to them in that chapter (it replaces their greeting), 'remind' what they say on later visits while it is still open. 'job' puts that job's card in front of the player with the line. T-89 (the droid in the pit) points you at Oda; Oda tells every other chapter. The last chapter ('free') never ends: smuggling runs and bounty contracts on repeat. Issue #381: 'time' is the chapter's time of day in a story save until the cruiser is won (src/systems/world/day_clock.gd), and 'time_after_job' switches it once you have taken that job (the bounty chapter goes to dusk on j_bounty). The town switches while you are indoors, or at the next trigger; a chapter with no 'time' keeps the light it has.",
   "chapters": [
     {
       "id": "land",
+      "time": "golden",
       "modes": ["story"],
       "teller": "",
       "done_on": "landed",
@@ -11,6 +12,7 @@
     },
     {
       "id": "general",
+      "time": "golden",
       "modes": ["story"],
       "teller": "general",
       "done_on": "general_done",
@@ -19,6 +21,7 @@
     },
     {
       "id": "t89",
+      "time": "golden",
       "modes": ["story"],
       "teller": "t89",
       "done_on": "told:t89",
@@ -26,6 +29,7 @@
     },
     {
       "id": "meet_oda",
+      "time": "golden",
       "teller": "t89",
       "done_on": "met_oda",
       "intro": "One more thing, pilot: walk up to the cantina at the far end of town and talk to Oda Vell. Nothing happens in this port without her hearing about it first.",
@@ -33,6 +37,7 @@
     },
     {
       "id": "range",
+      "time": "golden",
       "teller": "cantina_owner",
       "done_on": "range_visited",
       "intro": "New face, and you want work. First, get some practice in. There's a range down in the landing pit: shoot a few targets, then come back and see me.",
@@ -40,6 +45,7 @@
     },
     {
       "id": "remote",
+      "time": "golden",
       "teller": "cantina_owner",
       "done_on": "range_visited",
       "pays": 40,
@@ -48,6 +54,7 @@
     },
     {
       "id": "smuggle_1",
+      "time": "dusk",
       "teller": "cantina_owner",
       "done_on": "smuggle_sold",
       "job": "j_smuggle_run",
@@ -58,6 +65,7 @@
     },
     {
       "id": "droid_merchant",
+      "time": "noon",
       "teller": "cantina_owner",
       "done_on": "droids_delivered",
       "job": "j_droid_merchant",
@@ -68,6 +76,8 @@
     },
     {
       "id": "bounty",
+      "time": "golden",
+      "time_after_job": { "j_bounty": "dusk" },
       "teller": "cantina_owner",
       "done_on": "bounty_paid",
       "job": "j_bounty",
@@ -77,6 +87,7 @@
     },
     {
       "id": "fleet",
+      "time": "dusk",
       "title": "Destroy the fleet",
       "teller": "cantina_owner",
       "done_on": "cruiser_taken",
