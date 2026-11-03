@@ -375,8 +375,11 @@ func _on_died(where: String) -> void:
 	meeting = false
 	DarkPact.on_killed(where)
 	# His blade falls where he does: a pickup, yours to activate in the inventory.
+	# The one in his hand goes with it, so the body lies there empty-handed.
 	var item := str(cfg.get("drops", ""))
 	var b := body(where)
+	if item != "" and b != null:
+		b.drop_blade()
 	if item != "" and b != null and gear != null and gear.drop_item({ "id": "dark_master_blade_" + where, "item": item, "reach": 2.6 }, b.global_position) != null:
 		_toast(_line("blade_dropped"))
 
