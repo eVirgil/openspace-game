@@ -156,6 +156,12 @@
       "armor": "#e6dfcf", "armor_light": "#f4efe2", "under": "#5a4632", "trim": "#3f8a4a",
       "cloth": "#c9a77c", "visor": "#7fe0a0",
       "model": { "parts": { "head": ["guard:locals"], "torso": ["guard:locals"], "legs": ["guard:locals"] } }
+    },
+    "barge_guard": {
+      "note": "The party barge's guards (content/core/barges/party_barge.json 'guard_look'). The Remnant trooper's body and rifle in the guard armour's navy variant (guard:navy: gunmetal plate, the red trim blue) with a navy cloth and a pale blue visor, so they read as the boss's own men, not the locals' or the Remnant's. Only what differs is listed.",
+      "base": "remnant_trooper",
+      "under": "#1c2638", "trim": "#2f5f8a", "cloth": "#1f2f5a", "visor": "#8fd0ff",
+      "model": { "parts": { "head": ["guard:navy"], "torso": ["guard:navy"], "legs": ["guard:navy"] } }
     }
   }
 }
