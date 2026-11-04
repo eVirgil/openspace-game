@@ -76,8 +76,8 @@ func test_the_story_walks_every_chapter() -> void:
 	assert_eq(Story.chapter(), "droid_merchant")
 	for i in 3:
 		Story.on_droid_delivered()
-	assert_eq(Story.chapter(), "bounty")
-	for s in [["bounty_paid", "fleet"], ["cruiser_taken", "debrief"], ["told:debrief", "end"]]:
+	assert_eq(Story.chapter(), "heist")
+	for s in [["heist_paid", "bounty"], ["bounty_paid", "fleet"], ["cruiser_taken", "debrief"], ["told:debrief", "end"]]:
 		Story.event(s[0])
 		assert_eq(Story.chapter(), s[1])
 	EndCard.close()
@@ -290,7 +290,7 @@ func test_three_droids_end_the_chapter_and_oda_tells_of_the_blade() -> void:
 	assert_string_contains(Story.line_of(Story.chapter_cfg(), "remind"), "2 more")
 	Story.on_droid_delivered()
 	Story.on_droid_delivered()
-	assert_eq(Story.chapter(), "bounty")
+	assert_eq(Story.chapter(), "heist", "issue #413: the heist comes before the bounty")
 	Story.beat("cantina_owner")
 	assert_eq(Quests.state("tower_blade"), "open", "Oda tells you about the blade on the tower")
 

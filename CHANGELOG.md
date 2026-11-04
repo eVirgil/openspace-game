@@ -2,6 +2,19 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Story: a heist before the bounty (2026-11-03)
+
+- **After the cargo droids, Oda sends you on a heist** before she gives you the
+  bounty: the control room at the broken ridge outpost, with one of her people
+  and an assassin droid. Bring the flasks to the fence and the bounty comes next.
+- **She keeps her promise straight away:** the energy blade on the cantina tower
+  is in the heist's telling now, not the bounty's.
+- **Nothing forces the outpost to change hands.** Kill every trooper there and
+  the locals take it as usual; sneak in and it stays the Remnant's. Either way
+  the story goes on.
+- Skipping past the chapter counts a heist as paid and gives its pay. Saves
+  already at the bounty or later carry on as they were.
+
 ## Heists on the board (2026-11-03)
 
 - **Oda, the fence, Skrugs and T-89 offer a heist** on a Remnant outpost's

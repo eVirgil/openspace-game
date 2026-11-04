@@ -27,6 +27,7 @@ extends RefCounted
 const PATH := "res://content/core/story/heist.json"
 const LOCALS_JOB := "j_heist"
 const REMNANT_JOB := "j_general_heist"
+const STORY_FIRST := "remnant_outpost_mid"   ## issue #413: the story's first heist (the first bounty is the nearest)
 
 static var _cfg: Dictionary = {}
 static var _offers: Dictionary = {}      ## job id -> the outpost its offer names (not saved: rolled again after a load)
@@ -189,9 +190,17 @@ static func offer_outpost(j: Dictionary) -> String:
 	var t := targets(j)
 	if t.is_empty():
 		return ""
+	if story_first(j) and t.has(STORY_FIRST):
+		return STORY_FIRST
 	if not t.has(str(_offers.get(id, ""))):
 		_offers[id] = str(t[randi() % t.size()]) if t.size() > 1 else str(t[0])
 	return str(_offers[id])
+
+
+## Issue #413: job `j` is the story's first heist (the heist chapter, none paid yet).
+static func story_first(j: Dictionary) -> bool:
+	return job_side(j) == "locals" and WorldState.story_mode() and Story.chapter() == "heist" \
+		and WorldState.count("heists_paid") == 0
 
 
 ## What the stash pays `to` ("fence" or "general"), before and after the crew's

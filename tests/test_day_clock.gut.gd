@@ -79,7 +79,7 @@ func test_a_story_save_follows_its_chapters() -> void:
 	WorldState.new_game(WorldState.STORY)
 	assert_true(DayClock.locked())
 	var want := { "land": "golden", "general": "golden", "t89": "golden", "meet_oda": "golden",
-		"range": "golden", "remote": "golden", "smuggle_1": "dusk", "droid_merchant": "noon", "bounty": "golden" }
+		"range": "golden", "remote": "golden", "smuggle_1": "dusk", "droid_merchant": "noon", "heist": "noon", "bounty": "golden" }
 	for id in want:
 		if Story.index(str(id)) > Story.index(Story.chapter()):
 			Story.skip_to(str(id))

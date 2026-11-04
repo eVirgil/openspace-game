@@ -78,10 +78,11 @@ general does not cost you with Oda or the locals, and the other way round.
 | 4 | `remote` | Oda | As today. | `range_visited` |
 | 5 | `smuggle_1` | Oda | The fence's drop, as today. Oda tells you about the jetpack hidden on top of the cantina tower (by the energy blade) instead of lending hers. | `smuggle_sold` |
 | 6 | `droid_merchant` | Oda | *A friend of mine in need of three cargo droids. You could buy them, or fix some up in the desert. Get that done and I'll tell you about an incredible weapon.* Then she tells you about the energy blade on the cantina tower. | Three droids delivered |
-| 7 | `bounty` | Oda | The general (standing <= -15) or the outpost officer. Paid by the fence. Unlocks quantonium armour. | `bounty_paid` |
-| 8 | `fleet` | Oda | Take **your own** ship (rebuilt or bought) up to the Remnant fleet. No free keys in story mode. | `fleet_beaten` |
-| 9 | `end` | none | End card: the Remnant leave the moon. Its text depends on whether the general lived. | Card closed |
-| 10 | `free` | Oda | *Go find one of the native tribes and trade, upgrade your gear, and explore the moon base.* Then open play on the same save. | never |
+| 7 | `heist` | Oda | Issue #413. She keeps her promise (the energy blade on the cantina tower) and sends you to rob the control room at the broken ridge outpost (`remnant_outpost_mid`) with one of her people and an assassin droid: hack the console, bring the 15 flasks to the fence. Never flips the outpost: kill every trooper there and the locals take it as usual. | `heist_paid` |
+| 8 | `bounty` | Oda | The general (standing <= -15) or the outpost officer at the nearest outpost. Paid by the fence. Unlocks quantonium armour. | `bounty_paid` |
+| 9 | `fleet` | Oda | Take **your own** ship (rebuilt or bought) up to the Remnant fleet. No free keys in story mode. | `fleet_beaten` |
+| 10 | `end` | none | End card: the Remnant leave the moon. Its text depends on whether the general lived. | Card closed |
+| 11 | `free` | Oda | *Go find one of the native tribes and trade, upgrade your gear, and explore the moon base.* Then open play on the same save: drops, heists and bounties on repeat. | never |
 
 **Running alongside the chapters:** the general's droid-hunting jobs (from
 chapter 1 on), at 3x the droid merchant's pay.
@@ -97,7 +98,7 @@ has a toggle in the log.
 | Rebuild your ship | T-89, chapter 2 | Your own ship |
 | Steal the rifle from the barracks roof | Ask Oda or Skrugs about the Remnant (*the guards keep guns lying around on top of the barracks*) | Rifle |
 | Trade with the nomad packs | Skrugs | Anything any vendor sells, for sand pig only (single digits: blaster 5, armour 12). Packs turn friendly after 1 minute (was 5) |
-| The blade on the cantina tower | Oda, after `droid_merchant` | Energy blade |
+| The blade on the cantina tower | Oda, telling the `heist` chapter (after `droid_merchant`) | Energy blade |
 | The crashed cruiser | The general, in good standing | Red saber (the only prize there) |
 
 The jetpack is not an optional quest. Oda points you at the top of the

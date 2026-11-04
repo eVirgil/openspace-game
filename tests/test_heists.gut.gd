@@ -56,7 +56,7 @@ func test_story_save_locals_only() -> void:
 	WorldState.standing["imperial_remnant"] = 0
 	assert_eq(_givers(Heist.LOCALS_JOB), [], "not before the story reaches it")
 	assert_eq(_givers(Heist.REMNANT_JOB), [], "never the general in a story save")
-	WorldState.story = { "chapter": "bounty", "told": true }
+	WorldState.story = { "chapter": "heist", "told": true }
 	assert_eq(_givers(Heist.LOCALS_JOB), ["cantina_owner", "fence", "skrugs", "t89"], "the locals once it is reached")
 	assert_eq(_givers(Heist.REMNANT_JOB), [], "still never the general")
 
@@ -126,4 +126,45 @@ func test_downed_or_lost_ends_it() -> void:
 	while WorldState.inventory.has("refined_quantonium"):
 		WorldState.inventory.remove("refined_quantonium")      # the gate took them
 	assert_true(Heist.check_lost(), "the flasks are gone: off")
+	assert_false(Heist.on())
+
+
+# ---- issue #413: the story's heist chapter ----------------------------------------------
+
+func _story_heist(kill_all: bool) -> String:
+	WorldState.new_game(WorldState.STORY)
+	Story.skip_to("droid_merchant")
+	Story.on_droid_delivered()
+	Story.on_droid_delivered()
+	Story.on_droid_delivered()
+	assert_eq(Story.chapter(), "heist", "the droids done: the heist chapter")
+	var beat := Story.beat("cantina_owner")
+	assert_eq(str(beat.get("job", "")), Heist.LOCALS_JOB, "Oda puts the heist's card in front of you")
+	assert_eq(Quests.state("tower_blade"), "open", "the blade she promised comes with it")
+	var id := _rob(Heist.LOCALS_JOB)
+	assert_eq(id, Heist.STORY_FIRST, "the first story heist hits the broken ridge outpost")
+	if kill_all:
+		Territory.take(id)                    # what killing every trooper there does (RemnantOutposts)
+	Heist.collect("fence")
+	assert_eq(Story.chapter(), "bounty", "paid at the fence: the bounty next")
+	return id
+
+
+func test_story_heist_then_bounty_whatever_you_killed() -> void:
+	var id := _story_heist(true)
+	assert_eq(Territory.owner(id), Territory.LOCALS, "killed them all: the locals have it")
+	WorldState.job("j_bounty")             # Oda rolls the first contract
+	assert_ne(str(WorldState.bounty.get("outpost", "")), id, "the first bounty is another outpost")
+	id = _story_heist(false)
+	assert_eq(Territory.owner(id), Territory.REMNANT, "sneaked: still the Remnant's")
+
+
+func test_skipping_past_the_heist() -> void:
+	WorldState.new_game(WorldState.STORY)
+	Story.skip_to("heist")
+	var c0 := WorldState.credits
+	Story.skip_to("bounty")
+	assert_eq(WorldState.count("heists_paid"), 1, "a heist counted as paid")
+	assert_eq(WorldState.credits - c0, int(Story.chapter_cfg("heist").skipped.credits), "its pay as credits")
+	assert_eq(Territory.held().size(), 0, "no outpost flipped")
 	assert_false(Heist.on())
