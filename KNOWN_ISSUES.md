@@ -2,6 +2,27 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the space station behind the moon (2026-11-03)
+
+**Checked:** tests/test_station.gut.gd (14/14: the shape from data, the far
+side of the moon, moving it to another planet, every floor, tunnel, roof walk
+and the round bay stand, the dock path, Z docking in the moon's scene, the
+elevator ride and call, the roof walk and the fall guard), test_smoke,
+test_ip_neutral, and a headless boot of the home planet. Not played on screen;
+stills only.
+
+- **Nobody lives there yet.** The floors are empty shells (#314-#316 fill them),
+  and NPCs cannot ride the elevator (only you can).
+- **You only see it from the moon's scene.** From the home planet's sky (more
+  than 2.6 km off the moon) it is not drawn, so flying out from the moon it
+  vanishes when the home planet's scene takes over.
+- **The F11 map and the cruiser's holo table do not show it,** and neither do
+  the objective arrow and the waypoints.
+- **The glass in the middle of each floor** means you cannot drop over the
+  railing to the floor below, as #313 asks; the gap is a glass-floored well.
+- **The roof hatches need the jetpack** (no ladder up to them).
+- **The station uses the cruiser's metal and glass.** No look of its own yet.
+
 ## After LAN friendly fire for ships (2026-11-03)
 
 **Checked:** tests/test_lan_ship_fire.gut.gd (4/4: the hull is solid only in the

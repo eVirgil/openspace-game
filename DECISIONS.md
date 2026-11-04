@@ -1503,3 +1503,28 @@ Every significant technical choice, the alternative, and why. Newest on top.
   rim (`LED_GLOW`), and ticks printed in pale ink tinted by it. The attitude
   ball's sky and ground are muted paper colours, with ink lines, fibres mottling
   a lamp behind the middle, and a shadow at the rim.
+
+
+## The space station is a component, not part of a planet (2026-11-03)
+
+- **One config file, one landmark.** The station's shape is all numbers in
+  `content/core/stations/<id>.json` (`StationHull` builds every box from them),
+  and where it hangs is one `"kind": "station"` landmark. Today that landmark is
+  in the moon's config (`grit_station.json`, `"side": "far"`), because the
+  station will move to the ringed giant (#311, #312) once that planet exists.
+  Moving it is moving the block, and a planet config's own `landmarks` now join
+  its world's (`PlanetGen.build`) so a generated planet can carry one.
+- **Level, with its own gravity, like the cruiser.** Its floors are square to
+  world up, and a gravity zone holds round it, so walking, landing and the
+  player's body work aboard unchanged. On the moon's far side it hangs tilted
+  to the rock under it, which reads as orbit, not as a building on the ground.
+- **In the moon's own scene.** 1400 m over the far side keeps all of it inside
+  the moon's 2600 m handoff, so nothing has to be drawn in two scenes at once.
+- **Docking is shared, not copied.** ShipPilot's Z autopilot asks a "dock
+  target" (`dock_target()`): the cruiser or any station in reach. Both answer
+  the same calls (`can_dock`, `dock_path`, `dock_yaw`, `dock_cfg`, `line`),
+  so the cruiser's flight in is reused as it is.
+- **The elevator is a moving body.** An `AnimatableBody3D` platform: whoever
+  stands on it rides it with their normal movement. It goes on in its
+  direction with you aboard, comes to the floor you stand on, and the shaft's
+  doors open only where it has stopped.

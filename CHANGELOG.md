@@ -13,6 +13,27 @@ Plain English, newest on top. One entry per milestone.
   the blue dot sits on the ground straight under their ship, in the air or up
   in space, and it works whoever is flying. Click it and the waypoint follows
   their ship.
+## A space station behind the moon (2026-11-03)
+
+- **A station hangs over the moon's far side,** out of sight of the port. Fly
+  to the moon, round it, and its name shows in the sky; Z flies you into its
+  bay, the same way Z docks you on the cruiser.
+- **Two towers of tall round floors,** the top floor the biggest, with open
+  space between floors. Each floor has a walkway round a glass-floored middle
+  (you look down the glass tube through every floor below), rooms with big
+  windows round the outside, and markets on the open floors.
+- **An elevator up the middle of each tower** in a glass tube. Stand on it and
+  it carries you floor to floor; stand by its shaft and it comes to you. Its
+  doors open only where it has stopped.
+- **Glass tunnels join the towers** on the three floors they share. Each has a
+  shield hatch in its roof: jetpack up through it and walk the roof outside,
+  like a bridge.
+- **A round landing bay** at the end of its own tunnel, its mouth closed by a
+  curved shield you fly through.
+- **The floors are empty for now.** The cantina, homes, markets, garrison and
+  crowd come with #314 to #316.
+- It is a component: one config file and one landmark block. Move the block to
+  another planet and the station goes with it.
 
 ## Story: a heist before the bounty (2026-11-03)
 

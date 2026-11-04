@@ -1,0 +1,83 @@
+{
+  "id": "orbital_station",
+  "label": "station",
+  "note": "IP-neutral. A space station you fly to, land in and walk round, built from this file alone (src/systems/world/station_hull.gd draws every box from these numbers, src/systems/world/space_station.gd is the node). It is a component: it is not part of any planet. Where it hangs is a 'kind': 'station' landmark naming this file ('station': 'orbital_station'), today in the moon's config (content/core/planets/grit_station.json, 'side': 'far'), later at the ringed giant. Take that landmark out and the station is gone; put it in another planet's landmarks and it is there instead. The plan it follows is docs/station/nitrogen_belt_plan.svg (issue #311): two towers of tall round floors, the top floor the biggest, open space between floors, an elevator up the middle in a glass tube, tunnels between the towers and a covered landing bay. The floors are empty shells for issues #314-#316 to fill. Its own frame: y up (level, with its own gravity, like the cruiser), x and z across, the main tower's middle at x = z = 0, y = 0 the market floor (and the bay's deck). Metres.",
+  "naming": { "vessel": "town_station" },
+  "name_fmt": "%s",
+  "segments": 48,
+  "floor_height": 14.0,
+  "plate": 1.0,
+  "gap_radius": 12.0,
+  "walkway": 7.0,
+  "shaft_radius": 5.5,
+  "floors_note": "Each tower is a stack of round floors (y: the top of its floor plate, radius: its outer glass wall). The space between one floor's ceiling and the next floor's plate is open to space, crossed only by the glass tube round the elevator. 'rooms': rooms round the outside behind an inner wall with doors, cut by corridors where tunnels leave; false: open from the walkway to the glass (markets). The gap in the middle of each floor (gap_radius) has a glass floor, so you look down the tube through every floor below; the elevator shaft (shaft_radius) runs up its middle, and two bridges join it to the walkway, north-south on one floor, east-west on the next.",
+  "towers": [
+    { "id": "main", "at": [0, 0], "floors": [
+      { "id": "engines", "y": -26.0, "radius": 42.0, "rooms": true },
+      { "id": "markets", "y": 0.0, "radius": 50.0, "rooms": false },
+      { "id": "homes", "y": 26.0, "radius": 60.0, "rooms": true },
+      { "id": "top", "y": 52.0, "radius": 70.0, "rooms": true }
+    ] },
+    { "id": "second", "at": [160, 0], "floors": [
+      { "id": "markets_2", "y": 0.0, "radius": 40.0, "rooms": false },
+      { "id": "outpost", "y": 26.0, "radius": 46.0, "rooms": true },
+      { "id": "homes_2", "y": 52.0, "radius": 54.0, "rooms": true }
+    ] }
+  ],
+  "rooms": { "count": 8, "door_width": 2.6, "door_height": 4.0 },
+  "tunnel": { "width": 6.0, "height": 5.0 },
+  "hatch": { "length": 4.0, "width": 4.0, "note": "A hatch in the middle of every tunnel's roof, closed by a shield the air cannot pass and you can: jump up through it (the jetpack) and walk the roof between its railings, out in space, like a bridge; drop back through it to get in." },
+  "tunnels_note": "Enclosed glass-walled tunnels between two towers ('to': a tower id) at a level both have, or from a tower to the bay ('to': 'bay') at the bay's deck.",
+  "tunnels": [
+    { "id": "tunnel_markets", "from": "main", "to": "second", "y": 0.0 },
+    { "id": "tunnel_homes", "from": "main", "to": "second", "y": 26.0 },
+    { "id": "tunnel_top", "from": "main", "to": "second", "y": 52.0 },
+    { "id": "bay_tunnel", "from": "main", "to": "bay", "y": 0.0 }
+  ],
+  "elevator": {
+    "car_radius": 4.5,
+    "speed": 4.0,
+    "wait": 3.5,
+    "door_width": 3.2,
+    "door_height": 4.0,
+    "note": "A platform rides each tower's shaft, stopping at every floor for wait seconds, at speed m/s between. Stand on it and it carries you on to the next floor the way it is going (turning at the ends); walk onto a floor's bridges while it is elsewhere and it comes to you. The shaft's doors open only on the floor where it has stopped."
+  },
+  "bay": {
+    "from": "main",
+    "at": [-112, 0],
+    "radius": 38.0,
+    "mouth_deg": 70.0,
+    "height": 30.0,
+    "apron": 12.0,
+    "note": "The covered landing bay: round, the port pit's size (76 m across), its deck level with y = 0, on the far side of 'from' tower's bay tunnel. Its curved wall is open at the back (the tunnel's door) and across mouth_deg of its far side (the mouth, facing away from the tower), closed by a curved energy shield along the wall's line that ships fly through and you cannot walk through. Pads: 'at' is [out toward the mouth, across] in metres from the bay's middle; every ship sits nose out to space."
+  },
+  "pads": [
+    { "id": "dock", "at": [4, 14], "radius": 12.0 },
+    { "id": "bay_b", "at": [4, -14], "radius": 12.0 }
+  ],
+  "dock": {
+    "pad": "dock",
+    "radius": 2500.0,
+    "hold_y": 9.0,
+    "approach": 220.0,
+    "over_y": 150.0,
+    "under_y": -110.0,
+    "speed": 420.0,
+    "accel": 200.0,
+    "brake": 150.0,
+    "brake_in": 26.0,
+    "spin_secs": 1.3,
+    "settle": 3.0,
+    "note": "Z within radius metres flies you in: round the towers (over_y above or under_y below them, in the station's frame) when you start behind the bay's mouth, out to approach metres off the mouth at hold_y over the deck, in through the shield and to a stop over the dock pad, then turned nose out and set down (ShipPilot's docking autopilot, the same flight as the cruiser's)."
+  },
+  "detail_altitude": 600.0,
+  "aboard_shadow_distance": 150.0,
+  "lights_within": 3000.0,
+  "lines": {
+    "label": "◇ %s",
+    "dock_hint": "%s  ·  %.1f km  ·  Z to land in its bay",
+    "docking": "Bringing her into %s. Z to take back control.",
+    "docked": "Down in the station's bay.",
+    "fell": "You were pulled back into the station."
+  }
+}
