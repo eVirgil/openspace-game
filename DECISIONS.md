@@ -1629,3 +1629,18 @@ Every significant technical choice, the alternative, and why. Newest on top.
   roof walk, so the fall guard leaves you there. The elevator shaft's own glass
   stays solid: it is what keeps the car's riders in.
 
+## 2026-11-04 — A ship's hull is convex pieces fitted at load, not one box
+
+- **Grid cells, each wrapped.** `ShipHull.fit` cuts the model's mesh into a grid
+  (`hull_fit` in `content/look/ships.json`) and makes one convex hull per cell,
+  with cells overlapping a little so the pieces meet. A low-poly mesh (a
+  stand-in's box or cylinder, a bolted-on gun) is convex already and keeps its
+  own hull. About 50 ms a look, once, then shared by every ship wearing it.
+- **Not Godot's convex decomposition.** `Mesh.convex_decompose` and
+  `create_multiple_convex_collisions` need the V-HACD module, which this 4.7
+  build does not have at runtime (it hands back one piece). Not a trimesh
+  either: a concave shape is hollow, so a bolt or a player inside it is not
+  pushed out, and it costs far more per contact.
+- **The same three callers, one helper.** ShipPilot, AtmoFighter and RemoteShip
+  all call `fit`, and fall back to `fit_box` only when there are no meshes (the
+  greybox).

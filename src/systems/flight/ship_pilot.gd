@@ -453,10 +453,15 @@ func _use_berth(i: int) -> void:
 	chase.fit_to(float(look.get("length", 9.0)))
 
 
-## A box around the ship, in the ship's own frame, that travels with it: you can
-## walk up to (not through) a parked ship wherever it landed. Sized from the model,
-## or from the pad's box in the greybox.
+## The ship's own shape, in its own frame, travelling with it: you can walk up to
+## (not through) a parked ship wherever it landed, and under its wings. Fitted to
+## the model (ShipHull.fit); a box from the pad in the greybox.
 func _build_hull(v: Node3D, model_box, box_id: String, clear: float) -> ShipHull:
+	var body := ShipHull.new()
+	body.name = "ShipHull"
+	if model_box != null and body.fit(v):
+		v.add_child(body)
+		return body
 	var size := Vector3(9.0, 2.5, 8.0)
 	var center := Vector3.ZERO
 	if model_box != null:
@@ -470,14 +475,7 @@ func _build_hull(v: Node3D, model_box, box_id: String, clear: float) -> ShipHull
 			var sn := absf(sin(v.rotation.y))
 			size = Vector3(c * w.x + sn * w.z, w.y, sn * w.x + c * w.z)
 			center = Vector3(0, w.y * 0.5 - clear, 0)
-	var body := ShipHull.new()
-	body.name = "ShipHull"
-	var cs := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = size
-	cs.shape = shape
-	cs.position = center
-	body.add_child(cs)
+	body.fit_box(size, center)
 	v.add_child(body)
 	return body
 
