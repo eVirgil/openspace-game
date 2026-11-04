@@ -773,7 +773,11 @@ static func on_general_killed() -> void:
 ## (nobody aboard from now on), the locals' purse is paid, and the port loves you
 ## for it. `reward`: { credits, locals, remnant, smuggler } (remnant_cruiser.json).
 ## Returns the credits paid (0 when it was taken already).
-static func on_cruiser_taken(general: String, reward: Dictionary, line: String = "") -> int:
+## Issue #327: `flag` is the cruiser's own (its config's "flag"). Only the home one's,
+## cruiser_taken, is the story's; any other only sets its flag and pays its reward.
+static func on_cruiser_taken(general: String, reward: Dictionary, line: String = "", flag: String = "cruiser_taken") -> int:
+	if flag != "cruiser_taken":
+		return _on_other_cruiser_taken(flag, general, reward, line)
 	if has_flag("cruiser_taken"):
 		return 0
 	set_flag("cruiser_taken")
@@ -792,6 +796,23 @@ static func on_cruiser_taken(general: String, reward: Dictionary, line: String =
 		set_flag("remnant_fleet_beaten")
 		log_event("The Remnant fleet in orbit was broken. The garrison is pulling out of town.", "orbit")
 	checkpoint("cruiser_taken")
+	return pay
+
+
+## Issue #327: a cruiser other than the home one is taken: its flag (saved with the
+## world) and its reward, nothing else: no story, no locals' love, no fleet beaten.
+static func _on_other_cruiser_taken(flag: String, general: String, reward: Dictionary, line: String) -> int:
+	if has_flag(flag):
+		return 0
+	set_flag(flag)
+	var pay := int(reward.get("credits", 0))
+	credits += pay
+	for pair in [["imperial_remnant", "remnant"], ["locals", "locals"], ["smuggler", "smuggler"]]:
+		if int(reward.get(pair[1], 0)) != 0:
+			change_standing(str(pair[0]), int(reward.get(pair[1], 0)))
+	log_event(line % general if line.contains("%s") else ("%s was killed aboard a Remnant cruiser." % general), "orbit")
+	QuestNews.push("target_killed", general)
+	checkpoint(flag)
 	return pay
 
 

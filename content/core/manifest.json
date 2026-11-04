@@ -21,5 +21,6 @@
   "species": ["dune_nomads", "desert_folk", "frost_folk"],
   "fauna": ["sand_pig"],
   "hazards": ["beast"],
-  "barges": ["party_barge"]
+  "barges": ["party_barge"],
+  "cruisers": ["remnant_cruiser", "belt_cruiser"]
 }

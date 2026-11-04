@@ -25,6 +25,13 @@ extends Node3D
 ##   - the label naming it in the sky while you fly, and a pull back aboard if you
 ##     fall out of it.
 ## Everything else is data: content/core/cruiser/remnant_cruiser.json.
+##
+## Issue #327: there can be more than one. Each "cruiser" landmark names its config
+## ("cruiser", default remnant_cruiser); the second one, belt_cruiser.json, holds
+## station near the ringed giant's space station. Only the home one is the story's:
+## its general's death ends Oda's story, its steps are the fleet chapter's and the
+## dark master waits in its bay. Any other is taken on its own (its config's "flag",
+## saved with the world), pays its own reward and touches nothing else.
 
 const SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
@@ -35,6 +42,7 @@ const NAV_BOUNDS := AABB(Vector3(-52, -20, -152), Vector3(118, 100, 484))
 var demo                               ## town_demo.gd
 var ground: WorldGround
 var cfg: Dictionary = {}
+var cfg_id := CruiserHull.HOME_ID       ## which config (content/core/cruiser/<cfg_id>.json)
 var id := "remnant_cruiser"
 var frame := Transform3D.IDENTITY      ## the cruiser's own frame in the world
 var inv := Transform3D.IDENTITY
@@ -64,14 +72,16 @@ var holo: CruiserHolo                  ## the bridge's planet map, built the fir
 static var _meshes: Dictionary = {}    ## finish -> ArrayMesh, built once a session
 
 
-func setup(town_demo, world_ground: WorldGround) -> void:
+## `lm` is its landmark in the world ({} = the home cruiser's, as before issue #327).
+func setup(town_demo, world_ground: WorldGround, lm: Dictionary = {}) -> void:
 	demo = town_demo
 	ground = world_ground
-	cfg = CruiserHull.data()
-	id = str(cfg.get("id", id))
-	frame = CruiserHull.frame(ground, id)
+	cfg_id = CruiserHull.config_id(lm)
+	cfg = CruiserHull.data_for(cfg_id)
+	id = str(cfg.get("id", cfg_id))
+	frame = CruiserHull.frame(ground, str(lm.get("id", id)))
 	inv = frame.affine_inverse()
-	name = "RemnantCruiser"
+	name = "RemnantCruiser" if is_home() else "RemnantCruiser_" + id
 	vessel_name = NameHooks.vessel(cfg, "vessel:" + id)
 
 
@@ -103,8 +113,35 @@ func aboard(p: Vector3) -> bool:
 	return CruiserHull.aboard(inv * p)
 
 
+## The home planet's cruiser, the story's (issue #327).
+func is_home() -> bool:
+	return cfg_id == CruiserHull.HOME_ID
+
+
+## The WorldState flag set when its general dies.
+func flag() -> String:
+	return str(cfg.get("flag", "cruiser_taken"))
+
+
 func taken() -> bool:
-	return Story.cruiser_taken()
+	return Story.cruiser_taken() if is_home() else WorldState.has_flag(flag())
+
+
+## Whether a climb out to space here meets its escort: the home one's while Oda has
+## you on it; any other's while it is not taken and you are flying for it (nose
+## within the approach's cone, or already within Z's docking reach of it). Leaving
+## the station for another planet the other way meets nobody.
+func wants_escort(at: Vector3, forward: Vector3) -> bool:
+	if escort_id() == "":
+		return false
+	if is_home():
+		return Story.cruiser_mission()
+	if taken():
+		return false
+	if distance(at) <= float(dock_cfg().get("radius", 3200.0)):
+		return true
+	var ap: Dictionary = cfg.get("approach", {})
+	return forward.dot((frame.origin - at).normalized()) >= cos(deg_to_rad(float(ap.get("cone_deg", 40.0))))
 
 
 func label() -> String:
@@ -238,7 +275,8 @@ func _steps(p: Node3D) -> void:
 	var local := inv * p.global_position
 	if CruiserHull.aboard(local) and CruiserHull.at_stairs(local):
 		_stairs_reached = true
-		Story.event("cruiser_infiltrated")
+		if is_home():
+			Story.event("cruiser_infiltrated")
 
 
 ## Fallen out of the cruiser (through the bay's mouth, off the hull): back aboard
@@ -250,7 +288,10 @@ func _fall_guard(p: Node3D) -> void:
 	var here := aboard(p.global_position)
 	if here:
 		if not _was_aboard:
-			Story.event("cruiser_landed")      # on foot aboard: the fleet chapter's first step
+			if is_home():
+				Story.event("cruiser_landed")      # on foot aboard: the fleet chapter's first step
+			else:
+				WorldState.set_flag(id + "_boarded")   # its pointer moves on to the general (Objective)
 		_was_aboard = true
 		_last_aboard = p.global_position
 		return
@@ -361,7 +402,7 @@ func _on_general_died() -> void:
 		return
 	taken_here = true
 	var who := general.display_name if general != null and general.display_name != "" else "The general"
-	var pay := WorldState.on_cruiser_taken(who, cfg.get("reward", {}), line("event_taken"))
+	var pay := WorldState.on_cruiser_taken(who, cfg.get("reward", {}), line("event_taken"), flag())
 	_toast(line("general_dead") % who, 6.0)
 	if pay > 0:
 		_toast(line("taken") % pay, 6.0)
@@ -761,6 +802,8 @@ func _holo_near() -> void:
 		return
 	var table := CruiserHull.holo_table()
 	var near: bool = (inv * (demo._player.global_position as Vector3)).distance_to(table) <= float(spec.get("show_within", 400.0))
+	if near and holo == null and str(spec.get("kind", "")) == "station":
+		holo = _station_holo(spec, table)
 	if near and holo == null:
 		var names := { "town": NameHooks.town(ground.world), "cruiser": vessel_name }
 		var moons: Array = []
@@ -777,6 +820,29 @@ func _holo_near() -> void:
 	if holo != null:
 		holo.visible = near
 		holo.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
+
+
+## Issue #327: the holo table's map of the station this cruiser holds by (holo.station:
+## the station config a landmark of this world names), or null when it is not here.
+func _station_holo(spec: Dictionary, table: Vector3) -> CruiserHolo:
+	for lm in StationHull.landmarks(ground.world):
+		if str(lm.get("station", "")) != str(spec.get("station", "")):
+			continue
+		var hull := StationHull.for_id(str(lm.get("station", "")))
+		var lm_id := str(lm.get("id", ""))
+		var at := StationHull.frame(ground, lm_id)
+		if hull == null or at == Transform3D.IDENTITY:
+			continue
+		var station_name := ""
+		for st in demo.get("stations") if demo.get("stations") != null else []:
+			if is_instance_valid(st) and st.id == lm_id:
+				station_name = st.label()
+		var h := CruiserHolo.new()
+		h.setup_station(spec, hull, at, frame, table + Vector3(0, float(spec.get("lift", 1.6)), 0),
+			{ "station": station_name, "cruiser": vessel_name })
+		_hull.add_child(h)
+		return h
+	return null
 
 
 func _toast(text: String, secs: float) -> void:

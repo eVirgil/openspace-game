@@ -1214,12 +1214,18 @@ func _build_interceptor() -> void:
 ## Issue #193: the Remnant's star cruiser, in orbit far east of the port. Part of the
 ## home planet's map (its world's "cruiser" landmark put its boxes in the ship's
 ## ground already); after the droids, whose Remnant units its crew includes.
+## Issue #327: one for each "cruiser" landmark of this planet's world (the home
+## planet's, or the belt cruiser by the ringed giant's station); `cruiser` is the
+## one here (a planet has one at most).
 func _build_cruiser() -> void:
-	if not with_cruiser or pilot == null or not CruiserHull.has_cruiser(pilot.ground):
+	if not with_cruiser or pilot == null or pilot.ground == null:
 		return
-	cruiser = RemnantCruiser.new()
-	cruiser.setup(self, pilot.ground)
-	add_child(cruiser)
+	for lm in CruiserHull.landmarks(pilot.ground.world):
+		if cruiser != null or not CruiserHull.has_cruiser(pilot.ground, str(lm.get("id", ""))):
+			continue
+		cruiser = RemnantCruiser.new()
+		cruiser.setup(self, pilot.ground, lm)
+		add_child(cruiser)
 
 
 ## Space stations (StationHull): one for every "station" landmark of this planet's

@@ -2,6 +2,26 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## A second Remnant cruiser by the station (issue #327, 2026-11-04)
+
+- **The belt cruiser.** A second Remnant star cruiser, the same ship as the
+  one over the home planet, holds station about 4 km out from the ringed
+  giant's space station. You see it through the bay's mouth and from the
+  station's windows, and its name is in the sky while you fly.
+- **Same visit:** fly toward it and its escort meets you past the edge of
+  space, Z docks you on its empty pad, its crew, droids, honour guard and
+  general are all aboard, and taking one of its interceptors sounds its alarm.
+- **Its bridge's holo table shows the station,** not the home planet: both
+  towers floor by floor, the shafts, the tunnels and the bay, the belt of rocks
+  round it, and the cruiser where it really is.
+- **The pointer:** at the station the objective points at its bay, then at its
+  general once you are aboard (also on the F1 screen, which now shows what the
+  pointer is on).
+- **Taken on its own.** Killing its general pays 15,000 cr and empties it for
+  good (saved with the world). The home cruiser, Oda's story, the port's love
+  and the dark master are untouched. The dark master only ever waits in the
+  home cruiser's bay.
+
 ## The gear trader is the market's legit shop (2026-11-04)
 
 - **The gear trader now sells the gun upgrades, the jetpack's long-range tank
