@@ -227,7 +227,7 @@ static func _parent_center(planet_id: String):
 	if planet_id == "":
 		return null
 	for n in PlanetGen.neighbours(planet_id):
-		if not bool(n.get("child", true)):
+		if not bool(n.get("child", true)) and not n.has("via"):
 			return n.at
 	return null
 

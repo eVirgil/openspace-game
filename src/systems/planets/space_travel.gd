@@ -51,7 +51,7 @@ func setup(ship_pilot, neighbours: Array, with_looks: bool) -> void:
 	for n in neighbours:
 		var b := { "id": str(n.id), "at": n.at, "radius": float(n.radius), "type": str(n.type), "node": null,
 			"name": PlanetGen.display_name(PlanetGen.build(str(n.id))),
-			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)),
+			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)), "via": str(n.get("via", "")),
 			"handoff": PlanetGen.handoff_altitude(str(n.type)) }
 		if with_looks:
 			b.node = _body(n)
@@ -127,6 +127,8 @@ func _physics_process(_dt: float) -> void:
 		return
 	var pos: Vector3 = pilot.atmo.position()
 	for b in bodies:
+		if str(b.via) != "":
+			continue          # a sibling: seen from here, flown to from the parent's scene
 		if b.child and float(b.handoff) > 0.0:
 			# Issue #99: close enough to its ball: its scene, seamlessly.
 			var gap := pos.distance_to(b.at) - float(b.radius) - float(b.handoff)
@@ -236,7 +238,7 @@ func _update_labels(flying: bool) -> void:
 ## sky is the same on both sides of the switch.
 func _share_parent_sky(look) -> void:
 	for b in bodies:
-		if b.child or float(self_handoff) <= 0.0:
+		if b.child or str(b.via) != "" or float(self_handoff) <= 0.0:
 			continue
 		var pt := PlanetTerrain.for_planet(PlanetGen.build(str(b.id)))
 		if pt == null:
@@ -254,7 +256,7 @@ func _share_parent_sky(look) -> void:
 func _body(n: Dictionary) -> Node3D:
 	if float(n.get("bands", 0.0)) > 0.0:
 		return _gas_body(n)          # the ringed giant: its banded ball and its ring
-	if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
+	if bool(n.get("ball", false)) and _real_ball(n):
 		var real := _ball_body(n)
 		if real != null:
 			return real
@@ -404,7 +406,7 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 ## The ball meshes planet `id`'s scene will draw in its sky, made on worker threads.
 static func prewarm_bodies(id: String) -> void:
 	for n in PlanetGen.build(id).get("neighbours", []):
-		if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
+		if bool(n.get("ball", false)) and _real_ball(n):
 			continue          # drawn as its real ball (_ball_body), not a mesh
 		var key := "%s/%d" % [str(n.id), int(n.radius)]
 		if _body_meshes.has(key):
@@ -449,6 +451,13 @@ func _ball_body(n: Dictionary) -> Node3D:
 		root.add_child(ext)
 		ext.build_exterior(p.town.get("station", {}), pilot.demo._flat_mats())
 	return root
+
+
+## A ball neighbour drawn as its own ball (_ball_body): a child or a sibling (the
+## moon seen from the giant) whose scene takes over in mid-flight, so the parent's
+## scene draws the same shapes and nothing changes but the detail.
+static func _real_ball(n: Dictionary) -> bool:
+	return (bool(n.get("child", false)) or str(n.get("via", "")) != "") and PlanetGen.handoff_altitude(str(n.type)) > 0.0
 
 
 ## A small rocky ball (the asteroid, the lava moon: any "ball" type), not a planet.
