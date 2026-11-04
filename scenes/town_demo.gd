@@ -54,6 +54,8 @@ const ROLE_COLORS := {
 ## Issue #402: a LAN guest's town on the host's planet: its people are the host's
 ## (NetWorld drives copies of them), so none of them think here.
 var lan_shared := false
+var lan_holder := ""                  ## a LAN guest in the host's town: who holds the barracks in the host's game ("" not heard yet)
+var _lan_painted := ""                ## the holder this guest's town is painted for
 
 var town := TownLayout.new()
 var look: LookEnvironment
@@ -1410,6 +1412,13 @@ func _build_ship() -> void:
 func _physics_process(dt: float) -> void:
 	WorldState.tick(dt)
 	_tick_day()
+	# A LAN guest in the host's town: the host's game runs the people and says who
+	# holds the barracks; this one only paints the town for them.
+	if lan_shared:
+		if lan_holder != "" and lan_holder != _lan_painted:
+			_lan_painted = lan_holder
+			_repaint_town(lan_holder)
+		return
 	# The barracks change hands out of sight (the first look, at load, is free).
 	var swap_now := not _town_synced or _barracks_unseen()
 	if not _town_withdrawn and not Story.town_garrison():
