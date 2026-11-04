@@ -1,0 +1,27 @@
+[remap]
+
+importer="cubemap_texture"
+type="CompressedCubemap"
+uid="uid://c3g66w01w37ud"
+path="res://.godot/imported/port_desert_relief.png-e8e17979fd258044ce7a6fb0d327da5b.ccube"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://assets/planets/port_desert_relief.png"
+dest_files=["res://.godot/imported/port_desert_relief.png-e8e17979fd258044ce7a6fb0d327da5b.ccube"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+slices/arrangement=2

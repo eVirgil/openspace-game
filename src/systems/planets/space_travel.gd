@@ -273,6 +273,12 @@ func _body(n: Dictionary) -> Node3D:
 		sand.set_shader_parameter("planet_center", n.at)
 		sand.set_shader_parameter("planet_radius", r)
 		sand.set_shader_parameter("glitter", 0.0)
+		if str(n.get("relief", "")) != "":
+			# Its dunes as a flat print on a smooth ball (not a lumpy faceted rock).
+			sand.set_shader_parameter("relief_tex", load(str(n.relief)))
+			sand.set_shader_parameter("relief", 1.0)
+			sand.set_shader_parameter("relief_tilt", float(n.get("relief_tilt", 1.0)))
+			sand.set_shader_parameter("relief_crest", float(n.get("relief_crest", 0.12)))
 		mi.material_override = sand
 		_sand_bodies.append(sand)
 	else:
@@ -388,6 +394,10 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 	var rocky := _rocky(n)
 	if float(n.get("bands", 0.0)) > 0.0:
 		return sphere           # a gas ball is smooth
+	if str(n.get("relief", "")) != "":
+		sphere.radial_segments = 192    # smooth: the dunes are in the print (sand.gdshader relief_tex)
+		sphere.rings = 96
+		return sphere
 	return LookMeshKit.rock(sphere, noise, 0.3 if rocky else 0.012, 0.0, 3.0, 0.85 if rocky else 1.0) if rocky or r < 20000.0 else sphere
 
 

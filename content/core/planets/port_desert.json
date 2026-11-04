@@ -7,6 +7,12 @@
   "town_layout": "port_round",
   "town_size": 67,
   "world": "port_desert",
+  "body": {
+    "note": "How the home ball looks from a neighbour's sky (the moon's): a smooth ball with its dunes baked flat into a print, the same dunes you walk on. relief: the print (tools/planets/bake_relief.gd writes it; re-run when the dunes change). relief_tilt steepens its slopes so they read from kilometres off; relief_crest lightens the crests.",
+    "relief": "res://assets/planets/port_desert_relief.png",
+    "relief_tilt": 1.6,
+    "relief_crest": 0.12
+  },
   "style": "desert",
   "club": "dust_lounge",
   "features": [
