@@ -174,9 +174,39 @@ func _physics_process(_dt: float) -> void:
 	if p == null or not is_instance_valid(p):
 		return
 	var at: Vector3 = p.global_position
-	var near := distance(at) <= float(cfg.get("wake_distance", 2600.0))
 	if _inside != null:
 		_inside.visible = distance(at) < 3000.0
+	# LAN: a guest in the host's town builds no crew of its own (NetWorld would free
+	# bodies the host does not have, under this garrison's feet): the host's crew,
+	# woken for whoever comes near, are shown here as copies like the town's people.
+	if not bool(demo.get("lan_shared")):
+		_tick_crew(_players(at))
+	_fall_guard(p)
+	_steps(p)
+	if demo.look != null:
+		demo.look.set_shadow_cap(float(cfg.get("aboard_shadow_distance", 0.0)) if aboard(at) else 0.0)
+
+
+## Where the players here are: you, and on the LAN host every guest in this town
+## (on foot or in their ship), so a guest flying up alone finds the crew awake.
+func _players(at: Vector3) -> Array:
+	var out: Array = [at]
+	for o in NetSession.others():
+		out.append(o.pos)
+	return out
+
+
+func _nearest(to: Vector3, spots: Array) -> float:
+	var best := INF
+	for s in spots:
+		best = minf(best, (s as Vector3).distance_to(to))
+	return best
+
+
+## The crew wake, sleep and (once it is taken) leave by the nearest player.
+func _tick_crew(spots: Array) -> void:
+	var wake := float(cfg.get("wake_distance", 2600.0))
+	var near := spots.any(func(s): return distance(s) <= wake)
 	if near and not woke and not taken():
 		_wake()
 	if not _queue.is_empty():
@@ -190,13 +220,9 @@ func _physics_process(_dt: float) -> void:
 			continue
 		# Awake while dying or just hit (a shot from your ship far off), so they fall
 		# or answer it; asleep they are still solid to bolts (_enlist).
-		var awake: bool = g.dead or g.global_position.distance_to(at) <= sleep or now - g.damage_usec < 5000000
+		var awake: bool = g.dead or _nearest(g.global_position, spots) <= sleep or now - g.damage_usec < 5000000
 		g.process_mode = Node.PROCESS_MODE_INHERIT if awake else Node.PROCESS_MODE_DISABLED
 	crew = crew.filter(func(g): return is_instance_valid(g))
-	_fall_guard(p)
-	_steps(p)
-	if demo.look != null:
-		demo.look.set_shadow_cap(float(cfg.get("aboard_shadow_distance", 0.0)) if aboard(at) else 0.0)
 
 
 func _exit_tree() -> void:

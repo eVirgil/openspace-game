@@ -2,6 +2,19 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the LAN guest's cruiser crash fix (2026-11-04)
+
+**Checked:** a two-process loopback probe (host and guest towns, the guest flies
+up beside the cruiser, Z docks and gets out): no script errors in either game,
+the host's crew woke for the guest and stood aboard in both games. test_smoke and
+a headless town boot. Not flown on two computers; no GUT suite or trace for it.
+
+- **The host's crew wake when the host's game sees the guest,** which is their
+  ship (sent while they fly) or their body. Until the host's game hears of them
+  the guest's cruiser is empty.
+- **Killing the general as a guest pays the host,** not the guest: the cruiser
+  is taken in the host's game (its story and purse), not in the guest's save.
+
 ## After LAN jobs shared by everyone (2026-11-03)
 
 **Checked:** a two-process loopback trace, run by hand and not added to the repo
