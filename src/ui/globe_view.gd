@@ -52,6 +52,7 @@ var others: Array = []                  ## LAN: the other players, on foot or in
 var goal := Vector2.INF                 ## where the pointer is otherwise (map x, z): the nearest pin
 										## showing within its arrive distance flashes, else its own marker
 var ground: GlobeTerrain = null         ## the ball's ground, drawn under the grid once baked
+var terrain: Dictionary = {}            ## how the ground is tinted (GlobeMap.terrain_look), {} = map.json's "terrain"
 
 var _ground_layer: Control              ## draws `ground` behind this control's own lines and pins
 
@@ -300,7 +301,7 @@ func _draw_ground(lk: Dictionary) -> bool:
 	_ground_layer.visible = ready
 	if not ready:
 		return false
-	var t: Dictionary = lk.get("terrain", {})
+	var t: Dictionary = terrain if not terrain.is_empty() else lk.get("terrain", {})
 	var mat := _ground_layer.material as ShaderMaterial
 	mat.set_shader_parameter("ground", ground.texture)
 	mat.set_shader_parameter("centre", size * 0.5)
