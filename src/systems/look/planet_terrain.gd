@@ -94,7 +94,7 @@ func use_sphere(s: PlanetSphere) -> void:
 var rock_look := {}
 const ROCK_SHADER := preload("res://src/systems/look/shaders/moon_rock.gdshader")
 ## A gas ball's cloud tops (GasSphere): the ringed giant's banded look
-## (gas_giant.gdshader), { color_a, color_b, bands, ring_normal }.
+## (gas_giant.gdshader), { color_a, color_b, bands, ring_normal, haze }.
 var gas_look := {}
 const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
 
@@ -116,7 +116,9 @@ func _ground_material(center: Vector3) -> ShaderMaterial:
 	if not gas_look.is_empty():
 		m.shader = GAS_SHADER              # a gas ball's cloud tops: the ringed giant's bands
 		for k in gas_look:
-			m.set_shader_parameter(k, gas_look[k])
+			if k != "haze":
+				m.set_shader_parameter(k, gas_look[k])
+		SpaceTravel.set_gas_fog(m, gas_look.get("haze", {}), sphere.radius + sphere.elevation(Vector3.UP))
 		return m
 	var lava_sphere: AsteroidSphere = sphere as AsteroidSphere if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() else null
 	m.shader = LAVA_SHADER if lava_sphere != null else (SAND_SHADER if rock_look.is_empty() else ROCK_SHADER)
@@ -152,6 +154,7 @@ static func gas_look_for(planet: Dictionary) -> Dictionary:
 		"color_b": Color(str(body.get("dark", "#8a6f68"))),
 		"bands": float(body.get("bands", 22.0)),
 		"ring_normal": GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized(),
+		"haze": body.get("haze", {}),
 	}
 
 

@@ -121,7 +121,16 @@ func _place() -> void:
 		return                        # walking out of the pit: the barracks once they are there
 	var want := station()
 	var armour := Story.remnant_gone()
-	if want == _where and armour == _armoured and (body != null or want == ""):
+	# LAN: a guest's town frees the bodies the host's has not got (NetWorld): the
+	# host's general, if any, is shown here as a copy, so the squad is not built again.
+	if not is_instance_valid(body):
+		body = null
+	if not is_instance_valid(guard):
+		guard = null
+	if not is_instance_valid(droid):
+		droid = null
+	var shared := demo != null and bool(demo.get("lan_shared"))
+	if want == _where and armour == _armoured and (body != null or want == "" or shared):
 		return
 	_where = want
 	_armoured = armour
@@ -223,7 +232,7 @@ func _soldier(id: String, at: Vector3, key: String) -> NpcBody:
 
 ## Take one of his party away (he moved, or is away). A dead soldier or droid
 ## stays where it fell, and once he is dead the living ones stay on as troopers.
-func _drop(n: Node) -> void:
+func _drop(n) -> void:
 	if n == null or not is_instance_valid(n):
 		return
 	if n is NpcBody:

@@ -2,6 +2,19 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the LAN guest's cruiser crash fix (2026-11-04)
+
+**Checked:** a two-process loopback probe (host and guest towns, the guest flies
+up beside the cruiser, Z docks and gets out): no script errors in either game,
+the host's crew woke for the guest and stood aboard in both games. test_smoke and
+a headless town boot. Not flown on two computers; no GUT suite or trace for it.
+
+- **The host's crew wake when the host's game sees the guest,** which is their
+  ship (sent while they fly) or their body. Until the host's game hears of them
+  the guest's cruiser is empty.
+- **Killing the general as a guest pays the host,** not the guest: the cruiser
+  is taken in the host's game (its story and purse), not in the guest's save.
+
 ## After LAN jobs shared by everyone (2026-11-03)
 
 **Checked:** a two-process loopback trace, run by hand and not added to the repo
@@ -32,8 +45,13 @@ save loaded on the giant starting you in the bay), the giant's tests in
 tests/test_planets.gut.gd, test_smoke, test_ip_neutral, and stills. Flown by
 hand once before the station moved in.
 
-- **The clouds look like a smooth tan plain up close,** not clouds; the side
-  away from the sun is very dark.
+- ~~The clouds look like a smooth tan plain up close~~: fixed (2026-11-04), the
+  haze shell and fog billows. Still: the fog is a look, not a volume. Clouds
+  never pass between you and the station, and the cloud tops are one smooth
+  height, with no towers of cloud to fly round.
+- **Outside the station on the giant** (breathable, 2026-11-04) you are pulled
+  back into the bay once you drop 40 m under its lowest floor. Nothing tells you
+  you are close to that line before it happens.
 - **No space fight on the way out** (`encounter: ""`): a fight's flight does not
   check the clouds, so a ship could dive into them mid-fight and live.
 - **The ring is a look only.** No rocks in it yet (#312's belt), nothing to hit.

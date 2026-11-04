@@ -12,6 +12,11 @@ extends CanvasLayer
 ##
 ## A row marked "job" (what you are delivering for a job you have open) is green,
 ## and a fresh menu opens with the cursor on the first one.
+##
+## A row can also carry "alt" (the id Shift+Enter picks instead, e.g. stash the whole
+## stack; "alt_hint" names it in the key hint) and "buttons" ([{ id, text }], small
+## buttons at the row's end that pick their id when clicked; the mouse is freed while
+## a menu with buttons is open). A cargo droid's hold: Stash one / Stash all.
 
 const INK := Color(0.95, 0.92, 0.85, 0.95)
 const AMBER := Color("#e0a050")
@@ -19,6 +24,8 @@ const JOB_GREEN := Color("#6ee07a")   ## coloured, so RetroSkin leaves it be
 const PANEL_W := 600.0             ## narrower on a small screen (or a big text size)
 const LIST_MAX_H := 330.0          ## rows past this scroll (less on a short screen)
 const MARK_W := 20.0               ## the cursor mark's column (not KEY_W: in here that would hide the W key)
+const HINT := "[W/S]  Move    [Enter]  Choose    [Esc]  Walk away"
+const HINT_ALT := "[W/S]  Move    [Enter]  Choose    [Shift+Enter]  %s    [Esc]  Walk away"
 
 var panel: PanelContainer
 var title_label: Label
@@ -33,6 +40,8 @@ var selected := 0                 ## the row under the cursor
 var _rows: Array = []             ## [{ box: PanelContainer, key: Label, text: Label }]
 var _cursor_box: StyleBoxFlat
 var _row_box: StyleBoxEmpty
+var _freed_mouse := false         ## we showed the mouse for the buttons
+var _mouse_before := Input.MOUSE_MODE_VISIBLE
 signal option_selected(id: String)
 
 
@@ -68,7 +77,7 @@ func _ready() -> void:
 	list.add_theme_constant_override("separation", 2)
 	scroll.add_child(list)
 	hint = Label.new()
-	hint.text = "[W/S]  Move    [Enter]  Choose    [Esc]  Walk away"
+	hint.text = HINT
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 14)
 	hint.add_theme_color_override("font_color", Color(INK, 0.6))
@@ -104,6 +113,7 @@ func open(title: String, opts: Array, pick: Callable, body: String = "", keep_cu
 	if panel == null:
 		return
 	title_label.text = title
+	hint.text = HINT_ALT % alt_hint() if has_alt() else HINT
 	body_label.text = body
 	body_label.visible = body != ""
 	for c in list.get_children():
@@ -124,12 +134,47 @@ func open(title: String, opts: Array, pick: Callable, body: String = "", keep_cu
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART     # long offers wrap under the text, not the cursor
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(text)
+		for b in options[i].get("buttons", []):
+			var btn := Button.new()
+			btn.text = str(b.text)
+			btn.focus_mode = Control.FOCUS_NONE     # the keys stay the menu's
+			btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			btn.add_theme_font_size_override("font_size", 14)
+			btn.pressed.connect(choose.bind(str(b.id)))
+			line.add_child(btn)
 		list.add_child(box)
 		_rows.append({ "box": box, "key": key, "text": text })
 	_fit()
 	_show_cursor()
 	panel.visible = true
+	if has_buttons() and not _freed_mouse:
+		_mouse_before = Input.mouse_mode
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_freed_mouse = true
 	_fit.call_deferred()     # again once RetroSkin has swapped the font in
+
+
+## Some row has a Shift+Enter choice.
+func has_alt() -> bool:
+	for o in options:
+		if str(o.get("alt", "")) != "":
+			return true
+	return false
+
+
+## What Shift+Enter does, for the key hint: the first row's "alt_hint".
+func alt_hint() -> String:
+	for o in options:
+		if str(o.get("alt_hint", "")) != "":
+			return str(o.alt_hint)
+	return "All"
+
+
+func has_buttons() -> bool:
+	for o in options:
+		if not (o.get("buttons", []) as Array).is_empty():
+			return true
+	return false
 
 
 ## The first row marked "job", or 0 when there is none.
@@ -218,6 +263,9 @@ func choose(id: String) -> void:
 			break
 	if panel != null:
 		panel.visible = false
+	if _freed_mouse:
+		_freed_mouse = false
+		Input.mouse_mode = _mouse_before
 	var cb := on_pick
 	on_pick = Callable()
 	option_selected.emit(id)
@@ -241,5 +289,6 @@ func _input(event: InputEvent) -> void:
 		choose("")
 		get_viewport().set_input_as_handled()
 	elif k in [KEY_ENTER, KEY_KP_ENTER] and selected < options.size():
-		choose(str(options[selected].id))
+		var alt := str(options[selected].get("alt", ""))
+		choose(alt if event.shift_pressed and alt != "" else str(options[selected].id))
 		get_viewport().set_input_as_handled()

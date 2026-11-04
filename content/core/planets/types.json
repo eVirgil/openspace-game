@@ -113,7 +113,10 @@
                "fog": { "color": "#e0b8d0", "density": 0.00008 }, "volumetric": { "albedo": "#f0d0e0" } },
       "atmosphere": { "upper_start": 200.0, "cloud_deck": 800.0, "sky_black_at": 1800.0, "space_altitude": 2000.0 },
       "space": { "handoff": 2600.0, "note": "As the asteroid's: within handoff metres of the cloud tops its own scene flies you, with no fade." },
-      "body": { "radius": 3500.0, "color": "#d9c4b0", "dark": "#8a6f68" },
+      "body": { "radius": 3500.0, "color": "#d9c4b0", "dark": "#8a6f68",
+                "haze": { "day": "#ecdccf", "night": "#463a56", "top": 3000.0,
+                          "low_density": 0.0035, "low_height": 130.0, "high_density": 0.00015, "high_height": 520.0, "fog_near": 1600.0,
+                          "note": "Its air (src/systems/look/shaders/gas_haze.gdshader, SpaceTravel.make_haze): a shell top metres over the cloud tops, the same from a neighbour's sky and in its own scene. Two layers thinning with height (density per metre at the cloud tops, height in metres to fall to 1/e): the high one is the soft glowing edge you see from space, the low one the fog over the clouds. fog_near: within this many metres of the eye the cloud tops turn to billows of fog (gas_giant.gdshader). day and night: the haze's colour in sunlight and on the far side." } },
       "arrival": { "altitude": 900.0, "distance": 1200.0 },
       "fall_text": "You went over the edge and down into the clouds."
     },

@@ -5,6 +5,9 @@ extends RefCounted
 ## the asteroid's craters too) baked once a planet into a small texture, which
 ## globe_ground.gdshader lights and lays faintly under the globe's grid. Mesas
 ## (DesertLandforms.mesa_spots) are pressed in as rock the height they stand.
+## On the lava moon (AsteroidSphere.has_lava) the "rock" is the lava instead: the
+## open ground under its level, as AsteroidSphere.in_lava has it, which the
+## planet's terrain look (GlobeMap.terrain_look) paints molten.
 ##
 ## The texture is latitude/longitude round the map frame's own axis (GlobeMap.dir:
 ## the port at +Y, the top row): u = atan2(x, z) / TAU + 0.5, v = 0.5 - lat / PI.
@@ -19,6 +22,8 @@ extends RefCounted
 ## "terrain".
 
 const SLOPE := 0.6                      ## the steepest slope the texture holds (rise over run)
+const LAVA_SOFT := 3.0                  ## m: the lava's shore on the map, from dry to molten
+const LAVA_FADE := 250.0                ## m along the ground past the dry ground round the port before the lava shows full
 
 static var _kept := {}                  ## key -> GlobeTerrain
 
@@ -35,6 +40,8 @@ var _group := -1
 var _stage := 0                         ## 0 heights, 1 texels, 2 done
 var _lo := 0.0
 var _hi := 1.0
+var _lava := -INF                       ## the lava's level (m above the bare ball), -INF = none
+var _lava_clear := 0.0                  ## no lava this near the port (m along the ground)
 
 
 ## The bake for this planet (`key`): the one already made or under way, else a new
@@ -46,6 +53,10 @@ static func for_sphere(key: String, sphere: PlanetSphere, mesas: Array = []) -> 
 	var px: Array = GlobeMap.look().get("terrain", {}).get("size", [1024, 512])
 	t.size = Vector2i(int(px[0]), int(px[1]))
 	t._sphere = sphere
+	if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava():
+		var a := sphere as AsteroidSphere
+		t._lava = a.lava_level()          # worked out here, once, not on the workers
+		t._lava_clear = a.lava_keep_clear() + AsteroidSphere.LAVA_MARGIN
 	for m in mesas:
 		var at: Vector2 = m.map
 		t._rocks.append({ "dir": sphere.map_dir(at.x, at.y), "angle": float(m.radius) / sphere.radius, "height": float(m.height) })
@@ -145,6 +156,12 @@ func _height_row(j: int) -> void:
 			if a < ang * 1.15:
 				h += float(r.height) * smoothstep(ang, ang * 0.8, a)
 				c = maxf(c, smoothstep(ang * 1.15, ang * 0.85, a))
+		if _lava > -INF:
+			# soft at its shore and faded in past the port's dry ground: the rows
+			# bunch up toward the port (the texture's pole), and a hard edge there
+			# draws as streaks
+			var from := _sphere.dir_map(d).length() - _lava_clear
+			c = maxf(c, clampf((_lava - h) / LAVA_SOFT + 0.5, 0.0, 1.0) * clampf(from / LAVA_FADE, 0.0, 1.0))
 		row[i] = h
 		cover[i] = c
 		lo = minf(lo, h)
@@ -159,7 +176,7 @@ func _texel_row(j: int) -> void:
 	var up: PackedFloat32Array = _heights[maxi(j - 1, 0)]
 	var row: PackedFloat32Array = _heights[j]
 	var down: PackedFloat32Array = _heights[mini(j + 1, size.y - 1)]
-	var cover: PackedFloat32Array = _cover[j]
+	var cover: PackedFloat32Array = _cover[j] if _lava == -INF else _lava_blur(j)
 	var lat := PI * 0.5 - (j + 0.5) / size.y * PI
 	var dy := PI / size.y * _sphere.radius * float(mini(j + 1, size.y - 1) - maxi(j - 1, 0))
 	var dx := maxf(TAU / size.x * _sphere.radius * cos(lat), 0.01) * 2.0
@@ -173,6 +190,37 @@ func _texel_row(j: int) -> void:
 		out[i * 4 + 2] = _byte((row[i] - _lo) / (_hi - _lo))
 		out[i * 4 + 3] = _byte(cover[i])
 	_texels[j] = out
+
+
+## Row j's lava, blurred over a texel's height round it in every direction: the
+## rows are a fixed distance apart but the columns close up toward the port (the
+## pole), where unblurred the lava's speckle would draw as rays out from it.
+func _lava_blur(j: int) -> PackedFloat32Array:
+	var lat := PI * 0.5 - (j + 0.5) / size.y * PI
+	var k := clampi(int(round(1.0 / maxf(cos(lat), 0.0001))), 1, size.x / 4)   # columns a row's height spans
+	var out := PackedFloat32Array()
+	out.resize(size.x)
+	var rows := 0
+	for jj in range(maxi(j - 1, 0), mini(j + 2, size.y)):
+		var src: PackedFloat32Array = _cover[jj]
+		var pre := PackedFloat32Array()        # running sums, so each window is two reads
+		pre.resize(size.x + 1)
+		for i in size.x:
+			pre[i + 1] = pre[i] + src[i]
+		var total := pre[size.x]
+		for i in size.x:
+			var a := i - k
+			var b := i + k + 1
+			var sum := pre[mini(b, size.x)] - pre[maxi(a, 0)]
+			if a < 0:
+				sum += total - pre[size.x + a]
+			if b > size.x:
+				sum += pre[b - size.x]
+			out[i] += sum / float(2 * k + 1)
+		rows += 1
+	for i in size.x:
+		out[i] /= float(rows)
+	return out
 
 
 static func _byte(f: float) -> int:

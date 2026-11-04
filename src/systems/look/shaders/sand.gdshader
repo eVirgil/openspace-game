@@ -33,6 +33,14 @@ uniform float hole_sink = 6.0;
 // sand glows a dim dusk instead of going black.
 uniform vec4 dusk_color : source_color = vec4(0.42, 0.30, 0.30, 1.0);
 uniform float dusk_strength = 0.35;
+// The home ball seen from a neighbour's sky (space_travel.gd): a smooth sphere
+// with its dunes as a flat print (tools/planets/bake_relief.gd): RGB the ground's
+// normal (world axes), A its height. relief > 0 turns it on; relief_tilt
+// steepens the slopes so the dunes still read from kilometres away.
+uniform samplerCube relief_tex : filter_linear_mipmap;
+uniform float relief = 0.0;
+uniform float relief_tilt = 1.0;
+uniform float relief_crest = 0.12;          // crests lighter, troughs darker (by height)
 instance uniform vec4 hole_origin = vec4(0.0, 0.0, 0.0, 0.0);   // xyz, w = half size (0 = none)
 instance uniform vec3 hole_x = vec3(1.0, 0.0, 0.0);
 instance uniform vec3 hole_z = vec3(0.0, 0.0, 1.0);
@@ -124,8 +132,16 @@ void fragment() {
 	float n_fine = texture(noise_tex, mpos * 0.11).r;
 
 	vec3 up = normalize(wup);
+	vec3 base_n = wnorm;
+	float crest = 0.0;
+	if (relief > 0.0) {
+		vec4 rt = texture(relief_tex, up);
+		vec3 rn = normalize(rt.rgb * 2.0 - 1.0);
+		base_n = normalize(up + (rn - up * dot(rn, up)) * relief_tilt);
+		crest = (rt.a - 0.35) * relief;
+	}
 	vec3 alb = mix(sand_mid.rgb, sand_light.rgb, smoothstep(0.25, 0.85, n_big * 0.6 + n_mid * 0.4));
-	float slope = 1.0 - clamp(dot(wnorm, up), 0.0, 1.0);
+	float slope = 1.0 - clamp(dot(base_n, up), 0.0, 1.0);
 	alb = mix(alb, sand_shadow.rgb, smoothstep(0.15, 0.55, slope) * 0.45);
 
 	// Triplanar weights from the ground's up (not the dune's own slope, so a dune
@@ -177,12 +193,13 @@ void fragment() {
 	}
 	g3 *= flat_k * ripple_strength / 0.16;
 	g3 -= up * dot(g3, up);                     // along the ground only
-	vec3 nw = normalize(wnorm - g3);
+	vec3 nw = normalize(base_n - g3);
 	NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
 
 	// Troughs hold darker, coarser grains; crests catch the light.
 	alb *= 1.0 + rh * 0.07 * flat_k;
 	alb *= 0.94 + 0.12 * n_fine;
+	alb *= 1.0 + crest * relief_crest * 2.0;
 	// Blowing sand: brighter wisps over the surface, out to ~250 m, stronger on
 	// open flats than in the lee of steep faces.
 	float drift_flat = smoothstep(0.35, 0.05, slope);

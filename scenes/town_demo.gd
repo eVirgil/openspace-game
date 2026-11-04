@@ -396,13 +396,21 @@ func _terrain_far(budget_left: float) -> bool:
 	return (terrain as PlanetTerrain).refine_far_step(budget_left) if terrain is PlanetTerrain else true
 
 
-## A gas ball's ring (the planet's body.ring) round its centre, as its neighbours
-## draw it (SpaceTravel.make_ring), so nothing changes at the handoff.
+## A gas ball's air and ring (the planet's body.haze and body.ring) round its
+## centre, as its neighbours draw them (SpaceTravel.make_haze, make_ring), so
+## nothing changes at the handoff. The haze is the fog over the cloud tops.
 func _dress_gas_ring() -> void:
 	var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
 	var ring: Dictionary = planet.get("cfg", {}).get("body", {}).get("ring", {})
 	var r := float(planet.get("world", {}).get("terrain", {}).get("sphere_radius", 0.0))
-	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or ring.is_empty() or r <= 0.0:
+	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or r <= 0.0:
+		return
+	var hz := SpaceTravel.make_haze(Vector3(0, -r, 0), r - float(surf.get("depth", 0.0)),
+		PlanetTerrain.gas_look_for(planet).get("haze", {}))
+	if hz != null:
+		add_child(hz)
+		look.track_material(hz.material_override as ShaderMaterial)
+	if ring.is_empty():
 		return
 	var rmi := SpaceTravel.make_ring(Vector3(0, -r, 0), r, ring)
 	add_child(rmi)
