@@ -8,8 +8,9 @@ extends Node3D
 ##     which; after `turns` of his lines with neither, a Join / Refuse menu asks).
 ##     Join and he is gone from the cruiser (DarkPact.join). Refuse and he says
 ##     "Then I must destroy you." and fights. In free roam he only fights.
-##   - the barracks roof, facing the front gate, while the Remnant hold the planet
-##     (on the oath in a story save; always in free roam). On the oath he only
+##   - the barracks roof, facing the front gate: on the oath in a story save once
+##     the Remnant hold the barracks again, in free roam while they hold the
+##     planet (DarkPact.on_roof). On the oath he only
 ##     fights back, and killing him turns the Remnant on you.
 ## His blade hangs dark on his hip while he is at ease, in every mode; he draws and
 ## lights it the moment he is hostile and the fight is on (NpcBody.blade_drawn), and
