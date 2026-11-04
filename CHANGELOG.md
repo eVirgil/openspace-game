@@ -12,6 +12,69 @@ Plain English, newest on top. One entry per milestone.
   Ask him for an upgrade and he sends you to the gear trader.
 - Same at the ranches, which have both stalls.
 
+## Walk into the barracks: a corridor, the Remnant's office and a bunk room (2026-11-04)
+
+- **The barracks hall has a real front door** off the yard (the middle door; the
+  others are locked, with a red light). Inside, a corridor runs the length of
+  the hall with locked doors down both sides.
+- **The office is the cruiser's control room:** rows of consoles and screens,
+  red and blue light, and a holo table with the planet map spinning over it
+  (the port marked "here", the outposts in their owners' colours, the cruiser
+  in orbit, the moons).
+- **A bunk room** beside the way in: two rows of two-high bunks, footlockers and
+  lockers.
+- **Two Remnant troopers** walk a loop from the corridor into the office and
+  round the holo table. They are the town garrison's: they fight back and come
+  back like the rest.
+- **The rifle moved inside:** in a story save it is hidden in the office's
+  middle console. "[E] Search the console" takes it and finishes "Steal a
+  rifle". Oda, Skrugs and the quest point you there; the general warns you off,
+  and the fence and T-89 know the hall can be walked into.
+- **Alarm lights:** red lamps in the corridor, the office, the bunk room and over
+  the door pulse while the town alarm sounds and go dark on calm.
+- **Every barracks:** the square port, the round port and any generated town big
+  enough to have one. The roof riflemen and the bridge to the bunk tower are as
+  before.
+
+## The station's floors are furnished (issue #315, part 1, 2026-11-04)
+
+- **Two market floors.** Rings of market stalls round the walkway, with
+  canopies and wares, and an outer ring packed with shacks and booths. Lanes
+  stay clear to every tunnel door.
+- **The lower homes are a favela.** The main tower's homes floor is packed from
+  the walkway to the glass with shacks, booths and huts, back to back along
+  narrow alleys. A third of the shacks have another built on top, with a
+  ladder up. Cables with bulbs and washing lines cross the alleys.
+- **The upper homes are luxury suites.** The second tower's top floor has 8 big
+  suites dressed like the cantina's club and the party barge: wood panelling
+  with gold, neon, a bar with lit bottles, an aquarium, velvet booths under
+  chandeliers, a light-up dance floor, a piano, and a round bed under a gold
+  canopy by the window.
+- **The engine deck.** Two reactors glowing blue, two cargo holds stacked with
+  containers and crates (one has a sealed drop hatch in its floor), two pump
+  rooms and two workshops, with pipes round the walkway's ceiling.
+- **The frame rate holds.** A floor is drawn as a few dozen meshes, only while
+  you are on it or the floor just above or below. It is built a little each
+  frame while you arrive, so nothing stutters. No new lights or shadows.
+- Nobody lives there yet: the crowd, the shopkeepers and the workers come next.
+  The top floor and the outpost floor are still empty. The station's homes
+  studios (a lounge, kitchen and bedroom in a long room) are still in the code
+  for any floor's config to use.
+
+## Heists: hold the control room for a minute (2026-11-04)
+
+- **Hacking a console takes a minute now.** Hold [E] for 5 seconds to start
+  it, then stay within 25 m of the console for 60 seconds. You can leave the
+  console and fight from the room or the doorway. Go further than 25 m and
+  the hack drops, so you have to start it again. The stash drops when the
+  minute is up.
+- **The outpost sends a wave at you** when the hack starts: four soldiers
+  50 m out on the door's side, running in to kill you, and the outpost's
+  alarm goes up. Remnant outposts send barracks troopers, and the locals'
+  outposts send their guards. One wave per heist. They don't come back
+  when killed.
+- The prompt and the bar show the time left.
+
 ## Hijacking ships and speeders (2026-11-04)
 
 - **E by a ship or speeder someone else is in takes it.** Walk up (or ride up on
@@ -124,6 +187,16 @@ Plain English, newest on top. One entry per milestone.
 - **A cargo droid's hold stashes one at a time:** Enter stashes one of a stack,
   **Shift+Enter** stashes the whole stack, and each row has **Stash one** and
   **Stash all** buttons you can click. The hold stays open after each stash.
+
+## Step out of the station between its floors (2026-11-04)
+
+- **The glass round each elevator gap between floors is a shield now.** It keeps
+  the air in and lets you through. Jump the railing onto the gap's glass,
+  jetpack up through the hole in the ceiling, step out through the shield, and
+  you are outside on the roof of the floor below, under the next floor, out in
+  space.
+- **You stay out there.** The station only pulls you back in if you go off the
+  roof's edge, as on the tunnels' roof walks.
 
 ## New version is 1.6.1 (2026-11-04)
 

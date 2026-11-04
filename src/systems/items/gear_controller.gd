@@ -25,6 +25,7 @@ extends Node
 ##     the player's health; in a story save it is the desert guard's whole look,
 ##   - issue #210: a pickup can be "story_only", can sit "inside" a droid (no glow,
 ##     "[E] Open the cargo droid"), and reports its "event" to the story when taken.
+##     Issue #321: or inside a console (its "prompt": "[E] Search the console").
 ##   - the backpack (Inventory.room_for): picking up, buying and taking gear off
 ##     all need a free slot; the pistol always holds the first of five.
 ##   - wreck field: a supply crate on each crashed starcruiser's bridge platform
@@ -390,7 +391,7 @@ func prompt_text() -> String:
 		return ""
 	if focus.kind == "pickup":
 		if str(focus.node.pickup.get("inside", "")) != "":
-			return _l("open_droid")
+			return _l(str(focus.node.pickup.get("prompt", "open_droid")))   # issue #321: a console's "search_console"
 		if bool(focus.node.pickup.get("crate", false)):
 			return _l("open_crate")
 		var item: Dictionary = content.get_item(str(focus.node.pickup.get("item", "")))

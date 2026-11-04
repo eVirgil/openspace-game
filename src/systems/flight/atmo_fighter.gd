@@ -124,12 +124,8 @@ func _build_visual() -> void:
 		center = a.get_center()
 	hull = ShipHull.new()
 	hull.name = "ShipHull"
-	var cs := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	cs.shape = box
-	cs.position = center
-	hull.add_child(cs)
+	if acc[0] == null or not hull.fit(visual):
+		hull.fit_box(size, center)
 	visual.add_child(hull)
 	hull.on_damage = _on_hit
 

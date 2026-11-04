@@ -672,7 +672,7 @@ func _market(x0: float, stalls: int, merchants: int, sh: float, _opts: Dictionar
 
 func _barracks(x0: float, z0: float) -> void:
 	_box("barracks_hall", "barracks", "solid", [x0, 0, z0 + 2.0], [x0 + 30.0, 6.0, z0 + 20.0],
-		{ "look": "hall", "face": "-z", "style": "garrison" })
+		{ "look": "hall", "face": "-z", "style": "garrison", "interior": "barracks" })   # issue #321: you walk in (BarracksHall)
 	_core.append(Rect2(x0, z0, 30.0, 22.0))
 	_zones.append({ "id": "barracks", "min": [x0, z0], "max": [x0 + 30.0, z0 + 22.0] })
 

@@ -24,6 +24,9 @@
     "homes_market_side":  { "pos": [26.0, 2.0, -33.0], "target": [-10.0, 2.5, -56.0], "fov": 66.0 },
     "homes_tower_side":   { "pos": [26.0, 2.0, 33.0], "target": [-20.0, 9.0, 56.0], "fov": 70.0 },
     "barracks_front":     { "pos": [46.0, 2.0, 6.0], "target": [72.0, 6.0, 50.0], "fov": 68.0 },
+    "barracks_office":    { "pos": [75.7, 1.8, 57.9], "target": [71.3, 1.3, 66.7], "fov": 74.0, "note": "Issue #321: inside the barracks hall, the office from beside its doorway: consoles, screens and the holo table with the planet map." },
+    "barracks_bunks":     { "pos": [70.3, 1.7, 49.6], "target": [56.8, 0.9, 49.6], "fov": 76.0, "note": "Issue #321: the barracks bunk room from beside the way in, toward the lockers on its far wall." },
+    "barracks_corridor":  { "pos": [56.1, 1.7, 55.6], "target": [89.7, 1.4, 55.6], "fov": 70.0, "note": "Issue #321: the barracks corridor from one end: locked doors down both sides, the way in and the office's doorway half way." },
     "town_oblique":       { "pos": [150.0, 95.0, -150.0], "target": [0.0, 0.0, 0.0], "fov": 50.0 },
     "dunes_far":          { "pos": [0.0, 0.0, 0.0], "target": [0.0, 0.0, 0.0], "map": [1800.0, -900.0, 1.7, 2200.0, -1100.0, 3.0], "fov": 66.0 },
     "planet_high":        { "pos": [0.0, 1500.0, 2500.0], "target": [0.0, -400.0, -2500.0], "fov": 60.0 },
@@ -32,6 +35,9 @@
   "layouts": {
     "port_round": {
           "note": "Issue #237: the round port's own cameras (the home planet's layout); a shot not named here is the one above.",
+          "barracks_office": {"fov": 74.0, "pos": [87.1, 1.8, 62.5], "target": [82.7, 1.3, 70.7]},
+          "barracks_bunks": {"fov": 76.0, "pos": [86.1, 1.7, 54.3], "target": [99.6, 0.9, 54.3]},
+          "barracks_corridor": {"fov": 70.0, "pos": [67.1, 1.7, 60.1], "target": [111.7, 1.4, 60.1]},
           "top_down": {
                 "pos": [
                       0.0,

@@ -16,6 +16,10 @@ extends Node3D
 ## Heights over the ball are squeezed (holo.squeeze) so the 7 km orbit fits over a
 ## five metre table; the moon keeps its true direction at a set distance. Numbers, colours and lines: the cruiser data's
 ## "holo" block (content/core/cruiser/remnant_cruiser.json).
+##
+## Issue #321: the barracks office's holo table shows the same map (BarracksLook),
+## smaller, with "here_on": "town" (the port is "here", the cruiser just named);
+## its parent is in the world's frame, so `cruiser_frame` is only where the cruiser is.
 
 const SHADER := preload("res://src/systems/look/shaders/holo.gdshader")
 
@@ -74,7 +78,12 @@ func setup(cfg: Dictionary, sp: PlanetSphere, cruiser_frame: Transform3D, anchor
 	add_child(lamp)
 	# The port, at the top of the ball (the map's origin), and the Remnant's
 	# outposts, each coloured by who holds it.
-	_place(Territory.BARRACKS, _pin(sphere.map_dir(0.0, 0.0), owner_color(Territory.BARRACKS), 0.28, str(names.get("town", "")), true))
+	var here_line := str(spec.get("lines", {}).get("here", "%s"))
+	var here_town := str(spec.get("here_on", "cruiser")) == "town"
+	var town_name := str(names.get("town", ""))
+	if here_town and town_name != "":
+		town_name = here_line % town_name
+	_place(Territory.BARRACKS, _pin(sphere.map_dir(0.0, 0.0), owner_color(Territory.BARRACKS), 0.28, town_name, true))
 	for lm in world.get("landmarks", []):
 		var id := str(lm.get("id", ""))
 		if Story.OUTPOSTS.has(id):
@@ -87,22 +96,23 @@ func setup(cfg: Dictionary, sp: PlanetSphere, cruiser_frame: Transform3D, anchor
 			continue
 		var at := WorldGround._v3(lm.get("at", [0, 0, 0]))
 		_pin(sphere.map_dir(at.x, at.z), wreck_col, 0.16, str(spec.get("lines", {}).get("wreck", "")), false)
-	# The cruiser in its orbit, and the orbit itself.
-	var here := cruiser_frame.origin - sphere.center
-	var ccol := Color(str(spec.get("cruiser_color", "#ff3030")))
-	var ship := MeshInstance3D.new()
-	ship.name = "Cruiser"
-	var wedge := PrismMesh.new()
-	wedge.size = Vector3(0.09, 0.26, 0.04)
-	ship.mesh = wedge
-	ship.material_override = _mat(ccol, 3.0, 1.0, 0.6, 0.0, 0.0)
-	ship.position = here.normalized() * squeezed(here.length())
-	_turn.add_child(ship)
-	ship.look_at_from_position(ship.position, ship.position + _tangent(here), here.normalized())
-	ship.rotate_object_local(Vector3.RIGHT, -PI * 0.5)
-	_turn.add_child(_ring(here, squeezed(here.length()), ccol, 0.5))
-	var here_line := str(spec.get("lines", {}).get("here", "%s"))
-	_turn.add_child(_label(ship.position + here.normalized() * 0.2, here_line % str(names.get("cruiser", "")), ccol))
+	# The cruiser in its orbit, and the orbit itself (issue #321: not on a planet with none).
+	if not bool(spec.get("no_cruiser", false)):
+		var here := cruiser_frame.origin - sphere.center
+		var ccol := Color(str(spec.get("cruiser_color", "#ff3030")))
+		var ship := MeshInstance3D.new()
+		ship.name = "Cruiser"
+		var wedge := PrismMesh.new()
+		wedge.size = Vector3(0.09, 0.26, 0.04)
+		ship.mesh = wedge
+		ship.material_override = _mat(ccol, 3.0, 1.0, 0.6, 0.0, 0.0)
+		ship.position = here.normalized() * squeezed(here.length())
+		_turn.add_child(ship)
+		ship.look_at_from_position(ship.position, ship.position + _tangent(here), here.normalized())
+		ship.rotate_object_local(Vector3.RIGHT, -PI * 0.5)
+		_turn.add_child(_ring(here, squeezed(here.length()), ccol, 0.5))
+		var ship_name := str(names.get("cruiser", ""))
+		_turn.add_child(_label(ship.position + here.normalized() * 0.2, ship_name if here_town else here_line % ship_name, ccol))
 	# The moon (any child neighbour): its real direction, its distance squeezed.
 	var mcol := Color(str(spec.get("moon_color", "#a9b8ff")))
 	for m in moons:

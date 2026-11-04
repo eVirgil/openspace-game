@@ -1405,7 +1405,8 @@
    ],
    "look": "hall",
    "face": "-z",
-   "style": "garrison"
+   "style": "garrison",
+   "interior": "barracks"
   },
   {
    "id": "yard_wall_w",

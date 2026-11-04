@@ -1,8 +1,16 @@
 {
-  "note": "IP-neutral. Heists (issue #306): rob an outpost's control room. Read by src/systems/flow/heist.gd. Issue #309: the console in every outpost's control room (src/systems/world/outpost_room.gd). Hold [E] at it for hack.seconds and it drops hack.stash (count of item) at your feet, picked up like a smuggling drop (contraband: the gate's search finds it). It only has something to release while a heist names that outpost (WorldState.heist); otherwise it is locked. reach: metres from the spot in front of the console. The alarm is not touched: being seen raises it as usual and the hack keeps going. Issue #310: the jobs are on the board (content/core/board/bar_board.json: j_heist, the locals' side; j_general_heist, the Remnant's, free roam only). 'cut': the crew's share of the pay, off the top. 'hack_standing': on the hack, the side you robbed thinks a little less of you (the locals' heist costs Remnant standing, the general's costs the locals'). 'paid_standing': what the side that paid thinks of it. 'crew': who goes with you, by side: a soldier profile (content/core/soldiers), an assassin droid's variant (borrowed: it follows and fights like one of yours but is not in your roster, and goes home after), and the crew member's card (content/core/npcs/heist_crew_card.json). They keep 'follow' metres behind you, catch up past 'catch_up' (out of sight past 'rejoin'), and only shoot whoever is fighting you, within 'range' (so sneaking works with them along). 'barks' are their lines over their head.",
+  "note": "IP-neutral. Heists (issue #306): rob an outpost's control room. Read by src/systems/flow/heist.gd. Issue #309: the console in every outpost's control room (src/systems/world/outpost_room.gd). Hold [E] at it for hack.seconds to start the hack, then stay within hack.stay_m metres of the console for hack.run_s seconds (leave and the hack drops: start it again) and it drops hack.stash (count of item) at your feet, picked up like a smuggling drop (contraband: the gate's search finds it). It only has something to release while a heist names that outpost (WorldState.heist); otherwise it is locked. reach: metres from the spot in front of the console. When the hack starts, hack.wave sends a wave of the outpost's side (soldier, by whoever holds it): count of them, dist metres out from the console spread over arc_deg on the door's side, running in to kill you (the outpost's alarm goes up). One wave per heist; they never come back when killed. Issue #310: the jobs are on the board (content/core/board/bar_board.json: j_heist, the locals' side; j_general_heist, the Remnant's, free roam only). 'cut': the crew's share of the pay, off the top. 'hack_standing': on the hack, the side you robbed thinks a little less of you (the locals' heist costs Remnant standing, the general's costs the locals'). 'paid_standing': what the side that paid thinks of it. 'crew': who goes with you, by side: a soldier profile (content/core/soldiers), an assassin droid's variant (borrowed: it follows and fights like one of yours but is not in your roster, and goes home after), and the crew member's card (content/core/npcs/heist_crew_card.json). They keep 'follow' metres behind you, catch up past 'catch_up' (out of sight past 'rejoin'), and only shoot whoever is fighting you, within 'range' (so sneaking works with them along). 'barks' are their lines over their head.",
   "hack": {
     "seconds": 5.0,
     "reach": 1.4,
+    "run_s": 60.0,
+    "stay_m": 25.0,
+    "wave": {
+      "count": 4,
+      "dist": 50.0,
+      "arc_deg": 150.0,
+      "soldier": { "remnant": "yard_trooper", "locals": "local_guard" }
+    },
     "stash": { "item": "refined_quantonium", "count": 15 }
   },
   "cut": 0.2,
@@ -30,8 +38,11 @@
   },
   "lines": {
     "locked": "The console is locked. Nothing on it worth taking.",
-    "ready": "[E] Hold to hack the console (%d s)",
-    "hacking": "Hacking the console...  %d%%",
+    "ready": "[E] Hold to start the hack (%d s)",
+    "hacking": "Starting the hack...  %d%%",
+    "started": "The hack is running. Stay within %d m of the console for %d s. They're sending people.",
+    "running": "Hacking...  %d s left. Stay within %d m of the console.",
+    "broken": "You left the console. The hack dropped; start it again.",
     "wiped": "The console is wiped. Nothing left on it.",
     "hacked": "The console gives up its stash: %d flasks of %s.",
     "log_hacked": "Hacked the control room console at %s.",

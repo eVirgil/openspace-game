@@ -2,6 +2,44 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the station's furniture (2026-11-04)
+
+**Checked:** a rendered probe on the Mac (Vulkan) at fixed spots aboard and
+outside, on main and on this branch back to back, and stills of every floor and
+room type; `test_smoke` and a headless boot. Nothing was played by hand.
+
+- **Nobody is aboard yet.** The stalls and booths have no keepers and sell
+  nothing; the favela, the suites and the engine deck are empty of people
+  (#315's crowd).
+- **The favela's shacks are solid boxes.** You cannot go inside one; you can
+  jetpack onto the roofs.
+- **The drop hatch is sealed.** It is drawn in the first cargo hold's floor and
+  opens with the wrecks below (#317).
+- **The top floor and the outpost floor are empty** (#314).
+- **A floor two away is empty glass.** Only the floor the camera is on and the
+  ones just above and below are drawn, so looking down the glass middle you see
+  bare floors further down.
+- **Plain walls.** The rooms are the hull's one wall finish, and much of the
+  furniture is plain shapes in flat colours: a textures and lighting pass would
+  help, the suites most of all (no light of their own, only glowing materials).
+- **Without the look layer there is no furniture** (and none of its colliders).
+
+## After ship hulls that follow the model (2026-11-04)
+
+**Checked:** test_smoke, a headless town boot with the models on (every parked
+ship, the barracks interceptor and the outpost ships carry 48 to 95 convex
+pieces, no box), and stills of the four flyable ships with their hull drawn over
+them. No other suites were run, and it was not played.
+
+- **The hull is a little fuller than the model.** Each ~1.2 m cell of the mesh is
+  wrapped in one convex piece, so a dip smaller than a cell (between two engine
+  pods, under a canopy lip) is filled in. Smaller `hull_fit.cell` follows closer
+  for more pieces.
+- **A friend's ship in space is still hit as a sphere** and the fight's own
+  ships still by distance; only bolts that the physics world carries (the
+  town's sky, a parked ship) see the new shape.
+- **An upgrade T-89 bolts on mid-game** (`ShipPilot.refit`) is not in that
+  ship's hull until the next load, as it was not in its box.
 ## After hijacking (2026-11-04)
 
 **Checked:** a two-process loopback probe, run by hand and not added to the repo
@@ -43,6 +81,18 @@ built every other planet's look headless. Not flown on screen.
 - **Only planets round the same parent are listed.** Every planet today is near
   home; a moon of a moon would not see its grandparent's other children.
 
+## After the shields round the station's gaps (2026-11-04)
+
+**Checked:** `test_smoke`, `test_station` (15/15), and a rendered probe on the
+giant: a ray through the shield hits nothing, the floor's roof is solid, and
+standing out there for 2 s leaves you there. Nothing was played by hand: the
+jump over the railing and the jetpack up through the ceiling were not tried.
+
+- **No railing round a floor's roof.** Walk off its edge and you are pulled
+  back into the bay.
+- **The elevator's own glass shaft is still solid** (it is the car's), so you
+  step out from the gap round it, not from the car.
+
 ## After the LAN guest's cruiser crash fix (2026-11-04)
 
 **Checked:** a two-process loopback probe (host and guest towns, the guest flies
@@ -70,6 +120,9 @@ passed, and I did not chase it.
 
 - **Each player gets their own heist crew.** The crew member and the borrowed
   droid follow whoever's game they are in, and the others do not see them.
+- **A guest who hacks a console gets no wave.** The wave is made in the game
+  of whoever starts the hack, and a guest's town only shows the host's people,
+  so a guest's hack runs its minute with nobody sent at them.
 - **Only the jobs are shared, not the outposts.** Who holds each outpost, the
   resupply quests and the optional quests stay each game's own, so a guest can
   carry supplies to an outpost the host's game thinks someone else holds.

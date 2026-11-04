@@ -46,6 +46,7 @@ var crate_woods: Array = []   ## issue #355: plank crates in three woods (StallT
 var crate_band: Material      ## and the painted iron bands round them
 
 var solid := false            ## issue #55: while on, `put` parts also collide (see flush)
+var clutter := true           ## pots, jars and crates by the doors (off on the space station)
 var solids := 0               ## colliders the last flush made (tests, review)
 var _groups := {}             ## "mesh:mat" -> [mesh, mat, Array[Transform3D]]
 var _solids: Array = []        ## [Transform3D, Vector3 size] per solid box part
@@ -218,7 +219,8 @@ const AXIS_Z := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))   #
 
 ## The rounded sci-fi door. `at` is a frame on the wall face: +X out of the wall,
 ## origin at the foot of the door. Scale 1 is 1.5 m wide, 2.35 m to the arch top.
-func door(at: Transform3D, s: float = 1.0, open: bool = false) -> void:
+## Issue #321: `locked` lights it red (a door that never opens).
+func door(at: Transform3D, s: float = 1.0, open: bool = false, locked: bool = false) -> void:
 	var w := 1.5 * s
 	var hr := 1.6 * s
 	var r := w * 0.5
@@ -238,8 +240,9 @@ func door(at: Transform3D, s: float = 1.0, open: bool = false) -> void:
 	_at(at, cyl(pr, pr, 0.3, 20), panel, Vector3(-0.1, hr, 0), AXIS_X)
 	_at(at, box(0.02, hr + pr * 0.9, 0.035), seam, Vector3(0.055, (hr + pr * 0.9) * 0.5, 0))
 	# The light: a bar across the arch and a status dot on the frame.
-	_at(at, box(0.04, 0.07 * s, pw * 0.6), door_glow, Vector3(0.065, hr + pr * 0.45, 0))
-	_at(at, ball(0.06 * s, 0.12 * s, false, 8), door_glow, Vector3(0.25, hr * 0.55, r - jw * 0.5))
+	var light := beacon_glow if locked else door_glow
+	_at(at, box(0.04, 0.07 * s, pw * 0.6), light, Vector3(0.065, hr + pr * 0.45, 0))
+	_at(at, ball(0.06 * s, 0.12 * s, false, 8), light, Vector3(0.25, hr * 0.55, r - jw * 0.5))
 	_at(at, box(0.6, 0.1, w + 0.3), trim, Vector3(0.3, 0.05, 0))          # step
 
 
@@ -247,12 +250,10 @@ func door(at: Transform3D, s: float = 1.0, open: bool = false) -> void:
 func arch(r_in: float, r_out: float, depth: float) -> ArrayMesh:
 	var k := "a%.2f_%.2f_%.2f" % [r_in, r_out, depth]
 	if not _meshes.has(k):
-		var flat := LookMeshKit.ring_segment(r_in, r_out, -depth * 0.5, depth * 0.5, -PI * 0.5, PI * 0.5, 14)
-		# The ring lies in XZ around Y; turn it so Y runs along X and X points up.
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		st.append_from(flat, 0, Transform3D(AXIS_X, Vector3.ZERO))
-		_meshes[k] = st.commit()
+		# The ring lies in XZ around Y; turned as it is built so Y runs along X and X
+		# points up (not read back and turned: that waits on the GPU).
+		_meshes[k] = LookMeshKit.ring_segment(r_in, r_out, -depth * 0.5, depth * 0.5, -PI * 0.5, PI * 0.5, 14,
+			Transform3D(AXIS_X, Vector3.ZERO))
 	return _meshes[k]
 
 
@@ -341,7 +342,29 @@ func build(b: Dictionary) -> bool:
 	return true
 
 
+## Draw look `b.look` in frame `at` (y up, local +X its door side, its base on the
+## origin), `lx` deep along X, `lz` wide: a building that is not a town box (the
+## space station's market huts, which stand on round floors at any angle).
+func build_at(b: Dictionary, at: Transform3D, lx: float, lz: float, h: float) -> bool:
+	var kind := str(b.get("look", ""))
+	if not has_method("_look_" + kind):
+		return false
+	_xf = at
+	_rng.seed = hash(str(b.get("id", "")))
+	call("_look_" + kind, b, lx, lz, h)
+	built[kind] = int(built.get(kind, 0)) + 1
+	return true
+
+
+## A box collider of `size` centred on `at`, given out with the props at the next
+## flush (a part drawn some other way that still has to be solid).
+func add_collider(at: Transform3D, size: Vector3) -> void:
+	_solids.append([at, size])
+
+
 func _plaster(b: Dictionary, band_y: float) -> Material:
+	if b.get("wall_mat") is Material:              # a wall material of the caller's (the station's grey metal)
+		return b.wall_mat
 	if str(b.get("style", "")) == "garrison":       # issue #393: repainted with the barracks' owner
 		return mats.faction_plaster(0.0, band_y, "band", Color("#cbb594"))
 	if str(b.get("style", "")) == "gray_garrison":  # the moon's metal barracks: the gray homes' look, repainted too
@@ -490,11 +513,19 @@ func _look_shop(b: Dictionary, lx: float, lz: float, h: float) -> void:
 
 
 ## Barracks hall: long, buttressed, three big doors onto the yard, a window in every other bay.
+## Issue #321: a hall with an interior (BarracksHall) is walls and a roof round a
+## real doorway, the door bay nearest the middle (an open frame); its other doors
+## are locked (a red light).
 func _look_hall(b: Dictionary, lx: float, lz: float, h: float) -> void:
 	var mat := _plaster(b, 1.4)
 	const LEAN := 0.02
-	part(frustum(lx, lz, h, LEAN), mat, Vector3(0, h * 0.5, 0))
-	part(box(lx + 0.4, 0.6, lz + 0.4), trim, Vector3(0, 0.3, 0))
+	var walk_in := BarracksHall.is_hall(b)
+	var dz := BarracksHall.door_z(lz) if walk_in else INF
+	if walk_in:
+		_hall_shell(lx, lz, h, mat, dz)
+	else:
+		part(frustum(lx, lz, h, LEAN), mat, Vector3(0, h * 0.5, 0))
+		part(box(lx + 0.4, 0.6, lz + 0.4), trim, Vector3(0, 0.3, 0))
 	parapet(lx * (1.0 - LEAN) + 0.3, lz * (1.0 - LEAN) + 0.3, h, 0.7, mat)
 	var bays := int(lz / 5.0)
 	var bay := lz / bays
@@ -503,12 +534,41 @@ func _look_hall(b: Dictionary, lx: float, lz: float, h: float) -> void:
 	for i in bays:
 		var z := -lz * 0.5 + (i + 0.5) * bay
 		if i % 2 == 1:
-			door(on_wall(lx * 0.5 - 0.02, 0, z), 1.35)
+			if walk_in and absf(z - dz) < 0.01:
+				var ds := BarracksHall.n("door_scale", 1.6)
+				door(on_wall(lx * 0.5, 0, z), ds, true)
+				part(box(0.9, 0.12, 2.4 * ds), trim, Vector3(lx * 0.5 + 0.35, 2.35 * ds + 0.35, z))
+				continue
+			door(on_wall(lx * 0.5 - 0.02, 0, z), 1.35, false, walk_in)
 			part(box(0.9, 0.12, 2.6), trim, Vector3(lx * 0.5 + 0.35, 3.4, z))
 		else:
 			window(on_wall(lx * 0.5, 3.4, z), 2.0, 0.8)
 	for i in 3:
 		antennas(Vector3(-lx * 0.38, h, -lz * 0.36 + i * lz * 0.36), 4.5 + i * 0.8, PI * 0.5)
+
+
+## A walk-in hall's outside: walls of BarracksHall's thickness with a gap for the
+## way in at `dz`, the roof slab, and the plinth round the foot (open at the door).
+func _hall_shell(lx: float, lz: float, h: float, mat: Material, dz: float) -> void:
+	var w := BarracksHall.n("wall", 0.3)
+	var g := BarracksHall.gap(BarracksHall.n("door_scale", 1.6))
+	part(box(w, h, lz), mat, Vector3(-lx * 0.5 + w * 0.5, h * 0.5, 0))
+	for s: float in [-1.0, 1.0]:
+		part(box(lx - 2.0 * w, h, w), mat, Vector3(0, h * 0.5, s * (lz * 0.5 - w * 0.5)))
+	var z0 := dz - g.x * 0.5
+	var z1 := dz + g.x * 0.5
+	var fx := lx * 0.5 - w * 0.5
+	part(box(w, h, z0 + lz * 0.5), mat, Vector3(fx, h * 0.5, (z0 - lz * 0.5) * 0.5))
+	part(box(w, h, lz * 0.5 - z1), mat, Vector3(fx, h * 0.5, (z1 + lz * 0.5) * 0.5))
+	part(box(w, h - g.y, g.x), mat, Vector3(fx, (h + g.y) * 0.5, dz))
+	part(box(lx - 2.0 * w, w, lz - 2.0 * w), mat, Vector3(0, h - w * 0.5, 0))
+	# The plinth, 0.2 m proud of the walls.
+	var e := lz * 0.5 - 0.2                     # the end strips' inner edge
+	part(box(0.4, 0.6, 2.0 * e), trim, Vector3(-lx * 0.5, 0.3, 0))
+	for s: float in [-1.0, 1.0]:
+		part(box(lx + 0.4, 0.6, 0.4), trim, Vector3(0, 0.3, s * lz * 0.5))
+	part(box(0.4, 0.6, z0 + e), trim, Vector3(lx * 0.5, 0.3, (z0 - e) * 0.5))
+	part(box(0.4, 0.6, e - z1), trim, Vector3(lx * 0.5, 0.3, (z1 + e) * 0.5))
 
 
 ## The block stacked on the hall roof: a row of windows, relays on top.
@@ -582,6 +642,8 @@ func _look_cistern(b: Dictionary, lx: float, _lz: float, h: float) -> void:
 
 ## Barrels, crates and jars against the wall beside the door (huts only).
 func _door_clutter(wall_x: float, door_z: float, lz: float) -> void:
+	if not clutter:
+		return
 	if _rng.randf() < 0.35:
 		return
 	var z := door_z - 1.35 if door_z - 1.35 > -lz * 0.5 + 0.35 else door_z + 1.35

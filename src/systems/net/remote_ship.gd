@@ -22,7 +22,7 @@ var peer_id := 0
 var look_id := ""
 var model: Node3D
 var tag: Label3D
-var hull: ShipHull                ## a box round the model, solid only while they fly it
+var hull: ShipHull                ## the model's own shape, solid only while they fly it
 var flying := false               ## their last packet: in the air (or out in space)
 var player_name := ""             ## whose it is
 var hull_frac := 1.0              ## their last packet: hull left, 0..1 (the HUD's bar)
@@ -58,7 +58,7 @@ func _build() -> void:
 	_build_hull()
 
 
-## The hull box from the model's bounds, as ShipPilot sizes its own.
+## The hull fitted to the model, as ShipPilot fits its own (a box if it has no meshes).
 func _build_hull() -> void:
 	if hull != null:
 		hull.queue_free()
@@ -69,12 +69,8 @@ func _build_hull() -> void:
 	hull = ShipHull.new()
 	hull.name = "ShipHull"
 	hull.on_damage = _on_hit
-	var cs := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = box.size
-	cs.shape = shape
-	cs.position = box.get_center()
-	hull.add_child(cs)
+	if acc[0] == null or not hull.fit(model):
+		hull.fit_box(box.size, box.get_center())
 	add_child(hull)
 	_set_solid()
 
