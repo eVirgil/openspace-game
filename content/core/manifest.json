@@ -15,7 +15,7 @@
   "towns": ["port_square", "port_round"],
   "pickups": ["port_town", "grit_station_town"],
   "worlds": ["port_desert"],
-  "planets": ["port_desert", "grit_station"],
+  "planets": ["port_desert", "grit_station", "cinder_station"],
   "names": ["config", "people", "craft", "places", "tongues", "kinds"],
   "notes": "All names and labels live in this layer only. Code references entries by id.",
   "species": ["dune_nomads", "desert_folk", "frost_folk"],
