@@ -59,6 +59,18 @@ built every other planet's look headless. Not flown on screen.
 - **Only planets round the same parent are listed.** Every planet today is near
   home; a moon of a moon would not see its grandparent's other children.
 
+## After the shields round the station's gaps (2026-11-04)
+
+**Checked:** `test_smoke`, `test_station` (15/15), and a rendered probe on the
+giant: a ray through the shield hits nothing, the floor's roof is solid, and
+standing out there for 2 s leaves you there. Nothing was played by hand: the
+jump over the railing and the jetpack up through the ceiling were not tried.
+
+- **No railing round a floor's roof.** Walk off its edge and you are pulled
+  back into the bay.
+- **The elevator's own glass shaft is still solid** (it is the car's), so you
+  step out from the gap round it, not from the car.
+
 ## After the LAN guest's cruiser crash fix (2026-11-04)
 
 **Checked:** a two-process loopback probe (host and guest towns, the guest flies

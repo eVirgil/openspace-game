@@ -129,6 +129,16 @@ Plain English, newest on top. One entry per milestone.
   **Shift+Enter** stashes the whole stack, and each row has **Stash one** and
   **Stash all** buttons you can click. The hold stays open after each stash.
 
+## Step out of the station between its floors (2026-11-04)
+
+- **The glass round each elevator gap between floors is a shield now.** It keeps
+  the air in and lets you through. Jump the railing onto the gap's glass,
+  jetpack up through the hole in the ceiling, step out through the shield, and
+  you are outside on the roof of the floor below, under the next floor, out in
+  space.
+- **You stay out there.** The station only pulls you back in if you go off the
+  roof's edge, as on the tunnels' roof walks.
+
 ## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New

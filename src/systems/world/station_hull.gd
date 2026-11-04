@@ -3,7 +3,8 @@ extends RefCounted
 ## A space station you fly to, land in and walk round (the plan on issue #311:
 ## docs/station/nitrogen_belt_plan.svg). Two towers of tall round floors, the top
 ## floor the biggest, open space between floors, an elevator up the middle of
-## each tower in a glass tube, glass-walled tunnels between the towers and a
+## each tower in a glass tube (and round the gap, a shield you can pass between
+## floors), glass-walled tunnels between the towers and a
 ## covered landing bay at the end of its own tunnel.
 ##
 ## A component, not part of any planet: everything is one config file
@@ -52,6 +53,7 @@ var bay: Dictionary = {}           ## { xf (x out to the mouth), c, dir, r, mout
 var parts: Array = []
 var doors: Array = []              ## { tower, floor (index), xf, size }: the shaft's doors, opened by SpaceStation
 var hatches: Array = []            ## { tunnel, xf, size }: the shield in each tunnel's roof (you pass, the air does not)
+var tubes: Array = []              ## { tower, floor (index), c, r, y0, y1 }: the shield round the gap between two floors (SpaceStation draws it)
 var _built := false
 
 
@@ -326,7 +328,7 @@ static func bridge_angles(floor_index: int) -> Array:
 	return [PI * 0.5, PI * 1.5] if floor_index % 2 == 0 else [0.0, PI]
 
 
-## Inside the walkable interior (a floor, the shaft and tube, a tunnel, the bay), in
+## Inside the walkable interior (a floor, the shaft and the gap's tube, a tunnel, the bay), in
 ## the station's frame.
 func aboard(local: Vector3) -> bool:
 	for t in towers:
@@ -481,6 +483,7 @@ func _build() -> void:
 	parts = []
 	doors = []
 	hatches = []
+	tubes = []
 	for t in towers:
 		var fl: Array = t.floors
 		for i in fl.size():
@@ -562,7 +565,7 @@ func _radial(pid: String, c: Vector2, a: float, r0: float, r1: float, y0: float,
 
 
 ## One round floor of tower `t`: its plate, the glass floor over the gap, the
-## ceiling (and the tube up to the next floor, or the skylight on top), the glass
+## ceiling (and the shield round the gap up to the next floor, or the skylight on top), the glass
 ## outer wall with doors to its tunnels, the railing and bridges round the gap,
 ## the elevator shaft with its doors, and the rooms.
 func _floor(t: Dictionary, i: int) -> void:
@@ -588,8 +591,12 @@ func _floor(t: Dictionary, i: int) -> void:
 		_ring(pre + "_skylight", c, shaft_r, gap_r, ceil_y, ceil_y + 0.3, "solid", "glass", [], 24)
 		_ring(pre + "_shaft_cap", c, 0.0, shaft_r, ceil_y, ceil_y + plate, "solid", "hull", [], 12)
 	else:
+		# Round the gap between this floor and the next: a shield, not glass. It keeps
+		# the air in and lets you through: jump the railing onto the gap's glass,
+		# jetpack up through the ceiling's hole and out through the shield, and you
+		# are outside on this floor's roof (on_roof), as on a tunnel's roof walk.
 		var next_y := float(fl[i + 1].y) - plate
-		_ring(pre + "_tube", c, gap_r - GLASS * 0.5, gap_r + GLASS * 0.5, ceil_y, next_y, "solid", "glass", [], 32)
+		tubes.append({ "tower": str(t.id), "floor": i, "c": c, "r": gap_r, "y0": ceil_y, "y1": next_y })
 		for k in 3:
 			var ry := ceil_y + plate + (next_y - ceil_y - plate) * (k + 1) / 4.0
 			_ring(pre + "_tube_rib_%d" % k, c, gap_r + 0.15, gap_r + 0.45, ry - 0.2, ry + 0.2, "decor", "trim", [], 32)
@@ -767,13 +774,22 @@ func _tunnel(tn: Dictionary) -> void:
 			box.call("rib_%d_%d" % [k, int(s)], Vector3(x, h * 0.5, s * (w * 0.5 + 0.45)), Vector3(0.5, h + 0.6, 0.3), "decor", "trim")
 
 
-## Out on a tunnel's roof walk (the station's frame): between its railings, up to
-## a few metres over it. Not aboard (you are outside), but not fallen out either.
+## Out on a tunnel's roof walk (between its railings, up to a few metres over it)
+## or on a floor's roof, in the open space under the next floor (through the gap's
+## shield): the station's frame. Not aboard (you are outside), but not fallen out
+## either.
 func on_roof(local: Vector3) -> bool:
 	for tn in tunnels:
 		var l := (tn.xf as Transform3D).affine_inverse() * local
 		if l.x >= -1.0 and l.x <= float(tn.length) + 1.0 and absf(l.z) <= tunnel_w * 0.5 + 1.0 \
 				and l.y >= tunnel_h - 0.5 and l.y <= tunnel_h + 6.0:
+			return true
+	for tb in tubes:
+		var t := tower(str(tb.tower))
+		var f: Dictionary = t.floors[int(tb.floor)]
+		var c: Vector2 = tb.c
+		if Vector2(local.x - c.x, local.z - c.y).length() <= float(f.r) + 0.5 \
+				and local.y >= float(tb.y0) + plate - 0.5 and local.y <= float(tb.y1) + 0.5:
 			return true
 	return false
 

@@ -1620,6 +1620,15 @@ Every significant technical choice, the alternative, and why. Newest on top.
   direction with you aboard, comes to the floor you stand on, and the shaft's
   doors open only where it has stopped.
 
+## The gaps between the station's floors are shields, not glass (2026-11-04)
+
+- **The same shield as the tunnels' roof hatches.** No collider, only the look
+  (StationHull.tubes, drawn by SpaceStation), so you can leave the inside of the
+  station between floors and stand on a floor's roof. `StationHull.on_roof`
+  counts a floor's roof as outside but not fallen, as it already did a tunnel's
+  roof walk, so the fall guard leaves you there. The elevator shaft's own glass
+  stays solid: it is what keeps the car's riders in.
+
 ## 2026-11-04 — A ship's hull is convex pieces fitted at load, not one box
 
 - **Grid cells, each wrapped.** `ShipHull.fit` cuts the model's mesh into a grid
