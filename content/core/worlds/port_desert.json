@@ -168,6 +168,52 @@
       "clear": 45
     },
     {
+      "id": "remnant_outpost_saltpan",
+      "kind": "location",
+      "location": "remnant_outpost_saltpan",
+      "note": "Ranch villages: three walled yards, each a Remnant outpost with a few houses, four merchant stands (gear, food, the fence, droids; no speeders) and armed locals round a fire. Two far out on the side away from the wreck field, past the barge and the droid ridge, the third out east between the second and third wrecks. 3.5 to 4.5 km from the port: well below its horizon, and past the 1500 m the ranches draw their buildings to (src/systems/world/ranches.gd), so nothing of them is drawn at the start. Each is two landmarks at the same spot: the outpost (remnant_outpost_<name>, one of Story.OUTPOSTS) and the ranch round it (ranch_<name>). Turned so the gate (+x) faces the port.",
+      "at": [-3300, 0, 1100],
+      "yaw_deg": 18.4,
+      "clear": 60
+    },
+    {
+      "id": "ranch_saltpan",
+      "kind": "location",
+      "location": "ranch_saltpan",
+      "at": [-3300, 0, 1100],
+      "yaw_deg": 18.4
+    },
+    {
+      "id": "remnant_outpost_windbreak",
+      "kind": "location",
+      "location": "remnant_outpost_windbreak",
+      "at": [-2900, 0, -2400],
+      "yaw_deg": -39.6,
+      "clear": 60
+    },
+    {
+      "id": "ranch_windbreak",
+      "kind": "location",
+      "location": "ranch_windbreak",
+      "at": [-2900, 0, -2400],
+      "yaw_deg": -39.6
+    },
+    {
+      "id": "remnant_outpost_hullside",
+      "kind": "location",
+      "location": "remnant_outpost_hullside",
+      "at": [4500, 0, -120],
+      "yaw_deg": 181.5,
+      "clear": 60
+    },
+    {
+      "id": "ranch_hullside",
+      "kind": "location",
+      "location": "ranch_hullside",
+      "at": [4500, 0, -120],
+      "yaw_deg": 181.5
+    },
+    {
       "id": "mechanic_yard",
       "kind": "location",
       "location": "mechanic_yard",

@@ -19,6 +19,7 @@
   "pins": {
     "port": { "shape": "star", "color": "#f2e2b0" },
     "remnant_outpost": { "shape": "triangle", "color": "#e0573a" },
+    "village": { "shape": "square", "color": "#e0573a" },
     "outpost": { "shape": "triangle", "color": "#a89a80" },
     "droid_merchant_outpost": { "shape": "diamond", "color": "#5ec8e8" },
     "post": { "shape": "square", "color": "#e8c050" },
