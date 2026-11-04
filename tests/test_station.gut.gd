@@ -355,16 +355,24 @@ func test_a_save_loaded_on_the_giant_starts_you_in_the_bay() -> void:
 	assert_almost_eq(Vector2(home.x, home.z).distance_to(Vector2(pad.x, pad.z)), 0.0, 1.5, "your ship waits on the dock pad")
 
 
-func test_falling_out_puts_you_back_in_the_bay() -> void:
+## The giant's air is breathable: outside the station (out between the floors)
+## you are left there, with no armour and no harm; drop toward the clouds and you
+## are pulled back into the bay.
+func test_outside_is_breathable_and_dropping_toward_the_clouds_puts_you_back_in_the_bay() -> void:
 	var t = _host()
 	var s = await _station(t)
 	if s == null:
 		fail_test("no station")
 		return
+	assert_true(s.open_air, "the giant's air is breathable")
+	assert_null(t.harmful_surface, "no armour needed")
 	var p = t._player
 	p.global_position = s.frame * (s.hull.spawn_point() + Vector3(0, 0.5, 0))
 	await wait_physics_frames(3)
 	p.global_position = s.frame * Vector3(30, 20, 0)       # out between the floors
+	await wait_physics_frames(3)
+	assert_eq(s.falls, 0, "left outside")
+	p.global_position = s.frame * Vector3(30, s.hull.bottom_y() - 80.0, 0)   # falling toward the clouds
 	await wait_physics_frames(3)
 	assert_eq(s.falls, 1)
 	assert_true(s.aboard(p.global_position), "back aboard")

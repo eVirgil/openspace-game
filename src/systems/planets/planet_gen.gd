@@ -326,6 +326,7 @@ static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 		"dark": Color(str(body.get("dark", "#504030"))),
 		"bands": float(body.get("bands", 0.0)),          # > 0: banded like the sky painting
 		"ring": body.get("ring", {}),                     # { inner, outer, color, normal }, radii
+		"haze": body.get("haze", {}),                     # a gas ball's air: SpaceTravel.make_haze
 		"relief": str(body.get("relief", "")),            # its dunes as a flat print (a cubemap), or ""
 		"relief_tilt": float(body.get("relief_tilt", 1.0)),
 		"relief_crest": float(body.get("relief_crest", 0.12)),

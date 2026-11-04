@@ -45,8 +45,13 @@ save loaded on the giant starting you in the bay), the giant's tests in
 tests/test_planets.gut.gd, test_smoke, test_ip_neutral, and stills. Flown by
 hand once before the station moved in.
 
-- **The clouds look like a smooth tan plain up close,** not clouds; the side
-  away from the sun is very dark.
+- ~~The clouds look like a smooth tan plain up close~~: fixed (2026-11-04), the
+  haze shell and fog billows. Still: the fog is a look, not a volume. Clouds
+  never pass between you and the station, and the cloud tops are one smooth
+  height, with no towers of cloud to fly round.
+- **Outside the station on the giant** (breathable, 2026-11-04) you are pulled
+  back into the bay once you drop 40 m under its lowest floor. Nothing tells you
+  you are close to that line before it happens.
 - **No space fight on the way out** (`encounter: ""`): a fight's flight does not
   check the clouds, so a ship could dive into them mid-fight and live.
 - **The ring is a look only.** No rocks in it yet (#312's belt), nothing to hit.

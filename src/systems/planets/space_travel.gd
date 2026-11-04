@@ -21,6 +21,7 @@ const CAPTURE := 400.0               ## metres outside a body's radius that coun
 const HYSTERESIS := 300.0            ## issue #99: leaving needs this much more than arriving
 const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
 const RING_SHADER := preload("res://src/systems/look/shaders/gas_ring.gdshader")
+const HAZE_SHADER := preload("res://src/systems/look/shaders/gas_haze.gdshader")
 const PREWARM := 1500.0              ## this far before a handoff, its scene's far mesh starts on worker threads
 
 var pilot                            ## ShipPilot
@@ -30,7 +31,7 @@ var change := true                   ## false: decide but do not change scene (t
 var _layer: CanvasLayer
 var _labels: Dictionary = {}         ## id -> Label
 var _sand_bodies: Array = []         ## sand ShaderMaterials of ball neighbours (the sun is tracked)
-var _gas_mats: Array = []            ## the ringed giant's ball and ring materials (sun, daylight, haze)
+var _gas_mats: Array = []            ## the ringed giant's ball, haze and ring materials (sun, daylight, haze)
 var _look = null                     ## the scene's LookEnvironment, once ready
 var self_radius := 0.0               ## issue #99: this planet's ball, and how far up its scene still holds
 var self_handoff := 0.0
@@ -317,17 +318,69 @@ func _gas_body(n: Dictionary) -> Node3D:
 	m.set_shader_parameter("color_b", n.dark)
 	m.set_shader_parameter("bands", float(n.bands))
 	m.set_shader_parameter("ring_normal", rn)
+	set_gas_fog(m, n.get("haze", {}), seen.radius)
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.extra_cull_margin = r
 	root.add_child(mi)
 	_gas_mats.append(m)
+	var hz := make_haze(n.at, seen.radius, n.get("haze", {}))
+	if hz != null:
+		root.add_child(hz)
+		hz.position = Vector3.ZERO
+		_gas_mats.append(hz.material_override)
 	if not ring.is_empty():
 		var rmi := make_ring(n.at, r, ring)
 		root.add_child(rmi)
 		rmi.position = Vector3.ZERO
 		_gas_mats.append(rmi.material_override)
 	return root
+
+
+## A gas giant's air (gas_haze.gdshader): a shell `haze.top` metres over its cloud
+## tops (radius cloud_r) round `center`, thickening down to them: a soft glowing
+## edge from space, and fog over the clouds up close. The same in its neighbours'
+## sky and its own scene, so nothing jumps at the handoff. null when the planet's
+## body has no haze. Placed at `center` in world space (its parent at the origin).
+static func make_haze(center: Vector3, cloud_r: float, haze: Dictionary) -> MeshInstance3D:
+	if haze.is_empty():
+		return null
+	var top := float(haze.get("top", 3000.0))
+	var sm := SphereMesh.new()
+	sm.radius = cloud_r + top
+	sm.height = 2.0 * (cloud_r + top)
+	sm.radial_segments = 96
+	sm.rings = 48
+	var mi := MeshInstance3D.new()
+	mi.name = "Haze"
+	mi.mesh = sm
+	mi.position = center
+	var m := ShaderMaterial.new()
+	m.shader = HAZE_SHADER
+	m.render_priority = -1              # under the ring, the station's glass and shields
+	m.set_shader_parameter("center", center)
+	m.set_shader_parameter("cloud_r", cloud_r)
+	m.set_shader_parameter("top", top)
+	for k in ["low_density", "low_height", "high_density", "high_height"]:
+		if haze.has(k):
+			m.set_shader_parameter(k, float(haze[k]))
+	m.set_shader_parameter("day_color", Color(str(haze.get("day", "#ecdccf"))))
+	m.set_shader_parameter("night_color", Color(str(haze.get("night", "#463a56"))))
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = cloud_r + top
+	return mi
+
+
+## The ball's close-up fog (gas_giant.gdshader): its colours from the planet's
+## body.haze, and the cloud tops' radius for the billows' scale.
+static func set_gas_fog(m: ShaderMaterial, haze: Dictionary, cloud_r: float) -> void:
+	m.set_shader_parameter("radius_m", cloud_r)
+	if haze.is_empty():
+		return
+	m.set_shader_parameter("fog_color", Color(str(haze.get("day", "#ecdccf"))))
+	m.set_shader_parameter("night_color", Color(str(haze.get("night", "#463a56"))))
+	m.set_shader_parameter("fog_near", float(haze.get("fog_near", 1600.0)))
 
 
 ## A gas giant's ring round `center` (radius r): a flat band in the plane normal
