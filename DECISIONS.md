@@ -1561,3 +1561,31 @@ Every significant technical choice, the alternative, and why. Newest on top.
   stands on it rides it with their normal movement. It goes on in its
   direction with you aboard, comes to the floor you stand on, and the shaft's
   doors open only where it has stopped.
+
+## The station's furniture is merged by material and built a little a tick (2026-11-04)
+
+- **Through the town's kit, then merged.** The homes, stalls, huts and machines
+  are `TownBuildings` parts like the port's buildings, so the stalls are the
+  port's `TownMarket` stalls and the huts its huts. Each floor is then merged
+  into one mesh a material (`StationFill._collect`) rather than the kit's
+  MultiMesh a mesh and material. Alternative: keep the MultiMeshes. Rejected:
+  every size of box and colour of ware is its own pair, so a market floor was
+  about 350 draw calls; merged it is about 80.
+- **Merged from our own numbers, never read back.** Reading a mesh from the
+  renderer waits on the GPU, about 8 ms a mesh. SurfaceTool's `append_from`
+  cost about 2 s for the station; `StationFill._flat` builds each box,
+  cylinder and sphere's triangles itself, and that costs about 35 ms. Only the
+  kit's ArrayMeshes (domes, arches) and the cloth stay MultiMeshes.
+- **Built a little each tick, shown near the camera.** Two milliseconds a
+  physics tick, one floor at a time, so the handoff into the giant's scene never
+  hitches; each floor is shown only within 30 m of its height and 120 m of its
+  glass, since the project has no occlusion culling. Alternative: enable
+  occlusion culling. Rejected: it is project wide, needs occluders everywhere
+  and costs CPU on every scene. The render rules are in
+  `docs/station/STATION_FILL.md`.
+- **Lower homes packed, upper homes grand.** The lower homes floor is open
+  (no rooms) and packed with shacks and booths of our own boxes, because a town
+  hut is 2,000 to 3,000 triangles and a shack about 120. The upper homes are 8
+  rooms of the hull (a floor's `"rooms"` can be a count), each a big suite in
+  the cantina's and the barge's dress. A room not in `"open_rooms"` gets a solid
+  shut door in the hull, so nothing behind it has to be drawn.

@@ -2,6 +2,31 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The station's floors are furnished (issue #315, part 1, 2026-11-04)
+
+- **Two market floors.** Rings of market stalls round the walkway, with
+  canopies and wares, and an outer ring packed with shacks and booths. Lanes
+  stay clear to every tunnel door.
+- **The lower homes are a favela.** The main tower's homes floor is packed from
+  the walkway to the glass with shacks, booths and huts, back to back along
+  narrow alleys. A third of the shacks have another built on top, with a
+  ladder up. Cables with bulbs and washing lines cross the alleys.
+- **The upper homes are luxury suites.** The second tower's top floor has 8 big
+  suites dressed like the cantina's club and the party barge: wood panelling
+  with gold, neon, a bar with lit bottles, an aquarium, velvet booths under
+  chandeliers, a light-up dance floor, a piano, and a round bed under a gold
+  canopy by the window.
+- **The engine deck.** Two reactors glowing blue, two cargo holds stacked with
+  containers and crates (one has a sealed drop hatch in its floor), two pump
+  rooms and two workshops, with pipes round the walkway's ceiling.
+- **The frame rate holds.** A floor is drawn as a few dozen meshes, only while
+  you are on it or the floor just above or below. It is built a little each
+  frame while you arrive, so nothing stutters. No new lights or shadows.
+- Nobody lives there yet: the crowd, the shopkeepers and the workers come next.
+  The top floor and the outpost floor are still empty. The station's homes
+  studios (a lounge, kitchen and bedroom in a long room) are still in the code
+  for any floor's config to use.
+
 ## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New

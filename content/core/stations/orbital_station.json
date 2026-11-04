@@ -1,7 +1,7 @@
 {
   "id": "orbital_station",
   "label": "station",
-  "note": "IP-neutral. A space station you fly to, land in and walk round, built from this file alone (src/systems/world/station_hull.gd draws every box from these numbers, src/systems/world/space_station.gd is the node). It is a component: it is not part of any planet. Where it hangs is a 'kind': 'station' landmark naming this file ('station': 'orbital_station'), today over the top of the ringed giant (content/core/planets/ringed_giant.json), where its deck town was; it started over the moon's far side (grit_station.json, 'side': 'far'). Take that landmark out and the station is gone; put it in another planet's landmarks and it is there instead. The plan it follows is docs/station/nitrogen_belt_plan.svg (issue #311): two towers of tall round floors, the top floor the biggest, open space between floors, an elevator up the middle in a glass tube, tunnels between the towers and a covered landing bay. The floors are empty shells for issues #314-#316 to fill. Its own frame: y up (level, with its own gravity, like the cruiser), x and z across, the main tower's middle at x = z = 0, y = 0 the market floor (and the bay's deck). Metres.",
+  "note": "IP-neutral. A space station you fly to, land in and walk round, built from this file alone (src/systems/world/station_hull.gd draws every box from these numbers, src/systems/world/space_station.gd is the node). It is a component: it is not part of any planet. Where it hangs is a 'kind': 'station' landmark naming this file ('station': 'orbital_station'), today over the top of the ringed giant (content/core/planets/ringed_giant.json), where its deck town was; it started over the moon's far side (grit_station.json, 'side': 'far'). Take that landmark out and the station is gone; put it in another planet's landmarks and it is there instead. The plan it follows is docs/station/nitrogen_belt_plan.svg (issue #311): two towers of tall round floors, the top floor the biggest, open space between floors, an elevator up the middle in a glass tube, tunnels between the towers and a covered landing bay. The markets, homes and engine deck are furnished by 'fill' (#315, src/systems/world/station_fill.gd); the top floor and the outpost are still empty shells (#314). Its own frame: y up (level, with its own gravity, like the cruiser), x and z across, the main tower's middle at x = z = 0, y = 0 the market floor (and the bay's deck). Metres.",
   "naming": { "vessel": "town_station" },
   "name_fmt": "%s",
   "segments": 48,
@@ -15,15 +15,48 @@
     { "id": "main", "at": [0, 0], "floors": [
       { "id": "engines", "y": -26.0, "radius": 42.0, "rooms": true },
       { "id": "markets", "y": 0.0, "radius": 50.0, "rooms": false },
-      { "id": "homes", "y": 26.0, "radius": 60.0, "rooms": true },
+      { "id": "homes", "y": 26.0, "radius": 60.0, "rooms": false },
       { "id": "top", "y": 52.0, "radius": 70.0, "rooms": true }
     ] },
     { "id": "second", "at": [160, 0], "floors": [
       { "id": "markets_2", "y": 0.0, "radius": 40.0, "rooms": false },
       { "id": "outpost", "y": 26.0, "radius": 46.0, "rooms": true },
-      { "id": "homes_2", "y": 52.0, "radius": 54.0, "rooms": true }
+      { "id": "homes_2", "y": 52.0, "radius": 54.0, "rooms": 10 }
     ] }
   ],
+  "fill_note": "Issue #315: what is in the floors (src/systems/world/station_fill.gd, the render rules in docs/station/STATION_FILL.md). Each floor id with a 'use' is dressed: favela (the lower homes: rings of shacks, booths and the town's huts packed back to back at r metres, doors facing in or out, depth and h ranges in metres, booth_share/hut_share/stack_share of the pieces, alleys radial alleys alley_half wide and lane_half to the tunnel doors kept clear, lines_per_ring cables and washing lines over each alley), suites (the upper homes: every room a big suite dressed like the cantina's club and the barge), homes (the floor's open_rooms are furnished studios, the rest locked: lounge_at and kitchen_at are fractions of the way from the door to the window, partition_from_window and bed_from_window metres), market (rings of stalls at r metres from the tower's middle, every_m apart round the ring, facing in or out, huts in every other spot of a ring with huts: true (hut_h: the heights they take, a few so they share materials), or a packed ring of shacks and booths like the favela's with pack: true; nothing within lane_half metres of a tunnel door's line), engines (its rooms by turn). A floor's fill is built budget_ms a physics tick (merging merge_verts vertices at a time), and drawn only while the camera is within show_dy metres of its height and show_m of its glass. A floor's 'rooms' may be a count: the suites' floor has 10, of which the two either side of its tunnel's corridor have no door, so 8 suites; the favela's floor has none (it is open from the walkway to the glass).",
+  "fill": {
+    "budget_ms": 2.0,
+    "merge_verts": 4000,
+    "show_dy": 30.0,
+    "show_m": 60.0,
+    "floors": {
+      "homes": { "use": "favela", "lane_half": 4.0, "alleys": 8, "alley_start": 0.2, "alley_half": 1.3, "lines_per_ring": 22, "rings": [
+        { "r": 22.5, "face": "in", "depth": [2.8, 3.4], "booth_share": 0.35, "hut_share": 0.05, "stack_share": 0.2 },
+        { "r": 26.0, "face": "out", "depth": [2.8, 3.4], "booth_share": 0.2, "hut_share": 0.1, "stack_share": 0.3 },
+        { "r": 31.5, "face": "in", "depth": [2.8, 3.4], "booth_share": 0.2, "hut_share": 0.1, "stack_share": 0.35 },
+        { "r": 35.0, "face": "out", "depth": [2.8, 3.4], "booth_share": 0.15, "hut_share": 0.1, "stack_share": 0.35 },
+        { "r": 40.5, "face": "in", "depth": [2.8, 3.4], "booth_share": 0.15, "hut_share": 0.1, "stack_share": 0.4 },
+        { "r": 44.0, "face": "out", "depth": [2.8, 3.4], "booth_share": 0.15, "hut_share": 0.1, "stack_share": 0.4 },
+        { "r": 49.5, "face": "in", "depth": [2.8, 3.4], "booth_share": 0.15, "hut_share": 0.1, "stack_share": 0.35 },
+        { "r": 53.0, "face": "out", "depth": [2.8, 3.4], "booth_share": 0.2, "hut_share": 0.05, "stack_share": 0.3 },
+        { "r": 57.8, "face": "in", "depth": [2.2, 2.6], "booth_share": 0.3, "hut_share": 0.0, "stack_share": 0.0 }
+      ] },
+      "homes_2": { "use": "suites" },
+      "markets": { "use": "market", "lane_half": 4.0, "rings": [
+        { "r": 24.0, "face": "in", "every_m": 6.5 },
+        { "r": 32.0, "face": "out", "every_m": 6.5 },
+        { "r": 40.0, "face": "in", "every_m": 7.0 },
+        { "r": 46.5, "face": "in", "pack": true, "depth": [2.8, 3.4], "booth_share": 0.4, "hut_share": 0.15, "stack_share": 0.25 }
+      ] },
+      "markets_2": { "use": "market", "lane_half": 4.0, "rings": [
+        { "r": 24.0, "face": "in", "every_m": 6.5 },
+        { "r": 31.0, "face": "out", "every_m": 7.0 },
+        { "r": 36.8, "face": "in", "pack": true, "depth": [2.6, 3.0], "booth_share": 0.4, "hut_share": 0.15, "stack_share": 0.2 }
+      ] },
+      "engines": { "use": "engines", "rooms": ["engine", "cargo", "pumps", "workshop", "engine", "cargo", "pumps", "workshop"] }
+    }
+  },
   "rooms": { "count": 8, "door_width": 2.6, "door_height": 4.0 },
   "tunnel": { "width": 6.0, "height": 5.0 },
   "hatch": { "length": 4.0, "width": 4.0, "note": "A hatch in the middle of every tunnel's roof, closed by a shield the air cannot pass and you can: jump up through it (the jetpack) and walk the roof between its railings, out in space, like a bridge; drop back through it to get in." },
