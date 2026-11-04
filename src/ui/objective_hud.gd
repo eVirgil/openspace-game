@@ -188,8 +188,8 @@ func where(target: String) -> Vector3:
 					if str(b.id) == id:
 						return b.offset
 		"player":
-			# A LAN player picked on the F11 map: where they stand now (INF while
-			# they sit in a ship or are on another planet: the line alone).
+			# A LAN player picked on the F11 map: where they stand now, or their
+			# ship while they sit in it (INF on another planet: the line alone).
 			return NetSession.player_pos(int(id))
 		"outpost":
 			if demo.outposts != null:

@@ -1,0 +1,15 @@
+{
+  "id": "cinder_station",
+  "note": "Issue #272: the lava moon, the second ball built with the planet generator. The moon's station (grit_station.json) on a ball of lava rock (the lava_moon type: the asteroid with dark basalt, lava in the low ground that kills on contact, and heat shimmer near the ground). It hangs opposite the moon in the port's sky (the moon's bearing turned half way round the port's up), further out for a longer flight: 16.7 km from the port to the moon's 12.3, the most that keeps the whole ball inside the port's view distance (4 x the home ball's radius, 20 km). Its cantina owner is a new Oda, generated for this planet. The domes, outposts, natives and squids of #272 come later. See docs/planets/PLANETS.md.",
+  "name": "",
+  "type": "lava_moon",
+  "town_size": 1,
+  "stage_dancer": true,
+  "seed": 272,
+  "style": "metallic",
+  "club": "salvage_rave", "club_dome": { "style": "rave", "bpm": 126, "dim": 0.25 },
+  "near": "port_desert",
+  "at": [-12500, 6500, 9000],
+  "cantina_owner": { "look": "cantina_owner_station" },
+  "encounter": ""
+}

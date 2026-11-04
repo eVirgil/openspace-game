@@ -33,7 +33,7 @@ where `at` puts it. Fly into it to land there.
 |---|---|
 | `id` | Lower case, underscores. Also the key its name is saved under. |
 | `name` | The planet's name. Leave it `""` and the name generator makes one (unique in the game). |
-| `type` | `sand`, `snow`, `red_desert` (biome planets: the town sits on dunes); `water`, `lava`, `gas` (element planets) and `asteroid` (a station on a rock ball). Element towns float on a platform; an asteroid town sits on top of its rock, under a glass dome. |
+| `type` | `sand`, `snow`, `red_desert` (biome planets: the town sits on dunes); `water`, `lava`, `gas` (element planets), `asteroid` (a station on a rock ball) and `lava_moon` (the same station on a ball of lava rock, issue #272). Element towns float on a platform; an asteroid or lava moon town sits on top of its rock, under a glass dome. |
 | `town_size` | 1 to 100. 50 is the port's scale, 100 is 5x its area, and 1 is just a cantina (with its stage), one Remnant guard at its door, a merchant in front of the cantina, three locals walking the street, and a landing bay. |
 | `style` | How the town looks: `desert` (the port's own), `metallic`, `snowy`, `pastel`, or plain words like `red matte metal`. See below. Default: the type's own. |
 | `seed` | Optional. A different number lays the same size of town out differently. |
@@ -114,6 +114,11 @@ of them. A planet's port sits on top of its ball, so a neighbour's port is at it
 A new type is a new entry in `types.json`, with no code change, as long as its
 ground is `terrain`, `platform` or `ball` and its surface is one of `water`,
 `lava`, `gas` or `rock`.
+
+**A type can build on another (issue #272).** Give it `"base": "asteroid"` and
+only what differs: dictionaries merge key by key (so `surface.look` replaces the
+rock colours and keeps the craters), anything else replaces. The lava moon is
+written that way.
 
 ## The Remnant cruiser: in this sky, not a planet (issue #193)
 
@@ -298,3 +303,32 @@ It finds the dome solid, and flies home the same way.
 
 Review stills: `./tools/planets/shoot_planets.sh scenes=grit_station,port_desert`.
 A sheet is in `docs/planets/issue_99_station.jpg`.
+
+## The lava moon: Cinder Station (issue #272)
+
+`content/core/planets/cinder_station.json` is the second ball: the moon's station
+on a ball of lava rock (type `lava_moon`, built on `asteroid`).
+
+- **Where:** opposite the moon in the port's sky and further out, 16.7 km from
+  the port (the moon is 12.3). That is about as far as a planet can hang: the
+  port draws 20 km (4 x the home ball's radius), so further out the ball's far
+  side would be cut off.
+- **The rock:** dark basalt, less broad swell and taller bumps (`swell` 0.8,
+  `bumps` 4), so the ground breaks into rock islands.
+- **The lava:** `surface.lava`. `cover` (0.35) is the share of the open ground
+  under the lava; `AsteroidSphere.lava_level()` turns it into a height by
+  sampling the whole ball once, so the lava follows the rock whatever its numbers
+  are. Nothing within `keep_clear` metres of the port (the station, its hallway,
+  the pit). Drawn by `lava_rock.gdshader`: below the level the ground is lifted
+  flat and flows and glows; the rock just above it catches its light.
+- **It kills:** stepping in it (`AsteroidSphere.in_lava`, the same height and
+  keep-clear the shader uses) fades out with the type's `fall_text` and wakes you
+  in the landing pit, the platform's fall (`AsteroidWorld`).
+- **Heat shimmer:** `surface.haze`. A patch of hot air a little above the lava
+  round the camera, only below `max_altitude` (30 m) and never over the station
+  (`LavaHaze`, `lava_haze.gdshader`).
+- **From space and from the port** it is drawn in the same lava rock: a dark ball
+  with glowing crater lakes.
+- Not yet: the issue's three domes, outposts, red nomads and lava squids.
+
+A sheet (moon left, lava moon right) is in `docs/planets/issue_272_lava_moon.jpg`.

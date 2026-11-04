@@ -221,26 +221,51 @@ static func spot_by_pad(box: Dictionary, toward: Vector3) -> Array:
 	return [at, atan2(c.x - at.x, c.z - at.z)]
 
 
-## The other players on foot in this town: [{ id, name, pos }]. The F11 map shows
-## them (mark_color), and one can be the waypoint ("player:<id>"). Only reads the
-## bodies the town already has.
+## The other players in this town: [{ id, name, pos, ship }]. On foot, where they
+## stand; sat in a ship (on the pad, in the air, up in this planet's space), where
+## their ship is (`ship` true). The F11 map shows them (mark_color) straight down
+## on the ground, and one can be the waypoint ("player:<id>"). Only reads the
+## bodies and ships the town already has.
 static func others() -> Array:
 	var out: Array = []
 	if not active():
 		return out
-	for id in link.bodies:
-		var b = link.bodies[id]
-		if b != null and is_instance_valid(b) and b.is_visible_in_tree():
-			out.append({ "id": int(id), "name": str(b.player_name), "pos": (b as Node3D).global_position })
+	var ids: Array = link.bodies.keys()
+	for id in link.ship_bodies:
+		if not ids.has(id):
+			ids.append(id)
+	for id in ids:
+		var b = link.bodies.get(id, null)
+		var on_foot: bool = b != null and is_instance_valid(b) and b.is_visible_in_tree()
+		var p := player_pos(int(id))
+		if p == Vector3.INF:
+			continue
+		var nm := str(b.player_name) if b != null and is_instance_valid(b) else str(link.roster.get(id, {}).get("name", ""))
+		out.append({ "id": int(id), "name": nm, "pos": p, "ship": not on_foot })
 	return out
 
 
-## Where player `id` stands in this town, or INF (in a ship, on another planet).
+## Where player `id` is in this town: their body on foot, else their ship while
+## they sit in it (their body is hidden then), or INF (on another planet).
 static func player_pos(id: int) -> Vector3:
-	var b = link.bodies.get(id, null) if active() else null
-	if b == null or not is_instance_valid(b) or not b.is_visible_in_tree():
+	if not active():
 		return Vector3.INF
-	return (b as Node3D).global_position
+	var b = link.bodies.get(id, null)
+	if b != null and is_instance_valid(b) and b.is_visible_in_tree():
+		return (b as Node3D).global_position
+	var s = link.ship_bodies.get(id, null)
+	if s != null and is_instance_valid(s) and s.is_visible_in_tree() and _in_ship(id, b):
+		return (s as Node3D).global_position
+	return Vector3.INF
+
+
+## Their body is hidden because they sit in their ship: it flies, or their body is
+## here but put away (NetLink.F_VISIBLE off: in the pilot's seat on the pad).
+static func _in_ship(id: int, b) -> bool:
+	var s = link.ship_bodies.get(id, null)
+	if s != null and bool(s.get("flying")):
+		return true
+	return b != null and is_instance_valid(b)
 
 
 ## Player `id` is still in the game.
