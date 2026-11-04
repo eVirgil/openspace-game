@@ -115,7 +115,7 @@ func test_the_same_seed_is_the_same_town() -> void:
 
 func test_every_planet_type_builds() -> void:
 	var types: Dictionary = PlanetGen.types().types
-	assert_eq(types.size(), 7)
+	assert_eq(types.size(), 8)
 	for type in types:
 		var p := PlanetGen.make({ "id": "test_" + type, "type": type, "town_size": 12, "seed": 2 }, cc)
 		assert_eq(p.type, type)
@@ -414,13 +414,16 @@ static func _v(a) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
-## The ringed giant (content/core/planets/ringed_giant.json): a cloud town on a
-## platform with landing bays, hanging where the port's sky painting was, about
-## the size the painting looked, with the painting off wherever the real one is.
+## The ringed giant (content/core/planets/ringed_giant.json): a real ball of gas
+## with a town on a deck on top (landing bays), hanging where the port's sky
+## painting was, about the size the painting looked, with the painting off
+## wherever the real one is.
 func test_the_ringed_giant_replaces_the_painting() -> void:
 	var g := PlanetGen.build("ringed_giant", cc)
-	assert_eq(g.type, "gas")
-	assert_eq(g.ground, "platform", "a town floating on a deck over the clouds")
+	assert_eq(g.type, "gas_ball")
+	assert_eq(g.ground, "ball", "a real ball you fly round")
+	assert_true(bool(g.type_cfg.deck), "its town floats on a deck")
+	assert_gt(PlanetGen.handoff_altitude("gas_ball"), 0.0, "flown into with no fade, like the station")
 	assert_gt(int(g.town.counts.bays), 0, "it has a landing bay")
 	var t := TownLayout.new()
 	t.load_from_dict(g.town)
@@ -444,3 +447,26 @@ func test_the_ringed_giant_replaces_the_painting() -> void:
 	assert_false(bool(port.sky_painting), "the port shows the real one, not the painting")
 	assert_false(bool(g.sky_painting), "no painted giant over the giant itself")
 	assert_true(bool(PlanetGen.build("grit_station", cc).sky_painting), "the station keeps its sky")
+
+
+## The ringed giant's clouds: smooth all the way round, nothing to land on, and
+## a ship down in them is lost; the deck's level is safe.
+func test_the_ringed_giants_clouds_are_deadly() -> void:
+	var g := PlanetGen.build("ringed_giant", cc)
+	var surf: Dictionary = g.type_cfg.surface
+	var sp := GasSphere.new(float(g.world.terrain.sphere_radius), surf)
+	assert_eq(sp.elevation(Vector3.UP), -float(surf.depth), "cloud tops below the deck")
+	assert_eq(sp.elevation(Vector3(1, -0.3, 0.2).normalized()), -float(surf.depth), "the same all the way round")
+	var ground := WorldGround.new()
+	PlanetSphere.current = sp
+	ground.setup(g.world)
+	PlanetSphere.current = null
+	assert_false(ground.lethal_at(Vector3(0, 20, 0)), "over the deck")
+	assert_false(ground.lethal_at(Vector3(0, -30, 0)), "just under the deck's level")
+	assert_true(ground.lethal_at(Vector3(0, -float(surf.depth) - 5.0, 0)), "in the clouds")
+	var side: Vector3 = sp.center + Vector3(1, 0, 0) * (sp.radius - 90.0)
+	assert_true(ground.lethal_at(side), "round the far side too")
+	assert_false(ground.lethal_at(sp.center + Vector3(1, 0, 0) * (sp.radius + 500.0)), "flying round it is clear")
+	var flat := WorldGround.new()
+	flat.setup(PlanetGen.build("grit_station", cc).world)
+	assert_false(flat.lethal_at(Vector3(0, -500, 0)), "solid planets have no deadly clouds")

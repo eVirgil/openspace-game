@@ -101,6 +101,22 @@
       "arrival": { "altitude": 2800.0, "distance": 3200.0 },
       "fall_text": "You went over the edge and down into the clouds."
     },
+    "gas_ball": {
+      "town_naming": "town_float",
+      "label": "gas giant",
+      "ground": "ball",
+      "deck": true,
+      "default_style": "pastel",
+      "surface": { "kind": "gas", "radius": 3500.0, "depth": 120.0, "flat_radius": 200.0, "up_blend": 300.0, "lethal_depth": 60.0,
+                   "note": "The ringed giant: a real ball of gas (src/systems/planets/gas_sphere.gd) you fly round, the town on a floating deck on top (deck: PlatformWorld, as on a platform world). radius is the deck's level; the smooth cloud tops are depth metres below it all the way round. A ship more than lethal_depth metres below the deck's level is down in the clouds and lost (a crash: towed back to its bay); falling off the deck kills you on the way down." },
+      "sky": { "sky": { "zenith": "#7a6aa8", "horizon": "#f0c8d8", "ground": "#b088b8", "cloud_color": "#f8dce8", "cloud_cover": 0.6 },
+               "fog": { "color": "#e0b8d0", "density": 0.00008 }, "volumetric": { "albedo": "#f0d0e0" } },
+      "atmosphere": { "upper_start": 200.0, "cloud_deck": 800.0, "sky_black_at": 1800.0, "space_altitude": 2000.0 },
+      "space": { "handoff": 2600.0, "note": "As the asteroid's: within handoff metres of the cloud tops its own scene flies you, with no fade." },
+      "body": { "radius": 3500.0, "color": "#d9c4b0", "dark": "#8a6f68" },
+      "arrival": { "altitude": 900.0, "distance": 1200.0 },
+      "fall_text": "You went over the edge and down into the clouds."
+    },
     "asteroid": {
       "town_naming": "town_station",
       "label": "asteroid station",

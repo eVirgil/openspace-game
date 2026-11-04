@@ -172,7 +172,7 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 	var surface: Dictionary = tcfg.get("surface", {})
 	if str(tcfg.get("ground", "")) == "ball":
 		# Issue #99: a real ball like the home planet (WorldTerrain asks the sphere).
-		return {
+		var w := {
 			"id": id,
 			"label": str(tcfg.get("label", id)),
 			"town": town_id,
@@ -182,6 +182,10 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 			"atmosphere": tcfg.get("atmosphere", {}),
 			"detail": types().get("detail", {}),
 		}
+		if str(surface.get("kind", "")) == "gas":
+			# A gas ball: this far below the deck's level a ship is in the clouds, lost.
+			w["lethal_below"] = -float(surface.get("lethal_depth", 60.0))
+		return w
 	return {
 		"id": id,
 		"label": str(tcfg.get("label", id)),
@@ -278,6 +282,8 @@ static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 		"bands": float(body.get("bands", 0.0)),          # > 0: banded like the sky painting
 		"ring": body.get("ring", {}),                     # { inner, outer, color, normal }, radii
 		"sky_giant": bool(o.get("replaces_sky_painting", false)),
+		# A gas ball's cloud tops, below its deck's level (radius): what you see of it.
+		"cloud_radius": r - float(t.get("surface", {}).get("depth", 0.0)) if ball and str(t.get("surface", {}).get("kind", "")) == "gas" else r,
 	}
 
 

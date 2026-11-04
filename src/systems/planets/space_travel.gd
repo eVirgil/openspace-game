@@ -252,12 +252,12 @@ func _share_parent_sky(look) -> void:
 ## Issue #99: a ball type with a handoff (the asteroid) is its real ball and
 ## station, coarse, so arriving changes only the detail.
 func _body(n: Dictionary) -> Node3D:
+	if float(n.get("bands", 0.0)) > 0.0:
+		return _gas_body(n)          # the ringed giant: its banded ball and its ring
 	if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
 		var real := _ball_body(n)
 		if real != null:
 			return real
-	if float(n.get("bands", 0.0)) > 0.0:
-		return _gas_body(n)
 	var r := float(n.radius)
 	var mi := MeshInstance3D.new()
 	mi.name = "Planet_" + str(n.id)
@@ -302,7 +302,9 @@ func _gas_body(n: Dictionary) -> Node3D:
 	var rn := GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized()
 	var mi := MeshInstance3D.new()
 	mi.name = "Ball"
-	mi.mesh = body_mesh(n)
+	var seen := n.duplicate()
+	seen.radius = float(n.get("cloud_radius", r))    # a gas ball's cloud tops, as its own scene draws them
+	mi.mesh = body_mesh(seen)
 	var m := ShaderMaterial.new()
 	m.shader = GAS_SHADER
 	m.set_shader_parameter("color_a", n.color)
@@ -315,27 +317,38 @@ func _gas_body(n: Dictionary) -> Node3D:
 	root.add_child(mi)
 	_gas_mats.append(m)
 	if not ring.is_empty():
-		var outer := float(ring.get("outer", 2.5))
-		var plane := PlaneMesh.new()
-		plane.size = Vector2.ONE * (2.0 * outer * r)
-		var rmi := MeshInstance3D.new()
-		rmi.name = "Ring"
-		rmi.mesh = plane
-		var side := rn.cross(Vector3.FORWARD if absf(rn.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
-		rmi.basis = Basis(side, rn, side.cross(rn)).orthonormalized()
-		var rm := ShaderMaterial.new()
-		rm.shader = RING_SHADER
-		rm.set_shader_parameter("ring_color", Color(str(ring.get("color", "#e8d6c0"))))
-		rm.set_shader_parameter("center", n.at)
-		rm.set_shader_parameter("radius", r)
-		rm.set_shader_parameter("inner", float(ring.get("inner", 1.35)))
-		rm.set_shader_parameter("outer", outer)
-		rmi.material_override = rm
-		rmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		rmi.extra_cull_margin = outer * r
+		var rmi := make_ring(n.at, r, ring)
 		root.add_child(rmi)
-		_gas_mats.append(rm)
+		rmi.position = Vector3.ZERO
+		_gas_mats.append(rmi.material_override)
 	return root
+
+
+## A gas giant's ring round `center` (radius r): a flat band in the plane normal
+## to ring.normal, from ring.inner to ring.outer radii (gas_ring.gdshader). A
+## look only, not solid. Placed at `center` in world space (its parent at the origin).
+static func make_ring(center: Vector3, r: float, ring: Dictionary) -> MeshInstance3D:
+	var rn := GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized()
+	var outer := float(ring.get("outer", 2.5))
+	var plane := PlaneMesh.new()
+	plane.size = Vector2.ONE * (2.0 * outer * r)
+	var rmi := MeshInstance3D.new()
+	rmi.name = "Ring"
+	rmi.mesh = plane
+	var side := rn.cross(Vector3.FORWARD if absf(rn.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
+	rmi.basis = Basis(side, rn, side.cross(rn)).orthonormalized()
+	rmi.position = center
+	var rm := ShaderMaterial.new()
+	rm.shader = RING_SHADER
+	rm.set_shader_parameter("ring_color", Color(str(ring.get("color", "#e8d6c0"))))
+	rm.set_shader_parameter("center", center)
+	rm.set_shader_parameter("radius", r)
+	rm.set_shader_parameter("inner", float(ring.get("inner", 1.35)))
+	rm.set_shader_parameter("outer", outer)
+	rmi.material_override = rm
+	rmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rmi.extra_cull_margin = outer * r
+	return rmi
 
 
 ## A neighbour's ball mesh (a noisy rock for a small body, a plain sphere for a

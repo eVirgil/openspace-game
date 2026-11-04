@@ -389,8 +389,8 @@ func _terrain_far(budget_left: float) -> bool:
 
 
 func _build_platform(ground_kind: String) -> void:
-	if ground_kind == "platform":
-		platform = PlatformWorld.new()
+	if ground_kind == "platform" or (ground_kind == "ball" and bool(planet.get("type_cfg", {}).get("deck", false))):
+		platform = PlatformWorld.new()      # a gas ball's town floats on a deck too (the ringed giant)
 	elif ground_kind == "ball" and bool(planet.get("type_cfg", {}).get("enclosed", false)) and terrain != null:
 		# Issue #99: the sealed station on the asteroid's ball (dome, hallway, pit liner).
 		platform = AsteroidWorld.new()
@@ -1568,6 +1568,8 @@ func _dress_desert() -> void:
 	look.track_material(terrain.material)
 	if terrain is PlanetTerrain and not (terrain as PlanetTerrain).rock_look.is_empty():
 		return          # issue #99: the asteroid's rock: no sand, dust or desert landforms
+	if terrain is PlanetTerrain and not (terrain as PlanetTerrain).gas_look.is_empty():
+		return          # a gas ball's cloud tops: no sand either
 	var walls: Rect2 = desert_site().walls
 	for b in town.boxes():
 		if str(b.kind) != "floor" or float(b.max[1]) < -0.1:

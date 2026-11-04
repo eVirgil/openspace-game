@@ -28,6 +28,7 @@ var columns: Array = []      ## { id, center: Vector3 (base), radius, top, up?, 
 ## too: "up" is its axis and "h" its height above its base. Town boxes and every
 ## box on a flat world have neither and are plain world-space boxes.
 var world: Dictionary = {}
+var lethal_below := -INF     ## a gas ball (world "lethal_below"): this far below the ball's radius is death
 ## Issue #93: the desert's boulders ({ center, up, radius, height }, from
 ## DesertLandforms). Each is a smooth hump of ground (wider than the rock: sand
 ## banks against it), so a speeder rides up a low one and launches off it; one
@@ -57,6 +58,7 @@ func setup(world_cfg: Dictionary, town = null, content = null,
 		height_source: Callable = Callable(), desert_extent: float = -1.0) -> void:
 	world = world_cfg
 	terrain = WorldTerrain.new(world_cfg.get("terrain", {}), height_source, desert_extent)
+	lethal_below = float(world_cfg.get("lethal_below", -INF))
 	boxes = []
 	columns = []
 	if town != null:
@@ -625,6 +627,15 @@ func landable(x: float, z: float) -> bool:
 
 
 ## The world's atmosphere settings (where space starts, etc.).
+## True down in a gas ball's clouds (world "lethal_below"): nothing holds a ship
+## up there, so it is lost. Always false on solid ground.
+func lethal_at(p: Vector3) -> bool:
+	if lethal_below == -INF:
+		return false
+	var sp := sphere()
+	return sp != null and sp.altitude(p) < lethal_below
+
+
 func atmosphere() -> Dictionary:
 	return world.get("atmosphere", {})
 

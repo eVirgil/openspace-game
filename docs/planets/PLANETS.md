@@ -113,7 +113,8 @@ of them. A planet's port sits on top of its ball, so a neighbour's port is at it
 
 A new type is a new entry in `types.json`, with no code change, as long as its
 ground is `terrain`, `platform` or `ball` and its surface is one of `water`,
-`lava`, `gas` or `rock`.
+`lava`, `gas` or `rock` (a `ball` of `gas` is a gas giant with a deck town: see
+the ringed giant below).
 
 ## The Remnant cruiser: in this sky, not a planet (issue #193)
 
@@ -277,25 +278,40 @@ See `KNOWN_ISSUES.md`.
 
 ## The ringed giant: the sky painting, made real
 
-`content/core/planets/ringed_giant.json` is the gas planet that hung painted in
-the port's sky (`planet_*` in `content/look/time_of_day.json`). It is a `gas`
-planet like any other: a town of size 20 floating on a deck over the cloud decks,
-with landing bays, a glass enclosure and the gate shield. Fly into it and you fade
-down to the town; fly out of its sky and you fade back home.
+`content/core/planets/ringed_giant.json` is the gas giant that hung painted in
+the port's sky (`planet_*` in `content/look/time_of_day.json`). It is a
+`gas_ball`: a real ball, like the asteroid, that you fly round, with gravity
+toward its centre and "up" turning with it. Its town floats on a deck on top
+(`deck: true`: the platform worlds' deck, keel, glass enclosure, gate shield and
+landing bays).
 
+- **The clouds are the ball.** `GasSphere` (`src/systems/planets/gas_sphere.gd`)
+  puts smooth cloud tops `surface.depth` metres below the deck's level all the
+  way round, drawn by `PlanetTerrain` in `gas_giant.gdshader`. Nothing there holds
+  you up: a ship more than `surface.lethal_depth` below the deck's level is lost,
+  at any speed (`WorldGround.lethal_at`, checked in `AtmoFlight.step`: a crash, so
+  it is towed back to its bay). Fall off the deck and you die on the way down,
+  as on any platform.
+- **No fade.** As with Grit Station, within `space.handoff` of the clouds its
+  own scene takes over in mid-flight, and climbing back out hands you to the
+  port's.
 - **Where the painting was.** `at` is the painting's direction from the port
   (azimuth 26, elevation 17), 30 km out. Its radius is 3.5 km, so it looks as big
   as the painting did. It is really smaller than the home planet, so the flight
   is short.
 - **`body` in a planet's config** overrides its type's look from space. The
-  giant's sets the painting's colours, `bands` (the painting's bands; any value
-  above 0 draws `gas_giant.gdshader`) and `ring` (`inner`/`outer` in planet
-  radii, `color`, `normal`; drawn by `gas_ring.gdshader`, and not solid). In
-  daylight both fade into the sky the way the painting did.
+  giant's sets the painting's colours, `bands` (any value above 0 draws the
+  banded ball) and `ring` (`inner`/`outer` in planet radii, `color`, `normal`;
+  `gas_ring.gdshader`, not solid). Seen from another planet both fade into the
+  daylight sky the way the painting did. The giant's own scene draws the same
+  ring (`PlatformWorld._gas_ball_ring`).
 - **`replaces_sky_painting: true`** turns the painted giant off on the planet
   itself and on any planet whose sky it hangs in (`PlanetGen.sky_painting`).
   Grit Station keeps its painting.
-- **The ground camera** sees far enough to show it (`TownDemo.sky_giant_reach`).
+- **The port's ground camera** sees far enough to show it
+  (`TownDemo.sky_giant_reach`).
+- **Quiet sky** (`encounter: ""`): a space fight's flight does not check the
+  clouds yet.
 - The Nitrogen Belt station (#311) is a separate planet, to come.
 
 ## The test planet: Grit Station
