@@ -60,7 +60,7 @@ static var kept_ships: Array = []          ## issue #368: stolen ships Skrugs cl
 static var ship_spots: Dictionary = {}     ## issue #368: owned ship key -> { planet, pos, rot } where it was last left (Fleet)
 static var primary_ship := ""              ## issue #368: the owned ship key that wakes with you ("" = the first; Fleet.primary)
 static var quests: Dictionary = {}         ## issue #201: optional quest id -> { state: "open"|"done", waypoint } (Quests)
-static var heist: Dictionary = {}          ## issue #306: the heist on: { run, outpost, hacked } (Heist)
+static var heist: Dictionary = {}          ## issue #306: the heist on: { run, state, job, side, outpost, hacked, crew, ... } (Heist)
 static var control: Dictionary = {}        ## issue #187: who holds each outpost, and the supply run out (Territory)
 static var map_waypoint: Dictionary = {}   ## the F11 map's waypoint: { id, label, target, planet, arrive } (GlobeMap)
 static var objective_pin := ""             ## the job the player made the waypoint in the Ledger ("" = most urgent; Objective.pin)
@@ -373,6 +373,8 @@ static func job(id: String) -> Dictionary:
 					return _bounty_job(j)
 				"supply":
 					return _supply_job(j)
+				"heist":
+					return Heist.job_view(j)       # issue #310: the outpost, the crew, the pay
 			return j
 	return {}
 
@@ -396,6 +398,8 @@ static func open_jobs(tier: String) -> Array:
 			continue
 		if kind == "supply" and (away or Territory.supply_target() == "" or Territory.supplier()):
 			continue
+		if kind == "heist" and not Heist.can_offer(j):
+			continue                       # issue #310: one at a time, somewhere to hit
 		var req: Dictionary = j.get("requires", {})
 		if away and kind in ["smuggle", "bounty"]:
 			req = req.duplicate()
@@ -428,6 +432,8 @@ static func accept_job(id: String) -> bool:
 			ok = _start_bounty(j)
 		"supply":
 			ok = Territory.start_supply()
+		"heist":
+			ok = Heist.start(j)            # issue #310
 		_:
 			ok = not j.is_empty() and not jobs_taken.has(id)
 			if ok:

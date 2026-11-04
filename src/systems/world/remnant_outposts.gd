@@ -63,6 +63,7 @@ var hacking := 0.0                 ## issue #309: seconds [E] has been held at a
 var hack_at := ""                  ## ... the outpost whose console is in reach ("" = none)
 var hacks := 0                     ## ... consoles hacked in this scene, for tests and traces
 var _bar_up := false
+var _stash: Node3D                 ## the stash lying at a hacked console (GearController's pickup)
 var _room_mats: Dictionary = {}    ## finish -> material, shared by every room
 var _room_draw: Dictionary = {}    ## world.json's draw_distance block (room_m), read once
 
@@ -872,6 +873,11 @@ func _tick_hack(dt: float, p: Node3D) -> void:
 ## back there after a load, or when you come back to the outpost).
 func _sync_stash() -> void:
 	var e := Heist.stash_entry()
+	if _stash != null and (not is_instance_valid(_stash) or e.is_empty() or str(_stash.pickup.get("id", "")) != str(e.get("id", ""))):
+		if is_instance_valid(_stash) and not WorldState.inventory.is_taken(str(_stash.pickup.get("id", ""))):
+			demo.gear.pickups.erase(_stash)           # issue #310: the heist ended with it still lying there
+			_stash.queue_free()
+		_stash = null
 	if e.is_empty() or demo == null or demo.gear == null or demo.gear.pickup_node(str(e.id)) != null:
 		return
 	var o := outpost(Heist.target())
@@ -881,6 +887,7 @@ func _sync_stash() -> void:
 	var n: Node3D = demo.gear.drop_item(e, at)
 	if n != null:
 		n.transform = Transform3D((o.xf as Transform3D).basis, at)
+		_stash = n
 
 
 # ------------------------------------------------------------------ props (issue #76)

@@ -170,7 +170,7 @@ func test_new_free_roam_game_packs_the_rifle_and_blade_and_lands_without_the_gen
 	assert_true(WorldState.inventory.has("rifle_blaster"), "the rifle is in the backpack")
 	assert_true(WorldState.inventory.has("energy_blade"), "so is the blade")
 	assert_true(WorldState.opening_due(), "it opens with the landing")
-	assert_eq(GeneralPost.station(), "", "no general in the pit")
+	assert_ne(GeneralPost.station(), "pit", "no general in the pit (issue #310: he is in the barracks yard)")
 	WorldState.set_flag(WorldState.FREE_OPENING, false)    # out of the ship (ShipPilot.exit_ship)
 	assert_false(WorldState.opening_due(), "the landing plays once")
 	WorldState.new_game(WorldState.STORY)

@@ -105,7 +105,7 @@ func test_the_general_meets_you_in_the_pit_and_moves_to_the_barracks() -> void:
 	assert_eq(Story.chapter(), "t89")
 	assert_eq(GeneralPost.station(), "barracks")
 	WorldState.reset()
-	assert_eq(GeneralPost.station(), "", "story saves only")
+	assert_eq(GeneralPost.station(), "barracks", "issue #310: free roam too, in the barracks yard (never the pit)")
 
 
 func test_the_pit_meeting_ends_in_a_search_and_a_hint_at_work() -> void:

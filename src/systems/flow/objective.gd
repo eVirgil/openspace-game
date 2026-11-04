@@ -35,7 +35,7 @@ static func home() -> bool:
 
 
 ## Most urgent first, for when the player has not picked one in the Ledger.
-const AUTO := ["bounty", "smuggle", "supply", "story"]
+const AUTO := ["bounty", "heist", "smuggle", "supply", "story"]     ## issue #310: a heist on before the drops
 
 
 ## { text, target, key } for the pointer, or {} when there is nothing to point at.
@@ -64,12 +64,15 @@ static func current() -> Dictionary:
 
 
 ## One job's { text, target, key }, or {} when it is not on (here): "bounty",
-## "smuggle", "supply", "story" or "job:<board id>" (a board job with a "target").
+## "heist" (issue #310), "smuggle", "supply", "story" or "job:<board id>" (a board
+## job with a "target").
 static func of(key: String) -> Dictionary:
 	var o := {}
 	match key:
 		"bounty":
 			o = _bounty()
+		"heist":
+			o = Heist.objective()
 		"smuggle":
 			o = _smuggle()
 		"supply":
@@ -125,7 +128,7 @@ static func _bounty() -> Dictionary:
 
 
 static func _smuggle() -> Dictionary:
-	if WorldState.carrying_contraband():
+	if WorldState.carrying_contraband() and not Heist.holding():     # a heist's flasks are the heist's
 		if for_general():
 			return { "text": line("general_bring"), "target": "npc:general" }
 		var fence := fence_marker()
@@ -227,8 +230,11 @@ static func log_entries() -> Array:
 			say = step_list(c)
 		if say != "":
 			out.append({ "title": title, "text": say, "key": "story" })
+	var heist := Heist.log_entry()
+	if not heist.is_empty():
+		out.append(heist)
 	var drop := WorldState.smuggle_drop()
-	if WorldState.carrying_contraband():
+	if WorldState.carrying_contraband() and not Heist.holding():
 		out.append({ "title": run_line("log_smuggle"), "text": line("general_log_carry") if for_general() else line("log_carry"), "key": "smuggle" })
 	elif not drop.is_empty():
 		out.append({ "title": run_line("log_smuggle"), "key": "smuggle",

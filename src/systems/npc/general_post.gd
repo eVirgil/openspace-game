@@ -35,6 +35,8 @@ extends Node3D
 ##     stashed inside the town, offered in talk. [E] hands him what you found,
 ##     for more than the fence would have paid, and raises Remnant standing.
 ##   - Once the Remnant has left the moon (issue #214) he stays, in the desert armour.
+##   - Issue #310: in free roam he stands in the barracks yard too, and offers his
+##     heist in talk (j_general_heist, Heist). [E] hands him its flasks, or calls it off.
 ##
 ## Config: content/core/npcs/general.json. The headless test calls talk_ended(),
 ## on_insult(), decide(), take_job(), hand_over() and hand_over_contraband() directly.
@@ -99,10 +101,13 @@ func _line(key: String) -> String:
 # ------------------------------------------------------------------ where he is
 
 ## "pit" while he waits for you there, "barracks" after, "" while he is away (a
-## bounty out at an outpost) or dead.
+## bounty out at an outpost) or dead. Issue #310: in free roam too, in the
+## barracks yard (his heist is offered in talk there).
 static func station() -> String:
-	if not WorldState.story_mode() or WorldState.has_flag("general_dead") or general_hunted():
+	if WorldState.has_flag("general_dead") or general_hunted():
 		return ""
+	if not WorldState.story_mode():
+		return "barracks"
 	return "pit" if Story.chapter() in ["land", "general"] else "barracks"
 
 
@@ -333,7 +338,11 @@ func open_menu(keep_cursor := false) -> void:
 		opts.append({ "id": "work", "text": _l("work") })
 	for d in droids_to_hand_over():
 		opts.append({ "id": "hand:%d" % int(d.uid), "text": _l("hand_over") % [DroidRoster.label(str(d.kind)), droid_pay()] })
-	if WorldState.repossession_pay() > 0:
+	if Heist.collectable("general"):
+		opts.append({ "id": "heist", "text": Heist.line("general_collect") % int(Heist.pay("general", Heist.carrying()).net) })
+	elif Heist.on() and Heist.pays_to() == "general":
+		opts.append({ "id": "heist_off", "text": Heist.line("call_off") })
+	if WorldState.repossession_pay() > 0 and not Heist.holding():
 		opts.append({ "id": "contraband", "text": _l("hand_contraband") % WorldState.repossession_pay() })
 	menu.open(_l("menu_title") % [npc_name(), int(WorldState.standing.get("imperial_remnant", 0))], opts, _on_menu, "", keep_cursor)
 	if player != null and not player.locked:
@@ -348,6 +357,13 @@ func _on_menu(id: String) -> void:
 			host.start_talk(spot)
 	elif id == "work":
 		take_job()
+	elif id == "heist":
+		hand_over_heist()
+		if _can_talk():
+			open_menu(true)
+	elif id == "heist_off":
+		Heist.give_up()
+		_say(Heist.line("given_up"))
 	elif id.begins_with("hand:") or id == "contraband":
 		if id == "contraband":
 			hand_over_contraband()
@@ -676,6 +692,18 @@ func hand_over_contraband() -> int:
 		_say(_line("repossessed") % pay)
 		maybe_tip()
 	return pay
+
+
+## Issue #310: his heist's flasks: he pays pay_mult times the fence's price, less
+## the crew's cut, and Remnant standing goes up. Returns the net pay, or 0.
+func hand_over_heist() -> int:
+	var crew := Heist.crew_name()
+	var p := Heist.collect("general")
+	if int(p.net) <= 0:
+		return 0
+	_say(Heist.line("paid") % [int(p.net), crew, int(p.cut)])
+	maybe_tip()
+	return int(p.net)
 
 
 ## Issue #205: in good standing he tells you about the crashed cruiser, once.

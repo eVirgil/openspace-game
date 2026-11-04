@@ -1,0 +1,11 @@
+{
+  "id": "heist_crew_local",
+  "base": "local_guard",
+  "label": "Heist crew",
+  "role": "crew",
+  "note": "Issue #310: the local who goes with you on a heist for Oda, the fence, Skrugs or T-89 (src/systems/npc/heist_crew.gd runs them: follow you, shoot only whoever is fighting you). In no garrison and no townsfolk: nobody's alarm is theirs, and the guards' senses are on you, not them. Tougher than a yard guard, a steadier aim. Only the blocks below differ from local_guard.json.",
+  "hp": 110,
+  "combat": {
+    "aim_error_deg": 2.2
+  }
+}

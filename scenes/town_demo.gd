@@ -113,7 +113,8 @@ var salesman: ShipSalesman
 @export var resume_saved := true       ## issue #113: open on the save's planet and spot (the real game only, not headless)
 @export var with_barge := true        ## issue #269: the planet's party barge (band, boss, steerage), if it has one
 @export var with_beast := true        ## issue #220: the planet's beast that rolls about the desert (touch = death)
-var general_post: GeneralPost         ## issue #203: the Remnant general (story saves)
+var general_post: GeneralPost         ## issue #203: the Remnant general (story saves; issue #310: free roam too)
+var heist_crew: HeistCrew             ## issue #310: the crew member and borrowed droid on a heist
 var dark_master: DarkMasterPost       ## issue #303: the dark master (cruiser bay, barracks roof)
 var barracks_locals: Dictionary = {}  ## issue #303: barracks post id -> the locals' guard on it (NpcBody)
 @export var with_natives := true      ## issue #96: native packs and wild animals (when the planet has any)
@@ -301,6 +302,14 @@ func build_plan(staged_build: bool) -> Array:
 	add.call("general", LATER, func():
 		if gear != null and str(planet.get("id", PlanetGen.home_id())) == PlanetGen.home_id():
 			_build_general()
+		return true)
+	add.call("heist_crew", LATER, func():
+		if gear != null and str(planet.get("id", PlanetGen.home_id())) == PlanetGen.home_id():
+			heist_crew = HeistCrew.new()
+			heist_crew.setup(self, _player, gear)
+			add_child(heist_crew)
+			if bar != null:
+				heist_crew.attach_host(bar)
 		return true)
 	add.call("dark_master", LATER, func():
 		if gear != null and str(planet.get("id", PlanetGen.home_id())) == PlanetGen.home_id():

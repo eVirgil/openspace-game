@@ -1,0 +1,11 @@
+{
+  "id": "heist_crew_remnant",
+  "base": "general_guard",
+  "label": "Heist crew",
+  "role": "crew",
+  "note": "Issue #310: the Remnant trooper the general sends with you on his heist (free roam; src/systems/npc/heist_crew.gd runs them like the locals' crew member). In no garrison. Only the blocks below differ from general_guard.json.",
+  "hp": 110,
+  "combat": {
+    "aim_error_deg": 2.2
+  }
+}

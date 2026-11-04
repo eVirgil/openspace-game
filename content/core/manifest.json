@@ -8,7 +8,7 @@
   "missions": ["crate_retrieval"],
   "ships": ["interceptor", "freighter", "courier", "gunship", "remnant_fighter", "remnant_heavy", "remnant_interceptor", "remnant_freighter"],
   "pilots": ["rookie", "veteran", "ace", "remnant_hunter", "remnant_patrol"],
-  "soldiers": ["gate_guard", "tower_sentry", "roof_rifleman", "yard_trooper", "local_resident", "local_merchant", "local_fence", "local_guard", "local_gate_guard", "local_sentry", "outpost_trooper", "bounty_target", "cantina_dancer", "club_dj", "club_drummer", "club_bassist", "local_patron", "club_dj_rave", "local_raver", "cruiser_trooper", "cruiser_sentry", "cruiser_honour_guard", "cruiser_general", "barracks_general", "general_guard", "dark_master", "barge_partygoer", "barge_guard"],
+  "soldiers": ["gate_guard", "tower_sentry", "roof_rifleman", "yard_trooper", "local_resident", "local_merchant", "local_fence", "local_guard", "local_gate_guard", "local_sentry", "outpost_trooper", "bounty_target", "cantina_dancer", "club_dj", "club_drummer", "club_bassist", "local_patron", "club_dj_rave", "local_raver", "cruiser_trooper", "cruiser_sentry", "cruiser_honour_guard", "cruiser_general", "barracks_general", "general_guard", "dark_master", "barge_partygoer", "barge_guard", "heist_crew_local", "heist_crew_remnant"],
   "encounters": ["orbital_skirmish", "cruiser_escort"],
   "items": ["jetpack", "unmarked_cells", "refined_quantonium", "holocrystals", "space_whale_teeth", "food", "quartz", "red_energy_saber", "rifle_blaster", "energy_blade", "quantonium_armour", "sniper_rifle"],
   "vendors": ["gear_trader", "fence", "food_stall", "station_fence"],
