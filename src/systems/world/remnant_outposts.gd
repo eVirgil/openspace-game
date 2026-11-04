@@ -41,7 +41,10 @@ extends Node3D
 ## walls, a roof and a doorway toward the town, consoles, a holo table and red and
 ## blue light like the cruiser's bridge, and one trooper (guard_c) inside at the
 ## consoles with his back to the door. Hold [E] at the hack console for
-## Heist.hack_seconds() while a heist names the outpost and it drops the stash.
+## Heist.hack_seconds() while a heist names the outpost and the hack starts: stay
+## within Heist.stay_m() of the console for Heist.run_seconds() and it drops the
+## stash. When it starts the outpost sends a wave (Heist.wave_cfg()) from out in
+## the sand, running in to kill you.
 
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
@@ -65,6 +68,11 @@ var bounty_kills := 0              ## for tests and traces
 var hacking := 0.0                 ## issue #309: seconds [E] has been held at a console so far
 var hack_at := ""                  ## ... the outpost whose console is in reach ("" = none)
 var hacks := 0                     ## ... consoles hacked in this scene, for tests and traces
+var running := -1.0                ## the started hack's seconds left (-1 = none running)
+var running_at := ""               ## ... the outpost whose console it runs on ("" = none)
+var wave: Array = []               ## NpcBody, the wave the outpost sent when the hack started
+var waves := 0                     ## ... waves sent in this scene, for tests and traces
+var _wave_run := -1                ## the heist run that has had its wave (one per heist)
 var _bar_up := false
 var _stash: Node3D                 ## the stash lying at a hacked console (GearController's pickup)
 var _room_mats: Dictionary = {}    ## finish -> material, shared by every room
@@ -357,6 +365,7 @@ func _physics_process(dt: float) -> void:
 		return
 	_tick_control(dt, p)
 	_tick_hack(dt, p)
+	_tick_wave(p)
 	for g in guards + held_by + ([target] if target != null else []):
 		if is_instance_valid(g) and not g.dead:
 			var far: bool = g.global_position.distance_to(p.global_position) > WAKE_DIST
@@ -846,9 +855,24 @@ func console_point(o: Dictionary) -> Vector3:
 
 ## One frame at a console: what the player at `p` holding [E] (`held`) gets. ""
 ## (no console in reach), "locked" (no heist here), "wiped" (this heist's console,
-## hacked already), "ready", "hacking", or "done" (held long enough: the stash is
-## out). Letting go or stepping away starts it over. Being seen changes nothing.
+## hacked already), "ready", "hacking" (holding [E] to start it), "started" (held
+## long enough: the hack runs and the wave is sent), "running" (it runs: you are
+## within Heist.stay_m() of the console, anywhere), "broken" (you went further:
+## it dropped, start it again) or "done" (it ran its time: the stash is out).
+## Letting go or stepping away while starting starts that over. Being seen
+## changes nothing.
 func hack_step(dt: float, held: bool, p: Vector3) -> String:
+	if running_at != "":
+		var ro := outpost(running_at)
+		if not Heist.armed(running_at) or ro.is_empty():
+			_stop_run()                  # the heist ended under it (downed, called off)
+		elif p.distance_to(console_point(ro)) > Heist.stay_m():
+			_stop_run()
+			_toast(Heist.line("broken"))
+			return "broken"
+		else:
+			running -= dt
+			return "running" if running > 0.0 else _finish(ro)
 	var o := console_in_reach(p)
 	if o.is_empty():
 		hacking = 0.0
@@ -865,7 +889,24 @@ func hack_step(dt: float, held: bool, p: Vector3) -> String:
 	if hacking < Heist.hack_seconds():
 		return "hacking"
 	hacking = 0.0
-	Heist.on_hacked(hack_at, str(o.label))
+	if Heist.run_seconds() <= 0.0:
+		return _finish(o)
+	running_at = hack_at
+	running = Heist.run_seconds()
+	_send_wave(o)
+	_toast(Heist.line("started") % [roundi(Heist.stay_m()), roundi(Heist.run_seconds())])
+	return "started"
+
+
+func _stop_run() -> void:
+	running = -1.0
+	running_at = ""
+
+
+## The hack on outpost `o`'s console ran its time: the stash is out.
+func _finish(o: Dictionary) -> String:
+	_stop_run()
+	Heist.on_hacked(str(o.id), str(o.label))
 	hacks += 1
 	_toast(Heist.line("hacked") % [Heist.stash_count(), str(WorldState._item(Heist.stash_item()).get("label", "")).to_lower()])
 	_sync_stash()
@@ -878,9 +919,11 @@ func _tick_hack(dt: float, p: Node3D) -> void:
 	var busy: bool = p.get("locked") == true or p.get("piloting") == true \
 		or (gear != null and (not gear.focus.is_empty() or gear.menu.is_open()))
 	var held := not busy and InputMap.has_action("interact") and Input.is_action_pressed("interact")
-	var state := "" if busy else hack_step(dt, held, p.global_position)
+	# A started hack keeps running whatever you are doing, as long as you stay close.
+	var state := "" if busy and running_at == "" else hack_step(dt, held, p.global_position)
 	if gear == null or gear.hud == null:
 		return
+	var talking: bool = not gear.focus.is_empty() or gear.menu.is_open()
 	match state:
 		"locked", "wiped":
 			gear.hud.set_prompt(Heist.line(state))
@@ -888,10 +931,88 @@ func _tick_hack(dt: float, p: Node3D) -> void:
 			gear.hud.set_prompt(Heist.line("ready") % roundi(Heist.hack_seconds()))
 		"hacking":
 			gear.hud.set_prompt(Heist.line("hacking") % int(100.0 * hacking / Heist.hack_seconds()))
-	var bar := state == "hacking"
+		"running":
+			if not talking:
+				gear.hud.set_prompt(Heist.line("running") % [ceili(running), roundi(Heist.stay_m())])
+	var bar := state == "hacking" or state == "running"
 	if bar or _bar_up:
-		gear.hud.set_progress(hacking / Heist.hack_seconds() if bar else -1.0)
+		var frac := -1.0
+		if state == "hacking":
+			frac = hacking / Heist.hack_seconds()
+		elif state == "running":
+			frac = 1.0 - running / maxf(0.001, Heist.run_seconds())
+		gear.hud.set_progress(frac)
 	_bar_up = bar
+
+
+## Where the wave starts: Heist.wave_cfg() count of points, dist metres from
+## outpost `o`'s console, spread over arc_deg round the door's side (+x local,
+## toward the town), on the sand.
+func wave_points(o: Dictionary) -> Array:
+	var wc := Heist.wave_cfg()
+	var n := maxi(0, int(wc.get("count", 4)))
+	var dist := float(wc.get("dist", 50.0))
+	var arc := deg_to_rad(float(wc.get("arc_deg", 150.0)))
+	var c: Vector3 = o.room.stand if o.has("room") else Vector3.ZERO
+	var out: Array = []
+	for i in n:
+		var a := 0.0 if n == 1 else -arc * 0.5 + arc * float(i) / float(n - 1)
+		var lp := c + Vector3(cos(a), 0.0, sin(a)) * dist
+		out.append(world_point(o, lp) if ground != null else (o.xf as Transform3D) * lp)
+	return out
+
+
+## The hack started at outpost `o`: whoever holds it sends a wave at you, once a
+## heist. They run in on the outpost's alarm (home: the console, so their leash
+## is the room), join its garrison, and never come back when killed.
+func _send_wave(o: Dictionary) -> void:
+	var run := int(WorldState.heist.get("run", 0))
+	if _wave_run == run:
+		return
+	_wave_run = run
+	if demo == null or bool(demo.get("lan_shared")):
+		return                           # a LAN guest's town: bodies are the host's (NetWorld)
+	var id := str(o.id)
+	var holder := Territory.owner(id)
+	var soldier := Heist.wave_soldier(holder)
+	var home := console_point(o)
+	var mine: Array = []
+	var pts := wave_points(o)
+	for i in pts.size():
+		var at: Vector3 = pts[i]
+		var g: NpcBody = demo.make_soldier(soldier, at, atan2(home.x - at.x, home.z - at.z),
+			"%s/heist_wave_%d" % [id, i], "npc:%s/heist_wave/%d#%d" % [id, run, i])
+		if g == null:
+			continue
+		adopt(g, id)
+		g.set_meta("heist_wave", run)
+		g.post_pos = home
+		mine.append(g)
+	if mine.is_empty():
+		return
+	wave.append_array(mine)
+	waves += 1
+	var gar = (garrisons if holder == Territory.REMNANT else folks).get(id, null)
+	if gar == null:
+		gar = demo.make_outpost_garrison(o, mine) if holder == Territory.REMNANT else demo.make_locals_outpost_garrison(o, mine)
+		(garrisons if holder == Territory.REMNANT else folks)[id] = gar
+	else:
+		for g in mine:
+			gar.add_member(g)
+	gar.join_alarm(home)
+
+
+## The wave goes once you are well away from it (alive or dead), and the hack is
+## not running.
+func _tick_wave(p: Node3D) -> void:
+	if wave.is_empty():
+		return
+	for g in wave.duplicate():
+		if not is_instance_valid(g):
+			wave.erase(g)
+		elif running_at == "" and g.global_position.distance_to(p.global_position) > Territory.n("swap_dist", 110.0):
+			wave.erase(g)
+			_drop(g, str(g.get_meta("outpost", "")))
 
 
 ## The hacked console's stash lies in front of it until you take it (and is put
