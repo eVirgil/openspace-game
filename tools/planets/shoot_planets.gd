@@ -25,8 +25,8 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	_scenes = [
 		{ "id": "grit_station", "bar": true, "shots": ["overview", "street", "gate_from_hall", "hall", "pit", "cantina", "out_back", "rock", "ball", "home_from_station", "sun"] },
-		{ "id": "port_desert", "shots": ["station_from_port_space", "giant_from_port", "giant_from_space"] },
-		{ "id": "ringed_giant", "shots": ["station_over_giant", "bay_from_spawn", "ball"] },
+		{ "id": "port_desert", "shots": ["station_from_port_space", "giant_from_port", "giant_from_space", "giant_close"] },
+		{ "id": "ringed_giant", "shots": ["station_over_giant", "bay_from_spawn", "ball", "dropping_in", "clouds_from_station", "low_over_clouds"] },
 		{ "id": "style_metallic", "cfg": { "type": "sand", "town_size": 30, "style": "metallic", "seed": 7 }, "shots": ["aerial"] },
 		{ "id": "style_snowy", "cfg": { "type": "snow", "town_size": 30, "style": "snowy", "seed": 7 }, "shots": ["aerial", "street"] },
 		{ "id": "style_pastel", "cfg": { "type": "water", "town_size": 30, "style": "pastel", "seed": 7 }, "shots": ["aerial", "street"] },
@@ -64,6 +64,8 @@ func _run() -> void:
 		cam.fov = 62.0
 		demo.add_child(cam)
 		cam.current = true
+		for layer in demo.find_children("*", "CanvasLayer", true, false):
+			(layer as CanvasLayer).visible = false   # review stills: no HUD, dialogue or prompts
 		if demo.retro_hud != null:
 			demo.retro_hud.visible = false
 		if demo.place_card != null:
@@ -160,6 +162,20 @@ func _view(demo, shot: String) -> Array:
 			var gn: Dictionary = _neighbour(demo, "ringed_giant")
 			var gat: Vector3 = gn.at
 			return [gat * 0.6 + Vector3(0, 9000, 0), gat]
+		# Nearly at the giant, still in the port's scene: 5 km off its clouds.
+		"giant_close":
+			var gc: Dictionary = _neighbour(demo, "ringed_giant")
+			var gca: Vector3 = gc.at
+			var side := gca.normalized().cross(Vector3.UP).normalized()
+			return [gca - gca.normalized() * (float(gc.radius) + 5000.0) + side * 1500.0, gca]
+		# The giant's own scene, close: dropping in past the handoff, the clouds from the
+		# station's bay mouth, and skimming just over the cloud tops.
+		"dropping_in":
+			return [Vector3(1400, 1700, 900), Vector3(0, -300, 0)]
+		"clouds_from_station":
+			return [Vector3(-190, 204, 10), Vector3(-1400, -60, 220)]
+		"low_over_clouds":
+			return [Vector3(500, -95, 500), Vector3(1700, -104, 1300)]
 		# The space station (content/core/stations/) over the top of the giant.
 		"station_over_giant":
 			return [Vector3(520, 120, 460), Vector3(20, 200, 0)]

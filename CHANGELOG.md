@@ -2,6 +2,18 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The ringed giant: gas you can see, fog under the station, air you can breathe (2026-11-04)
+
+- **The giant looks like gas from far off:** a soft glowing edge of haze all
+  round it, bands that bend and drift, and heaps of cloud as you get closer. The
+  far side is dusky purple, not black.
+- **Up close the ground is fog.** From the station you look down into a sea of
+  haze with no hard horizon; dive toward the clouds and you fly into thick fog
+  (the deadly line is inside it).
+- **Go outside the station without armour:** the air is breathable. Walk out of
+  the bay's mouth through its shield and roam outside on the jetpack. Drop too
+  far toward the clouds and the station pulls you back into the bay.
+
 ## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New
