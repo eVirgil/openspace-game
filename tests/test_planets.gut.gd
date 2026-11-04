@@ -115,7 +115,7 @@ func test_the_same_seed_is_the_same_town() -> void:
 
 func test_every_planet_type_builds() -> void:
 	var types: Dictionary = PlanetGen.types().types
-	assert_eq(types.size(), 8)
+	assert_eq(types.size(), 9)
 	for type in types:
 		var p := PlanetGen.make({ "id": "test_" + type, "type": type, "town_size": 12, "seed": 2 }, cc)
 		assert_eq(p.type, type)
@@ -226,7 +226,7 @@ func test_the_asteroid_station() -> void:
 	assert_eq(n.size(), 1)
 	assert_eq(n[0].id, "port_desert", "you can fly home")
 	var home := PlanetGen.build("port_desert", cc)
-	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "cinder_station"], "and the port sees the station (and the lava moon, #272)")
+	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "cinder_station", "ringed_giant"], "and the port sees the station (and the lava moon, #272, and the ringed giant)")
 	assert_eq(home.neighbours[0].at, Vector3(9000, 5200, -6500))
 	# Issue #99: one map. The station's port is on top of its ball; from the station
 	# the port's ball is exactly where the shift between the two scenes puts it.
@@ -412,3 +412,61 @@ func test_jobs_are_always_offered_off_the_home_planet() -> void:
 
 static func _v(a) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
+
+
+## The ringed giant (content/core/planets/ringed_giant.json): a real ball of gas
+## with a town on a deck on top (landing bays), hanging where the port's sky
+## painting was, about the size the painting looked, with the painting off
+## wherever the real one is.
+func test_the_ringed_giant_replaces_the_painting() -> void:
+	var g := PlanetGen.build("ringed_giant", cc)
+	assert_eq(g.type, "gas_ball")
+	assert_eq(g.ground, "ball", "a real ball you fly round")
+	assert_true(bool(g.type_cfg.deck), "its town floats on a deck")
+	assert_gt(PlanetGen.handoff_altitude("gas_ball"), 0.0, "flown into with no fade, like the station")
+	assert_gt(int(g.town.counts.bays), 0, "it has a landing bay")
+	var t := TownLayout.new()
+	t.load_from_dict(g.town)
+	assert_eq(t.validate().size(), 0, str(t.validate().slice(0, 3)))
+	var port := PlanetGen.build("port_desert", cc)
+	var n: Dictionary = {}
+	for x in port.neighbours:
+		if x.id == "ringed_giant":
+			n = x
+	assert_false(n.is_empty(), "the port can fly to it")
+	assert_true(bool(n.sky_giant))
+	assert_gt(float(n.bands), 0.0, "banded like the painting")
+	assert_false((n.ring as Dictionary).is_empty(), "with its ring")
+	var sky: Dictionary = ItemKit._read_json("res://content/look/time_of_day.json").presets.golden.sky
+	var painted := LookEnvironment.direction(float(sky.planet_azimuth_deg), float(sky.planet_elevation_deg))
+	var at: Vector3 = n.at
+	assert_lt(rad_to_deg(at.normalized().angle_to(painted)), 0.5, "where the painting was")
+	var looks := asin(float(n.radius) / at.length())
+	assert_almost_eq(looks, asin(float(sky.planet_radius)), 0.15 * asin(float(sky.planet_radius)), "about as big as the painting looked")
+	assert_lt(float(n.radius), 5000.0 * 1.5, "smaller than it looked: a short flight")
+	assert_false(bool(port.sky_painting), "the port shows the real one, not the painting")
+	assert_false(bool(g.sky_painting), "no painted giant over the giant itself")
+	assert_true(bool(PlanetGen.build("grit_station", cc).sky_painting), "the station keeps its sky")
+
+
+## The ringed giant's clouds: smooth all the way round, nothing to land on, and
+## a ship down in them is lost; the deck's level is safe.
+func test_the_ringed_giants_clouds_are_deadly() -> void:
+	var g := PlanetGen.build("ringed_giant", cc)
+	var surf: Dictionary = g.type_cfg.surface
+	var sp := GasSphere.new(float(g.world.terrain.sphere_radius), surf)
+	assert_eq(sp.elevation(Vector3.UP), -float(surf.depth), "cloud tops below the deck")
+	assert_eq(sp.elevation(Vector3(1, -0.3, 0.2).normalized()), -float(surf.depth), "the same all the way round")
+	var ground := WorldGround.new()
+	PlanetSphere.current = sp
+	ground.setup(g.world)
+	PlanetSphere.current = null
+	assert_false(ground.lethal_at(Vector3(0, 20, 0)), "over the deck")
+	assert_false(ground.lethal_at(Vector3(0, -30, 0)), "just under the deck's level")
+	assert_true(ground.lethal_at(Vector3(0, -float(surf.depth) - 5.0, 0)), "in the clouds")
+	var side: Vector3 = sp.center + Vector3(1, 0, 0) * (sp.radius - 90.0)
+	assert_true(ground.lethal_at(side), "round the far side too")
+	assert_false(ground.lethal_at(sp.center + Vector3(1, 0, 0) * (sp.radius + 500.0)), "flying round it is clear")
+	var flat := WorldGround.new()
+	flat.setup(PlanetGen.build("grit_station", cc).world)
+	assert_false(flat.lethal_at(Vector3(0, -500, 0)), "solid planets have no deadly clouds")

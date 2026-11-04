@@ -19,6 +19,8 @@ signal travel_started(to: String)
 
 const CAPTURE := 400.0               ## metres outside a body's radius that count as "arrived"
 const HYSTERESIS := 300.0            ## issue #99: leaving needs this much more than arriving
+const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
+const RING_SHADER := preload("res://src/systems/look/shaders/gas_ring.gdshader")
 const PREWARM := 1500.0              ## this far before a handoff, its scene's far mesh starts on worker threads
 
 var pilot                            ## ShipPilot
@@ -28,6 +30,8 @@ var change := true                   ## false: decide but do not change scene (t
 var _layer: CanvasLayer
 var _labels: Dictionary = {}         ## id -> Label
 var _sand_bodies: Array = []         ## sand ShaderMaterials of ball neighbours (the sun is tracked)
+var _gas_mats: Array = []            ## the ringed giant's ball and ring materials (sun, daylight, haze)
+var _look = null                     ## the scene's LookEnvironment, once ready
 var self_radius := 0.0               ## issue #99: this planet's ball, and how far up its scene still holds
 var self_handoff := 0.0
 var handoffs := 0                    ## seamless switches started (traces, tests)
@@ -69,6 +73,9 @@ func _ready() -> void:
 	if look != null:
 		for m in _sand_bodies:
 			look.track_material(m)     # the sun, so the ball's night side is dusk
+		for m in _gas_mats:
+			look.track_material(m)
+		_look = look
 		_share_parent_sky(look)
 	_layer = CanvasLayer.new()
 	_layer.layer = 4
@@ -97,6 +104,18 @@ func distance_to(id: String) -> float:
 		if b.id == id:
 			return (pilot.atmo.position() as Vector3).distance_to(b.at) - float(b.radius) - CAPTURE
 	return INF
+
+
+## The real ringed giant fades into the daylight sky the way its painting did
+## (LookEnvironment.planet_visibility, which AltitudeSky raises in space).
+func _process(_dt: float) -> void:
+	if _gas_mats.is_empty() or _look == null or _look.sky_mat == null:
+		return
+	var haze: Color = (_look.sky_mat.get_shader_parameter("horizon_color") as Color).lerp(
+		_look.sky_mat.get_shader_parameter("zenith_color") as Color, 0.5)
+	for m in _gas_mats:
+		m.set_shader_parameter("visibility", _look.planet_visibility)
+		m.set_shader_parameter("haze", haze)
 
 
 func _physics_process(_dt: float) -> void:
@@ -233,6 +252,8 @@ func _share_parent_sky(look) -> void:
 ## Issue #99: a ball type with a handoff (the asteroid) is its real ball and
 ## station, coarse, so arriving changes only the detail.
 func _body(n: Dictionary) -> Node3D:
+	if float(n.get("bands", 0.0)) > 0.0:
+		return _gas_body(n)          # the ringed giant: its banded ball and its ring
 	if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
 		var real := _ball_body(n)
 		if real != null:
@@ -267,6 +288,67 @@ func _body(n: Dictionary) -> Node3D:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.extra_cull_margin = r
 	return mi
+
+
+## A banded gas ball with its ring (the ringed giant): the sky painting's look,
+## real. The ring lies in the plane normal to ring.normal, from ring.inner to
+## ring.outer planet radii; it is a look, not solid.
+func _gas_body(n: Dictionary) -> Node3D:
+	var r := float(n.radius)
+	var root := Node3D.new()
+	root.name = "Planet_" + str(n.id)
+	root.position = n.at
+	var ring: Dictionary = n.get("ring", {})
+	var rn := GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized()
+	var mi := MeshInstance3D.new()
+	mi.name = "Ball"
+	var seen := n.duplicate()
+	seen.radius = float(n.get("cloud_radius", r))    # a gas ball's cloud tops, as its own scene draws them
+	mi.mesh = body_mesh(seen)
+	var m := ShaderMaterial.new()
+	m.shader = GAS_SHADER
+	m.set_shader_parameter("color_a", n.color)
+	m.set_shader_parameter("color_b", n.dark)
+	m.set_shader_parameter("bands", float(n.bands))
+	m.set_shader_parameter("ring_normal", rn)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = r
+	root.add_child(mi)
+	_gas_mats.append(m)
+	if not ring.is_empty():
+		var rmi := make_ring(n.at, r, ring)
+		root.add_child(rmi)
+		rmi.position = Vector3.ZERO
+		_gas_mats.append(rmi.material_override)
+	return root
+
+
+## A gas giant's ring round `center` (radius r): a flat band in the plane normal
+## to ring.normal, from ring.inner to ring.outer radii (gas_ring.gdshader). A
+## look only, not solid. Placed at `center` in world space (its parent at the origin).
+static func make_ring(center: Vector3, r: float, ring: Dictionary) -> MeshInstance3D:
+	var rn := GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized()
+	var outer := float(ring.get("outer", 2.5))
+	var plane := PlaneMesh.new()
+	plane.size = Vector2.ONE * (2.0 * outer * r)
+	var rmi := MeshInstance3D.new()
+	rmi.name = "Ring"
+	rmi.mesh = plane
+	var side := rn.cross(Vector3.FORWARD if absf(rn.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
+	rmi.basis = Basis(side, rn, side.cross(rn)).orthonormalized()
+	rmi.position = center
+	var rm := ShaderMaterial.new()
+	rm.shader = RING_SHADER
+	rm.set_shader_parameter("ring_color", Color(str(ring.get("color", "#e8d6c0"))))
+	rm.set_shader_parameter("center", center)
+	rm.set_shader_parameter("radius", r)
+	rm.set_shader_parameter("inner", float(ring.get("inner", 1.35)))
+	rm.set_shader_parameter("outer", outer)
+	rmi.material_override = rm
+	rmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rmi.extra_cull_margin = outer * r
+	return rmi
 
 
 ## A neighbour's ball mesh (a noisy rock for a small body, a plain sphere for a
@@ -304,6 +386,8 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 	sphere.radial_segments = 64
 	sphere.rings = 32
 	var rocky := _rocky(n)
+	if float(n.get("bands", 0.0)) > 0.0:
+		return sphere           # a gas ball is smooth
 	return LookMeshKit.rock(sphere, noise, 0.3 if rocky else 0.012, 0.0, 3.0, 0.85 if rocky else 1.0) if rocky or r < 20000.0 else sphere
 
 

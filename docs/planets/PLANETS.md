@@ -113,7 +113,8 @@ of them. A planet's port sits on top of its ball, so a neighbour's port is at it
 
 A new type is a new entry in `types.json`, with no code change, as long as its
 ground is `terrain`, `platform` or `ball` and its surface is one of `water`,
-`lava`, `gas` or `rock`.
+`lava`, `gas` or `rock` (a `ball` of `gas` is a gas giant with a deck town: see
+the ringed giant below).
 
 **A type can build on another (issue #272).** Give it `"base": "asteroid"` and
 only what differs: dictionaries merge key by key (so `surface.look` replaces the
@@ -279,6 +280,51 @@ What is still slow: a few single steps take a long time on their own, because
 one procedural character costs tens to hundreds of milliseconds to build (the
 player's body, the cantina owner, the port's outpost guards and native packs).
 See `KNOWN_ISSUES.md`.
+
+## The ringed giant: the sky painting, made real
+
+`content/core/planets/ringed_giant.json` is the gas giant that hung painted in
+the port's sky (`planet_*` in `content/look/time_of_day.json`). It is a
+`gas_ball`: a real ball, like the asteroid, that you fly round, with gravity
+toward its centre and "up" turning with it. A `gas_ball` town floats on a deck on
+top (`deck: true`: the platform worlds' deck, keel, glass enclosure, gate shield
+and landing bays); the ringed giant's own town is the space station instead (see
+below).
+
+- **The clouds are the ball.** `GasSphere` (`src/systems/planets/gas_sphere.gd`)
+  puts smooth cloud tops `surface.depth` metres below the deck's level all the
+  way round, drawn by `PlanetTerrain` in `gas_giant.gdshader`. Nothing there holds
+  you up: a ship more than `surface.lethal_depth` below the ball's radius is lost,
+  at any speed (`WorldGround.lethal_at`, checked in `AtmoFlight.step`: a crash, so
+  it is towed back to its bay). Fall off the deck and you die on the way down,
+  as on any platform.
+- **No fade.** As with Grit Station, within `space.handoff` of the clouds its
+  own scene takes over in mid-flight, and climbing back out hands you to the
+  port's.
+- **Where the painting was.** `at` is the painting's direction from the port
+  (azimuth 26, elevation 17), 30 km out. Its radius is 3.5 km, so it looks as big
+  as the painting did. It is really smaller than the home planet, so the flight
+  is short.
+- **`body` in a planet's config** overrides its type's look from space. The
+  giant's sets the painting's colours, `bands` (any value above 0 draws the
+  banded ball) and `ring` (`inner`/`outer` in planet radii, `color`, `normal`;
+  `gas_ring.gdshader`, not solid). Seen from another planet both fade into the
+  daylight sky the way the painting did. The giant's own scene draws the same
+  ring (`TownDemo._dress_gas_ring`).
+- **`replaces_sky_painting: true`** turns the painted giant off on the planet
+  itself and on any planet whose sky it hangs in (`PlanetGen.sky_painting`).
+  Grit Station keeps its painting.
+- **The port's ground camera** sees far enough to show it
+  (`TownDemo.sky_giant_reach`).
+- **Quiet sky** (`encounter: ""`): a space fight's flight does not check the
+  clouds yet.
+- **The space station is its town** (`content/core/stations/orbital_station.json`,
+  PR #501). Its `"kind": "station"` landmark hangs it 200 m over the top of the
+  ball, and `"station_town"` names that landmark as the planet's town:
+  `StationHull.town_for` makes a town of only the station's bay (your ship's pad
+  on the dock pad, `player_spawn` beside it), so a save loaded here starts you in
+  the bay, a crashed ship is towed to the dock pad, and there is no deck. Fly in
+  and press Z to dock. Any planet can do the same with any station landmark.
 
 ## The test planet: Grit Station
 

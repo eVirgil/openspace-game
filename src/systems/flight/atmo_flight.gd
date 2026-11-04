@@ -242,6 +242,9 @@ func step(dt: float) -> Array:
 			_step_landing(dt)
 		State.ADRIFT:
 			_step_adrift(dt)
+	# A gas giant's clouds hold nothing up: down in them she is lost, at any speed.
+	if state in [State.FLYING, State.LANDING, State.ADRIFT] and ground != null and ground.lethal_at(flight.position):
+		_crash(flight.position, "gas")
 	return events
 
 
