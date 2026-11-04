@@ -2,6 +2,23 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The station is full of people (issue #315, part 2, 2026-11-04)
+
+- **About 80 people live aboard.** They walk the walkways, go down the
+  favela's alleys and the market aisles to stand at a stall, a booth or a shack
+  door, look into the suites and the engine rooms, ride the elevators between
+  floors and cross the tunnels to the other tower.
+- **They ride the elevators properly.** They wait by the shaft, step on when the
+  car stops at their floor with its doors open, ride it, and step off on the
+  floor they wanted.
+- **Hurt one and the station fights back.** The nearest armed people on your
+  floor pull their pistols, up to ten at once, and the station's locals
+  remember it like the port's do. Once it is over they go back to walking. The
+  dead fall and are back a few minutes later.
+- **The frame rate holds.** They are cheap stand-ins until a fight: one walk cycle
+  shared by everyone, only the nearest dozen animated each frame, and only those
+  on your floor and the ones next to it drawn.
+
 ## A second Remnant cruiser by the station (issue #327, 2026-11-04)
 
 - **The belt cruiser.** A second Remnant star cruiser, the same ship as the

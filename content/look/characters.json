@@ -127,6 +127,17 @@
         }
       }
     },
+    "station_local": {
+      "note": "Issue #315: the space station's people (src/systems/world/station_crowd.gd). The port's local body (base: local) in the kit pieces the issue names: the cantina owner's head, and the player's or the cantina owner's upper and lower body, in their colours. Each body picks one of each part.",
+      "base": "local",
+      "model": {
+        "parts": {
+          "head": ["cantina_owner", "cantina_owner:madder", "cantina_owner:slate", "cantina_owner:teal", "cantina_owner:sand"],
+          "torso": ["player:black", "player:dusk", "player:olive", "player:rust", "player:sand", "cantina_owner:madder", "cantina_owner:slate", "cantina_owner:teal"],
+          "legs": ["player:black", "player:dusk", "player:olive", "player:sand", "cantina_owner:slate", "cantina_owner:sand", "cantina_owner:teal"]
+        }
+      }
+    },
     "cantina_dancer": {
       "note": "Cantina Dancer Patch: the player's body (torso), the cantina owner's legs and a guard's pale head, all pieces of the one kit model (parts.glb) on one skeleton. Only what differs from the player is listed.",
       "base": "player_smuggler",

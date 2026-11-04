@@ -64,6 +64,37 @@ runtime).
 10. **Look layer only.** With `use_look = false` there is no fill, and the
    station plays as before.
 
+## The crowd (`StationCrowd`, `src/systems/world/station_crowd.gd`)
+
+About 80 people (the config's `"crowd"`), each with a home floor. They walk the
+walkways, go down the alleys and aisles to stand at a stall, a booth or a shack
+door (the fill's walking net, `StationFill.nets`), look into open rooms, ride
+the elevators (they board only when the car has stopped at their floor with its
+doors open) and cross the tunnels to the other tower. Hurt one and the nearest
+armed people on your floor (no more than `rouse_max`) become real locals where
+they stand, run by a Townsfolk of the station's own; they walk again once the
+alarm has been down a while. The dead fall as ragdolls and are back later.
+
+Render rules for people, on top of the ones above:
+
+1. **Puppets, not NPCs.** A kit body moved by script along paths in the
+   station's frame, with a hit capsule. No physics body, navmesh or brain until
+   a fight, and then only `rouse_max` of them.
+2. **One walk cycle for everyone.** `BodyAnimator` is stepped once at load into
+   a 24-frame table; a walker reads its frame from it. Nobody runs the animator
+   per frame.
+3. **A posing budget.** At most `anim_budget` (12) bodies are posed and skinned
+   a frame, nearest first: every frame within 25 m, every fourth out to 60 m,
+   frozen past that.
+4. **Drawn near the camera only.** Within `people_m` (70 m) and `show_dy` (30 m)
+   of its height, like the fill. Shadows only within `shadow_m` (20 m).
+5. **Built one a frame,** once the camera is within `build_within` (900 m).
+
+Measured on the Mac: the crowd's own time is 0.2 ms a frame from outside or a
+quiet floor and about 0.8 ms on a busy one (12 posed). A kit body is about 20k
+triangles, so a busy floor draws 0.3 to 0.7M more triangles and 50 to 100 more
+draw calls; the GPU's frame stayed in the same range.
+
 ## Measuring
 
 `test_results/probe/station_probe.gd` (not in the repo) boots the giant with the
