@@ -45,6 +45,7 @@ var market: TownMarket
 var finish: Callable                ## finish name -> the station's own material (SpaceStation._mat)
 var counts := {}                    ## what was placed, by kind (tests, review)
 var draws := 0                      ## meshes the last floor ended up as (review)
+var nets := {}                      ## "<tower>/<floor>" -> { alleys: [angle], stops: [{ a, r, face_r }] }: where the crowd walks
 var slowest_ms := 0.0               ## the longest single job (review)
 var slowest := ""
 var _rng := RandomNumberGenerator.new()
@@ -465,8 +466,8 @@ func _lamp(at: Vector3, glow: Material) -> void:
 ## any tunnel door.
 func _market(parent: Node3D, t: Dictionary, f: Dictionary, fc: Dictionary) -> void:
 	var y := float(f.y)
-	var lanes: Array = hull.door_angles(t, y)
-	var lane_half := float(fc.get("lane_half", 4.0))
+	var lanes := _lanes(t, f, fc)
+	var net := _net(t, f, lanes)
 	var stalls: Array = []
 	var ri := 0
 	for ring in fc.get("rings", []):
@@ -474,21 +475,18 @@ func _market(parent: Node3D, t: Dictionary, f: Dictionary, fc: Dictionary) -> vo
 		if r > float(f.r) - 2.0:
 			continue
 		if bool(ring.get("pack", false)):
-			_pack_ring(t, y, ring, lanes.map(func(d): return [float(d), lane_half]), ri)
+			_pack_ring(t, y, ring, lanes, ri, net)
 			ri += 1
 			continue
 		var every := float(ring.get("every_m", 7.0))
 		var n := maxi(1, floori(TAU * r / every))
 		var out := str(ring.get("face", "in")) == "out"
 		var huts := bool(ring.get("huts", false))
+		var size := Vector3(float(ring.get("depth", 1.2)), float(ring.get("height", 1.0)), float(ring.get("length", 3.0)))
 		var start := float(ri) * 0.37                       # rings do not line up
 		for k in n:
 			var a := start + TAU * k / n
-			var clear := true
-			for d in lanes:
-				if absf(wrapf(a - float(d), -PI, PI)) * r < lane_half + every * 0.5:
-					clear = false
-			if not clear:
+			if not _clear(a, r, size.z * 0.5 + 0.3, lanes):
 				continue
 			var xf := radial(t, y, a) * Transform3D(Basis.IDENTITY, Vector3(r, 0, 0))
 			if not out:
@@ -496,9 +494,9 @@ func _market(parent: Node3D, t: Dictionary, f: Dictionary, fc: Dictionary) -> vo
 			if huts and k % 2 == 0:
 				_q.append(_hut.bind(xf, "%s_%s_hut_%d_%d" % [str(t.id), str(f.id), ri, k], ring, _rng.randi()))
 				continue
-			var size := Vector3(float(ring.get("depth", 1.2)), float(ring.get("height", 1.0)), float(ring.get("length", 3.0)))
 			stalls.append({ "id": "%s_%s_stall_%d_%d" % [str(t.id), str(f.id), ri, k], "xf": xf, "size": size })
 			kit.add_collider(xf * Transform3D(Basis.IDENTITY, Vector3(0, size.y * 0.5, 0)), size)
+			_stop(net, a, r, size.x, out)
 			_count("stall")
 		ri += 1
 	var batch := 4
@@ -506,6 +504,26 @@ func _market(parent: Node3D, t: Dictionary, f: Dictionary, fc: Dictionary) -> vo
 	while j < stalls.size():
 		_q.append(market.dress_at.bind(parent, stalls.slice(j, j + batch), j))
 		j += batch
+
+
+# ------------------------------------------------------------------ where people walk
+
+## A floor's walking net for the crowd (StationCrowd): its clear lanes out from
+## the walkway (alleys and tunnel lanes, angles), and the spots in front of every
+## stall, booth and shack door, each on the aisle in front of its ring.
+func _net(t: Dictionary, f: Dictionary, lanes: Array) -> Dictionary:
+	var net := { "alleys": lanes.map(func(l): return float(l[0])), "stops": [] }
+	nets[str(t.id) + "/" + str(f.id)] = net
+	return net
+
+
+## A customer's spot in front of a piece at angle `a`, ring radius `r`, `d` deep,
+## its front facing out (`out`) or in: on the aisle a little past its front.
+static func _stop(net: Dictionary, a: float, r: float, d: float, out: bool) -> void:
+	if net.is_empty():
+		return
+	var aisle := r + d * 0.5 + 0.9 if out else r - d * 0.5 - 0.9
+	(net.stops as Array).append({ "a": a, "r": aisle, "face_r": r })
 
 
 ## One of the town's small huts (a home among the stalls) in the station's own grey
@@ -557,14 +575,15 @@ static func _clear(a: float, r: float, half_w: float, lanes: Array) -> bool:
 ## lights and washing strung over the alleys.
 func _favela(t: Dictionary, f: Dictionary, fc: Dictionary) -> void:
 	var lanes := _lanes(t, f, fc)
+	var net := _net(t, f, lanes)
 	var rings: Array = fc.get("rings", [])
 	for ri in rings.size():
-		_pack_ring(t, float(f.y), rings[ri], lanes, ri)
+		_pack_ring(t, float(f.y), rings[ri], lanes, ri, net)
 	_q.append(_lines.bind(t, float(f.y), fc, lanes))
 
 
 ## One ring of packed pieces at `ring.r`, doors facing in (or out).
-func _pack_ring(t: Dictionary, y: float, ring: Dictionary, lanes: Array, ri: int) -> void:
+func _pack_ring(t: Dictionary, y: float, ring: Dictionary, lanes: Array, ri: int, net: Dictionary = {}) -> void:
 	var r := float(ring.get("r", 30.0))
 	var depth: Array = ring.get("depth", [3.0, 3.6])
 	var width: Array = ring.get("width", [3.0, 4.5])
@@ -591,6 +610,7 @@ func _pack_ring(t: Dictionary, y: float, ring: Dictionary, lanes: Array, ri: int
 		var xf := radial(t, y, mid) * Transform3D(Basis.IDENTITY, Vector3(r, 0, 0))
 		if not out:
 			xf = xf * Transform3D(Basis(UP, PI), Vector3.ZERO)       # +X, its door, back toward the middle
+		_stop(net, mid, r, d, out)
 		if roll < booth:
 			_q.append(_booth.bind(xf, d, w, seed))
 		elif roll < booth + hut and w >= 4.0:

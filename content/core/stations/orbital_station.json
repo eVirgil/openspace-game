@@ -43,19 +43,46 @@
         { "r": 57.8, "face": "in", "depth": [2.2, 2.6], "booth_share": 0.3, "hut_share": 0.0, "stack_share": 0.0 }
       ] },
       "homes_2": { "use": "suites" },
-      "markets": { "use": "market", "lane_half": 4.0, "rings": [
+      "markets": { "use": "market", "lane_half": 4.0, "alleys": 6, "alley_start": 0.5, "alley_half": 1.4, "rings": [
         { "r": 24.0, "face": "in", "every_m": 6.5 },
         { "r": 32.0, "face": "out", "every_m": 6.5 },
         { "r": 40.0, "face": "in", "every_m": 7.0 },
         { "r": 46.5, "face": "in", "pack": true, "depth": [2.8, 3.4], "booth_share": 0.4, "hut_share": 0.15, "stack_share": 0.25 }
       ] },
-      "markets_2": { "use": "market", "lane_half": 4.0, "rings": [
+      "markets_2": { "use": "market", "lane_half": 4.0, "alleys": 5, "alley_start": 0.9, "alley_half": 1.4, "rings": [
         { "r": 24.0, "face": "in", "every_m": 6.5 },
         { "r": 31.0, "face": "out", "every_m": 7.0 },
         { "r": 36.8, "face": "in", "pack": true, "depth": [2.6, 3.0], "booth_share": 0.4, "hut_share": 0.15, "stack_share": 0.2 }
       ] },
       "engines": { "use": "engines", "rooms": ["engine", "cargo", "pumps", "workshop", "engine", "cargo", "pumps", "workshop"] }
     }
+  },
+  "crowd_note": "Issue #315: the people aboard (src/systems/world/station_crowd.gd). floors: how many live on each floor (their home: where they start and come back after respawn_s). They walk the walkway at speed m/s, and by turn (stop_share, elevator_share, tunnel_share, else a stroll) go down an alley to stand stop_s seconds at a stall, booth or shack door (the fill's walking net) or into an open room (room_deep metres in), ride an elevator to another floor that has people (by how many live there, and home_pull of the time home), or cross a tunnel to the other tower's floor. Puppets, like the barge's crowd: built one a frame once the camera is within build_within metres, drawn within people_m and show_dy of the camera, posed from one sampled walk cycle at most anim_budget a frame (every frame within anim_near_m, every fourth out to anim_far_m), shadows within shadow_m. Hurt one and the nearest of the armed_share on your floor within rouse_m (no more than rouse_max at once) become the fighter profile where they stand, rouse_per_tick a tick, back to walking calm_back_s after the alarm is down. looks: content/look/characters.json.",
+  "crowd": {
+    "floors": { "markets": 20, "markets_2": 12, "homes": 24, "homes_2": 10, "engines": 6, "top": 8 },
+    "looks": ["station_local"],
+    "speed": [1.1, 1.6],
+    "stop_share": 0.45,
+    "elevator_share": 0.2,
+    "tunnel_share": 0.15,
+    "stop_s": [4.0, 12.0],
+    "room_deep": { "homes_2": 14.0, "engines": 2.5, "top": 6.0 },
+    "build_within": 900.0,
+    "people_m": 70.0,
+    "show_dy": 30.0,
+    "anim_near_m": 25.0,
+    "anim_far_m": 60.0,
+    "anim_budget": 12,
+    "shadow_m": 20.0,
+    "person_hp": 60,
+    "respawn_s": 180.0,
+    "armed_share": 0.5,
+    "fighter": "local_resident",
+    "rouse_m": 60.0,
+    "rouse_per_tick": 1,
+    "rouse_max": 10,
+    "home_pull": 0.5,
+    "calm_back_s": 20.0
   },
   "rooms": { "count": 8, "door_width": 2.6, "door_height": 4.0 },
   "tunnel": { "width": 6.0, "height": 5.0 },

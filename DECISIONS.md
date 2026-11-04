@@ -1589,3 +1589,20 @@ Every significant technical choice, the alternative, and why. Newest on top.
   rooms of the hull (a floor's `"rooms"` can be a count), each a big suite in
   the cantina's and the barge's dress. A room not in `"open_rooms"` gets a solid
   shut door in the hull, so nothing behind it has to be drawn.
+
+## The station's crowd is puppets on paths (2026-11-04)
+
+- **The barge's way, not 80 NpcBodies.** A kit body moved by script along paths in
+  the station's frame, with a hit capsule, swapped for a real local only in a
+  fight (and no more than ten at once). Alternative: Townsfolk with GuardBrains on
+  a navmesh. Rejected: 80 CharacterBodies, brains and nav agents is several ms of
+  physics and script a frame for people who only walk loops.
+- **One sampled walk cycle and a posing budget.** BodyAnimator builds
+  dictionaries every step and the skin sync walks every bone in GDScript, so the
+  walk is sampled once into a table and only the nearest dozen are posed a frame.
+- **Paths from the fill.** StationFill records each packed floor's lanes and the
+  spot in front of every stall, booth and door as it lays them out
+  (`StationFill.nets`), so the crowd walks the same alleys the layout left clear.
+  Elevator rides read the real cars (`SpaceStation.cars`): a puppet boards only
+  while its car has stopped at its floor, and rides it like the player does.
+

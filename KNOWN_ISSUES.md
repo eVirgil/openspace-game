@@ -2,6 +2,26 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the station's crowd (2026-11-04)
+
+**Checked:** headless runs on the giant (stand-ins and the look on): 80 aboard,
+in 150 s 40 elevator rides, 11 tunnel crossings and 100 stops with the look on,
+nobody off the station; a hit raised the alarm and made 10 fighters, a kill
+counted. A rendered probe for cost and stills; `test_smoke`, `test_station`.
+Nothing was played by hand, and no fight was watched on screen.
+
+- **Puppets walk through things now and then.** They follow paths, not
+  physics: an aisle's arc can graze a stall's corner, and they pass through the
+  player and each other.
+- **A fighter's outfit can change.** The real body swapped in picks its own
+  pieces of the same look, so a puppet in a black top may fight in a rust one.
+- **Fighters walk straight at you** (no navmesh aboard), so they bump into
+  stalls and shacks.
+- **Nobody keeps the stalls yet** and nothing is sold; there are no workers or
+  droids on the engine deck beyond the crowd's six.
+- **The market floors feel thinner than the favela** (20 and 12 people across
+  100 m and 80 m floors). The counts are `crowd.floors` in the config.
+
 ## After the station's furniture (2026-11-04)
 
 **Checked:** a rendered probe on the Mac (Vulkan) at fixed spots aboard and

@@ -12,6 +12,8 @@ extends Node3D
 ##     dock_cfg, line), so ShipPilot flies you into its bay the same way
 ##   - the label naming it in the sky while you fly, interior lights, and a pull back
 ##     aboard if you fall out
+##   - issue #315: what is in its floors (StationFill) and the people aboard
+##     (StationCrowd)
 ## Nothing here is about one planet: SpaceStation is built for every "station"
 ## landmark of the world it is in (town_demo._build_stations).
 
@@ -20,6 +22,7 @@ const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "car
 	"pad": 10, "beacon": 11, "screen": 12 }
 const StationFill := preload("res://src/systems/world/station_fill.gd")
 const TownBuildings := preload("res://src/systems/world/town_buildings.gd")
+const StationCrowd := preload("res://src/systems/world/station_crowd.gd")
 
 var demo                               ## town_demo.gd
 var ground: WorldGround
@@ -36,6 +39,7 @@ var rides := 0                         ## elevator stops reached with you aboard
 var fill: StationFill                  ## issue #315: what is in the floors (with the look layer only)
 var fill_floors: Array = []            ## { tower, i, c, y, r, node, built }: one per dressed floor
 var fill_ms := 0.0                     ## the longest tick spent building the fill, ms (review)
+var crowd: StationCrowd                ## issue #315: the people aboard (the config's "crowd")
 
 var _root: Node3D
 var _inside: Node3D
@@ -76,6 +80,10 @@ func _ready() -> void:
 	_build_hatches()
 	_build_elevators()
 	_build_label()
+	if not (cfg.get("crowd", {}) as Dictionary).is_empty():
+		crowd = StationCrowd.new()
+		crowd.setup(self, demo, hull)
+		_root.add_child(crowd)
 
 
 # ------------------------------------------------------------------ queries
