@@ -68,6 +68,9 @@ var cfg: Dictionary = {}
 var labels: Dictionary = {}
 var menu: DroidMenu
 var companions: Dictionary = {}     ## uid -> DroidUnit (yours, following)
+const LENT_UID := -310               ## issue #310: a borrowed droid's uid (never a roster uid)
+var lent: Dictionary = {}            ## issue #310: the droid a heist lends you: { kind, variant } ({} = none)
+var lent_down := false               ## ... it was knocked out: it is gone for this heist
 var wreck_nodes: Dictionary = {}    ## uid -> DroidUnit (broken, in the desert)
 var remnant: Array = []             ## DroidUnit (the Remnant's patrol, and issue #187 the locals')
 var vendor_pos := Vector3.INF
@@ -746,14 +749,48 @@ func _take_remote() -> void:
 
 # ------------------------------------------------------------------ companions
 
-## Bring every owned droid that has no body yet, beside the player.
+## Bring every owned droid that has no body yet, beside the player. Issue #310:
+## and the one a heist lends you (not in your roster).
 func _sync_companions() -> void:
 	for d in roster().owned:
 		if not companions.has(int(d.uid)):
 			_spawn_companion(d, player.global_position - _heading * 2.0)
+	if not lent.is_empty() and not lent_down and not companions.has(LENT_UID):
+		_spawn_companion(_lent_entry(), player.global_position - _heading * 3.0)
 	for uid in companions.keys():
+		if uid == LENT_UID:
+			if lent.is_empty() or lent_down and not companions[uid].dead:
+				_free_companion(uid)
+			continue
 		if roster().find(uid).is_empty():
 			_free_companion(uid)
+
+
+## Issue #310: lend the player a droid for a heist ({ kind, variant }). It follows
+## and fights like one of theirs (the same follow and guns), but is not in the
+## roster: no slot, no cargo, no sale. Knocked out it stays down for the heist.
+func lend(kind: String, variant: String) -> void:
+	if not lent.is_empty() and str(lent.kind) == kind and str(lent.variant) == variant:
+		return
+	give_back()
+	lent = { "kind": kind, "variant": variant }
+	lent_down = false
+
+
+## Issue #310: the heist is over: the borrowed droid goes home.
+func give_back() -> void:
+	lent = {}
+	lent_down = false
+	if companions.has(LENT_UID):
+		_free_companion(LENT_UID)
+
+
+func lent_unit() -> DroidUnit:
+	return companions.get(LENT_UID)
+
+
+func _lent_entry() -> Dictionary:
+	return { "uid": LENT_UID, "kind": str(lent.kind), "variant": str(lent.variant) }
 
 
 func _spawn_companion(d: Dictionary, at: Vector3, from_y := INF) -> DroidUnit:
@@ -770,6 +807,8 @@ func _spawn_companion(d: Dictionary, at: Vector3, from_y := INF) -> DroidUnit:
 	DroidKit.set_awake(u.look, true)
 	u.max_hp = DroidRoster.health(d)
 	u.hp = u.max_hp
+	if int(d.uid) == LENT_UID:
+		u.set_meta("lent", true)
 	companions[int(d.uid)] = u
 	return u
 
@@ -949,10 +988,15 @@ func _hurt_companion(u: DroidUnit, amount: float) -> void:
 	u.engaged = null
 	u.engage_from = Vector3.INF
 	u.down_left = float(cfg.get("knocked_out_s", 20.0))
+	if u.uid == LENT_UID:
+		lent_down = true                      # issue #310: down for the rest of the heist
 	u.collision_layer = 0
 	ExplosionFx.small(u.get_parent(), u.center())
 	Sound.play("droid_pop", u.center())
 	_lay_down(u)
+	if u.uid == LENT_UID:
+		_toast(Heist.line("droid_down"))
+		return
 	_toast(_l("knocked_out") % [DroidRoster.label(u.kind).to_lower(), int(u.down_left)])
 
 

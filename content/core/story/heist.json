@@ -1,9 +1,32 @@
 {
-  "note": "IP-neutral. Heists (issue #306): rob an outpost's control room. Read by src/systems/flow/heist.gd. Issue #309: the console in every outpost's control room (src/systems/world/outpost_room.gd). Hold [E] at it for hack.seconds and it drops hack.stash (count of item) at your feet, picked up like a smuggling drop (contraband: the gate's search finds it). It only has something to release while a heist names that outpost (WorldState.heist); otherwise it is locked. reach: metres from the spot in front of the console. The alarm is not touched: being seen raises it as usual and the hack keeps going.",
+  "note": "IP-neutral. Heists (issue #306): rob an outpost's control room. Read by src/systems/flow/heist.gd. Issue #309: the console in every outpost's control room (src/systems/world/outpost_room.gd). Hold [E] at it for hack.seconds and it drops hack.stash (count of item) at your feet, picked up like a smuggling drop (contraband: the gate's search finds it). It only has something to release while a heist names that outpost (WorldState.heist); otherwise it is locked. reach: metres from the spot in front of the console. The alarm is not touched: being seen raises it as usual and the hack keeps going. Issue #310: the jobs are on the board (content/core/board/bar_board.json: j_heist, the locals' side; j_general_heist, the Remnant's, free roam only). 'cut': the crew's share of the pay, off the top. 'hack_standing': on the hack, the side you robbed thinks a little less of you (the locals' heist costs Remnant standing, the general's costs the locals'). 'paid_standing': what the side that paid thinks of it. 'crew': who goes with you, by side: a soldier profile (content/core/soldiers), an assassin droid's variant (borrowed: it follows and fights like one of yours but is not in your roster, and goes home after), and the crew member's card (content/core/npcs/heist_crew_card.json). They keep 'follow' metres behind you, catch up past 'catch_up' (out of sight past 'rejoin'), and only shoot whoever is fighting you, within 'range' (so sneaking works with them along). 'barks' are their lines over their head.",
   "hack": {
     "seconds": 5.0,
     "reach": 1.4,
     "stash": { "item": "refined_quantonium", "count": 15 }
+  },
+  "cut": 0.2,
+  "hack_standing": -3,
+  "paid_standing": 3,
+  "crew": {
+    "locals": { "soldier": "heist_crew_local", "droid": "white" },
+    "remnant": { "soldier": "heist_crew_remnant", "droid": "remnant" },
+    "follow": 3.0,
+    "catch_up": 9.0,
+    "rejoin": 45.0,
+    "range": 35.0,
+    "burst_s": 1.2,
+    "rest_s": 0.9,
+    "leave_s": 8.0,
+    "bark_s": 7.0,
+    "card": "res://content/core/npcs/heist_crew_card.json",
+    "barks": {
+      "start": ["Right behind you. Keep it quiet till it isn't.", "Let's go get those flasks.", "I'm with you. Don't make me regret it."],
+      "fight": ["Contact!", "They've seen us. Light them up!", "Covering you!", "Keep moving, I've got this one."],
+      "hacked": ["That's the stash. Grab it and let's go.", "Nice work. Now get those flasks home."],
+      "paid": ["Pleasure doing business.", "That's my cut. See you around."],
+      "down": ["I'm hit... keep going..."]
+    }
   },
   "lines": {
     "locked": "The console is locked. Nothing on it worth taking.",
@@ -11,6 +34,25 @@
     "hacking": "Hacking the console...  %d%%",
     "wiped": "The console is wiped. Nothing left on it.",
     "hacked": "The console gives up its stash: %d flasks of %s.",
-    "log_hacked": "Hacked the control room console at %s."
+    "log_hacked": "Hacked the control room console at %s.",
+    "log_taken": "Took a heist on the control room at %s.",
+    "log_paid": "The heist on %s paid %d cr after the crew's cut.",
+    "joined": "%s joins you, with an assassin droid.",
+    "crew_down": "%s is down. The heist goes on without them.",
+    "droid_down": "The borrowed droid is down. The heist goes on without it.",
+    "lost": "The flasks are gone. The heist is off.",
+    "downed": "You were downed. The heist is off, and your crew are gone.",
+    "given_up": "You called off the heist. Your crew walk off.",
+    "paid": "%d cr for the flasks, after %s's cut of %d.",
+    "collect": "[E] Hand the fence the heist's flasks (+%d cr)",
+    "general_collect": "Hand over the heist's flasks (+%d cr)",
+    "call_off": "Call off the heist",
+    "objective_rob": "Rob the control room at %s",
+    "objective_take": "Take the stash at %s",
+    "objective_fence": "Bring the flasks to the fence",
+    "objective_general": "Bring the flasks to the general",
+    "log_title": "HEIST",
+    "log_rob": "Get into the control room at %s with %s, hack the console and bring the flasks back. About %d cr after the cut.",
+    "log_carry": "You have the flasks. Bring them to %s."
   }
 }

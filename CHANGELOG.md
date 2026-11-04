@@ -2,6 +2,36 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Story: a heist before the bounty (2026-11-03)
+
+- **After the cargo droids, Oda sends you on a heist** before she gives you the
+  bounty: the control room at the broken ridge outpost, with one of her people
+  and an assassin droid. Bring the flasks to the fence and the bounty comes next.
+- **She keeps her promise straight away:** the energy blade on the cantina tower
+  is in the heist's telling now, not the bounty's.
+- **Nothing forces the outpost to change hands.** Kill every trooper there and
+  the locals take it as usual; sneak in and it stays the Remnant's. Either way
+  the story goes on.
+- Skipping past the chapter counts a heist as paid and gives its pay. Saves
+  already at the bounty or later carry on as they were.
+
+## Heists on the board (2026-11-03)
+
+- **Oda, the fence, Skrugs and T-89 offer a heist** on a Remnant outpost's
+  control room: the job names the outpost, who goes with you and the pay.
+  Hack the console, carry the 15 flasks home and the fence pays, less your
+  crew's cut (20%). The quest log and the waypoint follow each step.
+- **In free roam the general stands in the barracks yard** and offers his own
+  heist on an outpost the locals hold, as long as the Remnant don't hate you.
+  He pays half as much again as the fence, and the Remnant like it.
+- **A crew member and an assassin droid go with you.** They follow, keep quiet
+  while you sneak, and only shoot whoever is fighting you. You can talk to the
+  crew member. If they go down the heist goes on without them; when it ends
+  they walk off and the droid goes home.
+- **One heist at a time, for ever.** It ends when you are paid, when you are
+  downed, when you call it off (the fence's or the general's menu), or when the
+  flasks are gone. A heist never decides who holds the outpost.
+
 ## Walk into the outposts' control rooms (2026-11-03)
 
 - **Every Remnant outpost has an open doorway on the town side,** into a small

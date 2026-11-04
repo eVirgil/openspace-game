@@ -1,6 +1,6 @@
 {
   "id": "main",
-  "note": "Issue #215: chapters land -> general -> t89 -> meet_oda -> range -> remote -> smuggle_1 -> droid_merchant -> bounty -> fleet -> debrief (issue #303) -> end -> free. 'done_on' may be a list: any of its events ends the chapter. 'modes': the save modes a chapter is in (default all; land, general and t89 are story only, so a freeplay story starts at meet_oda). 'chapter_renames': old chapter ids a save may hold. Issue #64: the main story line. Issue #193: 'done_flag': a chapter whose flag is already set when it starts is over at once (the cruiser taken before Oda asked). 'pays': credits the teller hands over with the intro. 'skipped': what finishing the chapter leaves behind, given when the settings skip past it (Story.skip_to): flags, counters (at least this many: the fence's armour wants a bounty paid) credits (the first bounty's first_pay, the cruiser's reward) and standing (the cruiser's reward); the chapter's 'pays' comes with them. Credits and standing are given once: not for a chapter already played, nor when its done_flag is set or its counters are already met. A skipped chapter's one-off job card (one with 'completes_on') is done, and in a story save the quests its telling unlocks ('told:<chapter>') are offered. A smuggling run pays what the fence gives for its goods, so skipping it pays nothing. Read by src/systems/flow/story.gd. Chapters run in order; each one ends on a game event ('done_on', reported to Story.event()). 'intro' is what the teller says the first time you talk to them in that chapter (it replaces their greeting), 'remind' what they say on later visits while it is still open. 'job' puts that job's card in front of the player with the line. T-89 (the droid in the pit) points you at Oda; Oda tells every other chapter. The last chapter ('free') never ends: smuggling runs and bounty contracts on repeat. Issue #381: 'time' is the chapter's time of day in a story save until the cruiser is won (src/systems/world/day_clock.gd), and 'time_after_job' switches it once you have taken that job (the bounty chapter goes to dusk on j_bounty). The town switches while you are indoors, or at the next trigger; a chapter with no 'time' keeps the light it has.",
+  "note": "Issue #215: chapters land -> general -> t89 -> meet_oda -> range -> remote -> smuggle_1 -> droid_merchant -> heist (issue #413) -> bounty -> fleet -> debrief (issue #303) -> end -> free. 'done_on' may be a list: any of its events ends the chapter. 'modes': the save modes a chapter is in (default all; land, general and t89 are story only, so a freeplay story starts at meet_oda). 'chapter_renames': old chapter ids a save may hold. Issue #64: the main story line. Issue #193: 'done_flag': a chapter whose flag is already set when it starts is over at once (the cruiser taken before Oda asked). 'pays': credits the teller hands over with the intro. 'skipped': what finishing the chapter leaves behind, given when the settings skip past it (Story.skip_to): flags, counters (at least this many: the fence's armour wants a bounty paid) credits (the first bounty's first_pay, the cruiser's reward) and standing (the cruiser's reward); the chapter's 'pays' comes with them. Credits and standing are given once: not for a chapter already played, nor when its done_flag is set or its counters are already met. A skipped chapter's one-off job card (one with 'completes_on') is done, and in a story save the quests its telling unlocks ('told:<chapter>') are offered. A smuggling run pays what the fence gives for its goods, so skipping it pays nothing. Read by src/systems/flow/story.gd. Chapters run in order; each one ends on a game event ('done_on', reported to Story.event()). 'intro' is what the teller says the first time you talk to them in that chapter (it replaces their greeting), 'remind' what they say on later visits while it is still open. 'job' puts that job's card in front of the player with the line. T-89 (the droid in the pit) points you at Oda; Oda tells every other chapter. The last chapter ('free') never ends: smuggling runs and bounty contracts on repeat. Issue #381: 'time' is the chapter's time of day in a story save until the cruiser is won (src/systems/world/day_clock.gd), and 'time_after_job' switches it once you have taken that job (the bounty chapter goes to dusk on j_bounty). The town switches while you are indoors, or at the next trigger; a chapter with no 'time' keeps the light it has.",
   "chapters": [
     {
       "id": "land",
@@ -75,6 +75,16 @@
       "remind": "My friend still needs %d more cargo droids. Any droid merchant's post in the desert will take them."
     },
     {
+      "id": "heist",
+      "time": "noon",
+      "teller": "cantina_owner",
+      "done_on": "heist_paid",
+      "job": "j_heist",
+      "skipped": { "counters": { "heists_paid": 1, "heists_taken": 1, "consoles_hacked": 1 }, "credits": 1080 },
+      "intro": "My friend's happy, so here's the weapon I promised: somebody stashed an energy blade up on top of this cantina's tower, and it's still there. Climb up and take it, you'll want it for this. One of my people and a droid will be right behind you when you go. Here's the job.",
+      "remind": "The flasks are still in that control room, or still in your pockets. Get them to the fence. And if you haven't, the blade's up on the cantina tower."
+    },
+    {
       "id": "bounty",
       "time": "golden",
       "time_after_job": { "j_bounty": "dusk" },
@@ -82,7 +92,7 @@
       "done_on": "bounty_paid",
       "job": "j_bounty",
       "skipped": { "counters": { "bounties_paid": 1, "bounties_killed": 1 }, "credits": 1200 },
-      "intro": "My friend's happy, so here's the weapon: somebody stashed an energy blade up on top of this cantina's tower, and it's still there. Climb up and take it. Now, two things. If you need to cross the desert, Skrugs sells speeders by the back gate, out behind this cantina. And there's a bounty.",
+      "intro": "The fence says you didn't keep a single flask. Good. Now, two things. If you need to cross the desert, Skrugs sells speeders by the back gate, out behind this cantina. And there's a bounty.",
       "remind": "The bounty's still open. Do it, then collect from the fence in the market."
     },
     {
@@ -121,7 +131,7 @@
       "id": "free",
       "teller": "cantina_owner",
       "done_on": "",
-      "intro": "So that's it: the Remnant's gone from this moon. Go find one of the native tribes and trade, upgrade your gear, and explore the moon base. There's always another drop for the fence, and now and then somebody wants a Remnant dead.",
+      "intro": "So that's it: the Remnant's gone from this moon. Go find one of the native tribes and trade, upgrade your gear, and explore the moon base. There's always another drop for the fence, a control room out in the dunes worth robbing, and now and then somebody wants a Remnant dead.",
       "intro_dark": "So the Remnant hold the barracks again, and the guards who stood on it are dead. I don't ask where people's money comes from. The fence still buys, and now and then somebody still wants a Remnant dead.",
       "remind": ""
     }
@@ -146,6 +156,7 @@
       "remote": { "text": "Try the sparring droid in the pit, then go back to Oda", "target": "remote" },
       "smuggle_1": { "text": "Ask Oda about the drop", "target": "npc:cantina_owner" },
       "droid_merchant": { "text": "Take cargo droids to the nearest droid merchant's post", "target": "droid_post" },
+      "heist": { "text": "Ask Oda about the job", "target": "npc:cantina_owner" },
       "bounty": { "text": "Ask Oda about the bounty", "target": "npc:cantina_owner" },
       "fleet": { "text": "Land in the Remnant cruiser's bay, far east in orbit", "target": "cruiser:bay" },
       "debrief": { "text": "Go back to Oda at the cantina", "target": "npc:cantina_owner" },
@@ -222,7 +233,7 @@
       "text": "The guards keep guns lying around on top of the barracks. Nobody would miss one." },
     { "id": "nomad_trade", "title": "Trade with the nomads", "target": "", "unlocked_by": "heard_of_nomads", "done_on": "nomad_traded",
       "text": "The nomad packs out in the desert trade anything for sand pig: a blaster for 5, armour for 12. Keep your gun down for a minute and they warm up." },
-    { "id": "tower_blade", "title": "The blade on the cantina tower", "target": "marker:cantina_owner", "unlocked_by": "told:bounty", "done_on": "blade_taken",
+    { "id": "tower_blade", "title": "The blade on the cantina tower", "target": "marker:cantina_owner", "unlocked_by": "told:heist", "done_on": "blade_taken",
       "text": "Oda says there's an energy blade stashed up on the cantina tower." },
     { "id": "general_droids", "title": "Work for the general", "target": "npc:general", "unlocked_by": "heard_of_droid_job", "done_on": "general_droid_sold",
       "text": "General Vask says outlanders like you will take any work, and he has something in mind. Ask him for work at the barracks." },

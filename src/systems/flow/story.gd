@@ -319,8 +319,8 @@ static func _tell(c: Dictionary, first: bool) -> Dictionary:
 	var say := line_of(c, "intro" if first else "remind")
 	if job_open and not first:
 		say = str(c.get("intro", ""))       # the job is on offer again: say what it is
-	if job == "j_bounty" and job_open:
-		say += " " + str(WorldState.job(job).get("text", ""))
+	if job in ["j_bounty", "j_heist"] and job_open:
+		say += " " + str(WorldState.job(job).get("text", ""))     # issue #413: the heist names its outpost and pay
 	if say == "":
 		return {}
 	return { "say": say, "job": job if job_open else "" }

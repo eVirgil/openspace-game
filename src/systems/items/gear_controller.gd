@@ -399,6 +399,8 @@ func prompt_text() -> String:
 	if not is_open(v):
 		var said: String = closed_line.call(str(v.get("marker", ""))) if closed_line.is_valid() else ""
 		return said if said != "" else _l("closed") % str(v.get("label", "vendor")).to_lower()
+	if bool(v.get("bounties", false)) and Heist.collectable("fence"):
+		return Heist.line("collect") % int(Heist.pay("fence", Heist.carrying()).net)     # issue #310
 	if bool(v.get("bounties", false)) and WorldState.bounty_collectable():
 		return str(Story.bounty_cfg().get("collect", "%s %d")) % [str(WorldState.bounty.name), int(WorldState.bounty.pay)]
 	var opts := trade_options(v)
@@ -460,6 +462,8 @@ func trade_options(v: Dictionary) -> Array:
 		if cost > WorldState.credits:
 			text = _l("buy_row_poor") % [_shown(it, str(id)), cost, WorldState.credits]
 		out.append({ "id": "buy:" + str(id), "text": text })
+	if bool(v.get("bounties", false)) and Heist.on() and Heist.pays_to() == "fence" and not Heist.holding():
+		out.append({ "id": "heist_off", "text": Heist.line("call_off") })     # issue #310
 	if v.has("offers"):
 		for o in GearUpgrades.open_offers():
 			out.append({ "id": "offer:" + str(o.id), "text": _l("offer") % [str(o.label), int(o.price), str(o.get("about", ""))] })
@@ -551,6 +555,13 @@ func is_open(v: Dictionary) -> bool:
 func _trade(v: Dictionary) -> String:
 	if not is_open(v):
 		return ""
+	if bool(v.get("bounties", false)) and Heist.collectable("fence"):
+		# Issue #310: he takes the locals' heist's flasks, less the crew's cut.
+		var crew := Heist.crew_name()
+		var p := Heist.collect("fence")
+		if hud != null:
+			hud.toast(Heist.line("paid") % [int(p.net), crew, int(p.cut)], 5.0)
+		return "heist"
 	if bool(v.get("bounties", false)) and WorldState.bounty_collectable():
 		# Issue #64: the fence pays Oda's bounties.
 		var who := str(WorldState.bounty.name)
@@ -572,7 +583,8 @@ func _trade(v: Dictionary) -> String:
 ## the goods go straight on his menu, as before.
 func talks_first(v: Dictionary) -> bool:
 	var talk: Callable = vendor_talk.get(str(v.get("id", "")), Callable())
-	return talk.is_valid() and not WorldState.fence_run_open(str(v.get("location", "")))
+	return talk.is_valid() and not WorldState.fence_run_open(str(v.get("location", ""))) \
+		and not (bool(v.get("bounties", false)) and Heist.collectable("fence"))
 
 
 ## Issue #305: the fence's offers on sale now, as his offer_item's wares.
@@ -691,6 +703,12 @@ func _on_trade(id: String, v: Dictionary) -> void:
 		last_trade = buy_item(id.substr(4), v)
 	elif id.begins_with("offer:"):
 		last_trade = buy_offer(id.substr(6))
+	elif id == "heist_off":
+		Heist.give_up()
+		_trade_said = Heist.line("given_up")
+		if hud != null:
+			hud.toast(_trade_said, 4.0)
+		last_trade = "heist_off"
 	elif id.begins_with("locked:"):
 		var o := GearUpgrades.offer(id.substr(7))
 		_trade_said = _l("offer_locked_toast") % [str(o.label), str(o.locked)]

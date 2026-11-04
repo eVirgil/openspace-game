@@ -65,7 +65,7 @@ func test_hold_five_seconds_drops_fifteen_flasks() -> void:
 	var ro := _room()
 	var at := ro.console_point(ro.outposts[0])
 	assert_eq(ro.hack_step(0.1, true, at), "locked", "no heist on: the console is locked")
-	WorldState.heist = { "run": 1, "outpost": "remnant_outpost_mid" }
+	WorldState.heist = { "run": 1, "state": "out", "outpost": "remnant_outpost_mid" }
 	assert_eq(ro.hack_step(0.1, false, at), "ready")
 	var state := ""
 	for i in 49:
@@ -86,7 +86,7 @@ func test_hold_five_seconds_drops_fifteen_flasks() -> void:
 func test_letting_go_or_stepping_away_resets() -> void:
 	var ro := _room()
 	var at := ro.console_point(ro.outposts[0])
-	WorldState.heist = { "run": 1, "outpost": "remnant_outpost_mid" }
+	WorldState.heist = { "run": 1, "state": "out", "outpost": "remnant_outpost_mid" }
 	for i in 30:
 		ro.hack_step(0.1, true, at)
 	assert_almost_eq(ro.hacking, 3.0, 0.01)

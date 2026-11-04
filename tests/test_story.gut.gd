@@ -100,6 +100,10 @@ func test_the_whole_story_in_order() -> void:
 	# Issue #212: three cargo droids for Oda's friend instead of a second run.
 	for i in 3:
 		Story.on_droid_delivered()
+	assert_eq(Story.chapter(), "heist", "issue #413: the heist before the bounty")
+	oda = Story.beat("cantina_owner")
+	assert_eq(str(oda.job), "j_heist", "the heist comes with its job card")
+	Story.event("heist_paid")                  # the fence paid for the flasks (test_heists plays it through)
 	assert_eq(Story.chapter(), "bounty")
 
 	oda = Story.beat("cantina_owner")
@@ -192,10 +196,13 @@ func test_beats_only_for_their_teller() -> void:
 func test_skipping_ahead_unlocks_what_playing_would() -> void:
 	WorldState.new_game(WorldState.STORY)
 	var c0 := WorldState.credits
-	Story.skip_to("bounty")
+	Story.skip_to("heist")
 	assert_eq(WorldState.credits, c0 + int(Story.chapter_cfg("remote").pays), "Oda's practice fee")
+	assert_eq(Quests.state("tower_blade"), "", "Oda has not told the heist chapter yet")
+	Story.skip_to("bounty")
+	c0 += int(Story.chapter_cfg("heist").skipped.credits)     # issue #413: the heist's pay
 	assert_false(GearUpgrades.open_offers().any(func(o): return str(o.id) == "quantonium_armour"), "no bounty paid yet")
-	assert_eq(Quests.state("tower_blade"), "", "Oda has not told the bounty chapter yet")
+	assert_eq(Quests.state("tower_blade"), "open", "issue #413: Oda told of the blade in the heist chapter, skipped past")
 	Story.skip_to("fleet")
 	assert_eq(int(Story.chapter_cfg("bounty").skipped.credits), int(Story.bounty_cfg().first_pay), "the first bounty's pay")
 	assert_eq(WorldState.credits, c0 + int(Story.chapter_cfg("remote").pays) + int(Story.bounty_cfg().first_pay))
