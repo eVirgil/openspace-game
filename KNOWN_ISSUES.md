@@ -15,6 +15,48 @@ a headless town boot. Not flown on two computers; no GUT suite or trace for it.
 - **Killing the general as a guest pays the host,** not the guest: the cruiser
   is taken in the host's game (its story and purse), not in the guest's save.
 
+## After LAN jobs shared by everyone (2026-11-03)
+
+**Checked:** a two-process loopback trace, run by hand and not added to the repo
+(the guest takes Oda's bounty: the host's game has it and puts the officer out,
+the guest's town shows one copy and makes none of its own, the guest's kill makes
+it collectable in both, and a drop the host takes lies in the guest's town; on
+`main` the same steps give the guest about 1,200 script errors from its garrison
+and the host never gets the bounty), test_smoke, test_ip_neutral, and a headless
+town boot. Not played on two computers. One of the first two runs of the trace
+crashed the guest's Godot (signal 11) right after its town loaded; the next run
+passed, and I did not chase it.
+
+- **Each player gets their own heist crew.** The crew member and the borrowed
+  droid follow whoever's game they are in, and the others do not see them.
+- **Only the jobs are shared, not the outposts.** Who holds each outpost, the
+  resupply quests and the optional quests stay each game's own, so a guest can
+  carry supplies to an outpost the host's game thinks someone else holds.
+- **The last change sent wins.** If two players take or finish a job in the same
+  quarter second, one of the two is lost.
+- **A guest's own save keeps the host's jobs** after they leave: a bounty taken
+  in the host's game is still out in the guest's solo game.
+- **Joining shows the host's jobs as news,** a New Job banner for each one.
+
+## After the ringed giant (2026-11-03)
+
+**Checked:** tests/test_station.gut.gd (15/15, now in the giant's scene, plus a
+save loaded on the giant starting you in the bay), the giant's tests in
+tests/test_planets.gut.gd, test_smoke, test_ip_neutral, and stills. Flown by
+hand once before the station moved in.
+
+- **The clouds look like a smooth tan plain up close,** not clouds; the side
+  away from the sun is very dark.
+- **No space fight on the way out** (`encounter: ""`): a fight's flight does not
+  check the clouds, so a ship could dive into them mid-fight and live.
+- **The ring is a look only.** No rocks in it yet (#312's belt), nothing to hit.
+- **From the station you cannot see the home planet:** it is past the giant's
+  view distance (as from Grit Station).
+- **No cantina, Oda, board or merchant on the giant:** its town is only the
+  station's bay until #314 to #316 fill the station.
+- **A crash in the clouds is the normal crash:** towed back to the dock pad, you
+  beside it, not a death screen.
+
 ## After the space station behind the moon (2026-11-03)
 
 **Checked:** tests/test_station.gut.gd (14/14: the shape from data, the far
@@ -26,9 +68,9 @@ stills only.
 
 - **Nobody lives there yet.** The floors are empty shells (#314-#316 fill them),
   and NPCs cannot ride the elevator (only you can).
-- **You only see it from the moon's scene.** From the home planet's sky (more
-  than 2.6 km off the moon) it is not drawn, so flying out from the moon it
-  vanishes when the home planet's scene takes over.
+- **You only see it from its planet's own scene** (now the ringed giant's). From
+  the home planet's sky it is not drawn, so flying out it vanishes when the home
+  planet's scene takes over.
 - **The F11 map and the cruiser's holo table do not show it,** and neither do
   the objective arrow and the waypoints.
 - **The glass in the middle of each floor** means you cannot drop over the

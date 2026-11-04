@@ -93,6 +93,12 @@ func use_sphere(s: PlanetSphere) -> void:
 ## Issue #99: rock instead of sand (moon_rock.gdshader), with these colours.
 var rock_look := {}
 const ROCK_SHADER := preload("res://src/systems/look/shaders/moon_rock.gdshader")
+## A gas ball's cloud tops (GasSphere): the ringed giant's banded look
+## (gas_giant.gdshader), { color_a, color_b, bands, ring_normal }.
+var gas_look := {}
+const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
+
+
 ## Issue #272: lava in the rock's low ground (lava_rock.gdshader), when the ball's
 ## surface has a "lava" block (AsteroidSphere.lava).
 const LAVA_SHADER := preload("res://src/systems/look/shaders/lava_rock.gdshader")
@@ -107,6 +113,11 @@ func use_surface(surf: Dictionary) -> void:
 ## sand, moon rock, or lava rock (the lava's level and colours from the sphere).
 func _ground_material(center: Vector3) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
+	if not gas_look.is_empty():
+		m.shader = GAS_SHADER              # a gas ball's cloud tops: the ringed giant's bands
+		for k in gas_look:
+			m.set_shader_parameter(k, gas_look[k])
+		return m
 	var lava_sphere: AsteroidSphere = sphere as AsteroidSphere if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() else null
 	m.shader = LAVA_SHADER if lava_sphere != null else (SAND_SHADER if rock_look.is_empty() else ROCK_SHADER)
 	for k in rock_look:
@@ -130,6 +141,20 @@ func _ground_material(center: Vector3) -> ShaderMaterial:
 	return m
 
 
+## The gas look of a planet whose type's surface is gas: its body's colours
+## (the planet's own body over its type's), bands and ring plane.
+static func gas_look_for(planet: Dictionary) -> Dictionary:
+	var body: Dictionary = planet.get("type_cfg", {}).get("body", {}).duplicate()
+	body.merge(planet.get("cfg", {}).get("body", {}), true)
+	var ring: Dictionary = body.get("ring", {})
+	return {
+		"color_a": Color(str(body.get("color", "#d9c4b0"))),
+		"color_b": Color(str(body.get("dark", "#8a6f68"))),
+		"bands": float(body.get("bands", 22.0)),
+		"ring_normal": GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized(),
+	}
+
+
 ## The ball terrain planet `planet`'s scene builds (a PlanetGen.build dictionary),
 ## seated on its town and flat sites, not built yet; null when its world is not a
 ## ball. The scene and a handoff's prewarm (prewarm_far) both make it here, so the
@@ -140,9 +165,13 @@ static func for_planet(planet: Dictionary) -> PlanetTerrain:
 	if r <= 0.0:
 		return null
 	var pt := PlanetTerrain.new()
-	if str(planet.get("ground", "")) == "ball":
+	var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
+	if str(planet.get("ground", "")) == "ball" and str(surf.get("kind", "")) == "gas":
+		# The ringed giant: smooth cloud tops all the way round, the town on a deck above.
+		pt.use_sphere(GasSphere.new(r, surf))
+		pt.gas_look = gas_look_for(planet)
+	elif str(planet.get("ground", "")) == "ball":
 		# Issue #99: the asteroid: cratered rock all the way round.
-		var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
 		pt.use_sphere(AsteroidSphere.new(r, surf))
 		pt.use_surface(surf)
 	else:

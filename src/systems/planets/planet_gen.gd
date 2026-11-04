@@ -133,6 +133,18 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		size = lsize
 	elif town_id != "":
 		town = cc.get_location(town_id)            # authored
+	elif cfg.has("station_town"):
+		# The planet's town is a space station's bay (the ringed giant): its
+		# "station" landmark named here; no deck, no wall, no cantina.
+		town_id = id + "_town"
+		var slm: Dictionary = {}
+		for lm in cfg.get("landmarks", []):
+			if str(lm.get("id", "")) == str(cfg.station_town):
+				slm = lm
+		var sr := float(tcfg.get("surface", {}).get("radius", tcfg.get("body", {}).get("radius", 1500.0)))
+		town = StationHull.town_for(town_id, slm, PlanetSphere.new(sr), { "planet": id })
+		if town.is_empty():
+			push_warning("PlanetGen: %s has no station landmark %s" % [id, str(cfg.station_town)])
 	else:
 		town_id = id + "_town"
 		var opts := {}
@@ -171,12 +183,14 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 	if not bd.is_empty():
 		trect = Rect2(float(bd.min[0]), float(bd.min[1]), float(bd.max[0]) - float(bd.min[0]), float(bd.max[1]) - float(bd.min[1]))
 	var natives := NativesData.resolve(id, cfg, tcfg, int(cfg.get("seed", NameEngine.fnv(id) % 100000)), trect)
+	var near := neighbours(id, cc)
 	return {
 		"id": id,
 		"cfg": cfg,
 		"type": type,
 		"type_cfg": tcfg,
 		"ground": str(tcfg.get("ground", "terrain")),
+		"deck": bool(tcfg.get("deck", false)) and not cfg.has("station_town"),   # a town on a floating deck
 		"size": size,
 		"town_id": town_id,
 		"town": town,
@@ -188,7 +202,8 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		"encounter": cfg.get("encounter", null),
 		"name": str(cfg.get("name", "")),
 		"town_name": str(cfg.get("town_name", "")),
-		"neighbours": neighbours(id, cc),
+		"neighbours": near,
+		"sky_painting": sky_painting(cfg, near),
 		"natives": natives,
 		"beast": cfg.get("beast", {}),
 		"barge": cfg.get("barge", {}),
@@ -202,7 +217,7 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 	var surface: Dictionary = tcfg.get("surface", {})
 	if str(tcfg.get("ground", "")) == "ball":
 		# Issue #99: a real ball like the home planet (WorldTerrain asks the sphere).
-		return {
+		var w := {
 			"id": id,
 			"label": str(tcfg.get("label", id)),
 			"town": town_id,
@@ -212,6 +227,10 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 			"atmosphere": tcfg.get("atmosphere", {}),
 			"detail": types().get("detail", {}),
 		}
+		if str(surface.get("kind", "")) == "gas":
+			# A gas ball: this far below the deck's level a ship is in the clouds, lost.
+			w["lethal_below"] = -float(surface.get("lethal_depth", 60.0))
+		return w
 	return {
 		"id": id,
 		"label": str(tcfg.get("label", id)),
@@ -277,7 +296,8 @@ static func ball_radius(o: Dictionary, cc = null) -> float:
 			return r
 	if str(t.get("ground", "")) == "ball":
 		return float(t.get("surface", {}).get("radius", 1500.0))
-	return float(o.get("body_radius", t.get("body", {}).get("radius", 1000.0)))
+	var ob: Dictionary = o.get("body", {})
+	return float(o.get("body_radius", ob.get("radius", t.get("body", {}).get("radius", 1000.0))))
 
 
 ## How close to a planet's surface its own scene takes over (issue #99), or 0 when
@@ -288,7 +308,8 @@ static func handoff_altitude(type: String) -> float:
 
 static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 	var t: Dictionary = types().get("types", {}).get(str(o.get("type", "sand")), {})
-	var body: Dictionary = t.get("body", {})
+	var body: Dictionary = t.get("body", {}).duplicate()
+	body.merge(o.get("body", {}), true)          # the planet's own look from space wins
 	# Issue #77: a planet that is a real ball (its world's terrain.sphere_radius)
 	# looks its true size from a neighbour's sky. Issue #99: so does a ball type.
 	var r := ball_radius(o, cc)
@@ -303,7 +324,24 @@ static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 		"radius": r,
 		"color": Color(str(body.get("color", "#a08060"))),
 		"dark": Color(str(body.get("dark", "#504030"))),
+		"bands": float(body.get("bands", 0.0)),          # > 0: banded like the sky painting
+		"ring": body.get("ring", {}),                     # { inner, outer, color, normal }, radii
+		"sky_giant": bool(o.get("replaces_sky_painting", false)),
+		# A gas ball's cloud tops, below its deck's level (radius): what you see of it.
+		"cloud_radius": r - float(t.get("surface", {}).get("depth", 0.0)) if ball and str(t.get("surface", {}).get("kind", "")) == "gas" else r,
 	}
+
+
+## False when the painted ringed giant must not show in this planet's sky: the
+## planet is the real giant, or the real one hangs in its sky (a neighbour with
+## replaces_sky_painting).
+static func sky_painting(cfg: Dictionary, near: Array) -> bool:
+	if bool(cfg.get("replaces_sky_painting", false)):
+		return false
+	for n in near:
+		if bool(n.get("sky_giant", false)):
+			return false
+	return true
 
 
 ## Generated names: the planet's (and its town's) own "name" in the config wins,

@@ -2,6 +2,31 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-03 — LAN: a job anyone takes is everyone's
+
+- **The bug.** A guest's job lived only in the guest's game. A bounty put the
+  officer in the guest's town, a body the host does not have, so NetWorld threw
+  it away and RemnantOutposts put it back, every frame, while the guest's garrison
+  still held the freed one (about 1,200 script errors in 20 s in the trace). The
+  host never had the job at all.
+- **One book of jobs (NetJobs, /root/NetLink/Jobs).** Which jobs are taken, the
+  drop, the bounty, the heist and the supply run: whichever game's book changes
+  sends it, a guest's to the host (which takes it as its own) and the host's to
+  every guest. The last one sent wins, as the user asked ("overwrite the host"):
+  it is free roam, so several jobs on at once is fine, and where the game keeps one
+  of a kind (one drop, one bounty, one heist) the newest is it. The host's game
+  runs the job (its town is the town); a guest's town puts out no officer of its
+  own and shows the host's as a copy. Alternative: the guest asks the host to take
+  the job and waits for a yes. Rejected: the guest read its own offer (the drop's
+  goods, the officer's name), and the job should be that one.
+- **Pay, credits and gear stay each player's own.** Whoever finishes a job, sells
+  the drop or collects the bounty is paid in their game. A drop or a heist's stash
+  picked up by one player is gone for everyone (`taken` in the book), not one each.
+- **A guest that loads a save waits for the host's book.** Its town loads its own
+  save on the way in; `WorldState.loads` counts resets and loads, and a guest
+  sends nothing until it has heard the host's book since the last one, so its old
+  save's jobs never wipe the host's.
+
 ## 2026-11-03 — Speeders come back when the player does
 
 - **A respawn is ShipPilot.woke.** Every way back on your feet (the garrison's
@@ -1520,6 +1545,14 @@ Every significant technical choice, the alternative, and why. Newest on top.
   to the rock under it, which reads as orbit, not as a building on the ground.
 - **In the moon's own scene.** 1400 m over the far side keeps all of it inside
   the moon's 2600 m handoff, so nothing has to be drawn in two scenes at once.
+- **Moved to the ringed giant, as its town.** The station's landmark now sits
+  in `ringed_giant.json` (`at` [0, 0, 0], 200 m up), right over where the
+  giant's deck town was, inside the giant's own scene. Every planet still needs
+  a town (spawn on load, the ship's pad, the crash tow), so `"station_town"`
+  makes the town from the station (`StationHull.town_for`): only the ship's pad
+  box on the dock pad and `player_spawn` beside it on a hidden plate, which is
+  all the town data format and its validator need. Nothing else in the scene had
+  to learn about stations.
 - **Docking is shared, not copied.** ShipPilot's Z autopilot asks a "dock
   target" (`dock_target()`): the cruiser or any station in reach. Both answer
   the same calls (`can_dock`, `dock_path`, `dock_yaw`, `dock_cfg`, `line`),

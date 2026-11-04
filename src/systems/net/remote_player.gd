@@ -77,8 +77,8 @@ func _ready() -> void:
 	tag.text = player_name
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.position.y = NetSession.n("name_height", 2.15)
-	# The same size on screen however far. Further off the HUD marks them too
-	# (ObjectiveHud).
+	# The same size on screen however far, and however far you zoom in (_process).
+	# Further off the HUD marks them too (ObjectiveHud).
 	tag.fixed_size = true
 	tag.pixel_size = NetSession.n("name_px", 0.0011)
 	tag.font_size = 40
@@ -113,6 +113,28 @@ func wanted() -> Vector3:
 		return global_position
 	var since := clampf(Time.get_ticks_msec() / 1000.0 - float(_s.t), 0.0, LEAD_MAX)
 	return (_s.pos as Vector3) + (_s.vel as Vector3) * since
+
+
+## A fixed_size label keeps its size against distance but not against the lens:
+## through a 2.5x scope it is 2.5x as big. So its pixel_size shrinks with the fov,
+## back to name_px at the view's unzoomed `base_fov`.
+static func zoomed_px(px: float, base_fov: float, fov: float) -> float:
+	if base_fov <= 0.0 or fov <= 0.0:
+		return px
+	return px * tan(deg_to_rad(fov) * 0.5) / tan(deg_to_rad(base_fov) * 0.5)
+
+
+func _process(_dt: float) -> void:
+	if tag == null or not visible:
+		return
+	var cam := get_viewport().get_camera_3d()
+	var px := NetSession.n("name_px", 0.0011)
+	if cam != null:
+		# The on-foot view's CameraRigNode knows its unzoomed lens; any other camera
+		# (a ship's, a cutscene's) is taken as unzoomed.
+		var base = cam.get_parent().get("base_fov") if cam.get_parent() != null else null
+		px = zoomed_px(px, float(base) if base != null else cam.fov, cam.fov)
+	tag.pixel_size = px
 
 
 func _physics_process(dt: float) -> void:

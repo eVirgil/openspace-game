@@ -64,7 +64,7 @@ func update_for(altitude: float, viewer: Vector3) -> void:
 	m.set_shader_parameter("ground_color", _mix(k, "ground", "ground"))
 	m.set_shader_parameter("cloud_cover", lerpf(float(k.get("cloud_cover", 0.4)), float(space.get("cloud_cover", 0.0)), level))
 	m.set_shader_parameter("sky_energy", lerpf(float(k.get("energy", 1.0)), float(space.get("sky_energy", 0.35)), level))
-	m.set_shader_parameter("planet_visibility", lerpf(float(k.get("planet_visibility", 0.75)), float(space.get("planet_visibility", 1.0)), level))
+	env.set_planet_visibility(lerpf(float(k.get("planet_visibility", 0.75)), float(space.get("planet_visibility", 1.0)), level))
 	if env.env != null and not fog.is_empty():
 		# Issue #77: from above the home planet's ball you look across the whole
 		# planet (10-20 km of air): clear nearly all of it so the ball reads.

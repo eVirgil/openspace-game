@@ -64,6 +64,7 @@ static var heist: Dictionary = {}          ## issue #306: the heist on: { run, s
 static var control: Dictionary = {}        ## issue #187: who holds each outpost, and the supply run out (Territory)
 static var map_waypoint: Dictionary = {}   ## the F11 map's waypoint: { id, label, target, planet, arrive } (GlobeMap)
 static var objective_pin := ""             ## the job the player made the waypoint in the Ledger ("" = most urgent; Objective.pin)
+static var loads := 0                      ## how many times the world was reset or loaded (a LAN guest then waits for the host's jobs, NetJobs)
 
 ## Issue #303: called (with a reason) whenever the game must be saved right now: the
 ## general's death, the dark master's answer, the town changing hands. The town's
@@ -80,6 +81,7 @@ const DROP_NEAR := 15.0                    ## issue #251: the pointer lands at m
 
 
 static func reset() -> void:
+	loads += 1
 	standing = DEFAULT_STANDING.duplicate()
 	flags = {}
 	counters = {}
@@ -488,8 +490,8 @@ static func smuggle_drop() -> Dictionary:
 	if not bool(smuggle.get("out", false)):
 		return {}
 	var id := "smuggle_%d" % int(smuggle.run)
-	if inventory.is_taken(id):
-		return {}
+	if inventory.is_taken(id) or bool(smuggle.get("taken", false)):
+		return {}                # "taken": in a LAN game, another player picked it up (NetJobs)
 	return {
 		"id": id, "item": smuggle.item, "count": int(smuggle.count), "marker": smuggle.marker,
 		"offset": smuggle.offset, "ground": bool(smuggle.get("ground", false)), "hidden": true, "reach": 2.0,

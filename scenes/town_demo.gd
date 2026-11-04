@@ -233,6 +233,7 @@ func build_plan(staged_build: bool) -> Array:
 			if terrain != null:
 				_dress_desert()
 			return true)
+		add.call("gas_ring", SHELL, func(): _dress_gas_ring(); return true)
 		add.call("dress_platform", SHELL, func():
 			if platform is AsteroidWorld:
 				(platform as AsteroidWorld).dress_outside(look, decor.mats)   # what shows from space
@@ -393,9 +394,24 @@ func _terrain_far(budget_left: float) -> bool:
 	return (terrain as PlanetTerrain).refine_far_step(budget_left) if terrain is PlanetTerrain else true
 
 
+## A gas ball's ring (the planet's body.ring) round its centre, as its neighbours
+## draw it (SpaceTravel.make_ring), so nothing changes at the handoff.
+func _dress_gas_ring() -> void:
+	var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
+	var ring: Dictionary = planet.get("cfg", {}).get("body", {}).get("ring", {})
+	var r := float(planet.get("world", {}).get("terrain", {}).get("sphere_radius", 0.0))
+	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or ring.is_empty() or r <= 0.0:
+		return
+	var rmi := SpaceTravel.make_ring(Vector3(0, -r, 0), r, ring)
+	add_child(rmi)
+	var m := rmi.material_override as ShaderMaterial
+	m.set_shader_parameter("visibility", 0.8)
+	look.track_material(m)
+
+
 func _build_platform(ground_kind: String) -> void:
-	if ground_kind == "platform":
-		platform = PlatformWorld.new()
+	if ground_kind == "platform" or (ground_kind == "ball" and bool(planet.get("deck", false))):
+		platform = PlatformWorld.new()      # a gas ball's town floats on a deck too (the ringed giant)
 	elif ground_kind == "ball" and bool(planet.get("type_cfg", {}).get("enclosed", false)) and terrain != null:
 		# Issue #99: the sealed station on the asteroid's ball (dome, hallway, pit liner).
 		platform = AsteroidWorld.new()
@@ -407,6 +423,8 @@ func _build_platform(ground_kind: String) -> void:
 func _build_look() -> void:
 	look = LookEnvironment.new()
 	_lay_sky(look, planet.get("sky", {}))
+	if not bool(planet.get("sky_painting", true)):
+		look.painted_planet = 0.0      # the real ringed giant is drawn instead (or we are on it)
 	add_child(look)
 	# Issue #381: the world's time of day (moved on after a faded trip, or the
 	# story chapter's); a scene given its own preset keeps it, and a LAN guest
@@ -506,6 +524,8 @@ func _build_boxes() -> void:
 		else:
 			var cs := Greybox.center_size(b)
 			node = Greybox.make_box(b.id, cs[0], cs[1], color, Basis.IDENTITY, str(b.get("shape", "")) == "round")
+		if bool(b.get("hidden", false)):
+			node.visible = false                 # data only (a station town's spawn plate: the station's deck shows)
 		if b.kind == "pad":
 			for ch in node.get_children():       # issue #58: a painted plate, nothing to trip on
 				if ch is CollisionShape3D:
@@ -1503,9 +1523,22 @@ func _barracks_unseen() -> bool:
 
 ## The far plane: out to the horizon landforms when the desert is on.
 func view_far() -> float:
+	var far := 12000.0 if terrain != null or platform != null else 4000.0
 	if terrain is PlanetTerrain:
-		return 4.0 * (terrain as PlanetTerrain).sphere.radius   # the whole ball, from orbit too
-	return 12000.0 if terrain != null or platform != null else 4000.0
+		far = 4.0 * (terrain as PlanetTerrain).sphere.radius   # the whole ball, from orbit too
+	return maxf(far, sky_giant_reach())
+
+
+## How far the camera must see to show the real ringed giant (and its ring) in
+## this planet's sky, or 0 when there is none (PlanetGen: replaces_sky_painting).
+func sky_giant_reach() -> float:
+	var out := 0.0
+	for n in planet.get("neighbours", []):
+		if not bool(n.get("sky_giant", false)):
+			continue
+		var reach := float(n.radius) * maxf(1.0, float((n.get("ring", {}) as Dictionary).get("outer", 1.0)))
+		out = maxf(out, ((n.at as Vector3).length() + reach) * 1.05)
+	return out
 
 
 # ---------------------------------------------------------------- planets (issue #45)
@@ -1590,6 +1623,8 @@ func _dress_desert() -> void:
 	look.track_material(terrain.material)
 	if terrain is PlanetTerrain and not (terrain as PlanetTerrain).rock_look.is_empty():
 		return          # issue #99: the asteroid's rock: no sand, dust or desert landforms
+	if terrain is PlanetTerrain and not (terrain as PlanetTerrain).gas_look.is_empty():
+		return          # a gas ball's cloud tops: no sand either
 	var walls: Rect2 = desert_site().walls
 	for b in town.boxes():
 		if str(b.kind) != "floor" or float(b.max[1]) < -0.1:
