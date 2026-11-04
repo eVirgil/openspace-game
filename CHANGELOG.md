@@ -2,6 +2,18 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## LAN: friends' ships boxed like enemies, and players in ships on the map (2026-11-03)
+
+- **Another player's ship in flight gets the enemy box on your flight HUD:** the
+  red box, their hull under it, the range, the lead pip, and the arrow at the
+  edge of the screen when they are off it. In the town's sky and out in space.
+  No lock ring, since seekers never lock on a friend. Only while friendly fire
+  is on and they are off the ground.
+- **The F11 map shows the other players in their ships too,** not only on foot:
+  the blue dot sits on the ground straight under their ship, in the air or up
+  in space, and it works whoever is flying. Click it and the waypoint follows
+  their ship.
+
 ## Story: a heist before the bounty (2026-11-03)
 
 - **After the cargo droids, Oda sends you on a heist** before she gives you the

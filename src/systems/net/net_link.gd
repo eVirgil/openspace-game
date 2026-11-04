@@ -685,7 +685,8 @@ func _ship_near(pilot, c: Vector3, r: float) -> bool:
 
 ## This game's player's ship as a packet, [] when there is none here: the one they
 ## fly, else the one Call would bring (their primary). [planet, look, where, rotation,
-## flying (off the ground, or out in space: the others' cannons can hit it)]
+## flying (off the ground, or out in space: the others' cannons can hit it), hull
+## left 0..1 (the bar under the box their flight HUD draws on it)]
 func town_ship() -> Array:
 	var scene := get_tree().current_scene
 	var pilot = scene.get("pilot") if scene != null else null
@@ -699,7 +700,7 @@ func town_ship() -> Array:
 		return []
 	var xf := (v as Node3D).global_transform
 	return [GameFlow.current_planet_id(), str(v.get_meta("look_id", "")), xf.origin,
-		xf.basis.orthonormalized().get_rotation_quaternion(), bool(pilot.lan_flying())]
+		xf.basis.orthonormalized().get_rotation_quaternion(), bool(pilot.lan_flying()), float(pilot.lan_hull())]
 
 
 ## Every player -> every other (the host relays): where my ship is.
@@ -709,7 +710,8 @@ func ship_state(pkt: Array) -> void:
 	if pkt.size() < 4 or not roster.has(id):
 		return
 	ships[id] = { "planet": str(pkt[0]), "look": str(pkt[1]), "pos": pkt[2] as Vector3,
-		"rot": pkt[3] as Quaternion, "flying": pkt.size() > 4 and bool(pkt[4]), "t": Time.get_ticks_msec() / 1000.0 }
+		"rot": pkt[3] as Quaternion, "flying": pkt.size() > 4 and bool(pkt[4]),
+		"hull": float(pkt[5]) if pkt.size() > 5 else 1.0, "t": Time.get_ticks_msec() / 1000.0 }
 
 
 ## A ship in this town for every other player whose ship is on this planet. One not
@@ -736,7 +738,7 @@ func _place_ships(scene: Node, here: String, town: bool) -> void:
 			b.setup(id, str(roster[id].name), str(s.look), mats)
 			scene.add_child(b)
 			ship_bodies[id] = b
-		b.hear(str(s.look), s.pos, s.rot, bool(s.get("flying", false)))
+		b.hear(str(s.look), s.pos, s.rot, bool(s.get("flying", false)), float(s.get("hull", 1.0)))
 
 
 ## Your ship's cannon landed on player `id`'s ship here (RemoteShip): tell their game.

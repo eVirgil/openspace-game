@@ -1776,6 +1776,9 @@ func _update_hud(agl_now: float) -> void:
 	hud.target = foe.hud_target() if foe != null else {}
 	if not hud.target.is_empty() and seeker_lock != null:
 		hud.target["lock"] = seeker_lock.fraction()
+	# LAN: the other players' ships, boxed the same way while your guns can hit them
+	# (no lock ring: seekers never lock on a friend).
+	hud.friends = _friend_targets()
 
 
 # ------------------------------------------------------------------ guns and hull (issue #55)
@@ -1870,6 +1873,36 @@ func _launch_seeker(s: Dictionary, seek: Node3D) -> void:
 func lan_flying() -> bool:
 	return piloting and (_fight_flying() or atmo.state in [AtmoFlight.State.LIFTOFF,
 		AtmoFlight.State.FLYING, AtmoFlight.State.LANDING])
+
+
+## LAN: the hull left on the ship you fly, 0..1 (the fight's while in one), for the
+## bar under the box the others' flight HUDs draw on it.
+func lan_hull() -> float:
+	var d = defense
+	if _fight_flying() and fight.df != null:
+		var me: Dictionary = fight.df.get_ship(fight.df.player_id)
+		if not me.is_empty():
+			d = me.defense
+	return float(d.hull_hp()) / maxf(1.0, float(d.hull_max())) if d != null else 1.0
+
+
+## LAN friendly fire: the other players' ships your guns can hit now (their
+## RemoteShip.hittable: they fly, friendly fire is on), boxed on your HUD as an
+## enemy is, in the town's sky and out in space.
+func _friend_targets() -> Array:
+	var out: Array = []
+	if not NetSession.active() or NetSession.link == null:
+		return out
+	var pc: Dictionary = guns.group_config("primary") if guns != null else {}
+	var speed := float(pc.get("bolt_speed", 300.0))
+	var from := atmo.position()
+	var v: Vector3 = atmo.flight.velocity() if atmo.state != AtmoFlight.State.PARKED else Vector3.ZERO
+	for rs in NetSession.link.ship_bodies.values():
+		if rs != null and is_instance_valid(rs) and rs.has_method("hud_target"):
+			var t: Dictionary = rs.hud_target(from, v, speed)
+			if not t.is_empty():
+				out.append(t)
+	return out
 
 
 ## LAN friendly fire: another player's ship cannon hit the ship you fly
