@@ -15,7 +15,8 @@ extends Node3D
 ##   - the label naming it in the sky while you fly, interior lights, and a pull back
 ##     aboard if you fall out
 ##   - issue #315: what is in its floors (StationFill) and the people aboard
-##     (StationCrowd)
+##     (StationCrowd); issue #314: the Remnant's deck and who holds it
+##     (StationRemnant)
 ##   - open to the air where the planet's air is breathable (no harmful_surface:
 ##     the ringed giant): the bay's shield lets you walk out, you roam outside on
 ##     the jetpack, and you are pulled back only if you drop toward a gas ball's
@@ -25,10 +26,11 @@ extends Node3D
 
 const SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
 const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "cargo": 6, "console": 7, "rail": 8,
-	"pad": 10, "beacon": 11, "screen": 12 }
+	"bridge": 9, "pad": 10, "beacon": 11, "screen": 12 }
 const StationFill := preload("res://src/systems/world/station_fill.gd")
 const TownBuildings := preload("res://src/systems/world/town_buildings.gd")
 const StationCrowd := preload("res://src/systems/world/station_crowd.gd")
+const StationRemnant := preload("res://src/systems/world/station_remnant.gd")
 
 var demo                               ## town_demo.gd
 var ground: WorldGround
@@ -46,6 +48,7 @@ var fill: StationFill                  ## issue #315: what is in the floors (wit
 var fill_floors: Array = []            ## { tower, i, c, y, r, node, built }: one per dressed floor
 var fill_ms := 0.0                     ## the longest tick spent building the fill, ms (review)
 var crowd: StationCrowd                ## issue #315: the people aboard (the config's "crowd")
+var remnant: StationRemnant            ## issue #314: the Remnant's deck and who holds it (the config's "remnant")
 var open_air := false                  ## the planet's air is breathable: you may go outside (setup)
 
 var _root: Node3D
@@ -94,6 +97,10 @@ func _ready() -> void:
 		crowd = StationCrowd.new()
 		crowd.setup(self, demo, hull)
 		_root.add_child(crowd)
+	if not StationRemnant.deck(hull).is_empty():
+		remnant = StationRemnant.new()
+		remnant.setup(self, demo, hull)
+		add_child(remnant)
 
 
 # ------------------------------------------------------------------ queries
@@ -219,6 +226,7 @@ func _plan_fill() -> void:
 	var mats: LookMaterials = demo.decor.mats if demo.get("decor") != null and demo.decor.mats != null else LookMaterials.new()
 	var kit := TownBuildings.new(mats, demo.look)
 	fill = StationFill.new(kit, hull, _mat)
+	fill.faction_mats("station:" + id)        # issue #314: the Remnant deck's red, repainted when it is taken
 	for t in hull.towers:
 		for i in (t.floors as Array).size():
 			var f: Dictionary = t.floors[i]

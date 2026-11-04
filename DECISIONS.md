@@ -1688,3 +1688,21 @@ Every significant technical choice, the alternative, and why. Newest on top.
 - **The same three callers, one helper.** ShipPilot, AtmoFighter and RemoteShip
   all call `fit`, and fall back to `fit_box` only when there are no meshes (the
   greybox).
+
+## The station's Remnant deck is its own Territory place, taken for good (2026-11-04)
+
+- **A place of its own.** `Territory` treats `station_<landmark id>` apart from the
+  planets' fronts: the Remnant's until every trooper on the deck is dead
+  (`take_station`), then the locals' with no clock. Alternative: an outpost on
+  the home front. Rejected: the outposts' drive-off counts and supply runs are
+  the desert's, and the user asked that taking the station gives it to the
+  locals.
+- **Repainted, not rebuilt.** The deck's reds are faction materials registered
+  under `station:<id>` before the floor is built (`StationFill.faction_mats`),
+  so the takeover (or a save where the locals hold it) calls
+  `LookMaterials.repaint` and the merged meshes change colour where they are.
+- **Built on the barracks' parts.** The control room is `OutpostRoom.inside`
+  (as the barracks office is), the holo map is BarracksLook's, the bunks are
+  the barracks' bunks; the posts are pure geometry (`StationRemnant.posts`), so
+  the deck plays without the look layer.
+
