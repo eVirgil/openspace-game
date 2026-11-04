@@ -122,6 +122,8 @@ var barracks_locals: Dictionary = {}  ## issue #303: barracks post id -> the loc
 var outposts: RemnantOutposts
 @export var with_cruiser := true      ## issue #193: the Remnant's star cruiser in orbit (needs with_ship and the home ball)
 var cruiser: RemnantCruiser
+@export var with_stations := true     ## space stations in this planet's sky (its "station" landmarks: content/core/stations/)
+var stations: Array = []               ## SpaceStation
 var _town_withdrawn := false          ## issue #64: the garrison left town after the fleet was beaten
 var _town_synced := false             ## the barracks' side was set once (at load); later swaps wait until you can't see it
 var _respawned := 0
@@ -288,6 +290,7 @@ func build_plan(staged_build: bool) -> Array:
 			_build_droids()
 		return true)
 	add.call("cruiser", LATER, func(): _build_cruiser(); return true)
+	add.call("stations", LATER, func(): _build_stations(); return true)
 	add.call("salesman", LATER, func():
 		if with_salesman and gear != null:
 			_build_salesman()
@@ -1167,6 +1170,29 @@ func _build_cruiser() -> void:
 	add_child(cruiser)
 
 
+## Space stations (StationHull): one for every "station" landmark of this planet's
+## world, whose boxes are in the ship's ground already. A station is a component of
+## whichever planet's config lists it (today the moon's far side).
+func _build_stations() -> void:
+	if not with_stations or pilot == null or pilot.ground == null:
+		return
+	for lm in StationHull.landmarks(pilot.ground.world):
+		if StationHull.frame(pilot.ground, str(lm.get("id", ""))) == Transform3D.IDENTITY:
+			continue
+		var s := SpaceStation.new()
+		s.setup(self, pilot.ground, lm)
+		add_child(s)
+		stations.append(s)
+
+
+## The station `p` is aboard, or null.
+func station_at(p: Vector3):
+	for s in stations:
+		if is_instance_valid(s) and s.aboard(p):
+			return s
+	return null
+
+
 ## Issue #51: companion droids. After the gear (its HUD and E prompt are shared)
 ## and the NPCs (the Remnant's droids answer to the garrison's alarm).
 func _build_droids() -> void:
@@ -1424,7 +1450,7 @@ func day_trigger(trigger: String) -> void:
 		set_preset(p)
 
 
-## Under a roof over this town's cantina, or aboard the Remnant cruiser.
+## Under a roof over this town's cantina, aboard the Remnant cruiser or a space station.
 func indoors(p: Vector3) -> bool:
 	if _day_roofs.is_empty() and town != null:
 		_day_roofs = [[]]                  # looked once: a town with no roofed cantina stays [[]]
@@ -1442,6 +1468,8 @@ func indoors(p: Vector3) -> bool:
 		if r is Array and r.size() == 2 and (r[0] as Rect2).has_point(Vector2(p.x, p.z)) \
 				and p.y < float(r[1]) and p.y > float(r[1]) - 12.0:
 			return true
+	if station_at(p) != null:
+		return true
 	return cruiser != null and is_instance_valid(cruiser) and cruiser.aboard(p)
 
 
