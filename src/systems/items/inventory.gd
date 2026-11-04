@@ -170,12 +170,25 @@ func pick_up(pickup: Dictionary) -> bool:
 
 ## What a vendor has for sale: its data stock until the player trades with it, then
 ## whatever trading left there. A vendor with "resells": false (the fences, which pay
-## more than they would ask) never sells on what it bought.
+## more than they would ask) never sells on what it bought. What it has in
+## "endless_stock" (the gear trader's jetpacks) is always there, whatever trading did.
 func vendor_stock(vendor_cfg: Dictionary) -> Array:
 	var vid := str(vendor_cfg.get("id", ""))
+	var s: Array
 	if stock.has(vid) and bool(vendor_cfg.get("resells", true)):
-		return stock[vid]
-	return (vendor_cfg.get("stock", []) as Array).duplicate()
+		s = (stock[vid] as Array).duplicate()
+	else:
+		s = (vendor_cfg.get("stock", []) as Array).duplicate()
+	for id in vendor_cfg.get("endless_stock", []):
+		if not s.has(id):
+			s.append(id)
+	return s
+
+
+## The vendor never runs out of `id`: the whole stall is "endless" (the food stall,
+## issue #96) or `id` is in its "endless_stock".
+static func sells_endlessly(id: String, vendor_cfg: Dictionary) -> bool:
+	return bool(vendor_cfg.get("endless", false)) or (vendor_cfg.get("endless_stock", []) as Array).has(id)
 
 
 ## Credits a vendor pays for an item, or -1 if it does not buy that kind. "*" in
@@ -192,8 +205,12 @@ static func sell_price(item_cfg: Dictionary, vendor_cfg: Dictionary) -> int:
 	return int(round(float(item_cfg.get("value", 0)) * rate))
 
 
-## Credits a vendor asks for an item.
+## Credits a vendor asks for an item: its own price for it ("prices": { item id:
+## credits }) if it names one, else the item's value at its sell_rate.
 static func buy_price(item_cfg: Dictionary, vendor_cfg: Dictionary) -> int:
+	var own = vendor_cfg.get("prices", {}).get(str(item_cfg.get("id", "")), null)
+	if own != null:
+		return int(own)
 	return int(round(float(item_cfg.get("value", 0)) * float(vendor_cfg.get("sell_rate", 1.0))))
 
 
@@ -204,7 +221,7 @@ func sell(id: String, item_cfg: Dictionary, vendor_cfg: Dictionary) -> int:
 	if price < 0 or not has(id):
 		return -1
 	remove(id)
-	if bool(vendor_cfg.get("resells", true)):
+	if bool(vendor_cfg.get("resells", true)) and not sells_endlessly(id, vendor_cfg):
 		var s := vendor_stock(vendor_cfg)
 		s.append(id)
 		stock[str(vendor_cfg.get("id", ""))] = s
@@ -218,7 +235,7 @@ func buy(id: String, item_cfg: Dictionary, vendor_cfg: Dictionary, credits: int)
 	var cost := buy_price(item_cfg, vendor_cfg)
 	if not s.has(id) or cost > credits:
 		return -1
-	if not bool(vendor_cfg.get("endless", false)):     # issue #96: the food stall never runs out
+	if not sells_endlessly(id, vendor_cfg):     # issue #96: the food stall never runs out
 		s.erase(id)
 		stock[str(vendor_cfg.get("id", ""))] = s
 	add(id)

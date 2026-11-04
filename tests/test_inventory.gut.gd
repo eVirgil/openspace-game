@@ -129,28 +129,60 @@ func test_the_fences_buy_anything_you_have() -> void:
 	assert_eq(Inventory.sell_price({ "kind": "food", "value": 10 }, trader), -1, "other stalls still buy only their kinds")
 
 
+## The trade rules on a gear stall without the gear trader's endless jetpacks.
+func _plain_trader() -> Dictionary:
+	var v := trader.duplicate(true)
+	v.erase("endless_stock")
+	return v
+
+
 func test_sell_pays_and_stocks_the_vendor() -> void:
+	var stall := _plain_trader()
 	var inv := Inventory.new()
 	inv.add("jetpack")
 	inv.attach("jetpack", jet)
-	var price := inv.sell("jetpack", jet, trader)
-	assert_eq(price, Inventory.sell_price(jet, trader))
+	var price := inv.sell("jetpack", jet, stall)
+	assert_eq(price, Inventory.sell_price(jet, stall))
 	assert_false(inv.has("jetpack"))
 	assert_eq(inv.in_slot("back"), "", "selling the worn pack takes it off")
-	assert_eq(inv.vendor_stock(trader), ["jetpack"], "the trader now holds it")
-	assert_eq(inv.sell("jetpack", jet, trader), -1, "nothing left to sell")
+	assert_eq(inv.vendor_stock(stall), ["jetpack"], "the stall now holds it")
+	assert_eq(inv.sell("jetpack", jet, stall), -1, "nothing left to sell")
 
 
 func test_buy_back_needs_stock_and_credits() -> void:
+	var stall := _plain_trader()
 	var inv := Inventory.new()
-	assert_eq(inv.buy("jetpack", jet, trader, 999), -1, "the trader starts with nothing to sell")
+	assert_eq(inv.buy("jetpack", jet, stall, 999), -1, "the stall starts with nothing to sell")
 	inv.add("jetpack")
-	inv.sell("jetpack", jet, trader)
-	var cost := Inventory.buy_price(jet, trader)
-	assert_eq(inv.buy("jetpack", jet, trader, cost - 1), -1, "cannot afford it")
-	assert_eq(inv.buy("jetpack", jet, trader, cost), cost)
+	inv.sell("jetpack", jet, stall)
+	var cost := Inventory.buy_price(jet, stall)
+	assert_eq(inv.buy("jetpack", jet, stall, cost - 1), -1, "cannot afford it")
+	assert_eq(inv.buy("jetpack", jet, stall, cost), cost)
 	assert_true(inv.has("jetpack"))
-	assert_eq(inv.vendor_stock(trader), [], "it left the stall")
+	assert_eq(inv.vendor_stock(stall), [], "it left the stall")
+
+
+func test_gear_trader_always_sells_jetpacks() -> void:
+	var inv := Inventory.new()
+	assert_eq(inv.vendor_stock(trader), ["jetpack"], "a fresh game: the trader has jetpacks")
+	var cost := Inventory.buy_price(jet, trader)
+	assert_eq(cost, int(jet.value), "at the jetpack's value")
+	assert_eq(inv.buy("jetpack", jet, trader, cost - 1), -1, "cannot afford it")
+	assert_eq(inv.buy("jetpack", jet, trader, cost * 3), cost)
+	assert_eq(inv.buy("jetpack", jet, trader, cost * 3), cost, "never runs out")
+	assert_eq(inv.count("jetpack"), 2)
+	assert_eq(inv.vendor_stock(trader), ["jetpack"], "still on the stall")
+	assert_eq(inv.sell("jetpack", jet, trader), Inventory.sell_price(jet, trader), "it still buys them back")
+	assert_eq(inv.vendor_stock(trader), ["jetpack"], "a sold jetpack does not pile up")
+
+
+func test_old_saves_see_the_trader_jetpacks() -> void:
+	var inv := Inventory.new()
+	inv.from_save({ "stock": { "gear_trader": ["red_energy_saber"] } })
+	var s := inv.vendor_stock(trader)
+	assert_true(s.has("red_energy_saber"), "what was sold to it before stays")
+	assert_true(s.has("jetpack"), "and the jetpacks are there too")
+	assert_eq(inv.to_save().stock.gear_trader, ["red_energy_saber"], "the save is untouched")
 
 
 # ---- save ---------------------------------------------------------------------

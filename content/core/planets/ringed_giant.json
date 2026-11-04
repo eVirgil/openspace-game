@@ -9,6 +9,8 @@
   "at": [12576, 8771, -25786],
   "replaces_sky_painting": true,
   "encounter": "",
+  "harmful_surface": {},
+  "air_note": "The air is breathable: no armour needed outside the station (harmful_surface {} keeps it that way whatever the type says). So the station is open to it: you can walk out of the bay's mouth past the shield and roam outside on the jetpack; drop too far toward the clouds and you are pulled back into the station (SpaceStation.open_air).",
   "body": {
     "color": "#d9c4b0",
     "dark": "#8a6f68",

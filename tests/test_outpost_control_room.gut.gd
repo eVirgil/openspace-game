@@ -61,7 +61,7 @@ func _room() -> RemnantOutposts:
 	return ro
 
 
-func test_hold_five_seconds_drops_fifteen_flasks() -> void:
+func test_hold_five_seconds_starts_a_minute_then_fifteen_flasks() -> void:
 	var ro := _room()
 	var at := ro.console_point(ro.outposts[0])
 	assert_eq(ro.hack_step(0.1, true, at), "locked", "no heist on: the console is locked")
@@ -70,9 +70,20 @@ func test_hold_five_seconds_drops_fifteen_flasks() -> void:
 	var state := ""
 	for i in 49:
 		state = ro.hack_step(0.1, true, at)
-	assert_eq(state, "hacking", "4.9 s in: still hacking")
+	assert_eq(state, "hacking", "4.9 s in: still starting")
+	assert_eq(ro.hack_step(0.11, true, at), "started", "5 s: the hack starts")
 	assert_true(Heist.stash_entry().is_empty(), "nothing yet")
-	assert_eq(ro.hack_step(0.11, true, at), "done", "5 s: done")
+	assert_almost_eq(ro.running, 60.0, 0.01, "a minute to go")
+	# Walk about the room and out the door, never further than 25 m: it keeps running.
+	var near := at + Vector3(24.0, 0, 0)
+	for i in 590:
+		state = ro.hack_step(0.1, false, near if i % 2 == 0 else at)
+	assert_eq(state, "running", "59 s in, within 25 m: still running")
+	assert_true(Heist.stash_entry().is_empty(), "still nothing")
+	for i in 9:
+		state = ro.hack_step(0.1, false, near)
+	assert_eq(state, "running", "59.9 s: still running")
+	assert_eq(ro.hack_step(0.2, false, near), "done", "60 s: done")
 	var e := Heist.stash_entry()
 	assert_eq(int(e.get("count", 0)), 15, "15 flasks")
 	assert_eq(str(e.get("item", "")), "refined_quantonium")
@@ -81,6 +92,49 @@ func test_hold_five_seconds_drops_fifteen_flasks() -> void:
 	assert_eq(WorldState.inventory.count("refined_quantonium"), 15, "picked up like a drop")
 	assert_true(WorldState.carrying_contraband(), "contraband: the gate's search finds it")
 	assert_true(Heist.stash_entry().is_empty(), "taken")
+
+
+func test_leaving_25_m_drops_the_hack() -> void:
+	var ro := _room()
+	var at := ro.console_point(ro.outposts[0])
+	WorldState.heist = { "run": 1, "state": "out", "outpost": "remnant_outpost_mid" }
+	for i in 51:
+		ro.hack_step(0.1, true, at)
+	assert_eq(ro.running_at, "remnant_outpost_mid", "started")
+	for i in 300:
+		ro.hack_step(0.1, false, at)
+	assert_eq(ro.hack_step(0.1, false, at + Vector3(26.0, 0, 0)), "broken", "26 m out: the hack drops")
+	assert_eq(ro.running_at, "")
+	assert_false(Heist.hacked())
+	assert_eq(ro.hack_step(0.1, false, at), "ready", "back at the console: start it again")
+	for i in 51:
+		ro.hack_step(0.1, true, at)
+	assert_almost_eq(ro.running, 60.0, 0.01, "the whole minute again")
+
+
+func test_the_heist_ending_stops_the_hack() -> void:
+	var ro := _room()
+	var at := ro.console_point(ro.outposts[0])
+	WorldState.heist = { "run": 1, "state": "out", "outpost": "remnant_outpost_mid" }
+	for i in 51:
+		ro.hack_step(0.1, true, at)
+	Heist.on_downed()
+	assert_eq(ro.hack_step(0.1, false, at), "locked", "downed: the heist is off, the console locked")
+	assert_eq(ro.running_at, "")
+
+
+func test_the_wave_starts_50_m_out_on_the_doors_side() -> void:
+	var ro := _room()
+	var o: Dictionary = ro.outposts[0]
+	var at := ro.console_point(o)
+	var pts := ro.wave_points(o)
+	assert_eq(pts.size(), int(Heist.wave_cfg().get("count", 0)), "the wave's count")
+	assert_gt(pts.size(), 0)
+	for q: Vector3 in pts:
+		assert_almost_eq(Vector2(q.x - at.x, q.z - at.z).length(), 50.0, 0.01, "50 m from the console")
+		assert_gt(q.x, at.x - 0.01, "on the door's side (toward the town)")
+	assert_eq(Heist.wave_soldier(Territory.REMNANT), "yard_trooper", "the Remnant send barracks troopers (they run to the fight)")
+	assert_eq(Heist.wave_soldier(Territory.LOCALS), "local_guard", "the locals their guards")
 
 
 func test_letting_go_or_stepping_away_resets() -> void:

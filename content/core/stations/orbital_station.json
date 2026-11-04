@@ -103,6 +103,7 @@
     "settle": 3.0,
     "note": "Z within radius metres flies you in: round the towers (over_y above or under_y below them, in the station's frame) when you start behind the bay's mouth, out to approach metres off the mouth at hold_y over the deck, in through the shield and to a stop over the dock pad, then turned nose out and set down (ShipPilot's docking autopilot, the same flight as the cruiser's)."
   },
+  "outside": { "drop_below": 40.0, "note": "Where the planet's air is breathable (no harmful_surface, the ringed giant) the station is open to it (SpaceStation.open_air): the bay's shield lets you walk out of the mouth onto the apron, and you can roam outside on the jetpack. Over a gas ball's clouds, drop more than drop_below metres under the lowest floor and you are pulled back into the bay (lines.fell_clouds). Where you cannot breathe it is sealed as before: the shield holds you in and falling out pulls you straight back (lines.fell)." },
   "detail_altitude": 600.0,
   "aboard_shadow_distance": 150.0,
   "lights_within": 3000.0,
@@ -111,6 +112,7 @@
     "dock_hint": "%s  ·  %.1f km  ·  Z to land in its bay",
     "docking": "Bringing her into %s. Z to take back control.",
     "docked": "Down in the station's bay.",
-    "fell": "You were pulled back into the station."
+    "fell": "You were pulled back into the station.",
+    "fell_clouds": "You dropped toward the clouds and the station's tractor pulled you back in."
   }
 }

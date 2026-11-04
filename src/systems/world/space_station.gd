@@ -5,13 +5,19 @@ extends Node3D
 ## ground and the walkers' colliders (the "station" landmark put them there); this
 ## node adds what moves and what you see:
 ##   - the look: every part merged by finish, the cruiser's metal, glass, glow
-##   - the energy shield across the bay's mouth (ships and bolts through, not you)
+##   - the energy shield across the bay's mouth (ships and bolts through, not you),
+##     the shields in the tunnels' roofs and round the gaps between floors (you
+##     through, not the air)
 ##   - an elevator in each tower: a platform riding its shaft floor to floor, and the
 ##     shaft's doors, open only where it has stopped
 ##   - Z docking: the same calls the cruiser answers (can_dock, dock_path, dock_yaw,
 ##     dock_cfg, line), so ShipPilot flies you into its bay the same way
 ##   - the label naming it in the sky while you fly, interior lights, and a pull back
 ##     aboard if you fall out
+##   - open to the air where the planet's air is breathable (no harmful_surface:
+##     the ringed giant): the bay's shield lets you walk out, you roam outside on
+##     the jetpack, and you are pulled back only if you drop toward a gas ball's
+##     clouds (open_air)
 ## Nothing here is about one planet: SpaceStation is built for every "station"
 ## landmark of the world it is in (town_demo._build_stations).
 
@@ -36,6 +42,7 @@ var rides := 0                         ## elevator stops reached with you aboard
 var fill: StationFill                  ## issue #315: what is in the floors (with the look layer only)
 var fill_floors: Array = []            ## { tower, i, c, y, r, node, built }: one per dressed floor
 var fill_ms := 0.0                     ## the longest tick spent building the fill, ms (review)
+var open_air := false                  ## the planet's air is breathable: you may go outside (setup)
 
 var _root: Node3D
 var _inside: Node3D
@@ -59,6 +66,8 @@ func setup(town_demo, world_ground: WorldGround, lm: Dictionary) -> void:
 	inv = frame.affine_inverse()
 	name = "SpaceStation_" + id
 	vessel_name = NameHooks.vessel(cfg, "station:" + id)
+	var pl = demo.get("planet") if demo != null else null
+	open_air = pl is Dictionary and not (pl as Dictionary).is_empty() and HarmfulSurface.config(pl).is_empty()
 
 
 func _ready() -> void:
@@ -74,6 +83,7 @@ func _ready() -> void:
 		_plan_fill()
 	_build_shield()
 	_build_hatches()
+	_build_tubes()
 	_build_elevators()
 	_build_label()
 
@@ -150,10 +160,21 @@ func _exit_tree() -> void:
 
 
 ## Fallen out of the station (off a tunnel's roof, out past the shield): back
-## aboard beside the dock pad.
+## aboard beside the dock pad. In open air going outside is fine: over a gas ball
+## (WorldGround.lethal_below) you are pulled back only once you drop the station's
+## outside.drop_below metres under its lowest floor, toward the clouds; over solid
+## ground, never (you land).
 func _fall_guard(p: Node3D) -> void:
 	if p.get("piloting") == true:
 		_was_aboard = false
+		return
+	if open_air:
+		if ground == null or ground.lethal_below == -INF or aboard(p.global_position):
+			return
+		var drop := float(cfg.get("outside", {}).get("drop_below", 40.0))
+		if (inv * p.global_position).y >= hull.bottom_y() - drop or distance(p.global_position) > 3000.0:
+			return
+		_pull_back(p, line("fell_clouds"))
 		return
 	if aboard(p.global_position):
 		_was_aboard = true
@@ -165,11 +186,17 @@ func _fall_guard(p: Node3D) -> void:
 	if distance(p.global_position) > 1000.0:
 		_was_aboard = false            # moved away (woken in the pit, towed home), not fallen
 		return
+	_pull_back(p, line("fell"))
+
+
+func _pull_back(p: Node3D, text: String) -> void:
 	p.global_position = frame * hull.spawn_point()
+	if p is CharacterBody3D:
+		(p as CharacterBody3D).velocity = Vector3.ZERO
 	if p.has_method("align_to_ground"):
 		p.call("align_to_ground", true)
 	falls += 1
-	_toast(line("fell"), 3.0)
+	_toast(text, 3.0)
 
 
 # ------------------------------------------------------------------ the floors' fill
@@ -388,7 +415,8 @@ func _dress_car(body: AnimatableBody3D, r: float) -> void:
 # ------------------------------------------------------------------ the shield
 
 ## Across the bay's mouth: you cannot walk out into space, a ship flies straight
-## through, and so do bolts both ways.
+## through, and so do bolts both ways. In open air (breathable) it only keeps the
+## weather out: you walk through it too.
 func _build_shield() -> void:
 	var sh := hull.shield()
 	if sh.is_empty():
@@ -396,7 +424,7 @@ func _build_shield() -> void:
 	var body := StaticBody3D.new()
 	body.name = "BayShield"
 	body.set_meta("bolts_pass", true)
-	for pc in sh.pieces:
+	for pc in ([] if open_air else sh.pieces):
 		var cs := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
 		shape.size = (pc.size as Vector3) + Vector3(1.6, 0, 0)
@@ -430,6 +458,34 @@ func _build_hatches() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_root.add_child(mi)
 		mi.transform = hc.xf
+
+
+## The shields round the gaps between floors (StationHull.tubes): no collider (jump
+## the railing, jetpack up and step out through one onto the floor's roof), only
+## the look: an open cylinder, its rims where it meets the ceiling and the floor
+## above.
+func _build_tubes() -> void:
+	if demo == null or not demo.use_look:
+		return
+	for tb in hull.tubes:
+		var h := float(tb.y1) - float(tb.y0)
+		var r := float(tb.r)
+		var cm := CylinderMesh.new()
+		cm.top_radius = r
+		cm.bottom_radius = r
+		cm.height = h
+		cm.radial_segments = 48
+		cm.rings = 1
+		cm.cap_top = false
+		cm.cap_bottom = false
+		var mi := MeshInstance3D.new()
+		mi.name = "GapShield_%s_%d" % [str(tb.tower), int(tb.floor)]
+		mi.mesh = cm
+		mi.material_override = LookMaterials.energy_shield(Vector3(r * 2.0, h, r * 2.0), Vector3(0, 0.6, 0))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var c: Vector2 = tb.c
+		mi.position = Vector3(c.x, (float(tb.y0) + float(tb.y1)) * 0.5, c.y)
+		_root.add_child(mi)
 
 
 ## The shield's curve as a mesh in its own frame (StationHull.shield): the wall's arc

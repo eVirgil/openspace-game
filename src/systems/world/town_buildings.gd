@@ -11,7 +11,8 @@ extends RefCounted
 ##
 ## Looks: hut_round, hut_block, hut_stepped, hut_long (market side), tower_block,
 ## tower_round, tower_wide (barracks side), shop, hall, upper, watchtower, bridge,
-## cistern. `face` ("+x", "-x", "+z", "-z") is the door side. `style: "garrison"`
+## cistern. `face` ("+x", "-x", "+z", "-z") is the door side. `style: "gray_garrison"`
+## is the moon's barracks: the gray homes' metal with the garrison's band. `style: "garrison"`
 ## paints a building in Remnant colours (issue #393: in the locals' once they hold the
 ## barracks; LookMaterials.repaint).
 ##
@@ -364,6 +365,8 @@ func _plaster(b: Dictionary, band_y: float) -> Material:
 		return b.wall_mat
 	if str(b.get("style", "")) == "garrison":       # issue #393: repainted with the barracks' owner
 		return mats.faction_plaster(0.0, band_y, "band", Color("#cbb594"))
+	if str(b.get("style", "")) == "gray_garrison":  # the moon's metal barracks: the gray homes' look, repainted too
+		return mats.faction_plaster(0.0, band_y, "band", Color("#84898b"))
 	if str(b.get("style", "")) == "gray":
 		return mats.plaster(0.0, band_y, Color("#84898b"), Color("#55595b"))
 	var i := absi(hash(str(b.id)))

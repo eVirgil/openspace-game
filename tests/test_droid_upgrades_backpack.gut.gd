@@ -219,3 +219,52 @@ func test_first_upgrade_rebuilds_it_shiny() -> void:
 	assert_almost_eq(shiny.global_position.x, 3.0, 0.01, "where it stood")
 	assert_eq(ctl.upgrade(int(d.uid), "health"), "upgraded")
 	assert_eq(ctl.companions[int(d.uid)], shiny, "already shiny: no rebuild")
+
+
+# ---- stash one, stash all -----------------------------------------------------------
+
+func _hold_row(ctl: DroidController, item: String) -> Dictionary:
+	for o in ctl.menu.options:
+		if str(o.id) == "stash:" + item:
+			return o
+	return {}
+
+
+func test_hold_stashes_one_or_the_whole_stack() -> void:
+	var s := _scene()
+	var ctl: DroidController = s[0]
+	var inv := WorldState.inventory
+	var c := WorldState.droids.add("cargo", "tan")
+	inv.add("holocrystals", 3)
+	inv.add("food")
+	ctl.focus = { "kind": "cargo", "uid": int(c.uid) }
+	assert_eq(ctl.interact(), "menu")
+	var row := _hold_row(ctl, "holocrystals")
+	assert_eq(str(row.get("alt", "")), "stash_all:holocrystals", "Shift+Enter stashes the stack")
+	var ids := []
+	for b in row.get("buttons", []):
+		ids.append(str(b.id))
+	assert_eq(ids, ["stash:holocrystals", "stash_all:holocrystals"], "Stash one and Stash all buttons")
+	assert_false(_hold_row(ctl, "food").has("alt"), "a single item has no stash-all")
+	assert_eq((_hold_row(ctl, "food").get("buttons", []) as Array).size(), 1, "just a Stash button")
+	assert_true(ctl.menu.hint.text.contains("Shift+Enter"), "the key hint names Shift+Enter")
+
+	ctl.menu.choose("stash:holocrystals")
+	assert_eq(inv.count("holocrystals"), 2, "Enter stashes one")
+	assert_eq(int(c.cargo.get("holocrystals", 0)), 1)
+	assert_true(ctl.menu.is_open(), "the hold stays open for the next one")
+
+	var key := InputEventKey.new()
+	key.keycode = KEY_ENTER
+	key.pressed = true
+	key.shift_pressed = true
+	ctl.menu.selected = ctl.menu.options.find(_hold_row(ctl, "holocrystals"))
+	ctl.menu._input(key)
+	assert_eq(inv.count("holocrystals"), 0, "Shift+Enter stashes the rest")
+	assert_eq(int(c.cargo.get("holocrystals", 0)), 3)
+	assert_true(_hold_row(ctl, "holocrystals").is_empty(), "nothing left of it to stash")
+
+	ctl.menu.choose("stash_all:food")
+	assert_eq(int(c.cargo.get("food", 0)), 1, "stash all of one is one")
+	ctl.menu.choose("")
+	assert_false(ctl.menu.is_open())

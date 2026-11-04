@@ -24,6 +24,75 @@ room type; `test_smoke` and a headless boot. Nothing was played by hand.
   help, the suites most of all (no light of their own, only glowing materials).
 - **Without the look layer there is no furniture** (and none of its colliders).
 
+## After ship hulls that follow the model (2026-11-04)
+
+**Checked:** test_smoke, a headless town boot with the models on (every parked
+ship, the barracks interceptor and the outpost ships carry 48 to 95 convex
+pieces, no box), and stills of the four flyable ships with their hull drawn over
+them. No other suites were run, and it was not played.
+
+- **The hull is a little fuller than the model.** Each ~1.2 m cell of the mesh is
+  wrapped in one convex piece, so a dip smaller than a cell (between two engine
+  pods, under a canopy lip) is filled in. Smaller `hull_fit.cell` follows closer
+  for more pieces.
+- **A friend's ship in space is still hit as a sphere** and the fight's own
+  ships still by distance; only bolts that the physics world carries (the
+  town's sky, a parked ship) see the new shape.
+- **An upgrade T-89 bolts on mid-game** (`ShipPilot.refit`) is not in that
+  ship's hull until the next load, as it was not in its box.
+## After hijacking (2026-11-04)
+
+**Checked:** a two-process loopback probe, run by hand and not added to the repo
+(a guest hijacks the host parked on the pad and gives the ship back by getting
+out; the host hijacks the guest's speeder and gets off; the guest hops onto the
+host's ship hovering 18 m up and ejects; the host takes the AI interceptor in
+the air): every step passed, no script errors in either game. test_smoke,
+test_ip_neutral, and a headless town boot. Not played on two computers or on
+screen.
+
+- **An AI pilot thrown out leaves no body.** The interceptor's pilot is just
+  gone (a toast says so); no trooper lands on the sand.
+- **The hop is a slide, not an animation.** The body keeps its pose along the
+  arc; nobody else's game plays a climb either.
+- **A parked speeder of another player is not shown,** only one being ridden.
+  So after a hijacked speeder is given back, the others see it again only when
+  its owner gets back on.
+- **One ship per player shows to the others.** While you fly a ship you took,
+  your own primary is not drawn in their games (as before, only the ship you
+  fly or your primary goes out).
+- **The hijacked ship flies with your upgrades and name for that ship type,**
+  not its owner's; the owner's livery and hull left come with it.
+- **If the owner wakes in the pit while you hold their primary,** T-89 patches it
+  up there (and charges them); the one you fly goes back to nobody when you get
+  out.
+- **Flying a hijacked ship to another planet** is not handled: the ship goes with
+  you as a borrowed one, and its owner gets it back only by leaving and joining.
+
+## After every planet in every sky (2026-11-04)
+
+**Checked:** tests/test_planets.gut.gd (the moon's neighbours, the giant and
+the painting), test_smoke, a headless boot of the home planet, and a scratch
+probe (not in the repo): take off on the moon, fly at the giant, home's scene
+takes over at 9 s, the giant's at 27 s, still flying. The moon and giant scenes
+built every other planet's look headless. Not flown on screen.
+
+- **How the giant looks from the moon was not seen on screen** (headless only):
+  it is the same banded ball and ring home's sky draws, about 20 degrees wide.
+- **Only planets round the same parent are listed.** Every planet today is near
+  home; a moon of a moon would not see its grandparent's other children.
+
+## After the shields round the station's gaps (2026-11-04)
+
+**Checked:** `test_smoke`, `test_station` (15/15), and a rendered probe on the
+giant: a ray through the shield hits nothing, the floor's roof is solid, and
+standing out there for 2 s leaves you there. Nothing was played by hand: the
+jump over the railing and the jetpack up through the ceiling were not tried.
+
+- **No railing round a floor's roof.** Walk off its edge and you are pulled
+  back into the bay.
+- **The elevator's own glass shaft is still solid** (it is the car's), so you
+  step out from the gap round it, not from the car.
+
 ## After the LAN guest's cruiser crash fix (2026-11-04)
 
 **Checked:** a two-process loopback probe (host and guest towns, the guest flies
@@ -51,6 +120,9 @@ passed, and I did not chase it.
 
 - **Each player gets their own heist crew.** The crew member and the borrowed
   droid follow whoever's game they are in, and the others do not see them.
+- **A guest who hacks a console gets no wave.** The wave is made in the game
+  of whoever starts the hack, and a guest's town only shows the host's people,
+  so a guest's hack runs its minute with nobody sent at them.
 - **Only the jobs are shared, not the outposts.** Who holds each outpost, the
   resupply quests and the optional quests stay each game's own, so a guest can
   carry supplies to an outpost the host's game thinks someone else holds.
@@ -67,8 +139,13 @@ save loaded on the giant starting you in the bay), the giant's tests in
 tests/test_planets.gut.gd, test_smoke, test_ip_neutral, and stills. Flown by
 hand once before the station moved in.
 
-- **The clouds look like a smooth tan plain up close,** not clouds; the side
-  away from the sun is very dark.
+- ~~The clouds look like a smooth tan plain up close~~: fixed (2026-11-04), the
+  haze shell and fog billows. Still: the fog is a look, not a volume. Clouds
+  never pass between you and the station, and the cloud tops are one smooth
+  height, with no towers of cloud to fly round.
+- **Outside the station on the giant** (breathable, 2026-11-04) you are pulled
+  back into the bay once you drop 40 m under its lowest floor. Nothing tells you
+  you are close to that line before it happens.
 - **No space fight on the way out** (`encounter: ""`): a fight's flight does not
   check the clouds, so a ship could dive into them mid-fight and live.
 - **The ring is a look only.** No rocks in it yet (#312's belt), nothing to hit.

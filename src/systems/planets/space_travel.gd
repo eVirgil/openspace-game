@@ -21,6 +21,7 @@ const CAPTURE := 400.0               ## metres outside a body's radius that coun
 const HYSTERESIS := 300.0            ## issue #99: leaving needs this much more than arriving
 const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
 const RING_SHADER := preload("res://src/systems/look/shaders/gas_ring.gdshader")
+const HAZE_SHADER := preload("res://src/systems/look/shaders/gas_haze.gdshader")
 const PREWARM := 1500.0              ## this far before a handoff, its scene's far mesh starts on worker threads
 
 var pilot                            ## ShipPilot
@@ -30,7 +31,7 @@ var change := true                   ## false: decide but do not change scene (t
 var _layer: CanvasLayer
 var _labels: Dictionary = {}         ## id -> Label
 var _sand_bodies: Array = []         ## sand ShaderMaterials of ball neighbours (the sun is tracked)
-var _gas_mats: Array = []            ## the ringed giant's ball and ring materials (sun, daylight, haze)
+var _gas_mats: Array = []            ## the ringed giant's ball, haze and ring materials (sun, daylight, haze)
 var _look = null                     ## the scene's LookEnvironment, once ready
 var self_radius := 0.0               ## issue #99: this planet's ball, and how far up its scene still holds
 var self_handoff := 0.0
@@ -51,7 +52,7 @@ func setup(ship_pilot, neighbours: Array, with_looks: bool) -> void:
 	for n in neighbours:
 		var b := { "id": str(n.id), "at": n.at, "radius": float(n.radius), "type": str(n.type), "node": null,
 			"name": PlanetGen.display_name(PlanetGen.build(str(n.id))),
-			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)),
+			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)), "via": str(n.get("via", "")),
 			"handoff": PlanetGen.handoff_altitude(str(n.type)) }
 		if with_looks:
 			b.node = _body(n)
@@ -127,6 +128,8 @@ func _physics_process(_dt: float) -> void:
 		return
 	var pos: Vector3 = pilot.atmo.position()
 	for b in bodies:
+		if str(b.via) != "":
+			continue          # a sibling: seen from here, flown to from the parent's scene
 		if b.child and float(b.handoff) > 0.0:
 			# Issue #99: close enough to its ball: its scene, seamlessly.
 			var gap := pos.distance_to(b.at) - float(b.radius) - float(b.handoff)
@@ -236,7 +239,7 @@ func _update_labels(flying: bool) -> void:
 ## sky is the same on both sides of the switch.
 func _share_parent_sky(look) -> void:
 	for b in bodies:
-		if b.child or float(self_handoff) <= 0.0:
+		if b.child or str(b.via) != "" or float(self_handoff) <= 0.0:
 			continue
 		var pt := PlanetTerrain.for_planet(PlanetGen.build(str(b.id)))
 		if pt == null:
@@ -254,7 +257,7 @@ func _share_parent_sky(look) -> void:
 func _body(n: Dictionary) -> Node3D:
 	if float(n.get("bands", 0.0)) > 0.0:
 		return _gas_body(n)          # the ringed giant: its banded ball and its ring
-	if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
+	if bool(n.get("ball", false)) and _real_ball(n):
 		var real := _ball_body(n)
 		if real != null:
 			return real
@@ -317,17 +320,69 @@ func _gas_body(n: Dictionary) -> Node3D:
 	m.set_shader_parameter("color_b", n.dark)
 	m.set_shader_parameter("bands", float(n.bands))
 	m.set_shader_parameter("ring_normal", rn)
+	set_gas_fog(m, n.get("haze", {}), seen.radius)
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.extra_cull_margin = r
 	root.add_child(mi)
 	_gas_mats.append(m)
+	var hz := make_haze(n.at, seen.radius, n.get("haze", {}))
+	if hz != null:
+		root.add_child(hz)
+		hz.position = Vector3.ZERO
+		_gas_mats.append(hz.material_override)
 	if not ring.is_empty():
 		var rmi := make_ring(n.at, r, ring)
 		root.add_child(rmi)
 		rmi.position = Vector3.ZERO
 		_gas_mats.append(rmi.material_override)
 	return root
+
+
+## A gas giant's air (gas_haze.gdshader): a shell `haze.top` metres over its cloud
+## tops (radius cloud_r) round `center`, thickening down to them: a soft glowing
+## edge from space, and fog over the clouds up close. The same in its neighbours'
+## sky and its own scene, so nothing jumps at the handoff. null when the planet's
+## body has no haze. Placed at `center` in world space (its parent at the origin).
+static func make_haze(center: Vector3, cloud_r: float, haze: Dictionary) -> MeshInstance3D:
+	if haze.is_empty():
+		return null
+	var top := float(haze.get("top", 3000.0))
+	var sm := SphereMesh.new()
+	sm.radius = cloud_r + top
+	sm.height = 2.0 * (cloud_r + top)
+	sm.radial_segments = 96
+	sm.rings = 48
+	var mi := MeshInstance3D.new()
+	mi.name = "Haze"
+	mi.mesh = sm
+	mi.position = center
+	var m := ShaderMaterial.new()
+	m.shader = HAZE_SHADER
+	m.render_priority = -1              # under the ring, the station's glass and shields
+	m.set_shader_parameter("center", center)
+	m.set_shader_parameter("cloud_r", cloud_r)
+	m.set_shader_parameter("top", top)
+	for k in ["low_density", "low_height", "high_density", "high_height"]:
+		if haze.has(k):
+			m.set_shader_parameter(k, float(haze[k]))
+	m.set_shader_parameter("day_color", Color(str(haze.get("day", "#ecdccf"))))
+	m.set_shader_parameter("night_color", Color(str(haze.get("night", "#463a56"))))
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = cloud_r + top
+	return mi
+
+
+## The ball's close-up fog (gas_giant.gdshader): its colours from the planet's
+## body.haze, and the cloud tops' radius for the billows' scale.
+static func set_gas_fog(m: ShaderMaterial, haze: Dictionary, cloud_r: float) -> void:
+	m.set_shader_parameter("radius_m", cloud_r)
+	if haze.is_empty():
+		return
+	m.set_shader_parameter("fog_color", Color(str(haze.get("day", "#ecdccf"))))
+	m.set_shader_parameter("night_color", Color(str(haze.get("night", "#463a56"))))
+	m.set_shader_parameter("fog_near", float(haze.get("fog_near", 1600.0)))
 
 
 ## A gas giant's ring round `center` (radius r): a flat band in the plane normal
@@ -404,7 +459,7 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 ## The ball meshes planet `id`'s scene will draw in its sky, made on worker threads.
 static func prewarm_bodies(id: String) -> void:
 	for n in PlanetGen.build(id).get("neighbours", []):
-		if bool(n.get("ball", false)) and bool(n.get("child", false)) and PlanetGen.handoff_altitude(str(n.type)) > 0.0:
+		if bool(n.get("ball", false)) and _real_ball(n):
 			continue          # drawn as its real ball (_ball_body), not a mesh
 		var key := "%s/%d" % [str(n.id), int(n.radius)]
 		if _body_meshes.has(key):
@@ -449,6 +504,13 @@ func _ball_body(n: Dictionary) -> Node3D:
 		root.add_child(ext)
 		ext.build_exterior(p.town.get("station", {}), pilot.demo._flat_mats())
 	return root
+
+
+## A ball neighbour drawn as its own ball (_ball_body): a child or a sibling (the
+## moon seen from the giant) whose scene takes over in mid-flight, so the parent's
+## scene draws the same shapes and nothing changes but the detail.
+static func _real_ball(n: Dictionary) -> bool:
+	return (bool(n.get("child", false)) or str(n.get("via", "")) != "") and PlanetGen.handoff_altitude(str(n.type)) > 0.0
 
 
 ## A small rocky ball (the asteroid, the lava moon: any "ball" type), not a planet.

@@ -27,6 +27,143 @@ Plain English, newest on top. One entry per milestone.
   studios (a lounge, kitchen and bedroom in a long room) are still in the code
   for any floor's config to use.
 
+## Heists: hold the control room for a minute (2026-11-04)
+
+- **Hacking a console takes a minute now.** Hold [E] for 5 seconds to start
+  it, then stay within 25 m of the console for 60 seconds. You can leave the
+  console and fight from the room or the doorway. Go further than 25 m and
+  the hack drops, so you have to start it again. The stash drops when the
+  minute is up.
+- **The outpost sends a wave at you** when the hack starts: four soldiers
+  50 m out on the door's side, running in to kill you, and the outpost's
+  alarm goes up. Remnant outposts send barracks troopers, and the locals'
+  outposts send their guards. One wave per heist. They don't come back
+  when killed.
+- The prompt and the bar show the time left.
+
+## Hijacking ships and speeders (2026-11-04)
+
+- **E by a ship or speeder someone else is in takes it.** Walk up (or ride up on
+  your own speeder) to one being flown or ridden and the prompt says
+  "[E] Hijack". You hop up onto it for about a second, the pilot is thrown out
+  onto the ground beside it, a little hurt, and you are at the controls.
+- **Works between players over LAN,** host or guest either way: their game
+  throws them out, yours puts you in their ship (on the pad, or flying on where
+  it was), and everyone else sees it change hands. A jetpack gets you onto a
+  ship hovering low.
+- **It is still theirs.** Get out, eject or get off and it is back in their game
+  where you left it, on the ground below. Crash it and it is wrecked for them
+  too (their own ship waits for T-89's patch-up). Their Call says someone else
+  is flying her until then.
+- **Other players' speeders now show over LAN** while they ride them, with
+  their name over them (before, a rider just vanished).
+- **The Remnant interceptor can be taken in the air** when it comes low enough
+  to reach (setting down on its pad): its pilot is thrown clear and it is a
+  stolen ship, alarm and all.
+- Numbers (reach, hop time, the pilot's knock) are in
+  `content/core/flow/hijack.json`.
+
+## Take the lava moon: the same domes, barracks and outposts (2026-11-04)
+
+- **The lava moon gets the moon's expansion:** two more tunnels out of its
+  landing bay, to a barracks dome and a homes dome, and five Remnant outposts out
+  among the lava, 500 to 560 m from the station.
+- **Taken on its own,** on the moon's rules: kill the troopers at an outpost and
+  the locals move in; hold all five and the Remnant are driven off the lava
+  moon, barracks and all. The port and the moon are not touched by it, and the
+  other way round. F1 and the lava moon's map show it.
+- **The outposts stand on raised basalt pads,** 1.5 m over the lava and wide
+  enough for the ship and the patrol, so nobody is standing in it.
+- **No lava within 180 m of the port** (was 130), so the new domes and tunnels
+  sit on dry rock.
+- Fronts past the port's are a list in `territory.json` ("fronts"): the next
+  planet to take is a block of data.
+
+## Take the moon: two more domes, a barracks and five outposts (2026-11-04)
+
+- **Two more tunnels out of the moon's landing bay,** north and south, each down
+  its own ramp and through its own shields to a dome as big as the first.
+- **The barracks dome:** the Remnant's metal barracks (the gray homes' metal,
+  its band turns green for the locals), crates in the yard and five troopers.
+  It changes hands like the port's barracks: the locals take it when the fleet
+  is beaten or when the Remnant are driven off the moon; kill every local guard
+  there and the Remnant take it back; once the fleet is beaten, kill every
+  trooper there and it is the locals' again. Dead troopers come back behind the
+  hall until then.
+- **The homes dome:** eight of the station's gray homes either side of a street,
+  locals walking it.
+- **Five Remnant outposts out on the moon's rock.** Kill every trooper at one and
+  the locals move in, like the port's. No quest and no supply runs: they keep it
+  until their guards there are all dead. Hold all five at once and the Remnant
+  are driven off the moon, barracks and all. Once the cruiser has fallen the
+  moon's Remnant outposts run short and give up one at a time, like the port's.
+  F1 lists the moon's places too.
+- **The landing bay's rim is 3 m lower** (10 m, was 13).
+- **No more breathing on the roof.** Out of air now means outside the glass,
+  not just outside its circle: standing on a dome, on a tunnel's roof or above
+  the bay's shield hurts without armour.
+- **The moon's map** shows the station's shape (the domes, the bay and the
+  tunnels), a pin for the bay, the barracks (who holds it) and the homes, and
+  the five outposts, green when the locals hold them.
+## Ranch villages: three walled outposts with houses and stands, far out (2026-11-04)
+
+- **Three ranch villages out in the desert,** each a Remnant outpost with a
+  few houses round it (one of them a tall tower house), a walled yard and a
+  gate facing the port. Two are far out on the side away from the wreck field
+  (Saltpan and Windbreak, 3.5 to 3.8 km); the third, Hullside, sits out east
+  between the second and third wrecks.
+- **Four stands at each:** the gear trader, the food stall, the fence and a
+  droid merchant. They are the port's own merchants, with the same stock and
+  prices. No speeders. A stand shuts while its keeper is dead or the village
+  is fighting you.
+- **Armed locals hang about** the fire and the gate. They have their own
+  alarm, so a fight out there never reaches the port.
+- **They count toward driving the Remnant off.** The Remnant only hand a
+  village over once the cruiser has fallen. Before that, killing every trooper
+  there just brings more ("they answer to the cruiser"). The same rule as the
+  barracks: the cruiser first, then its guards.
+- **The map says "Village"** for each, in the outposts' colours (green once the
+  locals hold it).
+- **Nothing of them is drawn from the port.** Everything at a village is drawn
+  only within 1500 m, and they are 3.5 km and more out, below the horizon.
+## Armour at the moon stalls from day 1 (2026-11-04)
+
+- **The merchant in front of the moon's cantina sells quantonium armour** from the
+  start, in a story save and in free play, for 500 (the port's fence price) and
+  never runs out. It is what lets you breathe out on the rock.
+- **The lava moon's merchant too:** it had no stall at all; now it is the moon's,
+  armour included.
+
+## The ringed giant: gas you can see, fog under the station, air you can breathe (2026-11-04)
+
+- **The giant looks like gas from far off:** a soft glowing edge of haze all
+  round it, bands that bend and drift, and heaps of cloud as you get closer. The
+  far side is dusky purple, not black.
+- **Up close the ground is fog.** From the station you look down into a sea of
+  haze with no hard horizon; dive toward the clouds and you fly into thick fog
+  (the deadly line is inside it).
+- **Go outside the station without armour:** the air is breathable. Walk out of
+  the bay's mouth through its shield and roam outside on the jetpack. Drop too
+  far toward the clouds and the station pulls you back into the bay.
+
+## Jetpacks at the gear trader, and stash one or all in a cargo droid (2026-11-04)
+
+- **The gear trader sells jetpacks** and never runs out, at the jetpack's value
+  (120 cr). It still buys them back at half that.
+- **A cargo droid's hold stashes one at a time:** Enter stashes one of a stack,
+  **Shift+Enter** stashes the whole stack, and each row has **Stash one** and
+  **Stash all** buttons you can click. The hold stays open after each stash.
+
+## Step out of the station between its floors (2026-11-04)
+
+- **The glass round each elevator gap between floors is a shield now.** It keeps
+  the air in and lets you through. Jump the railing onto the gap's glass,
+  jetpack up through the hole in the ceiling, step out through the shield, and
+  you are outside on the roof of the floor below, under the next floor, out in
+  space.
+- **You stay out there.** The station only pulls you back in if you go off the
+  roof's edge, as on the tunnels' roof walks.
+
 ## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New

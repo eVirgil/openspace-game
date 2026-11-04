@@ -90,8 +90,8 @@ func setup(town_demo, all: Array) -> void:
 	_talk_cfg = _beast_cfg if not _beast_cfg.is_empty() else PlanetBeast.defaults()
 	_beast_next = float(_talk_cfg.get("locals_say_first_s", 6.0))
 	for g in members:
-		if (not g.has_meta("outpost") or not is_same(members, demo.locals)) and not on_barracks(g):
-			_adopt(g)              # (issue #187: the town's leaves the outposts' locals to theirs)
+		if (not (g.has_meta("outpost") or g.has_meta("ranch")) or not is_same(members, demo.locals)) and not on_barracks(g):
+			_adopt(g)              # (issue #187: the town's leaves the outposts' and ranches' locals to theirs)
 	if player != null and player.has_signal("downed"):
 		player.downed.connect(_on_player_downed)
 
