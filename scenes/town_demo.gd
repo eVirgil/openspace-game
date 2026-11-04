@@ -18,6 +18,7 @@ extends Node3D
 const TownLayout := preload("res://src/systems/world/town_layout.gd")
 const Greybox := preload("res://src/systems/world/greybox.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
+const Hijack := preload("res://src/systems/vehicles/hijack.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const StairTower := preload("res://src/systems/world/stair_tower.gd")
 const PitBowl := preload("res://src/systems/world/pit_bowl.gd")
@@ -73,6 +74,7 @@ var bar: Node
 var gear: GearController              ## M13
 var pilot: ShipPilot                  ## M14
 var interceptor: AtmoFighter          ## issue #76: the Remnant's dark interceptor on the barracks pad
+var hijack: Node                      ## E by a ship or speeder someone else sits in: take it (Hijack)
 var characters: Dictionary = {}       ## marker id -> built character
 var terrain: DesertTerrain            ## null when with_desert is off
 var dust: DustWind                    ## issue #93: blowing sand round the camera (look only)
@@ -1442,6 +1444,9 @@ func _build_ship() -> void:
 	pilot = ShipPilot.new()
 	pilot.setup(self)
 	add_child(pilot)
+	hijack = Hijack.new()
+	hijack.setup(self)
+	add_child(hijack)
 	if gear != null:
 		gear.ground = pilot.ground      # issue #93: the fall guard, round the ball
 

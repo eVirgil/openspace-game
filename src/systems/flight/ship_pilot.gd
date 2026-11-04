@@ -73,6 +73,10 @@ extends Node
 ##     (RemoteShip's hull; NetFight out in space) and theirs hit yours
 ##     (lan_ship_hit). Seekers never lock on them (the lock is on the Remnant
 ##     interceptor only), but one flying straight that runs into one hits it.
+##   - Hijacking (Hijack): another player on foot by the ship you sit in can take
+##     it: thrown_out puts you on the ground beside her and stows her until they
+##     let go (hijack_returned); theirs taken by you is a borrowed berth
+##     (seat_taken), theirs again when you get out, eject or crash (hijack_let_go).
 ##
 ## The headless trace drives it with board(), takeoff(), land(), exit_ship(), eject() and
 ## set_external_command(): the same code paths the keys use.
@@ -98,6 +102,7 @@ signal fight_started
 signal fight_ended(outcome: String)
 signal cannon_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## LAN shows it to the others (unlocked seekers too)
 signal woke                        ## the player respawned (woke_in_pit): SpeederPost lines their speeder up
+signal hijack_let_go(peer: int, xf: Transform3D, wrecked: bool)   ## a ship you took from player `peer` is theirs again (Hijack)
 
 var demo                         ## the town scene (town_demo.gd)
 var content
@@ -544,6 +549,14 @@ func board() -> bool:
 	var i := nearest_berth()
 	if i < 0 or not berth_flies(i):
 		return false
+	return board_berth(i)
+
+
+## Into the seat of berth `i`, wherever it is (board() checks you stand at it and
+## may fly it; a hijack has already put you on top of it).
+func board_berth(i: int) -> bool:
+	if piloting or i < 0 or i >= berths.size() or player() == null:
+		return false
 	if i != berth:
 		_use_berth(i)
 	if berths[i].has("outpost") and not bool(berths[i].stolen) and not bool(berths[i].get("borrowed", false)):
@@ -595,6 +608,7 @@ func exit_ship() -> bool:
 		Story.event("landed")          # issue #202: out of the ship; the general is waiting
 		WorldState.set_flag(WorldState.FREE_OPENING, false)    # free roam: no general, and the landing played once
 	exited.emit()
+	_drop_hijacked(false)              # one you took from another player is theirs again
 	return true
 
 
@@ -649,6 +663,7 @@ func eject() -> bool:
 	e["t"] = flight_time
 	log_events.append(e)
 	ejected.emit()
+	_drop_hijacked(false)              # one you took from another player: theirs, on the ground below
 	return true
 
 
@@ -1269,7 +1284,7 @@ func _on_foot() -> void:
 		if st != null:
 			alt = minf(alt, float(st.cfg.get("detail_altitude", 600.0)))     # the same, aboard a station
 		demo.detail.update_for(alt)
-	var i := nearest_berth() if not p.locked else -1
+	var i := nearest_berth() if not p.locked and not _hijack_claims() else -1
 	var near := i >= 0
 	if near:
 		var cfg: Dictionary = berths[i].cfg
@@ -1728,6 +1743,10 @@ func _rearm_space() -> void:
 
 
 func _tow_home() -> void:
+	if berths[berth].has("hijacked_from"):
+		# Taken from another player and crashed: wrecked in their game too (borrowed: lost here).
+		hijack_let_go.emit(int(berths[berth].hijacked_from), atmo.transform(), true)
+		berths[berth].erase("hijacked_from")
 	if visual != null:
 		visual.visible = true
 	atmo.reached_space = false
@@ -2281,6 +2300,8 @@ func call_ship() -> String:
 	var i := berth_of(key, true)
 	if atmo.state == AtmoFlight.State.ADRIFT or crash_left >= 0.0:
 		return "call_busy"            # a ship still coming down (or waiting for her tow) first
+	if i >= 0 and berths[i].has("hijacked_by"):
+		return "call_hijacked"        # another player flies her: back when they get out
 	var at := p.global_position
 	var foot := clear_spot(at, 0.0, -1.0, i)
 	if foot == Vector3.INF:
@@ -2504,6 +2525,8 @@ func _patch_up(i: int) -> void:
 	var b: Dictionary = berths[i]
 	b.destroyed = false
 	b.erase("defense")
+	b.erase("hijacked_by")            # back from T-89: the one another player took is theirs to lose
+	b.erase("stowed")
 	if is_instance_valid(b.visual):
 		(b.visual as Node3D).visible = true
 	if b.hull != null and is_instance_valid(b.hull):
@@ -2587,6 +2610,134 @@ func _lose_stolen(wake_in_pit: bool = true) -> void:
 			p.call("align_to_ground", true)
 	hud.toast(GameFlow.label("stolen_lost"), 4.0)
 	woke_in_pit()
+
+
+# ------------------------------------------------------------------ hijacking (Hijack)
+
+## E is the town's Hijack's this frame (someone else's ship or speeder in reach).
+func _hijack_claims() -> bool:
+	var h = demo.get("hijack") if demo != null else null
+	return h != null and is_instance_valid(h) and h.claims_e()
+
+
+## Someone on foot may take the ship you sit in now: seated, down here (on the
+## ground or in the air under the edge of space), not in a fight, a docking, a bay
+## landing or the story's opening.
+func can_be_hijacked() -> bool:
+	return piloting and not opening and not docking and not bay_landing and not calling \
+		and not _fight_flying() and atmo.altitude() < atmo.space_altitude \
+		and atmo.state in [AtmoFlight.State.PARKED, AtmoFlight.State.LIFTOFF,
+			AtmoFlight.State.FLYING, AtmoFlight.State.LANDING]
+
+
+## Thrown out of your seat by player `by` (Hijack.on_take): on your feet on the
+## ground beside her, and she is not here for you while they fly her (stowed,
+## "hijacked_by"; not lost in the save: hijack_returned brings her back). Returns
+## what another game needs to fly her on ({} when she can not be taken now).
+func thrown_out(by: int) -> Dictionary:
+	if not can_be_hijacked():
+		return {}
+	var flying := atmo.state != AtmoFlight.State.PARKED
+	var st := { "ship_id": ship_id, "look": str(visual.get_meta("look_id", "")) if visual != null else "",
+		"xf": atmo.transform(), "flying": flying, "speed": atmo.flight.speed if flying else 0.0,
+		"throttle": _throttle if flying else 0.0, "hull": lan_hull() }
+	var i := berth
+	_eject_hold = 0.0
+	_leave_seat(_exit_spot())
+	atmo.park(atmo.position(), _yaw_of(atmo.transform()))
+	_stow(i)
+	berths[i]["hijacked_by"] = by
+	exited.emit()
+	for j in berths.size():
+		if not bool(berths[j].get("destroyed", false)):
+			_use_berth(j)                  # you fly another of these from now (none: she waits)
+			break
+	return st
+
+
+## Player `by` let go of the ship they took from you (Hijack.on_back): she stands
+## on the ground under `xf` (INF there: where they took her), yours again; or,
+## `wrecked`, she is shot to pieces (the primary waits for T-89's patch-up). False
+## when no ship of yours is theirs (she came back another way).
+func hijack_returned(by: int, xf: Transform3D, wrecked: bool) -> bool:
+	for i in berths.size():
+		var b: Dictionary = berths[i]
+		if int(b.get("hijacked_by", 0)) != by or not is_instance_valid(b.visual):
+			continue
+		b.erase("hijacked_by")
+		b.erase("stowed")
+		b.destroyed = false
+		if wrecked:
+			_wreck_berth(i, false)
+			return true
+		if b.hull != null and is_instance_valid(b.hull):
+			b.hull.dead = false
+			b.hull.collision_layer = 1
+			b.hull.collision_mask = 1
+		var v: Node3D = b.visual
+		var at := v.global_transform if xf.origin == Vector3.INF else xf
+		var u := ground.up_at(at.origin)
+		_stand(i, ground.surface_below(at.origin + u * 2.0), _yaw_of(at))
+		v.visible = true
+		_remember(i)
+		return true
+	return false
+
+
+## Player `from` threw their pilot out for you (Hijack.on_answer): their ship, as
+## `st` (thrown_out's), here as a ship nobody owns (borrowed: lost if you crash
+## her, adrift if you eject) and you in her seat, where she was, flying on if she
+## was. Returns her berth, -1 when she could not be put here.
+func seat_taken(st: Dictionary, from: int) -> int:
+	var sid := str(st.get("ship_id", ""))
+	if piloting or player() == null or not content.ships.has(sid):
+		return -1
+	var xf: Transform3D = st.get("xf", Transform3D.IDENTITY)
+	var look := str(st.get("look", ""))
+	if look == "" or not kit.has_look(look):
+		look = str(content.get_ship(sid).get("look", ""))
+	var v: Node3D = kit.build(look) if demo.use_look and kit.has_look(look) else Node3D.new()
+	v.name = "Hijacked_%d" % from
+	v.set_meta("ship_id", sid)
+	demo.add_child(v)
+	v.global_transform = xf.orthonormalized()
+	var i := add_berth(v, sid, "", "")
+	berths[i]["borrowed"] = true
+	berths[i]["hijacked_from"] = from
+	if not board_berth(i):
+		_wreck_berth(i, false)
+		return -1
+	if bool(st.get("flying", false)):
+		var thr := clampf(float(st.get("throttle", 0.5)), 0.0, 1.0)
+		atmo.place_flying(xf.origin, -xf.basis.z, float(st.get("speed", 0.0)), thr)
+		atmo.flight.basis = xf.basis.orthonormalized()
+		_throttle = thr
+	var hf := clampf(float(st.get("hull", 1.0)), 0.0, 1.0)
+	if hf < 1.0 and hf > 0.0:
+		defense.shield = 0.0
+		defense.apply_damage((1.0 - hf) * float(defense.hull_max()))
+	_set_hull(true)
+	_sync_visual()
+	return i
+
+
+## Out of a ship you took from another player (got out, ejected): gone from here,
+## and theirs again where she is (hijack_let_go: Hijack tells their game).
+func _drop_hijacked(wrecked: bool) -> void:
+	if berth < 0 or berth >= berths.size() or not berths[berth].has("hijacked_from"):
+		return
+	var i := berth
+	var from := int(berths[i].hijacked_from)
+	berths[i].erase("hijacked_from")
+	var xf := atmo.transform()
+	crash_left = -1.0
+	atmo.park(atmo.position(), _yaw_of(xf))
+	_stow(i)
+	for j in berths.size():
+		if not bool(berths[j].get("destroyed", false)):
+			_use_berth(j)
+			break
+	hijack_let_go.emit(from, xf, wrecked)
 
 
 # ------------------------------------------------------------------ helpers
