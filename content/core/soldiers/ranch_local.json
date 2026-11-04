@@ -1,0 +1,12 @@
+{
+  "id": "ranch_local",
+  "base": "local_guard",
+  "label": "Rancher",
+  "note": "The armed locals hanging about a ranch village (src/systems/world/ranches.gd): a local guard's rifle and nerve, standing round the fire or by the gate, run by the ranch's own Townsfolk (role 'local' with nowhere to walk, so they stand and look about now and then). Fight them and the ranch fights back; the port does not hear of it.",
+  "role": "local",
+  "patrol": {
+    "pause_s": 9.0,
+    "look_around_deg": 40.0,
+    "look_every_s": 5.0
+  }
+}

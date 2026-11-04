@@ -2,6 +2,27 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Ranch villages: three walled outposts with houses and stands, far out (2026-11-04)
+
+- **Three ranch villages out in the desert,** each a Remnant outpost with a
+  few houses round it (one of them a tall tower house), a walled yard and a
+  gate facing the port. Two are far out on the side away from the wreck field
+  (Saltpan and Windbreak, 3.5 to 3.8 km); the third, Hullside, sits out east
+  between the second and third wrecks.
+- **Four stands at each:** the gear trader, the food stall, the fence and a
+  droid merchant. They are the port's own merchants, with the same stock and
+  prices. No speeders. A stand shuts while its keeper is dead or the village
+  is fighting you.
+- **Armed locals hang about** the fire and the gate. They have their own
+  alarm, so a fight out there never reaches the port.
+- **They count toward driving the Remnant off.** The Remnant only hand a
+  village over once the cruiser has fallen. Before that, killing every trooper
+  there just brings more ("they answer to the cruiser"). The same rule as the
+  barracks: the cruiser first, then its guards.
+- **The map says "Village"** for each, in the outposts' colours (green once the
+  locals hold it).
+- **Nothing of them is drawn from the port.** Everything at a village is drawn
+  only within 1500 m, and they are 3.5 km and more out, below the horizon.
 ## Armour at the moon stalls from day 1 (2026-11-04)
 
 - **The merchant in front of the moon's cantina sells quantonium armour** from the

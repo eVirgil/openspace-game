@@ -122,6 +122,7 @@ var barracks_locals: Dictionary = {}  ## issue #303: barracks post id -> the loc
 @export var with_natives := true      ## issue #96: native packs and wild animals (when the planet has any)
 @export var with_outposts := true     ## issue #64: the Remnant's three desert outposts (needs with_ship: they share the ship's ground)
 var outposts: RemnantOutposts
+var ranches: Ranches                  ## the ranch villages round three far outposts (their houses, stands and locals)
 @export var with_cruiser := true      ## issue #193: the Remnant's star cruiser in orbit (needs with_ship and the home ball)
 var cruiser: RemnantCruiser
 @export var with_stations := true     ## space stations in this planet's sky (its "station" landmarks: content/core/stations/)
@@ -280,7 +281,8 @@ func build_plan(staged_build: bool) -> Array:
 		add.call("outposts", LATER, func(): _build_outposts(not staged_build); return true)
 		if staged_build:
 			# One piece of an outpost a frame: its ground, nav, look, ship or a trooper.
-			add.call("outpost_sites", LATER, func(_left): return outposts == null or outposts.build_step(), true)
+			add.call("outpost_sites", LATER, func(_left): return (outposts == null or outposts.build_step()) \
+				and (ranches == null or ranches.build_step()), true)
 		add.call("npc_brains", LATER, func(): _npc_brains(); return true)
 		add.call("interceptor", LATER, func(): _build_interceptor(); return true)
 	add.call("speeders", LATER, func():
@@ -810,6 +812,11 @@ func _build_outposts(now: bool = true) -> void:
 		add_child(outposts)
 		if now:
 			outposts.build()
+		ranches = Ranches.new()
+		ranches.setup(self, pilot.ground)
+		add_child(ranches)
+		if now:
+			ranches.build()
 
 
 ## Then the brains that run them all.
@@ -846,6 +853,8 @@ func _npc_brains() -> void:
 			gear.closed_line = townsfolk.closed_line
 		for n in locals:
 			_locals_garrison_join(n)
+	if npc_brains and ranches != null:
+		ranches.start_brains()           # each ranch's locals, their own alarm; its stands' open rule
 	if npc_brains and outposts != null:
 		# Issue #187: the locals at each outpost they hold have their own alarm.
 		for o in outposts.outposts:

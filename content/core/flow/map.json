@@ -34,6 +34,7 @@
   "kinds": {
     "port": { "label": "Port", "arrive": 60 },
     "remnant_outpost": { "label": "Remnant outpost", "legend": "Remnant outpost", "arrive": 35 },
+    "village": { "label": "Village", "legend": "Village", "arrive": 50 },
     "outpost": { "label": "Abandoned outpost", "legend": "Ruin", "arrive": 35 },
     "droid_merchant_outpost": { "label": "Droid relay", "legend": "Droid station", "arrive": 25 },
     "post": { "label": "Trader", "legend": "Merchant", "arrive": 25 },
