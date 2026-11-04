@@ -34,6 +34,9 @@ extends Node3D
 ## friend of theirs pointed at the outpost's resupply quest hands a load over
 ## on walking up (Territory.deliver_remnant).
 ##
+## The moon has outposts of its own (Territory's "moon" front, landmarks in its
+## planet file): the same building, people and rules, on the moon's ball.
+##
 ## Issue #309: each building is a control room you can walk into (OutpostRoom):
 ## walls, a roof and a doorway toward the town, consoles, a holo table and red and
 ## blue light like the cruiser's bridge, and one trooper (guard_c) inside at the
@@ -101,8 +104,11 @@ func build_step() -> bool:
 	if _cc == null:
 		_cc = CoreContent.new()
 		_cc.load_from()
-		var world := _cc.world_for_town("port_town")
-		for id in Story.OUTPOSTS:
+		# The port's seven (its desert world), or the moon's (its own landmarks:
+		# Territory's "moon" front).
+		var f := Territory.front_for_planet(str(demo.planet.get("id", ""))) if demo != null else Territory.HOME
+		var world: Dictionary = _cc.world_for_town("port_town") if f == Territory.HOME else ground.world
+		for id in Territory.outposts(f):
 			_queue.append(_build_outpost.bind(str(id), world))
 	if _queue.is_empty():
 		return true

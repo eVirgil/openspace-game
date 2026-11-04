@@ -383,6 +383,7 @@ func start_talk(s: TalkSpot = null) -> void:
 	if not beat.is_empty():
 		greeting = str(beat.say)
 		s.brain.replace_greeting(greeting)
+	Story.event("talked:" + s.id())     # optional quests: Oda offers "Talk to Skrugs", talking to him ends it
 	var opening: Dictionary = s.opener.call() if beat.is_empty() and s.opener.is_valid() else {}
 	if str(opening.get("say", "")) != "":
 		greeting = str(opening.say)
