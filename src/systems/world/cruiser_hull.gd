@@ -24,6 +24,8 @@ extends RefCounted
 ## walkable interior the crew's navmesh is baked from) }.
 
 const DATA_PATH := "res://content/core/cruiser/remnant_cruiser.json"
+const DATA_DIR := "res://content/core/cruiser/"
+const HOME_ID := "remnant_cruiser"    ## the home planet's cruiser: the story's
 const LANDMARK_KIND := "cruiser"
 
 ## The hull's cross-section, starboard half, at full size (x, y): the flat flank
@@ -79,14 +81,40 @@ const GRAVITY_BOX := AABB(Vector3(-80, -60, -380), Vector3(160, 160, 760))
 
 static var _parts: Array = []
 static var _data: Dictionary = {}
+static var _configs: Dictionary = {}   ## config id -> its data, "base" merged in
 
 
+## The home cruiser's data (content/core/cruiser/remnant_cruiser.json). The hull, its
+## pads and the docking path are the same for every cruiser, so they read this one.
 static func data() -> Dictionary:
 	if _data.is_empty():
 		var f := FileAccess.open(DATA_PATH, FileAccess.READ)
 		var d = JSON.parse_string(f.get_as_text()) if f != null else null
 		_data = d if d is Dictionary else {}
 	return _data
+
+
+## Issue #327: a cruiser's config by id (content/core/cruiser/<id>.json). One with a
+## "base" lists only what differs: it is the base's data with its own laid over it
+## (dictionaries merged key by key, everything else replaced). {} when there is none.
+static func data_for(cfg_id: String) -> Dictionary:
+	if cfg_id == "" or cfg_id == HOME_ID:
+		return data()
+	if _configs.has(cfg_id):
+		return _configs[cfg_id]
+	var own := ItemKit._read_json(DATA_DIR + cfg_id + ".json")
+	if own.is_empty():
+		return {}
+	var base := str(own.get("base", ""))
+	var out: Dictionary = PlanetGen._deep_merge(data_for(base), own) if base != "" and base != cfg_id else own
+	out.erase("base")
+	_configs[cfg_id] = out
+	return out
+
+
+## The config a cruiser landmark names ("cruiser", else the home one).
+static func config_id(lm: Dictionary) -> String:
+	return str(lm.get("cruiser", HOME_ID))
 
 
 # ------------------------------------------------------------------ the frame
@@ -145,6 +173,12 @@ static func landmark(world: Dictionary) -> Dictionary:
 		if str(lm.get("kind", "")) == LANDMARK_KIND:
 			return lm
 	return {}
+
+
+## Issue #327: every cruiser landmark in a world or planet config (the home one in
+## the port's world, the belt one in the ringed giant's).
+static func landmarks(world: Dictionary) -> Array:
+	return (world.get("landmarks", []) as Array).filter(func(lm): return str(lm.get("kind", "")) == LANDMARK_KIND)
 
 
 # ------------------------------------------------------------------ places

@@ -6,7 +6,8 @@ extends RefCounted
 ##
 ## Most urgent first: a bounty to collect, a bounty to hunt, contraband to sell,
 ## a drop to find, supplies for the locals (issue #187), then what the story's
-## chapter wants (home planet only).
+## chapter wants (home planet only), then (issue #327) a cruiser of this planet
+## that is not the story's and not yet taken: its bay, then its general.
 ##
 ## A target is a word the town scene turns into a place (ObjectiveHud.where):
 ## npc:<marker>, marker:<marker>, drop:<marker>, range, remote, pad, outpost:<location
@@ -35,7 +36,7 @@ static func home() -> bool:
 
 
 ## Most urgent first, for when the player has not picked one in the Ledger.
-const AUTO := ["bounty", "heist", "smuggle", "supply", "story"]     ## issue #310: a heist on before the drops
+const AUTO := ["bounty", "heist", "smuggle", "supply", "story", "cruiser"]     ## issue #310: a heist on before the drops
 
 
 ## { text, target, key } for the pointer, or {} when there is nothing to point at.
@@ -81,6 +82,8 @@ static func of(key: String) -> Dictionary:
 				o = { "text": Territory.line("objective") % Story.outpost_label(to), "target": "outpost:" + to }
 		"story":
 			o = chapter_objective() if home() else {}
+		"cruiser":
+			o = other_cruiser()
 		_:
 			if key.begins_with("job:"):
 				o = _job(key.substr(4))
@@ -169,6 +172,26 @@ static func chapter_objective() -> Dictionary:
 		return { "text": Story.fill_step(str(step.get("text", ""))), "target": str(step.get("target", "")) }
 	var o: Dictionary = mine if told and not mine.is_empty() else cfg().get("teller", {})
 	return { "text": str(o.get("text", "")), "target": str(o.get("target", "")) } if str(o.get("text", "")) != "" else {}
+
+
+## Issue #327: a cruiser here that is not the home one (the belt cruiser by the
+## ringed giant's station) and not taken: land in its bay, then (once you have
+## walked aboard) kill its general. {} on the home planet, where the story points
+## at the home cruiser, and anywhere without one.
+static func other_cruiser() -> Dictionary:
+	if home():
+		return {}
+	var world: Dictionary = GameFlow.planet().get("world", {})
+	for lm in CruiserHull.landmarks(world):
+		var cid := CruiserHull.config_id(lm)
+		var c := CruiserHull.data_for(cid)
+		if cid == CruiserHull.HOME_ID or c.is_empty() or WorldState.has_flag(str(c.get("flag", ""))):
+			continue
+		var lines: Dictionary = c.get("lines", {})
+		if WorldState.has_flag(str(c.get("id", cid)) + "_boarded"):
+			return { "text": str(lines.get("objective_general", "%s")) % Story.cruiser_general_name(c), "target": "cruiser:general" }
+		return { "text": str(lines.get("objective_bay", "")), "target": "cruiser:bay" }
+	return {}
 
 
 ## Issue #251: the run on is the general's and he is there to take its goods

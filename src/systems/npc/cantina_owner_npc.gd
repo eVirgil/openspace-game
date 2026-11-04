@@ -88,7 +88,7 @@ func _next_bottle() -> void:
 		bottles_served += 1
 		_next_bottle()
 		return
-	dressing.serve_z = global_position.z
+	dressing.serve_at(global_position)
 	var color := dressing.take_color()
 	serve_colors.append(color)
 	_bottle = dressing.make_bottle(color)

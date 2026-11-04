@@ -26,6 +26,15 @@
       "altitude": 200,
       "yaw_deg": 0,
       "note": "The station (moved here from the moon, PR #501) over the top of the giant, 200 m above the ball's radius (the clouds are 120 m under that): the market floor and the bay's deck are 200 m up. Inside the giant's own scene (its handoff reaches 2600 m above the clouds)."
+    },
+    {
+      "id": "belt_cruiser",
+      "kind": "cruiser",
+      "cruiser": "belt_cruiser",
+      "at": [-2810, 0, 0],
+      "altitude": 2350,
+      "yaw_deg": 0,
+      "note": "Issue #327: a second Remnant star cruiser (content/core/cruiser/belt_cruiser.json, the home one's ship), holding station about 4.2 km out from the station toward the bay's mouth (west): 'at' is 2.8 km west along the ball from under the station, 'altitude' metres over the ball's radius, past this sky's edge of space (2000 m) and under the end of the giant's own scene (2600 m over the clouds, about 2480 over the radius), so the flight there, its escort fight and its bay are all this scene. There it rides about 5 degrees over the station's deck line, framed in the bay's mouth and over the floors' parapets; any further out round the ball it sinks below the deck and the bay's own floor hides it. Level with the station, its bay turned toward it; yaw_deg turns it about its up."
     }
   ]
 }

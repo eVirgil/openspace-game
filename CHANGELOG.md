@@ -18,6 +18,27 @@ Plain English, newest on top. One entry per milestone.
 - **The frame rate holds.** They are cheap stand-ins until a fight: one walk cycle
   shared by everyone, only the nearest dozen animated each frame, and only those
   on your floor and the ones next to it drawn.
+
+## A second Remnant cruiser by the station (issue #327, 2026-11-04)
+
+- **The belt cruiser.** A second Remnant star cruiser, the same ship as the
+  one over the home planet, holds station about 4 km out from the ringed
+  giant's space station. You see it through the bay's mouth and from the
+  station's windows, and its name is in the sky while you fly.
+- **Same visit:** fly toward it and its escort meets you past the edge of
+  space, Z docks you on its empty pad, its crew, droids, honour guard and
+  general are all aboard, and taking one of its interceptors sounds its alarm.
+- **Its bridge's holo table shows the station,** not the home planet: both
+  towers floor by floor, the shafts, the tunnels and the bay, the belt of rocks
+  round it, and the cruiser where it really is.
+- **The pointer:** at the station the objective points at its bay, then at its
+  general once you are aboard (also on the F1 screen, which now shows what the
+  pointer is on).
+- **Taken on its own.** Killing its general pays 15,000 cr and empties it for
+  good (saved with the world). The home cruiser, Oda's story, the port's love
+  and the dark master are untouched. The dark master only ever waits in the
+  home cruiser's bay.
+
 ## The gear trader is the market's legit shop (2026-11-04)
 
 - **The gear trader now sells the gun upgrades, the jetpack's long-range tank
@@ -90,6 +111,49 @@ Plain English, newest on top. One entry per milestone.
   outposts send their guards. One wave per heist. They don't come back
   when killed.
 - The prompt and the bar show the time left.
+
+## A laser droid of your own (2026-11-04)
+
+- **A droid merchant in the moon rave,** at a stall of their own by the stage.
+  They sell floating droids and the **laser rig** (300 cr) for any floating
+  droid you own. The rig is sold only there.
+- **A floating droid with the rig wears the rave droid's colours,** black with
+  magenta trim and eye and a neon ring round its belly, and carries a fan of
+  lasers under it, the same fan as the stage's laser droid.
+- **E next to it turns the lasers on or off,** anywhere: the moon, the desert,
+  the port cantina, the barge. The prompt says which, and on or off is saved
+  with the droid. A new rig starts off.
+- **It fights like any floating droid.** The lasers keep sweeping while it
+  shoots, go dark when it is knocked out and come back when it reboots.
+- The price, the beams and the colours are in `content/core/droids/droids.json`
+  ("upgrades" "lasers", "club_vendor").
+
+## The moon rave: a long bar, a lounge and stalls (2026-11-04)
+
+- **The bar is across the dance floor from the stage** now, a 12 m counter
+  under a lit canopy with lamps that cycle through the colours, a back bar of
+  bottles behind Oda and stools all along it.
+- **Armed patrons stand round the bar**, scattered along it, bottle in hand,
+  and fight back with the whole rave if you hurt one.
+- **A lounge round the bar:** the port club's leather booths in black and purple
+  with a neon line along the back, and high cocktail tables with a neon ring and
+  a glow under each top. Patrons stand round them in twos and threes.
+- **They talk as you pass:** walk close by a patron and one says a short line
+  about the party, the DJ or the drinks, one line every so often for the room.
+- **The fence's stall is on the way from the hallway to the bar.** He still buys
+  contraband, and now sells jetpacks at the gear trader's price; his counter
+  shows gear.
+- **Four rave stalls round the edge of the room,** a merchant at each and
+  nothing to buy: bead strands, glow sticks, band shirts on a rail, jars and
+  vials, snack bowls and little neon signs, two kinds a stall, each different
+  from the last, under a neon frame.
+- **The rave mix plays everywhere on the station:** the dome, the hallway and
+  the landing pit, and never the ambient or battle music. Kill the DJ and the
+  station goes quiet until your next visit.
+- The lava moon's station is the same rave and gets all of it too.
+- Positions, sizes and counts are in `content/core/planets/town_kit.json`
+  ("club_dome"); the lines in `content/core/dialogue/locals_lines.json`
+  ("club_talk").
 
 ## Hijacking ships and speeders (2026-11-04)
 

@@ -199,6 +199,9 @@ func info_text() -> String:
 	t.append("TOWN      %s" % (str(demo.town_name) if demo != null else "?"))
 	t.append("TIME      %s  %s" % [clock_text(), str(WorldState.time_of_day).to_upper()])
 	t.append("CREDITS   %d" % WorldState.credits)
+	var goal := str(Objective.current().get("text", ""))
+	if goal != "":
+		t.append("GOAL      " + goal.left(52))           # issue #327: what the pointer is on
 	t.append("SPEEDERS  %d" % WorldState.count("speeders_owned"))
 	for s in ShipUpgrades.owned_lines():                # issue #207: your ships and their upgrades
 		t.append("SHIP      " + str(s).left(52))
