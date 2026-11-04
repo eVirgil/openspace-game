@@ -181,12 +181,15 @@ func where(target: String) -> Vector3:
 				return PlanetSphere.current.surface_at(x, z)
 			return Vector3(x, 0.0, z)
 		"planet":
-			# The F11 map's off-planet list: that planet's port, in this sky.
+			# The F11 map's planet list: that planet's port, in this sky.
 			var tr = demo.pilot.travel if demo.get("pilot") != null and demo.pilot.travel != null else null
 			if tr != null:
 				for b in tr.bodies:
 					if str(b.id) == id:
 						return b.offset
+			# A planet not in this sky (the lava moon, seen from Grit Station): its
+			# port in this scene all the same, from the star system's one frame.
+			return GlobeMap.port_from(id, GameFlow.current_planet_id())
 		"player":
 			# A LAN player picked on the F11 map: where they stand now, or their
 			# ship while they sit in it (INF on another planet: the line alone).
