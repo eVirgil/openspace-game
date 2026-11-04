@@ -46,7 +46,8 @@ for r in t["routes"]:
     for p,q in zip(r["points"],r["points"][1:]):
         L+=math.dist(p,q)
         for b in B:
-            if b["kind"] in BK and seg_box_dist(p,q,b)<=C: E.append(f"route {r['id']} seg {p}->{q} hits {b['id']}")
+            # Issue #321: a box 2.2 m or more up (on a roof) is over the walker's head.
+            if b["kind"] in BK and b["min"][1]<2.2 and seg_box_dist(p,q,b)<=C: E.append(f"route {r['id']} seg {p}->{q} hits {b['id']}")
     print(f"{r['id']}: {L:.1f} m, walk {L/4:.0f}s, sprint {L/7:.0f}s")
 # V9 (issue #237): a round wall (kind "ring") blocks piece by piece, open at its gaps.
 # Same pieces as src/systems/world/ring_wall.gd.

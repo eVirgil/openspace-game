@@ -503,7 +503,7 @@ def market(cfg, boxes, markers, routes, zones):
 def barracks(cfg, boxes, markers, routes, zones):
 	"""Issue #237 part 3: the bigger barracks, laid out in the kit."""
 	bc = cfg["barracks"]
-	keys = ("look", "face", "style", "axis", "shape", "parked_yaw_deg", "remnant_ship", "note")
+	keys = ("look", "face", "style", "interior", "axis", "shape", "parked_yaw_deg", "remnant_ship", "note")
 	for id_, kind, mn, mx, look in bc["boxes"]:
 		src = sq_box(id_)
 		extra = {k: src[k] for k in keys if k in src}

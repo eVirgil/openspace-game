@@ -1,0 +1,62 @@
+{
+  "id": "barracks_interior",
+  "note": "Issue #321: the inside of a barracks hall, one template for every barracks (the square port, the round port and every generated town with a barracks). A town box with \"interior\": \"barracks\" is stamped with it when its town loads (src/systems/world/barracks_hall.gd, BarracksHall.stamp): the box stops being solid (kind \"shell\", drawn from outside by the building kit) and becomes walls, a roof and a doorway in its door face, a corridor along the length of the hall, an office behind the corridor straight in from the door (the Remnant cruiser's control room: rows of consoles, screens, a holo table with the planet map, OutpostRoom's layout) and a bunk room in front of the corridor beside the way in. The rest of the hall is rooms you can not open: solid, with locked doors (TownBuildings.door, closed, red light) on their faces. Metres. Local frame: depth runs from the back wall to the door face, length along the door face. wall: outer wall and roof thickness; partition: inner walls. door_scale / inner_door_scale: the sci-fi door's scale for the way in and for the rooms' doorways (the gap is the door frame's opening: 1.14 x scale wide, 1.6 x scale tall). vestibule: the way in from the door to the corridor (between two walls). corridor: its width. front_share: of the depth left after the corridor and the partitions, the share in front of the corridor (the bunk room); the office has the rest. office.length: along the hall (clamped to the hall), office.rows: OutpostRoom's console rows (2: a second bank across the room), one when the office is shallower than two_rows_from. bunks: two-high bunks in a row along each long wall (bunk: [wide, long], pitch along the row, height), a footlocker at each one's foot, lockers on the far end wall; count is the most bunks; length the most the room runs along the hall (the rest is a locked room). locked_doors: on the corridor's faces of the locked rooms, one per corridor_every metres (at least one on each face longer than corridor_min); corridor_ends: one on each end wall of the corridor; office / bunks: how many on the office's front wall and on the bunk room's near wall. rifle: the story rifle (pickups/port_town.json barracks_rifle) is hidden in the office's middle console, at the marker this far in front of it. troopers: Remnant troopers (a garrison soldier profile) walking a loop from one end of the corridor (end -1 or 1) into the office round the holo table and back. lights: the office's red and blue light (as an outpost's), a lamp every corridor_every metres down the corridor and two over the bunks (the look only). alarm_lights: red lamps inside and over the door outside, pulsing while the town alarm sounds, off on calm (the look only). holo: the planet map over the office's holo table (CruiserHolo: the cruiser's 'holo' block with these on top, the whole map at scale times the bridge's size; here_on 'town' labels the port as here), built when the camera is within show_within.",
+  "wall": 0.3,
+  "partition": 0.25,
+  "door_scale": 1.6,
+  "inner_door_scale": 1.4,
+  "vestibule": 3.0,
+  "corridor": 3.0,
+  "front_share": 0.45,
+  "office": {
+    "length": 16.0,
+    "rows": 2,
+    "two_rows_from": 9.0
+  },
+  "bunks": {
+    "count": 16,
+    "length": 14.0,
+    "bunk": [0.95, 2.0],
+    "pitch": 1.75,
+    "height": 1.9,
+    "footlocker": [0.8, 0.45, 0.45],
+    "near_clear": 1.4,
+    "lockers": 4,
+    "locker": [0.6, 2.0, 0.55]
+  },
+  "locked_doors": {
+    "corridor_every": 7.0,
+    "corridor_min": 2.6,
+    "corridor_ends": true,
+    "office": 2,
+    "bunks": 1,
+    "scale": 1.3
+  },
+  "rifle": {
+    "marker": "barracks_rifle_spot",
+    "out": 0.75
+  },
+  "troopers": [
+    { "id": "trooper_hall_a", "soldier": "yard_trooper", "end": -1 },
+    { "id": "trooper_hall_b", "soldier": "yard_trooper", "end": 1 }
+  ],
+  "lights": {
+    "office": ["#ff3a2a", 1.6, "#4aa8ff", 1.4],
+    "corridor": "#dfe8ff",
+    "corridor_energy": 1.5,
+    "corridor_every": 9.0,
+    "bunks": "#ffe8cc",
+    "bunks_energy": 1.4
+  },
+  "alarm_lights": {
+    "color": "#ff2414",
+    "energy": 3.0,
+    "range": 10.0,
+    "pulse_hz": 1.1
+  },
+  "holo": {
+    "scale": 0.42,
+    "show_within": 45.0,
+    "here_on": "town"
+  }
+}
