@@ -50,7 +50,7 @@ headless bot proves every main route can be walked with real collision.
 
 - No art pass, textures, imported models, or animation.
 - No navigation mesh / NavigationRegion3D baking.
-- No building interiors except the cantina.
+- No building interiors except the cantina and (issue #321) the barracks hall: one template (`content/core/towns/barracks_interior.json`, `src/systems/world/barracks_hall.gd`) stamped into every barracks when its town loads, as plain town boxes (walls, a roof, consoles, bunks), so collision, nav and the validator need nothing of their own.
 - No working shops, inventory, or buying.
 - No ship take-off.
 - No NPC AI wiring. NPCs are static placeholder capsules at their markers.

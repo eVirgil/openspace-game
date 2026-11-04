@@ -37,6 +37,7 @@ const FACE := Basis(Vector3.RIGHT, PI / 2.0)
 const GroundShader := preload("res://src/systems/look/shaders/globe_ground.gdshader")
 
 var pins: Array = []                    ## GlobeMap.pins
+var shapes: Array = []                  ## GlobeMap.station_shapes: a sealed station's domes, pit and tunnels
 var radius_m := 5000.0                  ## the planet's radius (m)
 var town_zoom := 14.0                   ## zoom past which the town's stops show instead of the port
 var selected := ""                      ## the waypoint's pin id ("" = none)
@@ -246,6 +247,7 @@ func _draw() -> void:
 		draw_circle(c, r, Color(str(lk.get("sea", "#141009"))))
 	_draw_grid(Color(ink, float(lk.get("grid_alpha", 0.14))))
 	draw_arc(c, r, 0.0, TAU, 128, Color(ink, float(lk.get("rim_alpha", 0.85))), 1.5, true)
+	_draw_station(lk.get("station", {}), ink)
 	var font := get_theme_default_font()
 	var fs := 13
 	var flash := goal_pin_now()
@@ -293,6 +295,37 @@ func _draw() -> void:
 			var at := Vector2(clampf(s.x - w * 0.5, 4.0, size.x - w - 4.0), maxf(s.y - 14.0, fs + 4.0))
 			draw_rect(Rect2(at + Vector2(-4, -fs - 1), Vector2(w + 8, fs + 7)), Color(0, 0, 0, 0.7))
 			draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.96, 0.92, 0.84))
+
+
+## A sealed station's outline (shapes): each dome and the pit a faint disc with a
+## rim, each tunnel a band between them. Only once a dome is big enough to see.
+func _draw_station(sk: Dictionary, ink: Color) -> void:
+	if shapes.is_empty():
+		return
+	var px_per_m := scale_px() / radius_m
+	var fill := Color(ink, float(sk.get("fill", 0.08)))
+	var edge := Color(ink, float(sk.get("line", 0.7)))
+	for sh in shapes:
+		if str(sh.kind) == "tunnel":
+			var a := project(sh.a)
+			var b := project(sh.b)
+			if a.z > 0.0 and b.z > 0.0:
+				draw_line(Vector2(a.x, a.y), Vector2(b.x, b.y), edge, maxf(1.5, float(sh.w) * px_per_m), true)
+			continue
+		if float(sh.r) * 2.0 * px_per_m < float(sk.get("min_px", 6.0)):
+			continue
+		var pts := PackedVector2Array()
+		for k in 25:
+			var a := TAU * k / 24.0
+			var s := project((sh.map as Vector2) + Vector2(cos(a), sin(a)) * float(sh.r))
+			if s.z <= 0.0:
+				pts.clear()
+				break
+			pts.append(Vector2(s.x, s.y))
+		if pts.size() < 3:
+			continue
+		draw_colored_polygon(pts, fill)
+		draw_polyline(pts, edge, 1.5 if str(sh.kind) == "dome" else 1.0, true)
 
 
 ## The baked ground on the ball, under everything else; false while there is none.

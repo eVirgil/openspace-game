@@ -1,0 +1,32 @@
+{
+  "id": "remnant_outpost_lava_ridge",
+  "kind": "remnant_outpost",
+  "label": "the basalt ridge outpost",
+  "note": "One of the Remnant's five outposts on the lava moon (Territory's 'lava_moon' front, content/core/story/territory.json): the same building, troopers, droids and rules as the port's outposts (this file is remnant_outpost_mid.json's, renamed), on a raised basalt pad above the lava (PlanetTerrain.outpost_flat_sites), set out as a landmark in content/core/planets/cinder_station.json. Kill every trooper here and the locals move in; hold all five at once and the Remnant are driven off the lava moon. Local frame: +x faces the station.",
+  "buildings": [
+    { "id": "block", "shape": "box", "size": [10,5.5,7], "position": [0, 0, 0], "visual": false, "room": {} }
+  ],
+  "ship": "remnant_freighter",
+  "look": { "mast": true, "tower": false },
+  "zone": { "note": "Issue #308: a ring of radius metres round the outpost is a checkpoint zone. Below the wave band the nearest trooper (a role below) who sees you walks up and the gate's card opens, on the gate's rules (content/core/soldiers/gate_guard.json checkpoint block; anything in this checkpoint block wins). Leave the ring and the card closes; cleared, the outpost leaves you alone for cleared_s.", "radius": 18.0, "roles": ["sentry"], "checkpoint": { "cleared_s": 240.0 } },
+  "points": {
+    "guard_a": [6, 0, 4],
+    "guard_b": [6, 0, -5],
+    "guard_c": [-2, 0, -1],
+    "target": [-2, 0, 7],
+    "ship": [-17,0,-3],
+    "patrol": [[9, 0, 9], [9, 0, -9], [-9, 0, -9], [-9, 0, 9]],
+    "floater": [[6, 0, 7.5], [10, 0, 0], [6, 0, -8]],
+    "cargo": [[1.5, 0, -7.0], [-3.5, 0, -7.2]]
+  },
+  "props": [
+    { "kind": "crate", "at": [3.0, 0, -5.2], "yaw": -6, "stack": 2 },
+    { "kind": "crate", "at": [4.3, 0, -5.6], "yaw": 10 },
+    { "kind": "canister", "at": [-2.0, 0, -4.8] },
+    { "kind": "canister", "at": [-1.3, 0, -5.1], "yaw": 40 },
+    { "kind": "canister", "at": [-2.6, 0, -5.3], "yaw": -20, "lying": true },
+    { "kind": "drum", "at": [-7.0, 0, 2.0], "yaw": 110, "lying": true },
+    { "kind": "crate", "at": [9.5, 0, -1.5], "yaw": 20 },
+    { "kind": "drum", "at": [-4.0, 0, 4.7] }
+  ]
+}

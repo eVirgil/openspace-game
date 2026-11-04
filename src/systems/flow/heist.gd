@@ -6,8 +6,9 @@ extends RefCounted
 ##   ({} or state "" = no heist on; run counts every heist taken)
 ##
 ## Issue #309: the console in each outpost's control room (OutpostRoom). Held
-## for hack_seconds() while the heist on names that outpost (armed), it releases
-## the stash: stash_entry() is then a pickup lying at the console (RemnantOutposts
+## for hack_seconds() while the heist on names that outpost (armed), the hack
+## starts; it runs for run_seconds() while you stay within stay_m() of the console
+## (the outpost sends a wave at you: wave_cfg()), then releases the stash: stash_entry() is then a pickup lying at the console (RemnantOutposts
 ## puts it there, and back after a load) until you take it.
 ##
 ## Issue #310: heists are board jobs (kind "heist"). The locals' (j_heist: Oda,
@@ -59,6 +60,28 @@ static func hack_seconds() -> float:
 
 static func reach() -> float:
 	return float(hack_cfg().get("reach", 1.4))
+
+
+## Once started, how long the hack runs (seconds) while you stay within stay_m()
+## metres of the console. 0 = the stash drops the moment it starts.
+static func run_seconds() -> float:
+	return float(hack_cfg().get("run_s", 60.0))
+
+
+static func stay_m() -> float:
+	return float(hack_cfg().get("stay_m", 25.0))
+
+
+## The wave the outpost sends when the hack starts: { count, dist, arc_deg, soldier }.
+static func wave_cfg() -> Dictionary:
+	return hack_cfg().get("wave", {})
+
+
+## The soldier profile the wave is made of, for the side holding the outpost
+## (Territory.REMNANT or Territory.LOCALS).
+static func wave_soldier(holder: String) -> String:
+	var by: Dictionary = wave_cfg().get("soldier", {})
+	return str(by.get(holder, "yard_trooper" if holder == Territory.REMNANT else "local_guard"))
 
 
 static func stash_item() -> String:

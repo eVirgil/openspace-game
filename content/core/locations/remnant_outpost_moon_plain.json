@@ -1,0 +1,32 @@
+{
+  "id": "remnant_outpost_moon_plain",
+  "kind": "remnant_outpost",
+  "label": "the dust plain outpost",
+  "note": "One of the Remnant's five outposts on the moon (Territory's 'moon' front, content/core/story/territory.json): the same building, troopers, droids and rules as the port's outposts (this file is remnant_outpost_south.json's, renamed), set out on the moon's rock as a landmark in content/core/planets/grit_station.json. Kill every trooper here and the locals move in; hold all five at once and the Remnant are driven off the moon. Local frame: +x faces the station.",
+  "buildings": [
+    { "id": "block", "shape": "box", "size": [11, 5, 7.5], "position": [0, 0, 0], "visual": false, "room": {} }
+  ],
+  "ship": "remnant_freighter",
+  "look": { "mast": false, "tower": true },
+  "zone": { "note": "Issue #308: a ring of radius metres round the outpost is a checkpoint zone. Below the wave band the nearest trooper (a role below) who sees you walks up and the gate's card opens, on the gate's rules (content/core/soldiers/gate_guard.json checkpoint block; anything in this checkpoint block wins). Leave the ring and the card closes; cleared, the outpost leaves you alone for cleared_s.", "radius": 18.0, "roles": ["sentry"], "checkpoint": { "cleared_s": 240.0 } },
+  "points": {
+    "guard_a": [6, 0, 4],
+    "guard_b": [6, 0, -5],
+    "guard_c": [-2.4, 0, -1],
+    "target": [-2, 0, 7],
+    "ship": [-18, 0, 4],
+    "patrol": [[9, 0, 9], [9, 0, -9], [-9, 0, -9], [-9, 0, 9]],
+    "floater": [[7.0, 0, 7.75], [10.5, 0, 0], [7.0, 0, -7.75]],
+    "cargo": [[1.0, 0, -7.35], [-3.5, 0, -7.55]]
+  },
+  "props": [
+    {"kind": "crate", "at": [3.2, 0, -5.6], "yaw": 2, "stack": 2},
+    {"kind": "crate", "at": [4.6, 0, -6.0], "yaw": -16},
+    {"kind": "canister", "at": [-1.2, 0, -5.0]},
+    {"kind": "canister", "at": [-0.5, 0, -5.3], "yaw": 35, "lying": true},
+    {"kind": "drum", "at": [-8.2, 0, -1.2], "yaw": 90, "lying": true},
+    {"kind": "crate", "at": [9.8, 0, 1.2], "yaw": -6, "stack": 2},
+    {"kind": "drum", "at": [-3.2, 0, 5.0]},
+    {"kind": "canister", "at": [1.8, 0, 5.2]}
+  ]
+}

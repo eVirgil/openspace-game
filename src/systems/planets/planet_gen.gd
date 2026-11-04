@@ -163,6 +163,8 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 			opts["stage_dancer"] = true
 		if cfg.has("club_dome"):
 			opts["club_dome"] = cfg.club_dome      # issue #261: the whole dome is the club
+		if cfg.has("domes"):
+			opts["domes"] = cfg.domes              # a sealed station's other domes, off its landing pit
 		town = TownGen.generate(town_id, size, int(cfg.get("seed", NameEngine.fnv(id) % 100000)), opts)
 	var world: Dictionary = {}
 	if cfg.has("world"):
@@ -259,6 +261,8 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 ## `offset` = its centre + (0, its radius, 0) here; a point p here is p - offset
 ## in its scene. Seen from a child, its parent's centre is (0, -parent radius, 0)
 ## minus the child's own offset, exactly: nothing is mirrored or scaled any more.
+## A sibling (another child of the same parent) is listed last, with "via": the
+## parent's id; it is only seen from here, the parent's scene flies you to it.
 static func neighbours(id: String, cc = null) -> Array:
 	if cc == null:
 		cc = _content()
@@ -283,6 +287,24 @@ static func neighbours(id: String, cc = null) -> Array:
 		n["offset"] = -my_offset
 		n["child"] = false
 		out.append(n)
+		# Space is one place: the other planets round the same parent (the ringed
+		# giant from the moon) hang in this sky too, where the parent's scene puts
+		# them, shifted by this port. They are seen and named here, not flown into
+		# from here: leave this planet's own space first and the parent's scene
+		# (which has them as children) takes you on. "via" is that parent.
+		var parent_offset := my_offset
+		for other in all:
+			if other == id or other == str(mine.near):
+				continue
+			var o: Dictionary = all[other]
+			if str(o.get("near", "")) != str(mine.near) or not o.has("at"):
+				continue
+			var at := GameFlow.vec(o.at)
+			var s := _neighbour(o, at - parent_offset, cc)
+			s["offset"] = at + Vector3(0, float(s.radius), 0) - parent_offset
+			s["child"] = false
+			s["via"] = str(mine.near)
+			out.append(s)
 	return out
 
 
@@ -326,6 +348,7 @@ static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 		"dark": Color(str(body.get("dark", "#504030"))),
 		"bands": float(body.get("bands", 0.0)),          # > 0: banded like the sky painting
 		"ring": body.get("ring", {}),                     # { inner, outer, color, normal }, radii
+		"haze": body.get("haze", {}),                     # a gas ball's air: SpaceTravel.make_haze
 		"relief": str(body.get("relief", "")),            # its dunes as a flat print (a cubemap), or ""
 		"relief_tilt": float(body.get("relief_tilt", 1.0)),
 		"relief_crest": float(body.get("relief_crest", 0.12)),

@@ -19,12 +19,13 @@ extends Node
 ##   - catches a player who flew out over the walls (the town has no ground there)
 ##     and puts them back where they last stood.
 ##
-##   - issues #208, #209: the fence's offers (GearUpgrades) from a menu on [E]:
-##     gun and jetpack upgrades, and quantonium armour once the first bounty is
-##     paid. Worn armour (slot "armour", toggled in the inventory on I) multiplies
+##   - issues #208, #209: a stall's offers (GearUpgrades) from a menu on [E]: the
+##     gear trader's gun and jetpack upgrades and sniper rifle, and the fence's
+##     quantonium armour once the first bounty is paid. Worn armour (slot "armour", toggled in the inventory on I) multiplies
 ##     the player's health; in a story save it is the desert guard's whole look,
 ##   - issue #210: a pickup can be "story_only", can sit "inside" a droid (no glow,
 ##     "[E] Open the cargo droid"), and reports its "event" to the story when taken.
+##     Issue #321: or inside a console (its "prompt": "[E] Search the console").
 ##   - the backpack (Inventory.room_for): picking up, buying and taking gear off
 ##     all need a free slot; the pistol always holds the first of five.
 ##   - wreck field: a supply crate on each crashed starcruiser's bridge platform
@@ -390,7 +391,7 @@ func prompt_text() -> String:
 		return ""
 	if focus.kind == "pickup":
 		if str(focus.node.pickup.get("inside", "")) != "":
-			return _l("open_droid")
+			return _l(str(focus.node.pickup.get("prompt", "open_droid")))   # issue #321: a console's "search_console"
 		if bool(focus.node.pickup.get("crate", false)):
 			return _l("open_crate")
 		var item: Dictionary = content.get_item(str(focus.node.pickup.get("item", "")))
@@ -465,9 +466,9 @@ func trade_options(v: Dictionary) -> Array:
 	if bool(v.get("bounties", false)) and Heist.on() and Heist.pays_to() == "fence" and not Heist.holding():
 		out.append({ "id": "heist_off", "text": Heist.line("call_off") })     # issue #310
 	if v.has("offers"):
-		for o in GearUpgrades.open_offers():
+		for o in GearUpgrades.open_offers(str(v.get("id", ""))):
 			out.append({ "id": "offer:" + str(o.id), "text": _l("offer") % [str(o.label), int(o.price), str(o.get("about", ""))] })
-		for o in GearUpgrades.locked_offers():
+		for o in GearUpgrades.locked_offers(str(v.get("id", ""))):
 			out.append({ "id": "locked:" + str(o.id), "text": _l("offer_locked") % [str(o.label), int(o.price), str(o.locked)] })
 	return out
 
@@ -590,7 +591,7 @@ func talks_first(v: Dictionary) -> bool:
 ## Issue #305: the fence's offers on sale now, as his offer_item's wares.
 func offer_wares() -> Array:
 	var out: Array = []
-	for o in GearUpgrades.open_offers():
+	for o in GearUpgrades.open_offers("fence"):
 		out.append({ "id": str(o.id), "name": str(o.label), "price": int(o.price), "text": str(o.get("about", "")) })
 	return out
 
@@ -716,7 +717,7 @@ func _on_trade(id: String, v: Dictionary) -> void:
 	open_trade(v, true)
 
 
-## Buy one of the fence's offers. Returns GearUpgrades.buy's answer.
+## Buy one of a stall's offers. Returns GearUpgrades.buy's answer.
 func buy_offer(id: String) -> String:
 	var o := GearUpgrades.offer(id)
 	var r := GearUpgrades.buy(id)
@@ -875,7 +876,7 @@ func sync_gear() -> void:
 	var item: Dictionary = content.get_item(back) if back != "" else {}
 	if item.has("jetpack"):
 		if not _packs.has(back):
-			_packs[back] = Jetpack.new(GearUpgrades.apply(item, back).jetpack)    # issue #208: the fence's tank
+			_packs[back] = Jetpack.new(GearUpgrades.apply(item, back).jetpack)    # issue #208: the gear trader's tank
 		player.jetpack = _packs[back]
 	else:
 		player.jetpack = null

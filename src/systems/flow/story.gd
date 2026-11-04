@@ -31,9 +31,12 @@ extends RefCounted
 
 const PATH := "res://content/core/story/main.json"
 ## The Remnant's desert outposts, nearest the front gate first (issue #187: and
-## four more round the other sides of the town).
+## four more round the other sides of the town), then the outposts in the three
+## ranch villages far out (Ranches; taken only once the cruiser has fallen,
+## Territory.locked).
 const OUTPOSTS := ["remnant_outpost_near", "remnant_outpost_mid", "remnant_outpost_far",
-	"remnant_outpost_north", "remnant_outpost_south", "remnant_outpost_west", "remnant_outpost_southwest"]
+	"remnant_outpost_north", "remnant_outpost_south", "remnant_outpost_west", "remnant_outpost_southwest",
+	"remnant_outpost_saltpan", "remnant_outpost_windbreak", "remnant_outpost_hullside"]
 const JETPACK := "jetpack"
 
 static var _data: Dictionary = {}
@@ -424,9 +427,10 @@ static func remnant_hostile() -> bool:
 
 
 ## The Remnant hold the town's barracks (issue #187: until the story is done or
-## they are driven off; then the locals do, Territory.owner).
+## they are driven off; then the locals do, Territory.owner). On the moon, the
+## moon's barracks (Territory.barracks_here).
 static func town_garrison() -> bool:
-	return Territory.owner(Territory.BARRACKS) == Territory.REMNANT
+	return Territory.owner(Territory.barracks_here()) == Territory.REMNANT
 
 
 ## Issue #193: the cruiser's general is dead; nobody is left aboard.

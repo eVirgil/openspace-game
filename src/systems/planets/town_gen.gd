@@ -51,6 +51,10 @@ func _init(kit_data: Dictionary = {}) -> void:
 ##   club_dome                    -- issue #261 (a round station only): no cantina
 ##                                   building, the whole dome is the club, a rave
 ##                                   ({ style, bpm, dim } becomes the town's "club")
+##   domes                        -- a round station with a pit only: more domes, each
+##                                   at the end of its own tunnel out of the pit:
+##                                   [{ id, side ("+x", "+z", "-z"), fill ("barracks",
+##                                   "homes") }] (kit "domes"; station.domes)
 static func generate(town_id: String, size: int, seed: int = 1, opts: Dictionary = {}, kit_data: Dictionary = {}) -> Dictionary:
 	var g := TownGen.new(kit_data)
 	return g.build(town_id, size, seed, opts)
@@ -148,8 +152,24 @@ func build(town_id: String, size: int, seed: int, opts: Dictionary = {}) -> Dict
 		var pring := float(pk.get("ring", 6.0))
 		var hall_min := float(ring_cfg.get("hall_min", 14.0))
 		var px := ceilf(rc.x + rw + hall_min + pring + half)
-		_pit(px, ["ramp_ne"])
 		var hw := float(ring_cfg.get("hall_width", 9.0)) * 0.5
+		# The planet's other domes (its "domes"): each a tunnel of its own out of the
+		# landing pit, over a ramp of its own (+x reuses the pit's east ramp).
+		var wings: Array = []
+		var drop := ["ramp_ne"]
+		var ramps: Array = []
+		var lanes: Array = []
+		for wd in opts.get("domes", []):
+			var side := _side(str(wd.get("side", "")))
+			if side == Vector2.ZERO:
+				continue
+			wings.append([wd, side])
+			lanes.append(_lane(side, 10.0, half, hw + 1.5))
+			if side == Vector2.RIGHT:
+				drop.erase("ramp_ne")
+			else:
+				ramps.append(_ramp_toward(side, half))
+		_pit(px, drop, ramps, lanes)
 		var hall_end := px - half - pring
 		_box("hall_floor", "hall", "floor", [rc.x + rw, -0.5, -hw], [hall_end, 0, hw])
 		_zones.append({ "id": "hall", "min": [rc.x + rw, -hw], "max": [hall_end, hw] })
@@ -162,7 +182,10 @@ func build(town_id: String, size: int, seed: int, opts: Dictionary = {}) -> Dict
 				"height": float(ring_cfg.get("hall_height", 5.0)) },
 			"pit": { "center": [px, 0.0, 0.0], "radius": half, "liner_height": float(ring_cfg.get("liner_height", 13.0)),
 				"door_height": float(ring_cfg.get("liner_door_height", 6.0)) },
+			"domes": [],
 		}
+		for wing in wings:
+			station.domes.append(_dome_wing(wing[0], wing[1], Vector2(px, 0.0), half, pring, hall_min, rw, hw, ring_cfg))
 	elif pit:
 		var spread := float(opts.get("pit_clear", 1.0))
 		var ring := float(kit.get("pit", {}).get("ring", 6.0))
@@ -412,17 +435,23 @@ func _roamers(n: int, x_door: float, x_gate: float, _sh: float) -> void:
 
 ## Issue #75: the port's round landing pit (content/core/planets/town_kit.json
 ## "pit", copied from port_town.json), centred at (cx, 0), ringed in paving.
-func _pit(cx: float, drop: Array = []) -> void:
+## `ramps`: more ramps (pit-local boxes) cut into the bowl, one per extra tunnel;
+## `lanes`: pit-local rects (x, z) where those tunnels run, kept clear of crates.
+func _pit(cx: float, drop: Array = [], ramps: Array = [], lanes: Array = []) -> void:
 	var pk: Dictionary = kit.get("pit", {})
 	var half := float(pk.get("half", 28.0))
 	var ring := float(pk.get("ring", 6.0))
 	var o := half + ring
-	for b in pk.get("boxes", []):
+	for b in (pk.get("boxes", []) as Array) + ramps:
 		if drop.has(str(b.id)):
 			continue                   # issue #99: the station's pit has one way out, the hallway
+		if str(b.kind) == "cover" and lanes.any(func(l): return (l as Rect2).intersects(
+				Rect2(float(b.min[0]), float(b.min[2]), float(b.max[0]) - float(b.min[0]), float(b.max[2]) - float(b.min[2])))):
+			continue                   # a crate in another tunnel's way down
 		var nb: Dictionary = (b as Dictionary).duplicate(true)
 		if nb.has("gaps"):
-			nb["gaps"] = (nb.gaps as Array).filter(func(g): return not drop.has(str(g)))
+			nb["gaps"] = (nb.gaps as Array).filter(func(g): return not drop.has(str(g))) \
+				+ ramps.map(func(r): return str(r.id))
 		nb["zone"] = "landing_bay"
 		nb["min"] = [float(b.min[0]) + cx, b.min[1], b.min[2]]
 		nb["max"] = [float(b.max[0]) + cx, b.max[1], b.max[2]]
@@ -434,6 +463,150 @@ func _pit(cx: float, drop: Array = []) -> void:
 	var sp: Array = pk.get("spawn", [6, -6, 13])
 	_marker("player_spawn", [float(sp[0]) + cx, float(sp[1]), float(sp[2])], "spawn")
 	_zones.append({ "id": "landing_bay", "min": [cx - o, -o], "max": [cx + o, o] })
+
+
+# ------------------------------------------------------------------ the station's other domes
+
+## A dome's side of the pit: "+x" (east, past the pit's east ramp), "+z" or "-z".
+static func _side(s: String) -> Vector2:
+	return { "+x": Vector2.RIGHT, "+z": Vector2(0, 1), "-z": Vector2(0, -1) }.get(s, Vector2.ZERO)
+
+
+## Pit-local rect (x, z) of a tunnel along `d` from s0 to s1 metres out, hw either side.
+static func _lane(d: Vector2, s0: float, s1: float, hw: float) -> Rect2:
+	var a := d * s0 + Vector2(-d.y, d.x) * hw
+	var b := d * s1 - Vector2(-d.y, d.x) * hw
+	return Rect2(minf(a.x, b.x), minf(a.y, b.y), absf(a.x - b.x), absf(a.y - b.y))
+
+
+## A ramp up the pit's bowl toward `d`, the east ramp's shape turned that way.
+func _ramp_toward(d: Vector2, half: float) -> Dictionary:
+	var src: Dictionary = {}
+	for b in kit.get("pit", {}).get("boxes", []):
+		if str(b.id) == "ramp_ne":
+			src = b
+	var s0 := float(src.get("min", [10.0])[0]) if not src.is_empty() else 10.0
+	var w := float(src.get("max", [0, 0, 3.5])[2]) if not src.is_empty() else 3.5
+	var r := _lane(d, s0, half, w)
+	var id := "ramp_%s" % ("n" if d.y > 0.0 else "s")
+	return { "id": id, "kind": "ramp", "min": [r.position.x, -6.0, r.position.y], "max": [r.end.x, 0.0, r.end.y],
+		"rise_toward": "+z" if d.y > 0.0 else "-z" }
+
+
+## The door side ("+x", "-x", "+z", "-z") facing along `v`.
+static func _face_of(v: Vector2) -> String:
+	if absf(v.x) >= absf(v.y):
+		return "+x" if v.x > 0.0 else "-x"
+	return "+z" if v.y > 0.0 else "-z"
+
+
+## A dome-local point: `a` metres from the dome's middle toward its gate (`g`), `b`
+## across (to the gate's left looking out).
+static func _dl(c: Vector2, g: Vector2, a: float, b: float) -> Vector2:
+	return c + g * a + Vector2(-g.y, g.x) * b
+
+
+## A dome-local box (a0..a1 toward the gate, b0..b1 across) as town box corners.
+func _dome_box(id: String, zone: String, kind: String, c: Vector2, g: Vector2, a0: float, a1: float,
+		b0: float, b1: float, y0: float, y1: float, extra: Dictionary = {}) -> void:
+	var p := _dl(c, g, a0, b0)
+	var q := _dl(c, g, a1, b1)
+	_box(id, zone, kind, [snappedf(minf(p.x, q.x), 0.01), y0, snappedf(minf(p.y, q.y), 0.01)],
+		[snappedf(maxf(p.x, q.x), 0.01), y1, snappedf(maxf(p.y, q.y), 0.01)], extra)
+
+
+## One more dome off the pit (the planet's "domes": { id, side, fill }), like the
+## first: the same radius, its own tunnel from the pit (a ramp of its own, a door
+## in the liner, a shield at each end) and its own floor. `fill`: "barracks" (the
+## Remnant's metal barracks, kit domes.barracks) or "homes" (the station's gray
+## homes, kit domes.homes). Returns its block for the town's "station".
+func _dome_wing(wd: Dictionary, d: Vector2, pit: Vector2, half: float, pring: float, hall_min: float,
+		rw: float, hw: float, ring_cfg: Dictionary) -> Dictionary:
+	var id := str(wd.get("id", "dome"))
+	var far := half + pring + hall_min
+	var c := pit + d * (far + rw)
+	var g := -d
+	_box("dome_%s_ground" % id, "dome_" + id, "floor", [c.x - rw, -0.5, c.y - rw], [c.x + rw, 0, c.y + rw])
+	_zones.append({ "id": "dome_" + id, "min": [c.x - rw, c.y - rw], "max": [c.x + rw, c.y + rw] })
+	var hl := _lane(d, half + pring, far, hw)
+	hl.position += pit
+	_box("hall_%s_floor" % id, "hall_" + id, "floor", [hl.position.x, -0.5, hl.position.y], [hl.end.x, 0, hl.end.y])
+	_zones.append({ "id": "hall_" + id, "min": [hl.position.x, hl.position.y], "max": [hl.end.x, hl.end.y] })
+	var mid := _dl(c, g, rw * 0.5, 0.0)       # half way in from the gate: clear of what fills it
+	_marker("dome_" + id, [snappedf(mid.x, 0.5), 0, snappedf(mid.y, 0.5)], "waypoint")
+	match str(wd.get("fill", "")):
+		"barracks":
+			_barracks_dome(id, c, g)
+		"homes":
+			_homes_dome(id, c, g)
+	return { "id": id, "fill": str(wd.get("fill", "")), "center": [c.x, 0.0, c.y], "radius": rw,
+		"gate": [g.x, g.y], "hall": { "dir": [d.x, d.y], "end": 10.0, "rim": half, "far": far, "half": hw,
+			"height": float(ring_cfg.get("hall_height", 5.0)) } }
+
+
+## The Remnant's barracks under a dome (kit domes.barracks): a metal hall at the
+## back, its doors toward the gate, crates in the yard and trooper posts
+## (role trooper_post) that change hands like the port's barracks (Territory).
+func _barracks_dome(id: String, c: Vector2, g: Vector2) -> void:
+	var k: Dictionary = kit.get("domes", {}).get("barracks", {})
+	var h: Dictionary = k.get("hall", {})
+	var front := float(h.get("front", 2.0))
+	var depth := float(h.get("depth", 16.0))
+	var wide := float(h.get("width", 30.0)) * 0.5
+	_dome_box("%s_hall" % id, "moon_barracks", "solid", c, g, front - depth, front, -wide, wide, 0.0,
+		float(h.get("height", 6.0)), { "look": "hall", "face": _face_of(g), "style": str(h.get("style", "gray_garrison")) })
+	var p0 := _dl(c, g, front - depth, -wide)
+	var p1 := _dl(c, g, front + float(k.get("yard", 30.0)), wide)
+	_zones.append({ "id": "moon_barracks", "min": [minf(p0.x, p1.x), minf(p0.y, p1.y)], "max": [maxf(p0.x, p1.x), maxf(p0.y, p1.y)] })
+	var n := 1
+	for cr in k.get("crates", []):
+		_dome_box("%s_crates_%d" % [id, n], "dome_" + id, "cover", c, g, float(cr[0]) - 0.9, float(cr[0]) + 0.9,
+			float(cr[1]) - 1.1, float(cr[1]) + 1.1, 0.0, 1.3, { "look": "crates" })
+		n += 1
+	var gate := _dl(c, g, 40.0, 0.0)
+	for p in k.get("posts", []):
+		var at := _dl(c, g, float(p.at[0]), float(p.at[1]))
+		_markers.append({ "id": str(p.id), "pos": [snappedf(at.x, 0.1), 0, snappedf(at.y, 0.1)], "role": "trooper_post",
+			"soldier": str(p.get("soldier", "yard_trooper")), "face": [snappedf(gate.x, 0.1), 0, snappedf(gate.y, 0.1)] })
+	var rs: Array = k.get("respawn", [-20.0, 0.0])
+	var at := _dl(c, g, float(rs[0]), float(rs[1]))
+	_marker(str(k.get("respawn_marker", "remnant_respawn")), [snappedf(at.x, 0.1), 0, snappedf(at.y, 0.1)], "waypoint")
+
+
+## Homes under a dome (kit domes.homes): the station's gray homes either side of a
+## street from the gate, locals strolling up and down it and round the back.
+func _homes_dome(id: String, c: Vector2, g: Vector2) -> void:
+	var k: Dictionary = kit.get("domes", {}).get("homes", {})
+	var n := 1
+	for hm in k.get("homes", []):
+		var a := float(hm.at[0])
+		var b := float(hm.at[1])
+		var s: Array = hm.get("size", [6.0, 6.0])
+		var extra := { "look": str(hm.get("look", "hut_block")), "style": "gray",
+			"face": _face_of(Vector2(-g.y, g.x) * (-signf(b))) }
+		if str(extra.look) == "hut_round":
+			extra["shape"] = "round"
+		_dome_box("%s_home_%02d" % [id, n], "dome_" + id, "solid", c, g, a - float(s[0]) * 0.5, a + float(s[0]) * 0.5,
+			b - float(s[1]) * 0.5, b + float(s[1]) * 0.5, 0.0, float(hm.get("h", 4.0)), extra)
+		n += 1
+	var w := 1
+	for loop in k.get("walks", []):
+		var pts: Array = []
+		for p in loop:
+			var q := _dl(c, g, float(p[0]), float(p[1]))
+			pts.append([snappedf(q.x, 0.1), snappedf(q.y, 0.1)])
+		var rid := "%s_walk_%d" % [id, w]
+		_routes.append({ "id": rid, "points": pts })
+		_markers.append({ "id": "%s_resident_%d" % [id, w], "pos": [pts[0][0], 0, pts[0][1]], "role": "ambient",
+			"soldier": "local_resident", "patrol": rid })
+		w += 1
+	var m := 1
+	for p in k.get("standing", []):
+		var q := _dl(c, g, float(p[0]), float(p[1]))
+		var f := _dl(c, g, float(p[2]) if p.size() > 2 else 0.0, float(p[3]) if p.size() > 3 else 0.0)
+		_markers.append({ "id": "%s_local_%d" % [id, m], "pos": [snappedf(q.x, 0.1), 0, snappedf(q.y, 0.1)], "role": "ambient",
+			"soldier": "local_resident", "face": [snappedf(f.x, 0.1), 0, snappedf(f.y, 0.1)] })
+		m += 1
 
 
 func _spaceport(x0: float, cols: int, bays: int, sh: float, cell: float) -> Dictionary:
@@ -499,7 +672,7 @@ func _market(x0: float, stalls: int, merchants: int, sh: float, _opts: Dictionar
 
 func _barracks(x0: float, z0: float) -> void:
 	_box("barracks_hall", "barracks", "solid", [x0, 0, z0 + 2.0], [x0 + 30.0, 6.0, z0 + 20.0],
-		{ "look": "hall", "face": "-z", "style": "garrison" })
+		{ "look": "hall", "face": "-z", "style": "garrison", "interior": "barracks" })   # issue #321: you walk in (BarracksHall)
 	_core.append(Rect2(x0, z0, 30.0, 22.0))
 	_zones.append({ "id": "barracks", "min": [x0, z0], "max": [x0 + 30.0, z0 + 22.0] })
 

@@ -50,9 +50,12 @@ func test_obstructions_are_blocking_boxes_except_stood_on() -> void:
 	assert_true(ids.has("barracks_bunk"), "buildings are cleared")
 	assert_true(ids.has("stall_n6"), "so are crates and stalls")
 	assert_false(ids.has("watchtower"), "the tower top keeps its floor (a post stands there)")
-	assert_false(ids.has("barracks_hall"), "so does the hall roof (the riflemen)")
 	var stood := TownNav.stood_on_boxes(town).map(func(b): return str(b.id))
-	assert_true(stood.has("watchtower") and stood.has("barracks_hall"), "cleared below their tops instead")
+	assert_true(stood.has("watchtower"), "cleared below its top instead")
+	# Issue #321: the barracks hall is walls round a walk-in inside, under a roof.
+	assert_false(ids.has("barracks_hall"), "the hall itself is only its pieces")
+	assert_true(ids.has("barracks_hall_back") and ids.has("barracks_hall_office_hack"), "its walls and consoles are cleared")
+	assert_false(ids.has("barracks_hall_roof"), "its roof is walked on (the riflemen)")
 	assert_false(ids.has("ramp_ne"), "ramps are walked on")
 	assert_false(ids.has("ground_east"), "floors are walked on")
 
@@ -81,12 +84,20 @@ func test_bake_has_no_floor_inside_buildings() -> void:
 	tn.free()
 	assert_gt(nm.get_polygon_count(), 200, "the town baked")
 	var inside := 0
+	var tower: Dictionary = town.get_box("barracks_bunk")
+	for v in nm.vertices:
+		if v.y < 1.0 and v.x > float(tower.min[0]) + 1.0 and v.x < float(tower.max[0]) - 1.0 \
+				and v.z > float(tower.min[2]) + 1.0 and v.z < float(tower.max[2]) - 1.0:
+			inside += 1
+	assert_eq(inside, 0, "no walkable ground inside the bunk tower")
+	# Issue #321: the barracks hall's corridor and office are walked in.
 	var hall: Dictionary = town.get_box("barracks_hall")
+	var floor := 0
 	for v in nm.vertices:
 		if v.y < 1.0 and v.x > float(hall.min[0]) + 1.0 and v.x < float(hall.max[0]) - 1.0 \
 				and v.z > float(hall.min[2]) + 1.0 and v.z < float(hall.max[2]) - 1.0:
-			inside += 1
-	assert_eq(inside, 0, "no walkable ground inside the barracks hall")
+			floor += 1
+	assert_gt(floor, 0, "walkable ground inside the barracks hall")
 	var roof := 0
 	for v in nm.vertices:
 		if absf(v.y - float(hall.max[1])) < 0.5 and v.x > float(hall.min[0]) and v.x < float(hall.max[0]) \

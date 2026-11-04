@@ -229,15 +229,16 @@ func _physics_process(dt: float) -> void:
 		for e in model.step(dt):
 			log_events.append(e)
 		_sync()
-		_show_prompt(can_mount())
-		if can_mount() and _just("interact"):
+		var free := can_mount() and not _hijack_claims()
+		_show_prompt(free)
+		if free and _just("interact"):
 			mount()
 
 
 func _ride(dt: float) -> void:
 	var fire := false
 	if _external.is_empty():
-		if _just("interact") and not model.airborne:
+		if _just("interact") and not model.airborne and not _hijack_claims():
 			dismount()
 			return
 		var throttle := _axis("move_back", "move_forward")
@@ -333,6 +334,60 @@ func _sync() -> void:
 	if _glow_mat != null:
 		_glow_mat.emission_energy_multiplier = 1.5 + absf(model.speed) / 10.0 + 6.0 * _lift_glow
 	_sync_parts()
+
+
+# ------------------------------------------------------------------ hijacking (Hijack)
+
+## E is the town's Hijack's this frame (a vehicle someone else rides is in reach).
+func _hijack_claims() -> bool:
+	var h = demo.get("hijack") if demo != null else null
+	return h != null and is_instance_valid(h) and h.claims_e()
+
+
+## Someone may take it from you now: you ride it, it is whole, on the ground.
+func can_be_hijacked() -> bool:
+	return riding and model.alive() and not model.airborne
+
+
+## Player `by` threw you off (Hijack.on_take): you are beside it, and it is not
+## here for you while they ride it (hidden, still, nothing to hit). Returns what
+## their game needs to build it ({} when it can not be taken now).
+func thrown_out(by: int) -> Dictionary:
+	if not can_be_hijacked():
+		return {}
+	var st := { "cfg": cfg, "paint": paint, "xf": model.transform(), "yaw": model.yaw, "speed": model.speed }
+	dismount()
+	set_meta("hijacked_by", by)
+	visible = false
+	set_physics_process(false)
+	if hull != null:
+		set_meta("hull_layer", hull.collision_layer)
+		hull.collision_layer = 0
+	return st
+
+
+## They let it go at `xf` (Hijack.on_back): it stands there again, yours; or,
+## `wrecked`, it burst under them.
+func hijack_returned(xf: Transform3D, wrecked: bool) -> void:
+	if not has_meta("hijacked_by"):
+		return
+	remove_meta("hijacked_by")
+	place(xf.origin, _yaw_from(xf))
+	visible = true
+	set_physics_process(true)
+	if hull != null:
+		hull.collision_layer = int(get_meta("hull_layer", 1))
+	if wrecked:
+		model.apply_damage(1.0e6)
+		_burst()
+
+
+func _yaw_from(xf: Transform3D) -> float:
+	var f := -xf.basis.z
+	var u := model.up()
+	f -= u * f.dot(u)
+	var local := PlanetSphere.tilt_to(u).inverse() * f
+	return atan2(-local.x, -local.z) if Vector2(local.x, local.z).length() > 0.01 else model.yaw
 
 
 # ------------------------------------------------------------------ helpers

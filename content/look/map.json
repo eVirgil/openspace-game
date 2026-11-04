@@ -12,6 +12,7 @@
     "ghost": { "hull": { "fill": 0.007, "rim": 0.5 }, "wall": { "fill": 0.003, "rim": 0.22 }, "trim": { "fill": 0.0, "rim": 0.14 }, "glass": { "fill": 0.08, "rim": 0.45 } }
   },
   "terrain": { "size": [1024, 512], "low": "#100c07", "high": "#20180e", "rock": "#2e251b", "relief": 4.0, "shade": 0.04, "fade_px": [4.0, 12.0] },
+  "station": { "note": "A sealed station's outline (GlobeMap.station_shapes): its domes, pit and tunnels in the ink colour, 'fill' and 'line' alpha, drawn once a dome is at least min_px across on screen.", "fill": 0.08, "line": 0.7, "min_px": 6.0 },
   "terrain_types": {
     "asteroid": { "low": "#0c0c0e", "high": "#25252a", "rock": "#25252a", "shade": 0.06 },
     "lava_moon": { "low": "#0b0706", "high": "#22140f", "rock": "#8f3614", "shade": 0.06 },
@@ -25,6 +26,7 @@
   "pins": {
     "port": { "shape": "star", "color": "#f2e2b0" },
     "remnant_outpost": { "shape": "triangle", "color": "#e0573a" },
+    "village": { "shape": "square", "color": "#e0573a" },
     "outpost": { "shape": "triangle", "color": "#a89a80" },
     "droid_merchant_outpost": { "shape": "diamond", "color": "#5ec8e8" },
     "post": { "shape": "square", "color": "#e8c050" },
@@ -36,6 +38,10 @@
     "spot": { "shape": "ring", "color": "#f2e2b0" },
     "system": { "shape": "star", "color": "#9fe8ff" },
     "planet": { "shape": "planet", "color": "#7fb0d8" },
-    "cruiser": { "shape": "cruiser", "color": "#e0573a" }
+    "cruiser": { "shape": "cruiser", "color": "#e0573a" },
+    "bay": { "shape": "diamond", "color": "#c8d0d8" },
+    "barracks": { "shape": "square", "color": "#e0573a" },
+    "homes": { "shape": "circle", "color": "#f2e2b0" },
+    "dome": { "shape": "circle", "color": "#c8d0d8" }
   }
 }

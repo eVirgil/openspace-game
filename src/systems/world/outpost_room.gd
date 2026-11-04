@@ -112,7 +112,7 @@ static func inside(b: Dictionary) -> Array:
 				_add(out, "bank_%s_screen" % tag, Vector3(0.06, 0.6, span - 0.2), p + Vector3(rx + SIDE_DEPTH * 0.5 + 0.03, 1.15, zc),
 					"screen", false, Basis(Vector3.BACK, deg_to_rad(20.0)))
 	# The holo table between the door and the consoles, and its map on top.
-	var hx := holo(b).x
+	var hx := holo(b).x - p.x                 # holo() is in the outpost's frame, p already in it
 	_add(out, "holo_table", Vector3(1.3, 0.95, 1.3), p + Vector3(hx, 0.475, 0), "console", true)
 	_add(out, "holo_top", Vector3(1.15, 0.06, 1.15), p + Vector3(hx, 0.98, 0), "screen")
 	# The floor's lines and the ceiling's light bars (drawn only).

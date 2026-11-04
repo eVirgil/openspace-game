@@ -17,11 +17,15 @@ func load_town(town_id: String = "port_town", layout: String = "") -> bool:
 	if not cc.load_from():
 		return false
 	data = cc.town_from_layout(layout, town_id) if layout != "" else cc.get_location(town_id)
+	BarracksHall.stamp(data)
 	return not data.is_empty()
 
 
+## Issue #321: a barracks hall with an interior is stamped with its pieces here
+## (in place; a stamped town is left as it is).
 func load_from_dict(d: Dictionary) -> void:
 	data = d
+	BarracksHall.stamp(data)
 
 
 func boxes() -> Array:
@@ -159,12 +163,13 @@ func validate() -> Array:
 		if not supported:
 			errs.append("V7 marker unsupported: " + str(m.id))
 
-	# V8 routes clear of blocking boxes
+	# V8 routes clear of blocking boxes (issue #321: on the ground; a box 2.2 m or
+	# more up, on a roof, is over the walker's head)
 	for r in routes():
 		var pts: Array = r.points
 		for k in range(1, pts.size()):
 			for b in bs:
-				if str(b.kind) in blocking:
+				if str(b.kind) in blocking and float(b.min[1]) < 2.2:
 					if _segment_rect_dist(pts[k - 1], pts[k], b) <= clearance:
 						errs.append("V8 route %s segment %d hits %s" % [r.id, k, b.id])
 
