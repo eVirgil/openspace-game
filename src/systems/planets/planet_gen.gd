@@ -157,6 +157,11 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		world = CoreContent.resolve_layout(cc.get_world(str(cfg.world)), layout)    # issue #295: landmarks per layout
 	else:
 		world = _world_for(id, town_id, tcfg)
+	if cfg.has("landmarks"):
+		# A planet config's own landmarks join its world's (a space station over the
+		# moon: content/core/stations/). Moving one to another planet is moving the block.
+		world = world.duplicate()
+		world["landmarks"] = (world.get("landmarks", []) as Array) + (cfg.landmarks as Array)
 	world["ground"] = str(tcfg.get("ground", "terrain"))
 	world["planet"] = id
 	var style := str(cfg.get("style", tcfg.get("default_style", "desert")))
