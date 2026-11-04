@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Heists: hold the control room for a minute (2026-11-04)
+
+- **Hacking a console takes a minute now.** Hold [E] for 5 seconds to start
+  it, then stay within 25 m of the console for 60 seconds. You can leave the
+  console and fight from the room or the doorway. Go further than 25 m and
+  the hack drops, so you have to start it again. The stash drops when the
+  minute is up.
+- **The outpost sends a wave at you** when the hack starts: four soldiers
+  50 m out on the door's side, running in to kill you, and the outpost's
+  alarm goes up. Remnant outposts send barracks troopers, and the locals'
+  outposts send their guards. One wave per heist. They don't come back
+  when killed.
+- The prompt and the bar show the time left.
+
 ## Hijacking ships and speeders (2026-11-04)
 
 - **E by a ship or speeder someone else is in takes it.** Walk up (or ride up on
@@ -114,6 +128,16 @@ Plain English, newest on top. One entry per milestone.
 - **A cargo droid's hold stashes one at a time:** Enter stashes one of a stack,
   **Shift+Enter** stashes the whole stack, and each row has **Stash one** and
   **Stash all** buttons you can click. The hold stays open after each stash.
+
+## Step out of the station between its floors (2026-11-04)
+
+- **The glass round each elevator gap between floors is a shield now.** It keeps
+  the air in and lets you through. Jump the railing onto the gap's glass,
+  jetpack up through the hole in the ceiling, step out through the shield, and
+  you are outside on the roof of the floor below, under the next floor, out in
+  space.
+- **You stay out there.** The station only pulls you back in if you go off the
+  roof's edge, as on the tunnels' roof walks.
 
 ## New version is 1.6.1 (2026-11-04)
 

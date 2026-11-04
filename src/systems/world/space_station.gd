@@ -5,7 +5,9 @@ extends Node3D
 ## ground and the walkers' colliders (the "station" landmark put them there); this
 ## node adds what moves and what you see:
 ##   - the look: every part merged by finish, the cruiser's metal, glass, glow
-##   - the energy shield across the bay's mouth (ships and bolts through, not you)
+##   - the energy shield across the bay's mouth (ships and bolts through, not you),
+##     the shields in the tunnels' roofs and round the gaps between floors (you
+##     through, not the air)
 ##   - an elevator in each tower: a platform riding its shaft floor to floor, and the
 ##     shaft's doors, open only where it has stopped
 ##   - Z docking: the same calls the cruiser answers (can_dock, dock_path, dock_yaw,
@@ -73,6 +75,7 @@ func _ready() -> void:
 		_lights()
 	_build_shield()
 	_build_hatches()
+	_build_tubes()
 	_build_elevators()
 	_build_label()
 
@@ -383,6 +386,34 @@ func _build_hatches() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_root.add_child(mi)
 		mi.transform = hc.xf
+
+
+## The shields round the gaps between floors (StationHull.tubes): no collider (jump
+## the railing, jetpack up and step out through one onto the floor's roof), only
+## the look: an open cylinder, its rims where it meets the ceiling and the floor
+## above.
+func _build_tubes() -> void:
+	if demo == null or not demo.use_look:
+		return
+	for tb in hull.tubes:
+		var h := float(tb.y1) - float(tb.y0)
+		var r := float(tb.r)
+		var cm := CylinderMesh.new()
+		cm.top_radius = r
+		cm.bottom_radius = r
+		cm.height = h
+		cm.radial_segments = 48
+		cm.rings = 1
+		cm.cap_top = false
+		cm.cap_bottom = false
+		var mi := MeshInstance3D.new()
+		mi.name = "GapShield_%s_%d" % [str(tb.tower), int(tb.floor)]
+		mi.mesh = cm
+		mi.material_override = LookMaterials.energy_shield(Vector3(r * 2.0, h, r * 2.0), Vector3(0, 0.6, 0))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var c: Vector2 = tb.c
+		mi.position = Vector3(c.x, (float(tb.y0) + float(tb.y1)) * 0.5, c.y)
+		_root.add_child(mi)
 
 
 ## The shield's curve as a mesh in its own frame (StationHull.shield): the wall's arc
