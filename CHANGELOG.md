@@ -23,6 +23,13 @@ Plain English, newest on top. One entry per milestone.
   locals hold it).
 - **Nothing of them is drawn from the port.** Everything at a village is drawn
   only within 1500 m, and they are 3.5 km and more out, below the horizon.
+## Armour at the moon stalls from day 1 (2026-11-04)
+
+- **The merchant in front of the moon's cantina sells quantonium armour** from the
+  start, in a story save and in free play, for 500 (the port's fence price) and
+  never runs out. It is what lets you breathe out on the rock.
+- **The lava moon's merchant too:** it had no stall at all; now it is the moon's,
+  armour included.
 
 ## The ringed giant: gas you can see, fog under the station, air you can breathe (2026-11-04)
 
