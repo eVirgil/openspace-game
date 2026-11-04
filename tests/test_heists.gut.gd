@@ -70,7 +70,7 @@ func _room(id: String) -> RemnantOutposts:
 	return ro
 
 
-## Take job `job`, hold the console 5 s, pick the stash up. Returns the outpost.
+## Take job `job`, hold the console 5 s, stay a minute, pick the stash up. Returns the outpost.
 func _rob(job: String) -> String:
 	assert_true(WorldState.accept_job(job), "took " + job)
 	assert_true(Heist.on())
@@ -80,7 +80,11 @@ func _rob(job: String) -> String:
 	var state := ""
 	for i in 51:
 		state = ro.hack_step(0.1, true, at)
-	assert_eq(state, "done", "hacked")
+	assert_eq(state, "started", "the hack starts")
+	for i in 599:
+		state = ro.hack_step(0.1, false, at)
+	assert_eq(state, "running", "59.9 s: still running")
+	assert_eq(ro.hack_step(0.2, false, at), "done", "hacked")
 	WorldState.inventory.pick_up(Heist.stash_entry())
 	assert_eq(Heist.carrying(), 15, "15 flasks in hand")
 	return id

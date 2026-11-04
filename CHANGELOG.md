@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Heists: hold the control room for a minute (2026-11-04)
+
+- **Hacking a console takes a minute now.** Hold [E] for 5 seconds to start
+  it, then stay within 25 m of the console for 60 seconds. You can leave the
+  console and fight from the room or the doorway. Go further than 25 m and
+  the hack drops, so you have to start it again. The stash drops when the
+  minute is up.
+- **The outpost sends a wave at you** when the hack starts: four soldiers
+  50 m out on the door's side, running in to kill you, and the outpost's
+  alarm goes up. Remnant outposts send barracks troopers, and the locals'
+  outposts send their guards. One wave per heist. They don't come back
+  when killed.
+- The prompt and the bar show the time left.
+
 ## Ranch villages: three walled outposts with houses and stands, far out (2026-11-04)
 
 - **Three ranch villages out in the desert,** each a Remnant outpost with a

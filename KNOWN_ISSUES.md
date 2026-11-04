@@ -42,6 +42,9 @@ passed, and I did not chase it.
 
 - **Each player gets their own heist crew.** The crew member and the borrowed
   droid follow whoever's game they are in, and the others do not see them.
+- **A guest who hacks a console gets no wave.** The wave is made in the game
+  of whoever starts the hack, and a guest's town only shows the host's people,
+  so a guest's hack runs its minute with nobody sent at them.
 - **Only the jobs are shared, not the outposts.** Who holds each outpost, the
   resupply quests and the optional quests stay each game's own, so a guest can
   carry supplies to an outpost the host's game thinks someone else holds.
