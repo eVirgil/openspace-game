@@ -989,8 +989,8 @@ func set_external_command(c: Dictionary) -> void:
 ## The space encounter over this planet: the planet's own ("" = quiet sky), else
 ## the pad's (issue #45).
 func encounter_id() -> String:
-	if cruiser() != null and Story.cruiser_mission() and cruiser().escort_id() != "":
-		return cruiser().escort_id()      # issue #193: Oda said you'd have company on the way up
+	if cruiser() != null and atmo != null and cruiser().wants_escort(atmo.position(), atmo.flight.forward()):
+		return cruiser().escort_id()      # issue #193: Oda said you'd have company on the way up (#327: or you fly for the belt cruiser)
 	var e = demo.planet.get("encounter", null) if "planet" in demo else null
 	return str(e) if e != null else str(pad.get("encounter", ""))
 

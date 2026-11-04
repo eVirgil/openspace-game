@@ -251,8 +251,10 @@ static func fill_step(text: String) -> String:
 ## The general aboard the Remnant cruiser by name ("General So-and-so") before you
 ## have met him: the name engine names him off the same key his body will get
 ## (NameHooks.person), and keeps it in the book, so the two agree.
-static func cruiser_general_name() -> String:
-	var cfg := CruiserHull.data()
+## Issue #327: `cfg` is another cruiser's config (the belt cruiser's general).
+static func cruiser_general_name(cfg: Dictionary = {}) -> String:
+	if cfg.is_empty():
+		cfg = CruiserHull.data()
 	var soldier := str(cfg.get("general", {}).get("soldier", "cruiser_general"))
 	var profile := ItemKit._read_json("res://content/core/soldiers/%s.json" % soldier)
 	return NameHooks.person(profile.get("naming", {}), "npc:%s/general" % str(cfg.get("id", "remnant_cruiser")))

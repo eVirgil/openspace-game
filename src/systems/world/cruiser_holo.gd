@@ -16,6 +16,12 @@ extends Node3D
 ## Heights over the ball are squeezed (holo.squeeze) so the 7 km orbit fits over a
 ## five metre table; the moon keeps its true direction at a set distance. Numbers, colours and lines: the cruiser data's
 ## "holo" block (content/core/cruiser/remnant_cruiser.json).
+##
+## Issue #327: a cruiser holding station by a space station (the belt cruiser,
+## holo.kind "station") shows that station instead (setup_station): both towers
+## floor by floor, the elevator shafts, the tunnels and the covered bay, built from
+## the station's own config (StationHull), the belt of rocks round it, and the
+## cruiser in its true direction from it.
 
 const SHADER := preload("res://src/systems/look/shaders/holo.gdshader")
 
@@ -54,24 +60,7 @@ func setup(cfg: Dictionary, sp: PlanetSphere, cruiser_frame: Transform3D, anchor
 	var ball := _sphere(radius, _mat(col, 0.8, 0.06, 1.0, 0.0, 0.3))
 	_turn.add_child(ball)
 	_turn.add_child(_sphere(radius * 1.004, _mat(col, 0.7, 0.0, 0.25, 9.0, 0.0)))
-	var beam := MeshInstance3D.new()
-	beam.name = "Beam"
-	var cone := CylinderMesh.new()
-	cone.top_radius = radius * 0.95
-	cone.bottom_radius = radius * 0.55
-	cone.height = float(spec.get("lift", 1.75)) - radius * 0.6
-	cone.cap_top = false
-	cone.cap_bottom = false
-	beam.mesh = cone
-	beam.material_override = _mat(col, 0.35, 0.05, 0.6, 0.0, 0.0)
-	beam.position = Vector3(0, -radius * 0.6 - cone.height * 0.5, 0)     # from the table top up to the ball
-	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(beam)
-	var lamp := OmniLight3D.new()
-	lamp.light_color = col
-	lamp.light_energy = 1.6
-	lamp.omni_range = 7.0
-	add_child(lamp)
+	_projector(col, radius * 0.95, radius * 0.6)
 	# The port, at the top of the ball (the map's origin), and the Remnant's
 	# outposts, each coloured by who holds it.
 	_place(Territory.BARRACKS, _pin(sphere.map_dir(0.0, 0.0), owner_color(Territory.BARRACKS), 0.28, str(names.get("town", "")), true))
@@ -117,6 +106,200 @@ func setup(cfg: Dictionary, sp: PlanetSphere, cruiser_frame: Transform3D, anchor
 		_turn.add_child(moon)
 		_turn.add_child(_ring(rel, moon.position.length(), mcol, 0.3))
 		_turn.add_child(_label(moon.position + Vector3(0, r + 0.08, 0), str(names.get(str(m.get("id", "")), "")), mcol))
+
+
+## The projector under the map: a cone of light from the table top up to `under`
+## metres below its middle, `top` wide there, and its lamp.
+func _projector(col: Color, top: float, under: float) -> void:
+	var beam := MeshInstance3D.new()
+	beam.name = "Beam"
+	var cone := CylinderMesh.new()
+	cone.top_radius = top
+	cone.bottom_radius = top * 0.58
+	cone.height = maxf(float(spec.get("lift", 1.75)) - under, 0.1)
+	cone.cap_top = false
+	cone.cap_bottom = false
+	beam.mesh = cone
+	beam.material_override = _mat(col, 0.35, 0.05, 0.6, 0.0, 0.0)
+	beam.position = Vector3(0, -under - cone.height * 0.5, 0)     # from the table top up to the map
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(beam)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = col
+	lamp.light_energy = 1.6
+	lamp.omni_range = 7.0
+	add_child(lamp)
+
+
+# ------------------------------------------------------------------ issue #327: a station
+
+## The map of a space station (`hull`, hanging at `station_frame`) for a cruiser at
+## `cruiser_frame` holding station by it. `anchor` is the map's middle in the
+## cruiser's frame; `names` labels by key ("station", "cruiser"). The station is
+## turned as the real one is (its bay where it really is) and scaled so its length
+## is holo.width; the cruiser keeps its true direction at holo.cruiser_at.
+func setup_station(cfg: Dictionary, hull: StationHull, station_frame: Transform3D, cruiser_frame: Transform3D,
+		anchor: Vector3, names: Dictionary) -> void:
+	spec = cfg
+	name = "HoloMap"
+	position = anchor
+	_to_world = cruiser_frame.basis.orthonormalized().inverse()
+	basis = _to_world * station_frame.basis.orthonormalized()
+	_turn = Node3D.new()
+	_turn.name = "Turn"
+	add_child(_turn)
+	var col := Color(str(spec.get("color", "#3fc8ff")))
+	# The station's footprint (its towers' widest floors and the bay) and height.
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for t in hull.towers:
+		var r := 0.0
+		for f in t.floors:
+			r = maxf(r, float(f.r))
+		lo = lo.min((t.c as Vector2) - Vector2(r, r))
+		hi = hi.max((t.c as Vector2) + Vector2(r, r))
+	if not hull.bay.is_empty():
+		var br := Vector2(float(hull.bay.r), float(hull.bay.r))
+		lo = lo.min((hull.bay.c as Vector2) - br)
+		hi = hi.max((hull.bay.c as Vector2) + br)
+	var y0 := hull.bottom_y()
+	var y1 := hull.top_y()
+	var mid := Vector3((lo.x + hi.x) * 0.5, (y0 + y1) * 0.5, (lo.y + hi.y) * 0.5)
+	var k := float(spec.get("width", 2.5)) / maxf(maxf(hi.x - lo.x, hi.y - lo.y), 1.0)
+	radius = maxf(hi.x - lo.x, hi.y - lo.y) * k * 0.5
+	var at := func(p: Vector3) -> Vector3: return (p - mid) * k
+	var shell := _mat(col, 1.0, 0.08, 1.1, 0.0, 0.0)
+	var plate := _mat(col, 1.3, 0.35, 0.6, 0.0, 0.0)
+	var glass := _mat(col.lightened(0.35), 1.8, 0.3, 0.8, 0.0, 0.0)
+	# Each tower: its floors as drums of light with a brighter plate, and the shaft.
+	for t in hull.towers:
+		var c: Vector2 = t.c
+		for f in t.floors:
+			var r := float(f.r) * k
+			var fy := float(f.y)
+			_turn.add_child(_drum(r, hull.floor_h * k, shell, at.call(Vector3(c.x, fy + hull.floor_h * 0.5, c.y)), true))
+			_turn.add_child(_drum(r * 0.995, maxf(hull.plate * k, 0.006), plate, at.call(Vector3(c.x, fy, c.y)), true))
+		var fl: Array = t.floors
+		if fl.size() >= 1:
+			var b := float(fl[0].y)
+			var top := float(fl[-1].y) + hull.floor_h
+			_turn.add_child(_drum(hull.shaft_r * k, (top - b) * k, glass, at.call(Vector3(c.x, (b + top) * 0.5, c.y)), false))
+	# The tunnels between the towers and out to the bay.
+	for tn in hull.tunnels:
+		var xf: Transform3D = tn.xf
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(float(tn.length), hull.tunnel_h, hull.tunnel_w) * k
+		mi.mesh = bm
+		mi.material_override = glass
+		mi.basis = xf.basis
+		mi.position = at.call(xf * Vector3(float(tn.length) * 0.5, hull.tunnel_h * 0.5, 0.0))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_turn.add_child(mi)
+	# The covered bay: its wall open to space, its deck, and its pads.
+	if not hull.bay.is_empty():
+		var bc: Vector2 = hull.bay.c
+		var bh := float(hull.bay.height)
+		_turn.add_child(_drum(float(hull.bay.r) * k, bh * k, shell, at.call(Vector3(bc.x, bh * 0.5, bc.y)), false))
+		_turn.add_child(_drum(float(hull.bay.r) * k, maxf(hull.plate * k, 0.006), plate, at.call(Vector3(bc.x, 0.0, bc.y)), true))
+		for pd in hull.pads():
+			var pa: Vector3 = pd.at
+			_turn.add_child(_drum(float(pd.radius) * k * 0.8, 0.008, glass, at.call(pa + Vector3(0, 0.6, 0)), true))
+	var station_line := str(spec.get("lines", {}).get("station", "%s"))
+	_turn.add_child(_label(Vector3(0, (y1 - y0) * k * 0.5 + 0.16, 0), station_line % str(names.get("station", "")), col))
+	_belt()
+	_station_cruiser(station_frame.affine_inverse() * cruiser_frame, mid, names)
+	_projector(col, radius * 0.55, (y1 - y0) * k * 0.5)
+
+
+## The belt round the station: rocks scattered from holo.seed between belt_inner
+## and belt_outer, one MultiMesh of faceted lumps.
+func _belt() -> void:
+	var n := int(spec.get("rocks", 160))
+	if n <= 0:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(spec.get("seed", 327))
+	var lump := SphereMesh.new()
+	lump.radius = 0.5
+	lump.height = 1.0
+	lump.radial_segments = 6
+	lump.rings = 3
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = lump
+	mm.instance_count = n
+	var r0 := float(spec.get("belt_inner", 1.6))
+	var r1 := float(spec.get("belt_outer", 2.05))
+	var thick := float(spec.get("belt_thick", 0.16))
+	var s0 := float(spec.get("rock_min", 0.012))
+	var s1 := float(spec.get("rock_max", 0.05))
+	for i in n:
+		var a := rng.randf() * TAU
+		var r := lerpf(r0, r1, sqrt(rng.randf()))
+		var y := (rng.randf() + rng.randf() - 1.0) * thick * 0.5
+		var size := lerpf(s0, s1, pow(rng.randf(), 2.0))
+		var b := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
+		b = b.scaled(Vector3(size * rng.randf_range(0.7, 1.3), size * rng.randf_range(0.6, 1.0), size * rng.randf_range(0.8, 1.4)))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(a) * r, y, sin(a) * r)))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Belt"
+	mmi.multimesh = mm
+	mmi.material_override = _mat(Color(str(spec.get("rock_color", "#86c4e0"))), 1.3, 0.5, 0.9, 0.0, 0.0)
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_turn.add_child(mmi)
+
+
+## The cruiser on the station's map: a wedge in its true direction from the
+## station (`rel`: its frame in the station's) at holo.cruiser_at, its bow where
+## the real bow points, a faint line back to the station, and its name.
+func _station_cruiser(rel: Transform3D, mid: Vector3, names: Dictionary) -> void:
+	var ccol := Color(str(spec.get("cruiser_color", "#ff3030")))
+	var dir := (rel.origin - mid).normalized()
+	var at := dir * float(spec.get("cruiser_at", 1.85))
+	var ship := MeshInstance3D.new()
+	ship.name = "Cruiser"
+	var wedge := PrismMesh.new()
+	wedge.size = Vector3(0.11, 0.32, 0.05)
+	ship.mesh = wedge
+	ship.material_override = _mat(ccol, 3.0, 1.0, 0.6, 0.0, 0.0)
+	_turn.add_child(ship)
+	var bow := -rel.basis.z.normalized()
+	ship.look_at_from_position(at, at + bow, Vector3.UP)
+	ship.rotate_object_local(Vector3.RIGHT, -PI * 0.5)
+	var line := MeshInstance3D.new()
+	line.name = "Bearing"
+	var c := CylinderMesh.new()
+	c.top_radius = 0.004
+	c.bottom_radius = 0.004
+	c.height = at.length()
+	c.radial_segments = 6
+	line.mesh = c
+	line.material_override = _mat(ccol, 0.8, 1.0, 0.0, 0.0, 0.0)
+	line.basis = PlanetSphere.tilt_to(dir)
+	line.position = at * 0.5
+	line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_turn.add_child(line)
+	var here_line := str(spec.get("lines", {}).get("here", "%s"))
+	_turn.add_child(_label(at + Vector3(0, 0.2, 0), here_line % str(names.get("cruiser", "")), ccol))
+
+
+## A round drum of light `r` wide and `h` tall centred at `at` (caps or open).
+func _drum(r: float, h: float, mat: Material, at: Vector3, caps: bool) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = h
+	c.radial_segments = 40
+	c.rings = 1
+	c.cap_top = caps
+	c.cap_bottom = caps
+	mi.mesh = c
+	mi.material_override = mat
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 
 ## The ball's size for a distance from the planet's centre (metres): the surface

@@ -116,9 +116,10 @@ func _place() -> void:
 	_sync_spot()
 
 
+## Issue #327: only the home cruiser's bay: the belt cruiser has no dark master.
 func _cruiser_near() -> bool:
 	var c = demo.cruiser if demo != null and "cruiser" in demo else null
-	if c == null or player == null or not is_instance_valid(player):
+	if c == null or not c.is_home() or player == null or not is_instance_valid(player):
 		return false
 	return c.distance(player.global_position) <= float(c.cfg.get("wake_distance", 2600.0))
 

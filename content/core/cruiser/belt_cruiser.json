@@ -1,0 +1,34 @@
+{
+  "id": "belt_cruiser",
+  "base": "remnant_cruiser",
+  "label": "Remnant star cruiser",
+  "note": "IP-neutral. Issue #327: a second Remnant star cruiser, the same ship as the home planet's (everything not listed here is remnant_cruiser.json's: its pads and parked ships, how Z docks you, the crew, the droids, the general, the escort). It holds station near the ringed giant's space station: where is the giant's 'belt_cruiser' landmark (content/core/planets/ringed_giant.json). It is not the story's: killing its general sets only its own flag (WorldState 'belt_cruiser_taken', saved with the world) and pays its own reward; the home cruiser, Oda's story, the port's love and the dark master (who waits only in the home cruiser's bay) are untouched. Once taken it is empty and still there to fly to and walk round. Its escort meets you when you climb out of the station's sky flying for it (nose within approach.cone_deg of it, or already within dock.radius of it); leaving for another planet the other way meets nobody.",
+  "flag": "belt_cruiser_taken",
+  "reward": { "credits": 15000, "locals": 0, "remnant": -25, "smuggler": 10 },
+  "holo": {
+    "kind": "station",
+    "station": "orbital_station",
+    "note": "The bridge's holo table shows the station it holds by, not a planet: a small hologram of the station (both towers floor by floor, the elevator shafts, the tunnels and the covered bay) turned as the real one is, the belt of rocks round it, and this cruiser in its true direction from the station at cruiser_at metres out (its real 5 km would not fit on the table). width is the station's length on the table (metres); belt_inner and belt_outer the belt's radii, rocks how many, rock_min and rock_max their sizes, belt_thick how far they scatter up and down, seed their layout. It spins slowly (spin_deg_s) about the station's up.",
+    "width": 2.5,
+    "lift": 1.6,
+    "belt_inner": 1.45,
+    "belt_outer": 1.9,
+    "belt_thick": 0.1,
+    "rocks": 240,
+    "rock_min": 0.012,
+    "rock_max": 0.05,
+    "seed": 327,
+    "cruiser_at": 1.75,
+    "spin_deg_s": 4.0,
+    "color": "#3fc8ff",
+    "rock_color": "#86c4e0",
+    "cruiser_color": "#ff3030",
+    "lines": { "station": "%s", "here": "%s (here)" }
+  },
+  "lines": {
+    "taken": "+%d cr  ·  The whole belt will hear about this.",
+    "event_taken": "%s, the Remnant general aboard the star cruiser by the station, was killed on the bridge. The cruiser is empty.",
+    "objective_bay": "Land in the Remnant cruiser's bay, out in the belt",
+    "objective_general": "Kill %s on the cruiser's bridge"
+  }
+}
