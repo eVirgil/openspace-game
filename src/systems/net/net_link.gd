@@ -64,7 +64,7 @@ var hits_taken := 0                ## friendly fire landed on you (tests)
 var ship_hits_taken := 0           ## the others' cannons on the ship you fly (tests)
 var hits_answered := 0             ## your hits on the others their games answered (tests)
 var _light_left := 0.0             ## host: seconds to the next word on the lighting
-var _light_sent := []              ## host: the lighting last sent [planet, preset, hour]
+var _light_sent := []              ## host: the lighting last sent [planet, preset, hour, barracks holder]
 var shots_seen := 0                ## the others' bolts shown here (tests)
 
 
@@ -795,12 +795,13 @@ func _tick_lighting(dt: float) -> void:
 	var look = scene.get("look") if scene != null else null
 	if look == null or not is_instance_valid(look):
 		return
-	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour)]
+	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour), Territory.owner(Territory.BARRACKS)]
 	_light_left -= dt
 	if now != _light_sent or _light_left <= 0.0:
 		_light_sent = now
 		_light_left = NetSession.n("light_resend_s", 3.0)
 		lighting.rpc(now[0], now[1], now[2])
+		barracks_holder.rpc(now[0], now[3])
 
 
 ## Host -> guests: the time of day in its town (an hour, or -1 for a preset).
@@ -815,3 +816,15 @@ func lighting(planet: String, preset: String, hour: float) -> void:
 			scene.set_hour(hour)
 	elif preset != "" and (str(scene.get("preset")) != preset or float(look.hour) >= 0.0):
 		scene.set_preset(preset)
+
+
+## Host -> guests: who holds the barracks in its game (Territory.REMNANT or
+## LOCALS). A guest in the host's town paints the barracks, the gate, the wall,
+## the towers and the interceptor for them (TownDemo.lan_holder), green for the
+## locals, whatever the guest's own save says.
+@rpc("authority", "call_remote", "reliable")
+func barracks_holder(planet: String, owner: String) -> void:
+	var scene := get_tree().current_scene
+	if scene == null or planet != GameFlow.current_planet_id() or scene.get("lan_holder") == null:
+		return
+	scene.set("lan_holder", owner)
