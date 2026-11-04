@@ -1,13 +1,15 @@
 extends GutTest
-## The space station over the moon's far side (StationHull, SpaceStation;
-## content/core/stations/orbital_station.json, placed by the moon's "station"
-## landmark). Its shape from data, where it hangs, that it is a component any
-## planet can carry, that its floors stand, and in the moon's scene: Z docks you in
-## its bay and its elevators carry you between floors.
+## The space station (StationHull, SpaceStation;
+## content/core/stations/orbital_station.json), placed by the ringed giant's
+## "station" landmark (it started over the moon's far side, PR #501). Its shape
+## from data, where it hangs, that it is a component any planet can carry, that
+## its floors stand, and in the giant's scene: Z docks you in its bay and its
+## elevators carry you between floors.
 
 const TownDemo := preload("res://scenes/town_demo.gd")
+const TownLayout := preload("res://src/systems/world/town_layout.gd")
 const ID := "orbital_station"
-const MOON := "grit_station"
+const HOST := "ringed_giant"       ## the planet that carries it
 
 var _sphere_before: PlanetSphere
 
@@ -35,8 +37,8 @@ func _ground(radius: float, landmarks: Array, planet := "") -> WorldGround:
 	return g
 
 
-func _moon_landmark() -> Dictionary:
-	for lm in StationHull.landmarks(PlanetGen.build(MOON).world):
+func _host_landmark() -> Dictionary:
+	for lm in StationHull.landmarks(PlanetGen.build(HOST).world):
 		if str(lm.get("station", "")) == ID:
 			return lm
 	return {}
@@ -85,24 +87,33 @@ func test_every_floor_has_two_shaft_doors_and_the_bridges_alternate() -> void:
 
 # ------------------------------------------------------------------ where it hangs
 
-func test_it_hangs_over_the_moons_far_side_inside_the_moons_scene() -> void:
-	var lm := _moon_landmark()
-	assert_false(lm.is_empty(), "the moon's config carries the station")
-	assert_eq(str(lm.get("side", "")), "far")
-	var r := PlanetGen.ball_radius(PlanetGen.build(MOON).cfg, null)
-	var sp := PlanetSphere.new(r)
-	var xf := _hull().frame_for(sp, lm, { "planet": MOON })
+func test_it_hangs_over_the_giant_where_its_town_was_inside_its_scene() -> void:
+	var lm := _host_landmark()
+	assert_false(lm.is_empty(), "the ringed giant's config carries the station")
+	assert_true(StationHull.landmarks(PlanetGen.build("grit_station").world).is_empty(), "the moon gave it up")
+	var g := PlanetGen.build(HOST)
+	var r := PlanetGen.ball_radius(g.cfg, null)
+	var sp := GasSphere.new(r, g.type_cfg.surface)
+	var xf := _hull().frame_for(sp, lm, { "planet": HOST })
 	var alt := float(lm.get("altitude", 0.0))
 	assert_almost_eq(xf.origin.distance_to(sp.center), r + alt, 0.5)
-	var parent: Vector3 = StationHull._parent_center(MOON)
-	var away := (sp.center - parent).normalized()
-	assert_gt((xf.origin - sp.center).normalized().dot(away), 0.999, "straight out from the home planet, behind the moon")
+	assert_almost_eq(Vector2(xf.origin.x, xf.origin.z).length(), 0.0, 0.5, "straight over the deck town's spot")
+	assert_gt(alt + _hull().bottom_y() - 40.0, 30.0, "its lowest part well clear of the small deck below")
 	var reach: float = _hull().top_y() - _hull().bottom_y() + 200.0
-	assert_lt(alt + reach, PlanetGen.handoff_altitude("asteroid"), "all of it in the moon's own scene")
+	assert_lt(alt + reach, PlanetGen.handoff_altitude(str(g.type)), "all of it in the giant's own scene")
 	assert_eq(xf.basis.y, Vector3.UP, "level, like the cruiser")
-	var mouth := xf.basis * _hull().bay_out()
-	var to_port := Vector3(-xf.origin.x, 0, -xf.origin.z).normalized()
-	assert_gt(mouth.dot(to_port), 0.999, "its bay faces the moon's port")
+	assert_eq(str(g.town.get("kind", "")), "station", "its town is the station's bay")
+	assert_false(bool(g.deck), "no deck under it")
+	assert_true(g.town.boxes.filter(func(b): return str(b.kind) in ["floor", "wall", "solid"]).is_empty(), "no town buildings")
+	var t := TownLayout.new()
+	t.load_from_dict(g.town)
+	assert_eq(t.validate().size(), 0, str(t.validate()))
+	var pad: Vector3 = xf * (_hull().dock_pad().at as Vector3)
+	var ship: Dictionary = t.get_box("ship")
+	assert_almost_eq(Vector2((float(ship.min[0]) + float(ship.max[0])) * 0.5, (float(ship.min[2]) + float(ship.max[2])) * 0.5).distance_to(Vector2(pad.x, pad.z)), 0.0, 0.05, "your ship's pad is the dock pad")
+	assert_almost_eq(float(ship.min[1]), pad.y, 0.05)
+	var spawn := t.spawn_pos()
+	assert_true(_hull().aboard(xf.affine_inverse() * (spawn + Vector3(0, 0.5, 0))), "you start aboard, in the bay")
 
 
 func test_it_is_a_component_the_home_planet_does_not_have_and_another_can_take() -> void:
@@ -200,12 +211,12 @@ func test_every_tunnel_has_a_roof_hatch_and_a_roof_walk() -> void:
 		assert_gt(g.height_above(xf * through), h.tunnel_h, "%s: the hatch is open down to the deck" % tn.id)
 
 
-# ------------------------------------------------------------------ in the moon's scene
+# ------------------------------------------------------------------ in the giant's scene
 
-func _moon() -> Node:
+func _host() -> Node:
 	GameFlow.reset()
 	GameFlow.resumed = true
-	GameFlow.planet_id = MOON
+	GameFlow.planet_id = HOST
 	GameFlow.change_scene = func(_p: String) -> void: pass
 	var t = TownDemo.new()
 	t.use_look = false
@@ -223,9 +234,9 @@ func _station(t):
 
 
 func test_z_docks_you_in_the_bay_from_behind_the_towers() -> void:
-	var t = _moon()
+	var t = _host()
 	var s = await _station(t)
-	assert_not_null(s, "the moon's scene builds the station")
+	assert_not_null(s, "the giant's scene builds the station")
 	if s == null:
 		return
 	assert_ne(s.label(), "", "it has a name")
@@ -255,7 +266,7 @@ func test_z_docks_you_in_the_bay_from_behind_the_towers() -> void:
 
 
 func test_the_elevator_carries_you_up_with_its_doors_shut_on_the_way() -> void:
-	var t = _moon()
+	var t = _host()
 	var s = await _station(t)
 	if s == null:
 		fail_test("no station")
@@ -289,7 +300,7 @@ func test_the_elevator_carries_you_up_with_its_doors_shut_on_the_way() -> void:
 
 
 func test_standing_by_the_shaft_calls_the_car() -> void:
-	var t = _moon()
+	var t = _host()
 	var s = await _station(t)
 	if s == null:
 		fail_test("no station")
@@ -309,7 +320,7 @@ func test_standing_by_the_shaft_calls_the_car() -> void:
 
 
 func test_out_on_a_roof_walk_you_are_left_there() -> void:
-	var t = _moon()
+	var t = _host()
 	var s = await _station(t)
 	if s == null:
 		fail_test("no station")
@@ -325,8 +336,27 @@ func test_out_on_a_roof_walk_you_are_left_there() -> void:
 	assert_lt(p.global_position.distance_to(roof), 2.0, "still on the roof")
 
 
+## The giant's town is the station's bay: a save loaded on the giant starts you
+## aboard, by your ship on the dock pad, standing on the bay's deck.
+func test_a_save_loaded_on_the_giant_starts_you_in_the_bay() -> void:
+	var t = _host()
+	var s = await _station(t)
+	if s == null:
+		fail_test("no station")
+		return
+	await wait_physics_frames(30)
+	var p = t._player
+	assert_true(s.aboard(p.global_position), "aboard the station")
+	assert_true(p.is_on_floor(), "standing on the bay's deck")
+	assert_null(t.platform, "no deck town under it")
+	var pilot: ShipPilot = t.pilot
+	var home: Vector3 = pilot.berths[0].home
+	var pad: Vector3 = s.dock_point()
+	assert_almost_eq(Vector2(home.x, home.z).distance_to(Vector2(pad.x, pad.z)), 0.0, 1.5, "your ship waits on the dock pad")
+
+
 func test_falling_out_puts_you_back_in_the_bay() -> void:
-	var t = _moon()
+	var t = _host()
 	var s = await _station(t)
 	if s == null:
 		fail_test("no station")

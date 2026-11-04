@@ -206,7 +206,8 @@ func dress(env: LookEnvironment, mats: LookMaterials) -> void:
 		"lava":
 			_sea(true, env)
 		"gas":
-			_clouds()
+			if str(planet.get("ground", "")) != "ball":
+				_clouds()               # a gas ball's own ball is the clouds (PlanetTerrain); its ring is the town scene's
 		"rock":
 			_asteroid(mats)
 

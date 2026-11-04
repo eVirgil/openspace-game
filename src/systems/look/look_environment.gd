@@ -109,6 +109,8 @@ var sky_mat: ShaderMaterial
 var sun_dir := Vector3(0, 0.15, -1)
 var lamp_level := 0.0
 var ambient_energy_scale := 1.0
+var painted_planet := 1.0            ## 0: the sky's painted ringed giant is off (the real one is drawn, PlanetGen.sky_painting)
+var planet_visibility := 0.75        ## how vivid the giant is now (daylight 0..1, space 1), before painted_planet
 var suppressed := {}                 ## issue #46: feature -> true, held off (set_suppressed)
 var shadow_cap := 0.0                ## the sun's shadow range held to this many metres (0: the preset's)
 var _shadow_distance := 0.0          ## what the preset asks for
@@ -231,6 +233,14 @@ func _process(_dt: float) -> void:
 		var far: Basis = space_frame.call(cam.global_position)
 		frame = Basis(frame.get_rotation_quaternion().slerp(far.get_rotation_quaternion(), space_level))
 	sky_mat.set_shader_parameter("sky_frame", frame)
+
+
+## How vivid the ringed giant is (the preset's daylight value, AltitudeSky's lerp to
+## space). The painting shows it times painted_planet; a real giant reads it too.
+func set_planet_visibility(v: float) -> void:
+	planet_visibility = v
+	if sky_mat != null:
+		sky_mat.set_shader_parameter("planet_visibility", v * painted_planet)
 
 
 func track_material(m: ShaderMaterial) -> void:
@@ -416,7 +426,7 @@ func _apply_values(p: Dictionary) -> void:
 	sky_mat.set_shader_parameter("cloud_shadow", Color.html(k["cloud_shadow"]))
 	sky_mat.set_shader_parameter("planet_dir", direction(float(k["planet_azimuth_deg"]), float(k["planet_elevation_deg"])))
 	sky_mat.set_shader_parameter("planet_radius", float(k["planet_radius"]))
-	sky_mat.set_shader_parameter("planet_visibility", float(k["planet_visibility"]))
+	set_planet_visibility(float(k["planet_visibility"]))
 	sky_mat.set_shader_parameter("planet_color_a", Color.html(k["planet_a"]))
 	sky_mat.set_shader_parameter("planet_color_b", Color.html(k["planet_b"]))
 	sky_mat.set_shader_parameter("ring_color", Color.html(k["ring"]))
