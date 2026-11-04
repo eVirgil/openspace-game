@@ -526,7 +526,8 @@ func _refresh_map(centre := false) -> void:
 		if not now.is_empty() else GlobeMap.line("none")
 
 
-## Where you are and which way you look, the other LAN players on foot, and
+## Where you are and which way you look, the other LAN players (on foot or in a
+## ship, wherever it is over this planet), and
 ## where the pointer is (the globe flashes the pin there, or marks the spot).
 ## Off-planet targets (another planet, the cruiser up there) are not on the globe.
 func _map_marks(sphere: PlanetSphere) -> void:

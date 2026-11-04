@@ -7,13 +7,15 @@ extends Node3D
 ## the fight's bolts against `radius()`), and each hit goes to their game
 ## (NetLink.send_ship_hit), which lands it on the ship they fly. Nothing locks on
 ## it, but a seeker flying straight that runs into it hits it too. Parked, it is a
-## picture.
+## picture. While it can be hit, your flight HUD boxes it as it does an enemy
+## (hud_target: the box, its hull from their packets, the range and the lead pip).
 ##
 ## NetLink hands it every ship packet heard (hear); between packets it runs on at
 ## the speed it had, smoothed, and jumps when it is snap_m off.
 
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
+const LeadSolver := preload("res://src/systems/flight/lead_solver.gd")
 const LEAD_MAX := 0.25            ## seconds it may run on past its last packet
 
 var peer_id := 0
@@ -22,6 +24,8 @@ var model: Node3D
 var tag: Label3D
 var hull: ShipHull                ## a box round the model, solid only while they fly it
 var flying := false               ## their last packet: in the air (or out in space)
+var player_name := ""             ## whose it is
+var hull_frac := 1.0              ## their last packet: hull left, 0..1 (the HUD's bar)
 var _radius := 4.0
 var _mats: LookMaterials
 var _pos := Vector3.INF           ## the last spot heard
@@ -34,6 +38,7 @@ var _placed := false
 func setup(id: int, owner_name: String, look: String, mats: LookMaterials = null) -> void:
 	peer_id = id
 	look_id = look
+	player_name = owner_name
 	_mats = mats
 	name = "RemoteShip_%d" % id
 	tag = make_tag(NetSession.label("ship_tag") % owner_name if NetSession.label("ship_tag").contains("%s") else owner_name)
@@ -90,6 +95,23 @@ func hittable() -> bool:
 	return _placed and visible and flying and RemotePlayer.friendly_fire()
 
 
+## How fast it moves, from its last two packets.
+func velocity() -> Vector3:
+	return _vel
+
+
+## What your flight HUD draws for it while your guns can hit it, as for an enemy
+## (AtmoFighter.hud_target): where it is, where to aim for bolts of `bolt_speed`
+## fired from `from` moving at `from_vel`, the range and its hull. {} otherwise.
+func hud_target(from: Vector3, from_vel: Vector3, bolt_speed: float) -> Dictionary:
+	if not hittable() or not is_inside_tree():
+		return {}
+	var at := global_position
+	var lead: Dictionary = LeadSolver.intercept(from, from_vel, at, _vel, bolt_speed)
+	return { "pos": at, "lead": lead.point, "lead_ok": bool(lead.valid), "label": player_name,
+		"dist": from.distance_to(at), "hull": hull_frac, "peer": peer_id }
+
+
 ## A bolt (or a cannon's splash) landed on the hull. Only your own ship's count: the
 ## town's guns hitting it are the owner's game's business, not yours.
 func _on_hit(amount: float, shooter: Node) -> void:
@@ -115,9 +137,11 @@ static func make_tag(text: String) -> Label3D:
 	return t
 
 
-## The latest packet: its look, where it is, which way it points and whether it flies.
-func hear(look: String, pos: Vector3, rot: Quaternion, in_air := false) -> void:
+## The latest packet: its look, where it is, which way it points, whether it flies
+## and how much hull it has left (0..1).
+func hear(look: String, pos: Vector3, rot: Quaternion, in_air := false, hull := 1.0) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
+	hull_frac = clampf(hull, 0.0, 1.0)
 	if in_air != flying:
 		flying = in_air
 		_set_solid()
