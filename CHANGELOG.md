@@ -16,6 +16,33 @@ Plain English, newest on top. One entry per milestone.
   when killed.
 - The prompt and the bar show the time left.
 
+## The moon rave: a long bar, a lounge and stalls (2026-11-04)
+
+- **The bar is across the dance floor from the stage** now, a 12 m counter
+  under a lit canopy with lamps that cycle through the colours, a back bar of
+  bottles behind Oda and stools all along it.
+- **Armed patrons stand round the bar**, scattered along it, bottle in hand,
+  and fight back with the whole rave if you hurt one.
+- **A lounge round the bar:** the port club's leather booths in black and purple
+  with a neon line along the back, and high cocktail tables with a neon ring and
+  a glow under each top. Patrons stand round them in twos and threes.
+- **They talk as you pass:** walk close by a patron and one says a short line
+  about the party, the DJ or the drinks, one line every so often for the room.
+- **The fence's stall is on the way from the hallway to the bar.** He still buys
+  contraband, and now sells jetpacks at the gear trader's price; his counter
+  shows gear.
+- **Four rave stalls round the edge of the room,** a merchant at each and
+  nothing to buy: bead strands, glow sticks, band shirts on a rail, jars and
+  vials, snack bowls and little neon signs, two kinds a stall, each different
+  from the last, under a neon frame.
+- **The rave mix plays everywhere on the station:** the dome, the hallway and
+  the landing pit, and never the ambient or battle music. Kill the DJ and the
+  station goes quiet until your next visit.
+- The lava moon's station is the same rave and gets all of it too.
+- Positions, sizes and counts are in `content/core/planets/town_kit.json`
+  ("club_dome"); the lines in `content/core/dialogue/locals_lines.json`
+  ("club_talk").
+
 ## Hijacking ships and speeders (2026-11-04)
 
 - **E by a ship or speeder someone else is in takes it.** Walk up (or ride up on

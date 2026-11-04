@@ -2,6 +2,24 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the moon rave's room (2026-11-04)
+
+**Checked:** new tests in test_planets (the room's layout: bar across from the
+stage, its size, the patrons round it, the lounge, the fence's stall between the
+bar and the hall, the rave stalls) and test_sound (the mix in the dome, the hall
+and the pit, a fight, the DJ dead), test_smoke, a headless boot of the moon's
+town (a patron spoke at the bar; inside the club in the hall), and stills of the
+room (`docs/lookdev/moon_rave/`). No other suites, and it was not played.
+
+- **Twenty-one patrons and four more merchants** stand in the dome on top of the
+  ravers. Not timed on screen; if the moon is slow, the lounge's "people" counts
+  in the kit are the first thing to cut.
+- **Patrons stand; nobody sits** in the booths (no sitting pose).
+- **The rave stalls' wares do not pulse on the beat** (a could-have in the
+  issue): they are batched like the desert market's.
+- **The old cantina door's street lamp** still stands in the middle of the room
+  (it was there before, where the cantina's door would be).
+
 ## After ship hulls that follow the model (2026-11-04)
 
 **Checked:** test_smoke, a headless town boot with the models on (every parked

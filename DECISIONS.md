@@ -2,6 +2,32 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — The moon rave's room (issue #392, part 1)
+
+- **The bar turns, the bar code does not.** Every bar was built with the owner on
+  -x and the customers on +x, the counter along z (CantinaDressing, Oda's spot in
+  ConversationHost, the bar lamps in TownDecor). The rave's long bar faces the
+  stage (-z), so the counter box says so (`"front": "-z"`) and
+  `CantinaDressing.bar_frame` turns that same bar about its middle. A counter with
+  no "front" is the scene's own frame, so every other cantina is built exactly as
+  before. Alternative: write each piece again for four facings. Rejected: three
+  files would each grow the same four cases.
+- **The lounge's booths and tables are boxes** (cover, the tables round), like the
+  jazz club's cantina tables: they block, the validator keeps the patrons and the
+  walking loops clear of them, and ClubDressing draws over them. The patrons round
+  a table come from the table ("people", "stand", "turn") so they always face it.
+- **The stalls in the dome are placed one by one from the kit** (centre and
+  facing), not in the square in front of the old cantina: there is no street
+  front in a round club. The fence keeps `stall_fn1` and `vendor_1`, so his trade,
+  the smuggling job and the tests still find him.
+- **Hall and pit count as inside the club** (ClubMusic.also_inside) only on foot:
+  once you sit in a ship the old rule (heard by distance) comes back, then the
+  radio. So killing the DJ leaves the score ducked everywhere on the station,
+  which is what "the station is quiet" means here.
+- **The barks are their own pool and clock** (locals_lines.json "club_talk"), not
+  the beast's: the moon has no beast, and a room of twenty patrons needs one
+  clock for the room, not one per patron.
+
 ## 2026-11-04 — Hijacking: the vehicle's own game decides
 
 - **The one in the seat owns it, so their game says yes.** Each game keeps its
