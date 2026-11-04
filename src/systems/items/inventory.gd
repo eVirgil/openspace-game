@@ -205,8 +205,12 @@ static func sell_price(item_cfg: Dictionary, vendor_cfg: Dictionary) -> int:
 	return int(round(float(item_cfg.get("value", 0)) * rate))
 
 
-## Credits a vendor asks for an item.
+## Credits a vendor asks for an item: its own price for it ("prices": { item id:
+## credits }) if it names one, else the item's value at its sell_rate.
 static func buy_price(item_cfg: Dictionary, vendor_cfg: Dictionary) -> int:
+	var own = vendor_cfg.get("prices", {}).get(str(item_cfg.get("id", "")), null)
+	if own != null:
+		return int(own)
 	return int(round(float(item_cfg.get("value", 0)) * float(vendor_cfg.get("sell_rate", 1.0))))
 
 
