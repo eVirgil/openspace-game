@@ -32,6 +32,41 @@
       [[-14.0, 5.0], [-8.0, 5.0], [-8.0, 14.0], [-14.0, 14.0], [-14.0, 5.0]]
     ]
   },
+  "domes": {
+    "note": "A sealed station's other domes (a planet's \"domes\": [{ id, side, fill }], src/systems/planets/town_gen.gd _dome_wing): each as big as the first, at the end of its own tunnel out of the landing pit. Points are dome-local [a, b]: a metres from the dome's middle toward its gate (the tunnel), b across it. 'barracks': the Remnant's metal barracks (the port barracks' 'hall' look in the 'gray_garrison' style: the gray homes' metal, its band repainted for whoever holds it), crates for cover in the yard, the trooper posts (role trooper_post: who stands on them is Territory's, content/core/story/territory.json 'moon') and where a dead trooper comes back. 'homes': the station's gray homes either side of a street from the gate, locals walking 'walks' and standing at 'standing' ([a, b, face a, face b]).",
+    "barracks": {
+      "hall": { "front": 0.0, "depth": 16.0, "width": 30.0, "height": 6.0, "style": "gray_garrison" },
+      "yard": 30.0,
+      "crates": [[14, 9], [14, -9], [22, 14], [6, -18], [24, -13]],
+      "posts": [
+        { "id": "moon_trooper_gate_a", "at": [28, 5], "soldier": "yard_trooper" },
+        { "id": "moon_trooper_gate_b", "at": [28, -5], "soldier": "yard_trooper" },
+        { "id": "moon_trooper_yard_a", "at": [12, 13], "soldier": "yard_trooper" },
+        { "id": "moon_trooper_yard_b", "at": [12, -13], "soldier": "yard_trooper" },
+        { "id": "moon_trooper_door", "at": [3, 0], "soldier": "yard_trooper" }
+      ],
+      "respawn": [-22, 0],
+      "respawn_marker": "remnant_respawn"
+    },
+    "homes": {
+      "homes": [
+        { "at": [20, 10], "look": "hut_block", "h": 3.5 },
+        { "at": [8, 10], "look": "hut_round", "h": 4.0 },
+        { "at": [-4, 10], "look": "hut_stepped", "h": 3.5 },
+        { "at": [-16, 10], "look": "hut_block", "h": 4.0 },
+        { "at": [20, -10], "look": "hut_stepped", "h": 3.5 },
+        { "at": [8, -10], "look": "hut_block", "h": 4.0 },
+        { "at": [-4, -10], "look": "hut_round", "h": 4.0 },
+        { "at": [-16, -10], "look": "hut_stepped", "h": 3.5 }
+      ],
+      "walks": [
+        [[28, -2], [-24, -2], [-24, 2], [28, 2], [28, -2]],
+        [[24, 4.5], [24, 16.5], [-22, 16.5], [-22, 4.5], [24, 4.5]],
+        [[24, -4.5], [-22, -4.5], [-22, -16.5], [24, -16.5], [24, -4.5]]
+      ],
+      "standing": [[-27, 1.2, -27, -1.2], [-27, -1.2, -27, 1.2], [14, 3.5, 14, 10]]
+    }
+  },
   "barracks_from_size": 25,
   "tower_from_size": 35,
   "counts": {
