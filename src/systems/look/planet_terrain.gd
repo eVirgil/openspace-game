@@ -93,6 +93,41 @@ func use_sphere(s: PlanetSphere) -> void:
 ## Issue #99: rock instead of sand (moon_rock.gdshader), with these colours.
 var rock_look := {}
 const ROCK_SHADER := preload("res://src/systems/look/shaders/moon_rock.gdshader")
+## Issue #272: lava in the rock's low ground (lava_rock.gdshader), when the ball's
+## surface has a "lava" block (AsteroidSphere.lava).
+const LAVA_SHADER := preload("res://src/systems/look/shaders/lava_rock.gdshader")
+
+
+## A ball type's surface: its rock colours, and its lava if it has any.
+func use_surface(surf: Dictionary) -> void:
+	rock_look = surf.get("look", {})
+
+
+## The ground's material for a ball whose centre is at `center` in this scene:
+## sand, moon rock, or lava rock (the lava's level and colours from the sphere).
+func _ground_material(center: Vector3) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	var lava_sphere: AsteroidSphere = sphere as AsteroidSphere if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() else null
+	m.shader = LAVA_SHADER if lava_sphere != null else (SAND_SHADER if rock_look.is_empty() else ROCK_SHADER)
+	for k in rock_look:
+		m.set_shader_parameter(k, Color(str(rock_look[k])) if rock_look[k] is String else rock_look[k])
+	m.set_shader_parameter("noise_tex", LookEnvironment.make_noise_texture(512, 3, 0.01))
+	m.set_shader_parameter("planet_center", center)
+	m.set_shader_parameter("planet_radius", sphere.radius)
+	if lava_sphere != null:
+		var lv: Dictionary = lava_sphere.lava
+		for k in ["glow", "hot"]:
+			if lv.has(k):
+				m.set_shader_parameter(k, Color(str(lv[k])))
+		if lv.has("crust"):
+			m.set_shader_parameter("crust_color", Color(str(lv.crust)))
+		for k in ["glow_energy", "flow_speed"]:
+			if lv.has(k):
+				m.set_shader_parameter(k, float(lv[k]))
+		m.set_shader_parameter("lava_level", lava_sphere.lava_level())
+		m.set_shader_parameter("safe_center", center + Vector3(0, sphere.radius, 0))   # the port, on top of the ball
+		m.set_shader_parameter("safe_radius", lava_sphere.lava_keep_clear())
+	return m
 
 
 ## The ball terrain planet `planet`'s scene builds (a PlanetGen.build dictionary),
@@ -109,7 +144,7 @@ static func for_planet(planet: Dictionary) -> PlanetTerrain:
 		# Issue #99: the asteroid: cratered rock all the way round.
 		var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
 		pt.use_sphere(AsteroidSphere.new(r, surf))
-		pt.rock_look = surf.get("look", {})
+		pt.use_surface(surf)
 	else:
 		pt.set_radius(r)
 	pt.cache_key = "%s/%d" % [str(planet.get("id", "")), int(r)]
@@ -324,13 +359,7 @@ func _map_covers(m: Vector2, margin: float) -> bool:
 
 func build(with_mesh: bool = true) -> void:
 	_with_mesh = with_mesh
-	material = ShaderMaterial.new()
-	material.shader = SAND_SHADER if rock_look.is_empty() else ROCK_SHADER
-	for k in rock_look:
-		material.set_shader_parameter(k, Color(str(rock_look[k])) if rock_look[k] is String else rock_look[k])
-	material.set_shader_parameter("noise_tex", LookEnvironment.make_noise_texture(512, 3, 0.01))
-	material.set_shader_parameter("planet_center", sphere.center)
-	material.set_shader_parameter("planet_radius", sphere.radius)
+	material = _ground_material(sphere.center)
 	collider_body = StaticBody3D.new()
 	collider_body.name = "Collider"
 	collider_shape = CollisionShape3D.new()
@@ -358,13 +387,7 @@ func build_far_only(center: Vector3, staged: bool = false) -> void:
 	if staged:
 		refine_in_process = true
 	_with_mesh = true
-	material = ShaderMaterial.new()
-	material.shader = SAND_SHADER if rock_look.is_empty() else ROCK_SHADER
-	for k in rock_look:
-		material.set_shader_parameter(k, Color(str(rock_look[k])) if rock_look[k] is String else rock_look[k])
-	material.set_shader_parameter("noise_tex", LookEnvironment.make_noise_texture(512, 3, 0.01))   # the ball's own scene's (a handoff changes nothing)
-	material.set_shader_parameter("planet_center", center)
-	material.set_shader_parameter("planet_radius", sphere.radius)
+	material = _ground_material(center)      # the ball's own scene's noise (a handoff changes nothing)
 	if staged:
 		_build_far_staged()
 	else:
@@ -398,13 +421,7 @@ var _live_tasks := {}                  ## near/mid worker task ids not yet waite
 
 func build_staged(with_mesh: bool = true) -> void:
 	_with_mesh = with_mesh
-	material = ShaderMaterial.new()
-	material.shader = SAND_SHADER if rock_look.is_empty() else ROCK_SHADER
-	for k in rock_look:
-		material.set_shader_parameter(k, Color(str(rock_look[k])) if rock_look[k] is String else rock_look[k])
-	material.set_shader_parameter("noise_tex", LookEnvironment.make_noise_texture(512, 3, 0.01))
-	material.set_shader_parameter("planet_center", sphere.center)
-	material.set_shader_parameter("planet_radius", sphere.radius)
+	material = _ground_material(sphere.center)
 	collider_body = StaticBody3D.new()
 	collider_body.name = "Collider"
 	collider_shape = CollisionShape3D.new()

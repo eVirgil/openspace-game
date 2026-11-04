@@ -115,7 +115,7 @@ func test_the_same_seed_is_the_same_town() -> void:
 
 func test_every_planet_type_builds() -> void:
 	var types: Dictionary = PlanetGen.types().types
-	assert_eq(types.size(), 7)
+	assert_eq(types.size(), 8)
 	for type in types:
 		var p := PlanetGen.make({ "id": "test_" + type, "type": type, "town_size": 12, "seed": 2 }, cc)
 		assert_eq(p.type, type)
@@ -226,7 +226,7 @@ func test_the_asteroid_station() -> void:
 	assert_eq(n.size(), 1)
 	assert_eq(n[0].id, "port_desert", "you can fly home")
 	var home := PlanetGen.build("port_desert", cc)
-	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station"], "and the port sees the station")
+	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "cinder_station"], "and the port sees the station (and the lava moon, #272)")
 	assert_eq(home.neighbours[0].at, Vector3(9000, 5200, -6500))
 	# Issue #99: one map. The station's port is on top of its ball; from the station
 	# the port's ball is exactly where the shift between the two scenes puts it.
