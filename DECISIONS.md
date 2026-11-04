@@ -2,6 +2,64 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — Hijacking: the vehicle's own game decides
+
+- **The one in the seat owns it, so their game says yes.** Each game keeps its
+  own player's ships (ShipPilot berths) and speeders; the others only draw them
+  (RemoteShip, RemoteSpeeder). The hijacker's hop ends with a word to the
+  owner's game (`NetLink.hijack_take`); if they are still at the controls it
+  throws them out and answers with what the vehicle was (ship id, look, where,
+  speed, throttle, hull; a speeder's data and paint), and the hijacker's game
+  builds that and seats them (`ShipPilot.seat_taken`, a SpeederNode). If they
+  got out first the answer is empty and the hijacker drops off. Alternative: the
+  hijacker's game takes it and tells the owner. Rejected: the owner's game is
+  the only one that knows whether they still sit in it, and two games deciding
+  is how a ship ends up flown twice.
+- **It stays theirs, lent.** In the owner's game the ship is stowed (hidden,
+  `hijacked_by`, not lost in the save); in the hijacker's it is a borrowed berth
+  (no key: a crash loses it, ejecting leaves it adrift, Skrugs will not buy it).
+  Getting out, ejecting or getting off sends it back where it is (on the ground
+  below), a crash sends it back wrecked, and a hijacker who leaves the game gives
+  it back where they took it. Alternative: it becomes the hijacker's for good.
+  Rejected: it is in the owner's save (their Fleet), and a LAN game should not
+  take a friend's ship out of their own save.
+- **The owner's "vehicle_gone" goes to everyone at once,** so nobody sees the
+  old ship hang there for `ship_stale_s` while the new one flies off.
+- **Speeders had to be sent first.** A rider was hidden from everyone (their
+  body is put away while they ride, and nothing else was sent), so there was
+  nothing to hijack. The speeder now goes with the ship packet
+  (`ride_state`: where it is and a key for its look); its data goes once to
+  whoever asks (`want_ride_look`), not 20 times a second. The copy is the game's
+  own SpeederNode, not rideable (it does not run HoverModel), its hull off.
+- **One hop for every kind.** Players and the AI interceptor go through the same
+  find, prompt and hop (`Hijack`); only the last step differs. The interceptor
+  is taken through its own pad hand-over (`_offer_berth`, `_hand_over`), so it is
+  stolen exactly as one taken off the pad is.
+- **E belongs to the hijack while there is something to take.** ShipPilot's
+  board and SpeederNode's mount and get-off ask `Hijack.claims_e()` first, so
+  standing between a parked ship and a flown one does not do both.
+
+## 2026-11-04 — Space is one place: every planet in every sky
+
+- **The bug.** A planet's scene listed only its parent and its own children, so
+  the moon's sky had home and nothing else: no ringed giant, only the painted
+  one on the sky, which never gets closer. You could not fly from the moon to
+  the giant because there was nothing there to fly to.
+- **Siblings are listed too** (`PlanetGen.neighbours`, last, with `"via"`: the
+  parent's id). The other planets round the same parent hang where the parent's
+  scene puts them, shifted by this port, so the moon's scene and home's agree
+  on every planet and the switch between them changes nothing in the sky. With
+  the real giant in the moon's sky its painting is off there too.
+- **Seen from here, flown to through the parent.** SpaceTravel draws and names a
+  sibling but never travels to it: climb out of the moon's space and home's
+  scene (which has the giant as a child) takes over, then the giant's. Two
+  seamless handoffs, no fade. Alternative: a scene of its own for open space.
+  Rejected: home's scene already is open space (it holds every planet as a
+  child), and a third kind of scene would need its own sky, fight and arrival.
+- **Distances stay.** The moon's own space ends 4.4 km from its centre and the
+  giant's starts 6.1 km from its; they are 20 km apart, so there is open space
+  between them and no two zones touch.
+
 ## 2026-11-03 — LAN: a job anyone takes is everyone's
 
 - **The bug.** A guest's job lived only in the guest's game. A bounty put the

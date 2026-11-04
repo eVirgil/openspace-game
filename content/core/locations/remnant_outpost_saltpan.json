@@ -1,0 +1,193 @@
+{
+  "id": "remnant_outpost_saltpan",
+  "kind": "village",
+  "label": "Saltpan village",
+  "note": "Ranch village outpost: the Remnant's building in Saltpan village (content/core/locations/ranch_saltpan.json has the houses, stands and walls round it). Built like every other outpost (src/systems/world/remnant_outposts.gd) and one of Story.OUTPOSTS, so holding it counts toward driving the Remnant off. 'after_cruiser': its troopers answer to the cruiser, so killing them all does nothing until the cruiser has fallen (Territory.locked): they come back like any outpost's. 'kind' village is its map pin. 'pad': false, the ranch's yard levels the ground instead. 'village': the ranch round it (its buildings are the nav's obstructions too).",
+  "after_cruiser": true,
+  "pad": false,
+  "village": "ranch_saltpan",
+  "buildings": [
+    {
+      "id": "block",
+      "shape": "box",
+      "size": [
+        8,
+        4.5,
+        6
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "visual": false,
+      "room": {}
+    }
+  ],
+  "ship": "remnant_interceptor",
+  "look": {
+    "mast": false,
+    "tower": false
+  },
+  "zone": {
+    "note": "Issue #308: a ring of radius metres round the outpost is a checkpoint zone. Below the wave band the nearest trooper (a role below) who sees you walks up and the gate's card opens, on the gate's rules (content/core/soldiers/gate_guard.json checkpoint block; anything in this checkpoint block wins). Leave the ring and the card closes; cleared, the outpost leaves you alone for cleared_s.",
+    "radius": 18.0,
+    "roles": [
+      "sentry"
+    ],
+    "checkpoint": {
+      "cleared_s": 240.0
+    }
+  },
+  "points": {
+    "guard_a": [
+      6,
+      0,
+      4
+    ],
+    "guard_b": [
+      6,
+      0,
+      -5
+    ],
+    "guard_c": [
+      -1.3,
+      0,
+      -1
+    ],
+    "target": [
+      -2,
+      0,
+      7
+    ],
+    "ship": [
+      -19,
+      0,
+      0
+    ],
+    "patrol": [
+      [
+        9,
+        0,
+        9
+      ],
+      [
+        9,
+        0,
+        -9
+      ],
+      [
+        -9,
+        0,
+        -9
+      ],
+      [
+        -9,
+        0,
+        9
+      ]
+    ],
+    "floater": [
+      [
+        5,
+        0,
+        7
+      ],
+      [
+        9,
+        0,
+        0
+      ],
+      [
+        5,
+        0,
+        -7
+      ]
+    ],
+    "cargo": [
+      [
+        1.0,
+        0,
+        -6.4
+      ],
+      [
+        -3.2,
+        0,
+        -6.6
+      ]
+    ]
+  },
+  "props": [
+    {
+      "kind": "crate",
+      "at": [
+        2.5,
+        0,
+        -4.6
+      ],
+      "yaw": 8,
+      "stack": 2
+    },
+    {
+      "kind": "crate",
+      "at": [
+        3.7,
+        0,
+        -5.3
+      ],
+      "yaw": -12
+    },
+    {
+      "kind": "canister",
+      "at": [
+        -1.5,
+        0,
+        -4.2
+      ]
+    },
+    {
+      "kind": "canister",
+      "at": [
+        -0.9,
+        0,
+        -4.6
+      ],
+      "yaw": 30
+    },
+    {
+      "kind": "drum",
+      "at": [
+        -5.6,
+        0,
+        1.5
+      ],
+      "yaw": 70,
+      "lying": true
+    },
+    {
+      "kind": "canister",
+      "at": [
+        -5.4,
+        0,
+        -1.2
+      ]
+    },
+    {
+      "kind": "crate",
+      "at": [
+        9.0,
+        0,
+        0.5
+      ],
+      "yaw": 15
+    },
+    {
+      "kind": "drum",
+      "at": [
+        -3.0,
+        0,
+        4.2
+      ]
+    }
+  ]
+}

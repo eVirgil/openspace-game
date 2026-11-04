@@ -22,6 +22,7 @@ signal turned_away(id: int, why: String)     ## host: a guest refused (full, ano
 
 const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
 const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
+const RemoteSpeeder := preload("res://src/systems/net/remote_speeder.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
 const NetFight := preload("res://src/systems/net/net_fight.gd")
 const NetJobs := preload("res://src/systems/net/net_jobs.gd")
@@ -46,6 +47,10 @@ var states: Dictionary = {}        ## peer id -> the last state heard ({ planet,
 var bodies: Dictionary = {}        ## peer id -> RemotePlayer in this town
 var ships: Dictionary = {}         ## peer id -> the last ship packet heard ({ planet, look, pos, rot })
 var ship_bodies: Dictionary = {}   ## peer id -> RemoteShip in this town
+var rides: Dictionary = {}         ## peer id -> the last speeder packet heard ({ planet, pos, rot, look, t }), while they ride
+var ride_bodies: Dictionary = {}   ## peer id -> RemoteSpeeder in this town
+var ride_looks: Dictionary = {}    ## a speeder's look key -> { cfg, paint } (its data, sent once: ride_look)
+var _look_asked: Dictionary = {}   ## look key -> seconds before asking for it again
 var address := ""                  ## the host's (a guest), for the status line
 var host_name := ""
 var welcomed_in := false           ## a guest the host has let in
@@ -270,6 +275,7 @@ func _gone(id: int) -> void:
 	_drop_body(id)
 	states.erase(id)
 	ships.erase(id)
+	rides.erase(id)
 	if not roster.has(id):
 		return
 	var nm := str(roster[id].name)
@@ -277,6 +283,9 @@ func _gone(id: int) -> void:
 	var line := NetSession.label("left")
 	_toast(line % nm if line.contains("%s") else line)
 	player_left.emit(id, nm)
+	var h = _hijack()
+	if h != null:
+		h.on_left(id)                   # whatever of yours they had is back where they took it
 
 
 func _on_host_gone() -> void:
@@ -309,6 +318,8 @@ func state(pkt: Array) -> void:
 
 
 func _physics_process(dt: float) -> void:
+	for k in _look_asked.keys():
+		_look_asked[k] -= dt
 	for id in _kick.keys():
 		_kick[id] -= dt
 		if _kick[id] <= 0.0:
@@ -333,6 +344,9 @@ func _physics_process(dt: float) -> void:
 			var sp := town_ship()
 			if not sp.is_empty():
 				ship_state.rpc(sp)
+			var rp := town_ride()
+			if not rp.is_empty():
+				ride_state.rpc(rp)
 	if with_bodies:
 		_place_bodies()
 	_hook_shots()
@@ -435,6 +449,7 @@ func _place_bodies() -> void:
 			bodies[id] = b
 		b.hear(s)
 	_place_ships(scene, here, town)
+	_place_rides(scene, here, town)
 
 
 func _drop_body(id: int) -> void:
@@ -443,6 +458,7 @@ func _drop_body(id: int) -> void:
 	if b != null and is_instance_valid(b):
 		b.queue_free()
 	_drop_ship(id)
+	_drop_ride(id)
 
 
 # ------------------------------------------------------------------ outfits
@@ -704,7 +720,8 @@ func town_ship() -> Array:
 		return []
 	var xf := (v as Node3D).global_transform
 	return [GameFlow.current_planet_id(), str(v.get_meta("look_id", "")), xf.origin,
-		xf.basis.orthonormalized().get_rotation_quaternion(), bool(pilot.lan_flying()), float(pilot.lan_hull())]
+		xf.basis.orthonormalized().get_rotation_quaternion(), bool(pilot.lan_flying()), float(pilot.lan_hull()),
+		pilot.piloting and bool(pilot.can_be_hijacked())]
 
 
 ## Every player -> every other (the host relays): where my ship is.
@@ -715,7 +732,8 @@ func ship_state(pkt: Array) -> void:
 		return
 	ships[id] = { "planet": str(pkt[0]), "look": str(pkt[1]), "pos": pkt[2] as Vector3,
 		"rot": pkt[3] as Quaternion, "flying": pkt.size() > 4 and bool(pkt[4]),
-		"hull": float(pkt[5]) if pkt.size() > 5 else 1.0, "t": Time.get_ticks_msec() / 1000.0 }
+		"hull": float(pkt[5]) if pkt.size() > 5 else 1.0, "seated": pkt.size() > 6 and bool(pkt[6]),
+		"t": Time.get_ticks_msec() / 1000.0 }
 
 
 ## A ship in this town for every other player whose ship is on this planet. One not
@@ -789,6 +807,152 @@ func _drop_ship(id: int) -> void:
 		b.queue_free()
 
 
+# ------------------------------------------------------------------ speeders
+
+## This game's player's speeder as a packet while they ride it, else []:
+## [planet, where, rotation, look key] (the look itself goes once: ride_look).
+func town_ride() -> Array:
+	var scene := get_tree().current_scene
+	var p = scene.get("_player") if scene != null else null
+	var v = p.get("vehicle") if p is CharacterBody3D and is_instance_valid(p) else null
+	if not (v is SpeederNode) or not is_instance_valid(v) or not (v as SpeederNode).riding:
+		return []
+	var s := v as SpeederNode
+	var key := str(hash([s.cfg, s.paint]))
+	if not ride_looks.has(key):
+		ride_looks[key] = { "cfg": s.cfg, "paint": s.paint }
+	var xf := s.global_transform
+	return [GameFlow.current_planet_id(), xf.origin, xf.basis.orthonormalized().get_rotation_quaternion(), key]
+
+
+## Every player -> every other (the host relays): where the speeder I ride is.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func ride_state(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	if pkt.size() < 4 or not roster.has(id):
+		return
+	var key := str(pkt[3])
+	rides[id] = { "planet": str(pkt[0]), "pos": pkt[1] as Vector3, "rot": pkt[2] as Quaternion,
+		"look": key, "t": Time.get_ticks_msec() / 1000.0 }
+	if not ride_looks.has(key) and float(_look_asked.get(key, 0.0)) <= 0.0:
+		_look_asked[key] = 1.0
+		want_ride_look.rpc_id(id, key)
+
+
+## Someone -> the rider: what does the speeder with look `key` look like?
+@rpc("any_peer", "call_remote", "reliable")
+func want_ride_look(key: String) -> void:
+	var id := _mp().get_remote_sender_id()
+	if roster.has(id) and ride_looks.has(key):
+		ride_look.rpc_id(id, key, ride_looks[key].cfg, str(ride_looks[key].paint))
+
+
+## The rider -> someone who asked: its data (HoverModel's config with the
+## mechanic's parts) and paint, enough to build its model.
+@rpc("any_peer", "call_remote", "reliable")
+func ride_look(key: String, cfg: Dictionary, paint: String) -> void:
+	if roster.has(_mp().get_remote_sender_id()):
+		ride_looks[key] = { "cfg": cfg, "paint": paint }
+
+
+## A speeder in this town for every other player riding one on this planet. One
+## not heard of for ship_stale_s (they got off) goes.
+func _place_rides(scene: Node, here: String, town: bool) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for id in roster:
+		if id == my_id():
+			continue
+		var r: Dictionary = rides.get(id, {})
+		var show := town and not r.is_empty() and str(r.planet) == here \
+			and now - float(r.t) < NetSession.n("ship_stale_s", 2.0) and ride_looks.has(str(r.get("look", "")))
+		var b = ride_bodies.get(id, null)
+		if b != null and (not is_instance_valid(b) or b.get_parent() != scene or str(b.look_key) != str(r.get("look", ""))):
+			_drop_ride(id)
+			b = null
+		if not show:
+			if b != null:
+				_drop_ride(id)
+			continue
+		if b == null:
+			var pilot = scene.get("pilot")
+			var look: Dictionary = ride_looks[str(r.look)]
+			b = RemoteSpeeder.new()
+			b.setup(id, str(roster[id].name), str(r.look), look.cfg, str(look.paint), scene,
+				pilot.ground if pilot != null else null)
+			scene.add_child(b)
+			ride_bodies[id] = b
+		b.hear(r.pos, r.rot)
+
+
+func _drop_ride(id: int) -> void:
+	var b = ride_bodies.get(id, null)
+	ride_bodies.erase(id)
+	if b != null and is_instance_valid(b):
+		b.queue_free()
+
+
+# ------------------------------------------------------------------ hijacking (Hijack)
+
+func _hijack():
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var h = scene.get("hijack") if scene != null else null
+	return h if h != null and is_instance_valid(h) else null
+
+
+## Hijacker -> the one in the seat: I am hopping onto your `kind` ("ship", "speeder").
+@rpc("any_peer", "call_remote", "reliable")
+func hijack_warn(kind: String) -> void:
+	var id := _mp().get_remote_sender_id()
+	var h = _hijack()
+	if roster.has(id) and h != null:
+		h.on_warn(id, kind)
+
+
+## Hijacker -> the one in the seat: I am on top of it, out you get. Their game
+## decides (they may be out already) and answers.
+@rpc("any_peer", "call_remote", "reliable")
+func hijack_take(kind: String) -> void:
+	var id := _mp().get_remote_sender_id()
+	if not roster.has(id):
+		return
+	var h = _hijack()
+	var st: Dictionary = h.on_take(id, kind) if h != null else {}
+	hijack_answer.rpc_id(id, kind, st)
+	if not st.is_empty():
+		vehicle_gone.rpc(kind)          # everyone drops yours now, not when it goes stale
+
+
+## The one who was in the seat -> the hijacker: what you took ({} = nothing).
+@rpc("any_peer", "call_remote", "reliable")
+func hijack_answer(kind: String, st: Dictionary) -> void:
+	var id := _mp().get_remote_sender_id()
+	var h = _hijack()
+	if roster.has(id) and h != null:
+		h.on_answer(id, kind, st)
+
+
+## Hijacker -> the owner: yours again at `xf`, or wrecked.
+@rpc("any_peer", "call_remote", "reliable")
+func hijack_back(kind: String, xf: Transform3D, wrecked: bool) -> void:
+	var id := _mp().get_remote_sender_id()
+	var h = _hijack()
+	if roster.has(id) and h != null:
+		h.on_back(id, kind, xf, wrecked)
+
+
+## Every player -> every other: my `kind` is not mine to show any more (taken from
+## me, or given back): drop it now, not when it goes stale.
+@rpc("any_peer", "call_remote", "reliable")
+func vehicle_gone(kind: String) -> void:
+	var id := _mp().get_remote_sender_id()
+	if kind == "speeder":
+		rides.erase(id)
+		_drop_ride(id)
+	else:
+		ships.erase(id)
+		_drop_ship(id)
+
+
 # ------------------------------------------------------------------ lighting
 
 ## The host's time of day is everyone's: the host sends it when it changes and
@@ -801,7 +965,7 @@ func _tick_lighting(dt: float) -> void:
 	var look = scene.get("look") if scene != null else null
 	if look == null or not is_instance_valid(look):
 		return
-	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour), Territory.owner(Territory.BARRACKS)]
+	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour), Territory.owner(Territory.barracks_here())]
 	_light_left -= dt
 	if now != _light_sent or _light_left <= 0.0:
 		_light_sent = now

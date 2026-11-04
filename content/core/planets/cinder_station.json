@@ -1,6 +1,6 @@
 {
   "id": "cinder_station",
-  "note": "Issue #272: the lava moon, the second ball built with the planet generator. The moon's station (grit_station.json) on a ball of lava rock (the lava_moon type: the asteroid with dark basalt, lava in the low ground that kills on contact, and heat shimmer near the ground). It hangs opposite the moon in the port's sky (the moon's bearing turned half way round the port's up), further out for a longer flight: 16.7 km from the port to the moon's 12.3, the most that keeps the whole ball inside the port's view distance (4 x the home ball's radius, 20 km). Its cantina owner is a new Oda, generated for this planet. The domes, outposts, natives and squids of #272 come later. See docs/planets/PLANETS.md.",
+  "note": "Issue #272: the lava moon, the second ball built with the planet generator. The moon's station (grit_station.json) on a ball of lava rock (the lava_moon type: the asteroid with dark basalt, lava in the low ground that kills on contact, and heat shimmer near the ground). It hangs opposite the moon in the port's sky (the moon's bearing turned half way round the port's up), further out for a longer flight: 16.7 km from the port to the moon's 12.3, the most that keeps the whole ball inside the port's view distance (4 x the home ball's radius, 20 km). Its cantina owner is a new Oda, generated for this planet. Like the moon it has two more domes off the landing pit (the Remnant's barracks and the locals' homes: 'domes') and five Remnant outposts out among the lava ('landmarks'), taken like the port (content/core/story/territory.json 'fronts' 'lava_moon'). The natives and squids of #272 come later. See docs/planets/PLANETS.md.",
   "name": "",
   "type": "lava_moon",
   "town_size": 1,
@@ -8,6 +8,18 @@
   "seed": 272,
   "style": "metallic",
   "club": "salvage_rave", "club_dome": { "style": "rave", "bpm": 126, "dim": 0.25 },
+  "domes": [
+    { "id": "barracks", "side": "+z", "fill": "barracks", "note": "As on the moon (grit_station.json): the Remnant's metal barracks down a second tunnel out of the landing pit, taken like the port's barracks (territory.json 'fronts' 'lava_moon')." },
+    { "id": "homes", "side": "-z", "fill": "homes", "note": "The locals' gray homes, down a third tunnel." }
+  ],
+  "landmarks": [
+    { "id": "remnant_outpost_lava_caldera", "kind": "location", "location": "remnant_outpost_lava_caldera", "at": [499, 0, 35], "yaw_deg": 176, "clear": 45,
+      "note": "The lava moon's five Remnant outposts (Territory's 'lava_moon' front), 500 to 560 m out on the highest ground found on each bearing, each on a raised basalt pad above the lava, its door (+x) toward the station. No air out here: armour on."  },
+    { "id": "remnant_outpost_lava_ridge", "kind": "location", "location": "remnant_outpost_lava_ridge", "at": [-167, 0, 514], "yaw_deg": 72, "clear": 45 },
+    { "id": "remnant_outpost_lava_cinder", "kind": "location", "location": "remnant_outpost_lava_cinder", "at": [-526, 0, 192], "yaw_deg": 20, "clear": 45 },
+    { "id": "remnant_outpost_lava_basalt", "kind": "location", "location": "remnant_outpost_lava_basalt", "at": [-271, 0, -347], "yaw_deg": 308, "clear": 45 },
+    { "id": "remnant_outpost_lava_glow", "kind": "location", "location": "remnant_outpost_lava_glow", "at": [219, 0, -449], "yaw_deg": 244, "clear": 45 }
+  ],
   "near": "port_desert",
   "at": [-12500, 6500, 9000],
   "cantina_owner": { "look": "cantina_owner_station" },

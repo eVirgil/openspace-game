@@ -390,7 +390,7 @@ func _map_tab() -> Control:
 	side.add_child(_legend_row(GlobeMap.look().get("player", {}), GlobeMap.line("you"), Color(str(GlobeMap.look().get("player", {}).get("color", "#4dff88")))))
 	side.add_child(_legend_row(GlobeMap.look().get("goal", {}), GlobeMap.line("goal"), Color(str(GlobeMap.look().get("goal", {}).get("color", "#ffd84a")))))
 	var pins_look: Dictionary = GlobeMap.look().get("pins", {})
-	for kind in ["port", "remnant_outpost", "droid_merchant_outpost", "post", "camp", "wreck", "outpost", "spot"]:
+	for kind in ["port", "remnant_outpost", "village", "droid_merchant_outpost", "post", "camp", "wreck", "outpost", "spot"]:
 		var legend := str(GlobeMap.kind_cfg(kind).get("legend", GlobeMap.kind_cfg(kind).get("label", kind)))
 		side.add_child(_legend_row(pins_look.get(kind, {}), legend))
 	var owners: Dictionary = GlobeMap.look().get("owners", {})
@@ -525,6 +525,7 @@ func _refresh_map(centre := false) -> void:
 		globe.town_zoom = float(GlobeMap.cfg().get("town_zoom", 14.0)) if live else INF
 		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null and live else []
 		globe.pins = GlobeMap.pins(world, planet, town)
+		globe.shapes = GlobeMap.station_shapes(planet)
 		var mesas: Array = DesertLandforms.mesa_spots if DesertLandforms.mesa_planet == shown else []
 		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [shown, mesas.size()], sphere, mesas)
 		globe.terrain = GlobeMap.terrain_look(planet)

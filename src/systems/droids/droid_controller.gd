@@ -128,6 +128,9 @@ func _ready() -> void:
 	if demo != null and "droid_merchant_outposts" in demo and demo.droid_merchant_outposts != null:
 		for site in demo.droid_merchant_outposts.sites:
 			vendor_sites.append(site)
+	if demo != null and "ranches" in demo and demo.ranches != null:
+		for site in demo.ranches.droid_sites:        # a ranch village's droid stand
+			vendor_sites.append(site)
 	net_copy = demo != null and "lan_shared" in demo and bool(demo.lan_shared)
 	if _on_ball() and not roster().wrecks_seeded:
 		var starting_count := int(cfg.get("wrecks", {}).get("ball_starting_count", 8))
@@ -241,6 +244,8 @@ func _vendor_site_open(site: int) -> bool:
 	if site >= 0 and site < vendor_sites.size() \
 			and str(vendor_sites[site].get("id", "")).begins_with("droid_post_"):
 		return true
+	if site >= 0 and site < vendor_sites.size() and vendor_sites[site].get("open") is Callable:
+		return bool((vendor_sites[site].open as Callable).call())   # a ranch's stand: its keeper's
 	return _vendor_open()
 
 
@@ -1437,7 +1442,7 @@ func _still_posted(u: DroidUnit) -> bool:
 		return true
 	if u.spec.has("outpost"):
 		return Territory.owner(str(u.spec.outpost)) == side
-	return Territory.owner(Territory.BARRACKS) == side
+	return Territory.owner(Territory.barracks_here()) == side
 
 
 ## A destroyed Remnant droid comes back: in town behind the barracks a minute

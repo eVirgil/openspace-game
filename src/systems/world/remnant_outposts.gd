@@ -34,6 +34,9 @@ extends Node3D
 ## friend of theirs pointed at the outpost's resupply quest hands a load over
 ## on walking up (Territory.deliver_remnant).
 ##
+## The moon has outposts of its own (Territory's "moon" front, landmarks in its
+## planet file): the same building, people and rules, on the moon's ball.
+##
 ## Issue #309: each building is a control room you can walk into (OutpostRoom):
 ## walls, a roof and a doorway toward the town, consoles, a holo table and red and
 ## blue light like the cruiser's bridge, and one trooper (guard_c) inside at the
@@ -93,8 +96,11 @@ func build_step() -> bool:
 	if _cc == null:
 		_cc = CoreContent.new()
 		_cc.load_from()
-		var world := _cc.world_for_town("port_town")
-		for id in Story.OUTPOSTS:
+		# The port's seven (its desert world), or the moon's (its own landmarks:
+		# Territory's "moon" front).
+		var f := Territory.front_for_planet(str(demo.planet.get("id", ""))) if demo != null else Territory.HOME
+		var world: Dictionary = _cc.world_for_town("port_town") if f == Territory.HOME else ground.world
+		for id in Territory.outposts(f):
 			_queue.append(_build_outpost.bind(str(id), world))
 	if _queue.is_empty():
 		return true
@@ -229,11 +235,19 @@ func _tick_control(dt: float, p: Node3D) -> void:
 	for o in outposts:
 		var id := str(o.id)
 		var want := Territory.owner(id)
+		if o.get("told", false) and _alive_at(o, o.side) > 0:
+			o.told = false                      # they are back: say it again next time
 		var away: float = p.global_position.distance_to(o.origin) if p != null else INF
 		if want == o.side:
 			o.wait = 0.0
 			if not people(o, o.side).is_empty() and _alive_at(o, o.side) == 0:
-				if o.side == Territory.REMNANT:
+				if o.side == Territory.REMNANT and Territory.locked(id):
+					# A ranch village's: they answer to the cruiser. Nothing changes
+					# hands; the troopers come back on the outposts' respawn.
+					if not bool(o.get("told", false)):
+						o.told = true
+						_toast(Territory.line("locked") % o.label)
+				elif o.side == Territory.REMNANT:
 					Territory.take(id)          # every trooper dead: the locals have it
 				else:
 					Territory.guards_lost(id)   # the locals' guards dead: the Remnant will be back
@@ -429,6 +443,11 @@ func _build_nav(o: Dictionary) -> void:
 			if bool(part.solid):
 				var ps: Vector3 = part.size
 				blocks.append([ps, (part.center as Vector3) - Vector3(0, ps.y * 0.5, 0)])
+	# A ranch village's outpost: the houses, walls and stands round it (its
+	# "village" location, same spot and frame) block the way too.
+	if o.cfg.has("village") and _cc != null:
+		for b in WorldGround.pieces(_cc.get_location(str(o.cfg.village))):
+			blocks.append([WorldGround._v3(b.get("size", [1, 1, 1])), WorldGround._v3(b.get("position", [0, 0, 0]))])
 	for bk in blocks:
 		var size: Vector3 = bk[0]
 		var pos: Vector3 = bk[1]

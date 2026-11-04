@@ -128,6 +128,9 @@ func where(target: String) -> Vector3:
 		"npc":
 			if id == "cantina_owner" and demo.cantina_owner != null and is_instance_valid(demo.cantina_owner):
 				return demo.cantina_owner.global_position
+			var sp = demo.get("speeder_post")
+			if id == "skrugs" and sp != null and is_instance_valid(sp) and sp.skrugs != null and is_instance_valid(sp.skrugs):
+				return sp.skrugs.global_position     # his stall behind the cantina
 			var g = demo.get("general_post")
 			if id == "general" and g != null and is_instance_valid(g) and g.body != null and g.body.visible:
 				return g.body.global_position          # issue #203: wherever he stands now

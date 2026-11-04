@@ -223,8 +223,13 @@ func test_the_asteroid_station() -> void:
 	assert_false(p.town.boxes.filter(func(b): return b.id == "pit_bowl").is_empty(), "the port's pit, outside")
 	assert_eq(p.world.naming.town, "town_station", "a station's name, not a desert town's")
 	var n: Array = p.neighbours
-	assert_eq(n.size(), 1)
 	assert_eq(n[0].id, "port_desert", "you can fly home")
+	assert_false(n[0].has("via"), "home is its parent, flown to from here")
+	var sibs: Array = n.slice(1)
+	assert_eq(sibs.map(func(x): return x.id), ["cinder_station", "ringed_giant"], "space is one place: the other planets round home hang in its sky too")
+	for s in sibs:
+		assert_eq(s.via, "port_desert", "seen from here, reached through home's scene")
+		assert_false(bool(s.child))
 	var home := PlanetGen.build("port_desert", cc)
 	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "cinder_station", "ringed_giant"], "and the port sees the station (and the lava moon, #272, and the ringed giant)")
 	assert_eq(home.neighbours[0].at, Vector3(9000, 5200, -6500))
@@ -234,6 +239,11 @@ func test_the_asteroid_station() -> void:
 	assert_eq(off, Vector3(9000, 6700, -6500))
 	assert_eq(n[0].offset, -off, "the same shift, back the other way")
 	assert_eq(n[0].at, Vector3(0, -5000, 0) - off, "the home ball's centre, seen from the station")
+	# A sibling is where home's scene has it, shifted by the same offset.
+	for s in sibs:
+		var from_home: Dictionary = home.neighbours.filter(func(x): return x.id == s.id)[0]
+		assert_eq(s.at, (from_home.at as Vector3) - off, s.id + " where home's scene puts it")
+		assert_eq(s.offset, (from_home.offset as Vector3) - off, s.id + "'s port, the same shift")
 
 
 func test_asteroid_station_walls_have_panel_detail() -> void:
@@ -446,7 +456,7 @@ func test_the_ringed_giant_replaces_the_painting() -> void:
 	assert_lt(float(n.radius), 5000.0 * 1.5, "smaller than it looked: a short flight")
 	assert_false(bool(port.sky_painting), "the port shows the real one, not the painting")
 	assert_false(bool(g.sky_painting), "no painted giant over the giant itself")
-	assert_true(bool(PlanetGen.build("grit_station", cc).sky_painting), "the station keeps its sky")
+	assert_false(bool(PlanetGen.build("grit_station", cc).sky_painting), "the moon sees the real giant, not the painting")
 
 
 ## The ringed giant's clouds: smooth all the way round, nothing to land on, and
