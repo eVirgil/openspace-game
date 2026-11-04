@@ -3,8 +3,8 @@ extends RefCounted
 ## Issue #401: LAN play. On the same wifi one player hosts (F11 > Game) and friends
 ## join by the host's address; up to max_players smugglers walk the same port,
 ## each seeing the others' bodies, outfits and names. Free roam only: a guest's
-## credits, gear and save stay their own files, and nothing of the host's world is
-## sent but which planet to stand on.
+## credits, gear and save stay their own files. The host's town is everyone's
+## (NetWorld), and so are the jobs: one taken in any game is everyone's (NetJobs).
 ##
 ## Godot's own multiplayer (SceneMultiplayer over ENet), host-authoritative: the
 ## host's game is the server, guests send their state and the host relays it.

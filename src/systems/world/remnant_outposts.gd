@@ -356,6 +356,12 @@ func _physics_process(dt: float) -> void:
 func _sync_target() -> void:
 	var b := WorldState.bounty_target()
 	var alive := target != null and is_instance_valid(target) and not target.dead
+	if demo != null and bool(demo.get("lan_shared")):
+		# A LAN guest's town: the host's game puts the officer there, and this one
+		# shows a copy (NetWorld). One of its own would be thrown away and put back.
+		if alive:
+			_drop_target()
+		return
 	if b.is_empty():
 		if alive:
 			_drop_target()
