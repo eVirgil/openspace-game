@@ -73,6 +73,7 @@
     "call": "Call",
     "call_none": "No ship to call",
     "call_busy": "On her way...",
+    "call_hijacked": "Someone else is flying her. She is back when they get out.",
     "call_seated": "Get out first",
     "call_nowhere": "Nowhere near here for a ship to land.",
     "call_here": "Your ship is right here.",

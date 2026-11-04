@@ -2,6 +2,34 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After hijacking (2026-11-04)
+
+**Checked:** a two-process loopback probe, run by hand and not added to the repo
+(a guest hijacks the host parked on the pad and gives the ship back by getting
+out; the host hijacks the guest's speeder and gets off; the guest hops onto the
+host's ship hovering 18 m up and ejects; the host takes the AI interceptor in
+the air): every step passed, no script errors in either game. test_smoke,
+test_ip_neutral, and a headless town boot. Not played on two computers or on
+screen.
+
+- **An AI pilot thrown out leaves no body.** The interceptor's pilot is just
+  gone (a toast says so); no trooper lands on the sand.
+- **The hop is a slide, not an animation.** The body keeps its pose along the
+  arc; nobody else's game plays a climb either.
+- **A parked speeder of another player is not shown,** only one being ridden.
+  So after a hijacked speeder is given back, the others see it again only when
+  its owner gets back on.
+- **One ship per player shows to the others.** While you fly a ship you took,
+  your own primary is not drawn in their games (as before, only the ship you
+  fly or your primary goes out).
+- **The hijacked ship flies with your upgrades and name for that ship type,**
+  not its owner's; the owner's livery and hull left come with it.
+- **If the owner wakes in the pit while you hold their primary,** T-89 patches it
+  up there (and charges them); the one you fly goes back to nobody when you get
+  out.
+- **Flying a hijacked ship to another planet** is not handled: the ship goes with
+  you as a borrowed one, and its owner gets it back only by leaving and joining.
+
 ## After every planet in every sky (2026-11-04)
 
 **Checked:** tests/test_planets.gut.gd (the moon's neighbours, the giant and

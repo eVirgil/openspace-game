@@ -2,6 +2,28 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Hijacking ships and speeders (2026-11-04)
+
+- **E by a ship or speeder someone else is in takes it.** Walk up (or ride up on
+  your own speeder) to one being flown or ridden and the prompt says
+  "[E] Hijack". You hop up onto it for about a second, the pilot is thrown out
+  onto the ground beside it, a little hurt, and you are at the controls.
+- **Works between players over LAN,** host or guest either way: their game
+  throws them out, yours puts you in their ship (on the pad, or flying on where
+  it was), and everyone else sees it change hands. A jetpack gets you onto a
+  ship hovering low.
+- **It is still theirs.** Get out, eject or get off and it is back in their game
+  where you left it, on the ground below. Crash it and it is wrecked for them
+  too (their own ship waits for T-89's patch-up). Their Call says someone else
+  is flying her until then.
+- **Other players' speeders now show over LAN** while they ride them, with
+  their name over them (before, a rider just vanished).
+- **The Remnant interceptor can be taken in the air** when it comes low enough
+  to reach (setting down on its pad): its pilot is thrown clear and it is a
+  stolen ship, alarm and all.
+- Numbers (reach, hop time, the pilot's knock) are in
+  `content/core/flow/hijack.json`.
+
 ## Take the lava moon: the same domes, barracks and outposts (2026-11-04)
 
 - **The lava moon gets the moon's expansion:** two more tunnels out of its

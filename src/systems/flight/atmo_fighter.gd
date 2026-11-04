@@ -539,6 +539,37 @@ func _hand_over() -> void:
 	_set_solid(false)
 
 
+## Hijack: in the air with you on foot (it only comes low enough to reach on its
+## way down to the pad, or over a jetpack).
+func can_hijack() -> bool:
+	if pilot == null or pilot.piloting or not flying() or mode == Mode.LAUNCHING:
+		return false
+	return atmo.state == AtmoFlight.State.FLYING or atmo.state == AtmoFlight.State.LANDING
+
+
+## Hijack: you are on top of it in the air. Its pilot is thrown clear and it is
+## yours where it flies, as if taken off its pad (a stolen ship: the alarm, and a
+## new one on the pad comes after you).
+func hijack() -> bool:
+	if not can_hijack():
+		return false
+	var xf := atmo.transform()
+	var spd: float = atmo.flight.speed
+	var thr: float = atmo.flight.throttle
+	_offer_berth()
+	var i := berth
+	if i < 0 or not pilot.board_berth(i):
+		_withdraw_berth()
+		return false
+	pilot.atmo.place_flying(xf.origin, -xf.basis.z, spd, thr)
+	pilot.atmo.flight.basis = xf.basis.orthonormalized()
+	pilot._throttle = thr
+	pilot._set_hull(true)
+	_hand_over()
+	WorldState.log_event("Someone threw the pilot out of a Remnant interceptor and flew off in it.")
+	return true
+
+
 ## Shot to pieces on its pad: the Remnant notice, and a new one stands there
 ## `respawn_s` later.
 func _wrecked_on_pad() -> void:
