@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.6.2 (2026-11-04)
+
+- Share builds are now **OpenSpace V1.6.2**. Everything below, down to "New
+  version is 1.6.1", is in it.
+
 ## The station is full of people (issue #315, part 2, 2026-11-04)
 
 - **About 80 people live aboard.** They walk the walkways, go down the
