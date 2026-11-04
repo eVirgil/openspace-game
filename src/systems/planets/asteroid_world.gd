@@ -316,9 +316,33 @@ func ground_at(x: float, z: float) -> float:
 	return demo.terrain.ground_at(x, z) if demo.terrain != null else 0.0
 
 
-## No edge to fall off: the ball's gravity holds you everywhere.
-func _physics_process(_dt: float) -> void:
-	pass
+## No edge to fall off: the ball's gravity holds you everywhere. Issue #272: but
+## where the ball has lava, stepping in it kills you: the platform's fall (a fade,
+## the type's fall_text) and you wake by the landing pit.
+const LAVA_FADE_S := 1.2
+var lava_deaths := 0                   ## times the player stepped in the lava (traces, tests)
+
+
+func _physics_process(dt: float) -> void:
+	var lava_sphere := sphere as AsteroidSphere if sphere is AsteroidSphere else null
+	if exterior_only or lava_sphere == null or not lava_sphere.has_lava():
+		return
+	var p: Node3D = demo._player if demo != null else null
+	if p == null or not is_instance_valid(p) or bool(p.get("piloting")):
+		return
+	if _falling:
+		_fade_t += dt
+		_set_fade(clampf(_fade_t / LAVA_FADE_S, 0.0, 1.0))
+		if _fade_t > LAVA_FADE_S + 0.3:
+			_respawn(p)
+		return
+	if bool(p.get("is_downed")):
+		return
+	if lava_sphere.in_lava(p.global_position):
+		_falling = true
+		_fade_t = 0.0
+		lava_deaths += 1
+		WorldState.bump("lava_deaths")
 
 
 # ------------------------------------------------------------------ looks
@@ -355,6 +379,10 @@ func dress_outside(env: LookEnvironment, mats: LookMaterials) -> void:
 	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, -1, panel, trim, dark, status, 1)
 	_pit_shield()
 	_dress_hall(metal, glass, env, mats)
+	# Issue #272: heat shimmer over a lava ball, near the ground.
+	var haze = surface.get("haze", {})
+	if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() and haze is Dictionary and not haze.is_empty():
+		add_child(LavaHaze.new().setup(sphere as AsteroidSphere, haze))
 
 
 ## Inside the dome and the pit: floors, the walls' inner panels, the lamps and the

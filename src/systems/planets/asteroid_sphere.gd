@@ -13,6 +13,13 @@ extends PlanetSphere
 var craters: Array = []        ## per layer: { cell: float, grid: { Vector3i: [[x, y, z, r], ...] }, depth, reach }
 var bumps := 1.2
 var swell := 6.0
+## Issue #272: the surface's "lava" block ({} = no lava): the low ground under
+## lava_level() is molten, except within keep_clear metres of the port.
+var lava: Dictionary = {}
+var _lava_level := NAN
+
+const LAVA_SAMPLES := 1500     ## directions over the whole ball, for the lava level
+const LAVA_MARGIN := 20.0      ## metres past keep_clear before the lava is full (the shader's fade)
 
 
 func _init(r: float = 1500.0, surface: Dictionary = {}) -> void:
@@ -23,6 +30,8 @@ func _init(r: float = 1500.0, surface: Dictionary = {}) -> void:
 	up_blend = float(surface.get("up_blend", 160.0))
 	bumps = float(surface.get("bumps", bumps))
 	swell = float(surface.get("swell", swell))
+	var lv = surface.get("lava", {})
+	lava = lv if lv is Dictionary else {}
 	_scatter(surface.get("craters", []))
 
 
@@ -42,6 +51,54 @@ func configure_site(floor_rect: Rect2, walls_rect: Rect2, sunken: Array, floor_y
 	blend = 70.0
 	dune_offset = 1.5
 	sink_ramp = 1.0
+	_lava_level = NAN
+
+
+# ---------------------------------------------------------------- lava (issue #272)
+
+func has_lava() -> bool:
+	return not lava.is_empty()
+
+
+## No lava this close to the port (metres along the ground): the station, its
+## hallway and the landing pit stand on dry rock.
+func lava_keep_clear() -> float:
+	return float(lava.get("keep_clear", flat_radius))
+
+
+## The height (metres above the bare ball) the lava fills up to: the open ground
+## below it is lava.cover of the whole ball's open ground, measured once over a
+## fixed spread of directions, so it follows the rock whatever its numbers are.
+func lava_level() -> float:
+	if not has_lava():
+		return -INF
+	if not is_nan(_lava_level):
+		return _lava_level
+	var hs := PackedFloat32Array()
+	var golden := PI * (3.0 - sqrt(5.0))
+	var open_from := flat_radius + up_blend
+	for i in LAVA_SAMPLES:
+		var y := 1.0 - 2.0 * (float(i) + 0.5) / float(LAVA_SAMPLES)
+		var ring := sqrt(maxf(0.0, 1.0 - y * y))
+		var a := golden * float(i)
+		var dir := Vector3(cos(a) * ring, y, sin(a) * ring)
+		if dir_map(dir).length() < open_from:
+			continue
+		hs.append(elevation(dir))
+	hs.sort()
+	var cover := clampf(float(lava.get("cover", 0.35)), 0.0, 1.0)
+	_lava_level = hs[clampi(int(hs.size() * cover), 0, hs.size() - 1)] if hs.size() > 0 else 0.0
+	return _lava_level
+
+
+## Is a world point (the planet's own scene) touching the lava: at or below its
+## level, where the lava is full (past keep_clear and the fade after it)?
+func in_lava(p: Vector3, margin: float = 0.05) -> bool:
+	if not has_lava():
+		return false
+	if world_to_map(p).length() < lava_keep_clear() + LAVA_MARGIN:
+		return false
+	return (p - center).length() - radius <= lava_level() + margin
 
 
 ## Every crater, once: `count` of them per layer at random spots on the ball,
