@@ -45,5 +45,28 @@
       "Not selling to you.",
       "Get away from my stall."
     ]
+  },
+  "club_talk": {
+    "note": "Issue #392: the rave's patrons talk as you pass. Calm, when you walk within locals_say_m metres of one of the 'who' (a soldier profile), the nearest says one line from the club's style ('rave'), at most one line every locals_say_every_s seconds for the whole room (the first after locals_say_first_s). Like the beast's lines (PlanetBeast).",
+    "who": [
+      "local_patron"
+    ],
+    "locals_say_m": 3.5,
+    "locals_say_every_s": 12.0,
+    "locals_say_first_s": 3.0,
+    "rave": [
+      "This DJ doesn't stop. Third night running.",
+      "Grab a drink before the drop, the bar gets mobbed.",
+      "They turned the dome lights down for this one. Love it.",
+      "You can feel the bass in the rock out here.",
+      "Whatever's in the blue ones, I want another.",
+      "Somebody said the laser droid's got a mind of its own.",
+      "First time on the moon? Nobody sleeps under the dome.",
+      "Mind the floor, it bites when the beat hits.",
+      "The stalls by the wall do glow sticks. Get one.",
+      "I came for one song. That was hours ago.",
+      "Bar's long enough now you can actually get served.",
+      "Best air on the whole rock is in here, and it's all smoke."
+    ]
   }
 }

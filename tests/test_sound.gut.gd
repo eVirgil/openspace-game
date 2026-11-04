@@ -4,6 +4,7 @@ extends GutTest
 ## battle starts 30 s in and loops back there, and credits make coin noises.
 
 const DATA := "res://content/look/sound.json"
+const TownLayout := preload("res://src/systems/world/town_layout.gd")
 var cfg: Dictionary
 
 
@@ -253,6 +254,43 @@ func test_dead_band_stops_the_music() -> void:
 	s._process(0.1)
 	assert_eq(s._club_playing, "", "the music stops")
 	assert_false(s._club_next(), "and nothing new starts")
+
+
+# ------------------------------------------------------------------ issue #392: the moon rave fills the station
+
+## The station's ClubMusic counts the hall and the pit as inside: the rave mix and
+## the score ducked in all three, a fight does not change it, and with the DJ dead
+## there is neither.
+func test_the_rave_mix_plays_in_the_dome_the_hall_and_the_pit() -> void:
+	var t := TownLayout.new()
+	t.load_from_dict(PlanetGen.build("grit_station").town)
+	var zone := func(id: String) -> Dictionary: return t.zones().filter(func(z): return str(z.id) == id)[0]
+	var who: Node3D = add_child_autofree(Node3D.new())
+	var music: ClubMusic = ClubMusic.new().setup("salvage_rave", zone.call("cantina"), who)
+	music.also_inside([zone.call("hall"), zone.call("landing_bay")])
+	add_child_autofree(music)
+	var s := Sound.lib()
+	await get_tree().process_frame     # the library joins the tree deferred: its decks come in _ready
+	s.music_on = true
+	for where in [t.marker_pos("bar_front"), t.marker_pos("desert_exit"), t.spawn_pos()]:
+		who.global_position = where
+		music._process(0.1)
+		assert_true(s.club_inside, "inside the rave at %s" % where)
+		assert_eq(s.club_target(), 1.0, "all of the mix at %s" % where)
+		for i in 60:
+			s._club_process(0.1)
+		assert_gt(s.club_level, 0.9, "the score is ducked at %s" % where)
+	Sound.battle()            # a patron fires at you
+	music._process(0.1)
+	assert_eq(s.club_target(), 1.0, "a gunfight does not bring the battle music in")
+	Sound.set_club_live(false)      # the DJ is dead
+	for i in 30:
+		s._club_process(0.1)
+	assert_eq(s._club_playing, "", "no club music")
+	assert_gt(s.club_level, 0.9, "and the score stays ducked: the station is quiet")
+	music.free()
+	Sound.set_club_live(true)
+	s.battle_left = 0.0
 
 
 # ------------------------------------------------------------------ issue #291: the ship's radio

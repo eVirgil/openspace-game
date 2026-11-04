@@ -440,11 +440,7 @@ func _rave(town, scene: Node) -> void:
 		var d := Vector2(p.x - centre.x, p.z - centre.z).length()
 		return wall_h + sqrt(maxf(0.0, 1.0 - pow(d / radius, 2.0))) * dome_h
 	props.mirror_ball(floor_mid + Vector3(0, 9.0, 0), ceil_at.call(floor_mid), 0.6)
-	for k2 in 4:     # high tables round the floor, a neon ring under each top
-		var a := TAU * k2 / 4.0 + 0.6
-		var p := floor_mid + Vector3(cos(a) * ((fmax.x - fmin.x) * 0.5 + 3.0), 0, sin(a) * ((fmax.y - fmin.y) * 0.5 + 3.0))
-		props.cocktail_table(p, 0.36, 1.08, false)
-		props.neon(_circle(p + Vector3(0, 1.02, 0), 0.34, 16), Color.from_hsv(k2 / 4.0, 0.8, 1.0), true, 0.012, 4.0)
+	_rave_lounge(town, scene)
 
 
 ## The stage: a black deck with a diamond-plate top, a lit rim that cycles through
@@ -620,21 +616,97 @@ func _rave_walls(centre: Vector3, radius: float, wall_h: float) -> void:
 		props.pulses.append([glow, 1.5, 5.0, 1.0, 0.0 if float(ring[0]) < 3.0 else 0.5])
 
 
-## A canopy over the bar for its lamps to hang from, edged in neon.
+## A canopy over the bar for its lamps to hang from, edged in neon: over the
+## counter and the owner's side of it (issue #392: it grows with the counter, and
+## follows it wherever the owner stands), posts at the owner's corners.
 func _rave_bar(town) -> void:
 	var counter: Dictionary = town.get_box("bar_counter")
 	if counter.is_empty():
 		return
-	var x0 := float(counter.min[0]) - 3.8
-	var x1 := float(counter.max[0]) + 1.2
-	var z0 := float(counter.min[2]) - 1.0
-	var z1 := float(counter.max[2]) + 1.0
-	var c := Vector3((x0 + x1) * 0.5, 4.3, (z0 + z1) * 0.5)
-	props._box(props, Vector3(x1 - x0, 0.2, z1 - z0), c, ClubTextures.brushed(Color("#1a1a1e"), 0.6))
+	var r := Rect2(float(counter.min[0]), float(counter.min[2]), float(counter.max[0]) - float(counter.min[0]),
+		float(counter.max[2]) - float(counter.min[2])).grow(1.0)
+	var owner: Vector3 = town.marker_pos("cantina_owner") if not town.get_marker("cantina_owner").is_empty() else Vector3.INF
+	var back := Vector2.ZERO          # the owner's side of the counter, as a direction
+	if owner != Vector3.INF:
+		var mid := r.get_center()
+		var d := Vector2(owner.x - mid.x, owner.z - mid.y)
+		back = Vector2(signf(d.x), 0.0) if absf(d.x) / r.size.x > absf(d.y) / r.size.y else Vector2(0.0, signf(d.y))
+		r = r.expand(Vector2(owner.x, owner.z) + back * 1.0)
+	var c := Vector3(r.get_center().x, 4.3, r.get_center().y)
+	props._box(props, Vector3(r.size.x, 0.2, r.size.y), c, ClubTextures.brushed(Color("#1a1a1e"), 0.6))
+	var steel := ClubTextures.brushed(Color("#b8b8bc"))
+	var across := Vector2(-back.y, back.x)
+	var half := Vector2(r.size.x, r.size.y) * 0.5 - Vector2(0.2, 0.2)
+	var post_at := Vector2(c.x, c.z) + Vector2(back.x * half.x, back.y * half.y)
 	for s in [-1.0, 1.0]:
-		props._rod(props, Vector3(x0 + 0.2, 0, c.z + s * (z1 - z0) * 0.45), Vector3(x0 + 0.2, 4.2, c.z + s * (z1 - z0) * 0.45), 0.06, ClubTextures.brushed(Color("#b8b8bc")))
+		var p: Vector2 = post_at + across * s * (absf(across.x) * half.x + absf(across.y) * half.y) * 0.9
+		props._rod(props, Vector3(p.x, 0, p.y), Vector3(p.x, 4.2, p.y), 0.06, steel)
+	var x0 := r.position.x
+	var x1 := r.end.x
+	var z0 := r.position.y
+	var z1 := r.end.y
 	var edge := PackedVector3Array([Vector3(x1, 4.18, z0), Vector3(x1, 4.18, z1), Vector3(x0, 4.18, z1), Vector3(x0, 4.18, z0)])
 	props.neon(edge, Color("#2bd9ff"), true, 0.025, 5.0)
+	# Lamps hanging over the counter, cycling slowly through the colours.
+	var n := maxi(2, int(float(counter.max[0]) - float(counter.min[0])) / 3)
+	var long_x := float(counter.max[0]) - float(counter.min[0]) >= float(counter.max[2]) - float(counter.min[2])
+	for i in n:
+		var u := (i + 0.5) / n
+		var p := Vector3(lerpf(float(counter.min[0]), float(counter.max[0]), u), 3.0, (float(counter.min[2]) + float(counter.max[2])) * 0.5) if long_x \
+			else Vector3((float(counter.min[0]) + float(counter.max[0])) * 0.5, 3.0, lerpf(float(counter.min[2]), float(counter.max[2]), u))
+		props._rod(props, p, Vector3(p.x, 4.2, p.z), 0.008, steel)
+		var shade := ClubTextures.glow(Color("#ff2bd6"), 3.0)
+		props._cone(props, 0.06, 0.2, 0.22, p - Vector3(0, 0.11, 0), shade)
+		props.cycles.append([shade, 0.04, float(i) / n])
+		var l := OmniLight3D.new()
+		l.omni_range = 3.5
+		l.light_energy = 0.9
+		l.shadow_enabled = false
+		l.position = p - Vector3(0, 0.4, 0)
+		props.add_child(l)
+		props.cycles.append([l, 0.04, float(i) / n])
+
+
+## Issue #392: the lounge round the bar (TownGen's lounge boxes, their greybox
+## hidden): the port club's leather booths in black and purple leather with a
+## neon line along the back, a low table in front of each, and high cocktail
+## tables, each with a neon ring and a glow under its top.
+func _rave_lounge(town, scene: Node) -> void:
+	var k := 0
+	for b in town.boxes():
+		var id := str(b.id)
+		if not id.begins_with("lounge_"):
+			continue
+		_hide_box(scene, id)
+		var mn := Vector3(float(b.min[0]), float(b.min[1]), float(b.min[2]))
+		var mx := Vector3(float(b.max[0]), float(b.max[1]), float(b.max[2]))
+		var hue := Color.from_hsv(fposmod(0.83 + k * 0.29, 1.0), 0.85, 1.0)
+		k += 1
+		if id.begins_with("lounge_booth_") and not id.begins_with("lounge_booth_table_"):
+			var face := str(b.get("face", "-z"))
+			var dir: Vector3 = { "+x": Vector3.RIGHT, "-x": Vector3.LEFT, "+z": Vector3.BACK, "-z": Vector3.FORWARD }.get(face, Vector3.FORWARD)
+			var back: Array = b.get("back", [(mn.x + mx.x) * 0.5, (mn.z + mx.z) * 0.5])
+			var at := Vector3(float(back[0]), 0, float(back[1]))
+			var length := (mx.x - mn.x) if absf(dir.z) > 0.5 else (mx.z - mn.z)
+			props.booth(Transform3D(Basis(Vector3.UP, atan2(dir.x, dir.z)), at), length, Color("#2a1038"))
+			var side := dir.cross(Vector3.UP)
+			props.neon(PackedVector3Array([at + side * length * 0.5 + Vector3(0, 1.22, 0.0) + dir * 0.08,
+				at - side * length * 0.5 + Vector3(0, 1.22, 0.0) + dir * 0.08]), hue, false, 0.014, 4.0)
+			continue
+		var c := Vector3((mn.x + mx.x) * 0.5, 0, (mn.z + mx.z) * 0.5)
+		var r := minf(mx.x - mn.x, mx.z - mn.z) * 0.5
+		props.cocktail_table(c, r - 0.02, mx.y, false)
+		props.neon(_circle(c + Vector3(0, mx.y - 0.06, 0), r - 0.04, 18), hue, true, 0.012, 4.0)
+		var glow := ClubTextures.glow(hue, 2.5)
+		props._cyl(props, r * 0.8, 0.01, c + Vector3(0, mx.y - 0.075, 0), glow)
+		props.pulses.append([glow, 1.0, 3.5, 2.0, k * 0.17])
+		var under := OmniLight3D.new()
+		under.light_color = hue
+		under.light_energy = 0.6
+		under.omni_range = 1.6
+		under.shadow_enabled = false
+		under.position = c + Vector3(0, mx.y - 0.25, 0)
+		props.add_child(under)
 
 
 static func _circle(c: Vector3, r: float, n: int) -> PackedVector3Array:

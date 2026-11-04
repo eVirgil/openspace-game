@@ -133,7 +133,7 @@
       "food_stall": { "wares": "food", "items": ["crystal_case"] },
       "gear_trader": { "wares": "gear", "items": ["armour_case", "jetpack", "cell_case"] },
       "fence": { "wares": "contraband", "items": ["rifle_case", "crystal_case", "quantonium_flask", "tooth_crate"] },
-      "station_fence": { "wares": "contraband", "items": ["crystal_case", "quantonium_flask", "tooth_crate"] },
+      "station_fence": { "wares": "gear", "items": ["armour_case", "jetpack", "crystal_case", "quantonium_flask"] },
       "droid_merchant": { "wares": "droids", "items": ["cell_case"] }
     },
     "droid_posts": { "items": ["cell_case"] },

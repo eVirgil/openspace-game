@@ -637,11 +637,11 @@ func _add_lamps(town) -> void:
 	# Cantina: three along the bar, 1 m on the door side, and one at the door.
 	var bar: Dictionary = town.get_box("bar_counter")
 	if not bar.is_empty():
-		var z0 := float(bar.min[2])
-		var z1 := float(bar.max[2])
+		var frame := CantinaDressing.bar_frame(bar)      # issue #392: the bar's own frame
+		var lc := CantinaDressing.local_counter(bar)
 		for i in 3:
-			var z := lerpf(z0, z1, (i + 0.5) / 3.0)
-			_lamp_at(root, Vector3(float(bar.max[0]) + 1.0, 3.0, z))
+			var z := lerpf((lc[0] as Vector3).z, (lc[1] as Vector3).z, (i + 0.5) / 3.0)
+			_lamp_at(root, frame * Vector3((lc[1] as Vector3).x + 1.0, 3.0, z))
 	if not town.get_marker("cantina_door").is_empty():
 		_lamp_at(root, town.marker_pos("cantina_door") + Vector3(1.0, 2.9, 2.5))
 	# Pit: one big light over the pad, set up like the beauty corner's landing bay.

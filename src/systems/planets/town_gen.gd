@@ -142,7 +142,8 @@ func build(town_id: String, size: int, seed: int, opts: Dictionary = {}) -> Dict
 	var dome: Dictionary = opts.get("club_dome", {}) if round else {}
 	var cantina := _cantina(x, cl, cw, float(cdim.get("height", 5.5)), float(ccfg.get("door_half", 2.0)), opts,
 		size >= int(ccfg.get("patrons_from_size", 10)), full, Rect2(rc.x - rw, rc.y - rw, rw * 2.0, rw * 2.0) if not dome.is_empty() else Rect2())
-	_front_stalls(cantina.end, square, front, sh)
+	if dome.is_empty():
+		_front_stalls(cantina.end, square, front, sh)
 	if round and dome.is_empty():
 		_cantina_homes(cantina, sh)
 	x = cantina.end + square
@@ -270,8 +271,7 @@ func _cantina(x0: float, l: float, w: float, h: float, door: float, opts: Dictio
 	var z0 := -w * 0.5
 	var z1 := w * 0.5
 	if dome.has_area():
-		_club_dome(dome)
-		_cantina_bar(x0, l, w, opts)
+		_club_dome(dome, opts)
 		_marker("cantina_door", [x1 + 1.0, 0, 0], "waypoint")
 		_core.append(Rect2(x0, z0, l, w))
 		_zones.append({ "id": "cantina", "min": [dome.position.x, dome.position.y], "max": [dome.end.x, dome.end.y] })
@@ -337,7 +337,7 @@ func _cantina_bar(x0: float, l: float, w: float, opts: Dictionary) -> float:
 ## the ring's centre): a round stage with the DJ alone on it behind the desk, facing
 ## the dance floor; the station's dancer on the floor beside it; ravers standing on
 ## the dance floor and walking loops round the room, bottles in hand.
-func _club_dome(dome: Rect2) -> void:
+func _club_dome(dome: Rect2, opts: Dictionary = {}) -> void:
 	var k: Dictionary = kit.get("club_dome", {})
 	var c := dome.get_center()
 	var st: Dictionary = k.get("stage", {})
@@ -370,6 +370,121 @@ func _club_dome(dome: Rect2) -> void:
 		_markers.append({ "id": "raver_walk_%d" % w, "pos": [pts[0][0], 0, pts[0][1]], "role": "ambient", "soldier": "local_raver",
 			"patrol": rid })
 		w += 1
+	_dome_bar(c, k, floor_mid, opts)
+	_dome_lounge(c, k)
+	_dome_stalls(c, k)
+
+
+## Issue #392: the bar across the dance floor from the stage (the kit's "bar"): a
+## long counter, Oda behind it, bar_front in front of it, the armed patrons round it.
+func _dome_bar(c: Vector2, k: Dictionary, floor_mid: Vector2, opts: Dictionary) -> void:
+	var b: Dictionary = k.get("bar", {})
+	var at := c + _v2(b.get("at", [0.0, 12.0]))
+	var hl := float(b.get("length", 12.0)) * 0.5
+	var hd := float(b.get("depth", 3.0)) * 0.5
+	var front := signf(floor_mid.y - at.y) if not is_equal_approx(floor_mid.y, at.y) else -1.0   # +1: its front faces +z
+	_box("bar_counter", "cantina", "counter", [at.x - hl, 0, at.y - hd], [at.x + hl, float(b.get("height", 1.1)), at.y + hd],
+		{ "front": "+z" if front > 0.0 else "-z", "note": "Issue #392: the rave's long bar, across the floor from the stage." })
+	var oz := at.y - front * (hd + float(b.get("owner", 2.0)))
+	var owner := { "id": "cantina_owner", "pos": [at.x, 0, oz], "role": "npc", "npc": "cantina_owner",
+		"face": [at.x, 0, at.y] }
+	for key in ["card", "look", "planet"]:
+		if opts.has("cantina_" + key):
+			owner[key] = str(opts["cantina_" + key])
+	_markers.append(owner)
+	_marker("bar_front", [at.x, 0, at.y + front * (hd + float(b.get("front", 2.5)))], "interact")
+	var n := 1
+	for p in k.get("patrons", []):
+		var q := c + Vector2(float(p[0]), float(p[1]))
+		var f := c + Vector2(float(p[2]), float(p[3]))
+		_markers.append({ "id": "patron_%d" % n, "pos": [q.x, 0, q.y], "role": "ambient", "soldier": "local_patron",
+			"face": [f.x, 0, f.y] })
+		n += 1
+
+
+## Issue #392: the lounge round the bar: booths, each with a low table in front,
+## and high cocktail tables, with patrons standing round them in twos and threes.
+## The tables are round boxes, so they block like the jazz club's.
+func _dome_lounge(c: Vector2, k: Dictionary) -> void:
+	var l: Dictionary = k.get("lounge", {})
+	var bk: Dictionary = l.get("booth", {})
+	var tk: Dictionary = l.get("table", {})
+	var stand := float(l.get("stand", 1.25))
+	var n := 1
+	var people := 0
+	for b in l.get("booths", []):
+		var at := c + _v2(b.at)
+		var face := _face(str(b.get("face", "-z")))
+		var across := Vector2(-face.y, face.x)
+		var hl := float(b.get("length", 3.0)) * 0.5
+		var a := at - across * hl
+		var e := at + across * hl + face * float(bk.get("depth", 0.7))
+		_box("lounge_booth_%d" % n, "cantina", "cover", [minf(a.x, e.x), 0, minf(a.y, e.y)], [maxf(a.x, e.x), float(bk.get("height", 1.2)), maxf(a.y, e.y)],
+			{ "face": str(b.get("face", "-z")), "back": [at.x, at.y] })
+		var t := at + face * float(bk.get("table_at", 1.15))
+		var tr := float(bk.get("table_r", 0.38))
+		_box("lounge_booth_table_%d" % n, "cantina", "cover", [t.x - tr, 0, t.y - tr], [t.x + tr, float(bk.get("table_h", 0.72)), t.y + tr],
+			{ "shape": "round" })
+		# Its people stand on the open side, either side of the way the seat looks.
+		var ang := face.angle()
+		for i in int(b.get("people", 0)):
+			people += 1
+			_lounge_patron(people, t + Vector2.from_angle(ang + (PI / 3.0 if i % 2 == 0 else -PI / 3.0)) * stand, t)
+		n += 1
+	n = 1
+	for tb in l.get("tables", []):
+		var t := c + _v2(tb.at)
+		var r := float(tk.get("r", 0.4))
+		_box("lounge_table_%d" % n, "cantina", "cover", [t.x - r, 0, t.y - r], [t.x + r, float(tk.get("h", 1.08)), t.y + r],
+			{ "shape": "round" })
+		var count := int(tb.get("people", 0))
+		for i in count:
+			people += 1
+			_lounge_patron(people, t + Vector2.from_angle(deg_to_rad(float(tb.get("turn", 0.0))) + TAU * i / maxf(count, 1)) * stand, t)
+		n += 1
+
+
+func _lounge_patron(n: int, at: Vector2, table: Vector2) -> void:
+	_markers.append({ "id": "lounge_patron_%d" % n, "pos": [snappedf(at.x, 0.01), 0, snappedf(at.y, 0.01)], "role": "ambient",
+		"soldier": "local_patron", "face": [table.x, 0, table.y], "lounge": true })
+
+
+## Issue #392: the stalls round the rave (the kit's "stall" sizes): the fence's,
+## on the way from the hallway to the bar (stall_fn1 / vendor_1, its trade in
+## content/core/vendors), and the rave stalls round the edge, set dressing with a
+## merchant at each.
+func _dome_stalls(c: Vector2, k: Dictionary) -> void:
+	var f: Dictionary = k.get("fence", {})
+	if not f.is_empty():
+		_dome_stall("stall_fn1", "vendor_1", c + _v2(f.at), str(f.get("face", "-z")), k, "")
+	var n := 1
+	for s in k.get("stalls", []):
+		_dome_stall("stall_rave_%d" % n, "rave_vendor_%d" % n, c + _v2(s.at), str(s.get("face", "+x")), k, "rave")
+		n += 1
+
+
+func _dome_stall(id: String, keeper: String, at: Vector2, face_s: String, k: Dictionary, wares: String) -> void:
+	var sk: Dictionary = k.get("stall", {})
+	var size := _v2(sk.get("size", [4.0, 1.0]))
+	var face := _face(face_s)
+	var across := Vector2(-face.y, face.x)
+	var ext := across.abs() * size.x * 0.5 + face.abs() * size.y * 0.5
+	var extra := { "look": "stall", "face": face_s }
+	if wares != "":
+		extra["wares"] = wares
+	_box(id, "cantina", "cover", [at.x - ext.x, 0, at.y - ext.y], [at.x + ext.x, float(sk.get("height", 1.1)), at.y + ext.y], extra)
+	var bc := at - face * float(sk.get("back", 3.3))
+	var bext := across.abs() * size.x * 0.5 + face.abs() * 0.2
+	_box(id + "_back", "cantina", "solid", [bc.x - bext.x, 0, bc.y - bext.y], [bc.x + bext.x, float(sk.get("back_h", 2.6)), bc.y + bext.y],
+		{ "look": "stall_back" })
+	var m := at - face * float(sk.get("keeper", 1.8))
+	_markers.append({ "id": keeper, "pos": [snappedf(m.x, 0.01), 0, snappedf(m.y, 0.01)], "role": "ambient", "soldier": "local_merchant",
+		"face": [snappedf(at.x + face.x * 4.0, 0.01), 0, snappedf(at.y + face.y * 4.0, 0.01)] })
+
+
+## "+x" / "-x" / "+z" / "-z" as a direction on the (x, z) floor.
+static func _face(f: String) -> Vector2:
+	return { "+x": Vector2.RIGHT, "-x": Vector2.LEFT, "+z": Vector2.DOWN, "-z": Vector2.UP }.get(f, Vector2.UP)
 
 
 static func _v2(a) -> Vector2:

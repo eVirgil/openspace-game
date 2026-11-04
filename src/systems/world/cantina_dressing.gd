@@ -32,6 +32,27 @@ var shelf_x := 0.0
 var serve_z := 0.0                   ## where she stands along the counter; the row starts beside her
 
 
+## Issue #392: the bar's own frame. Everything here is built with the customers
+## on +x and the owner on -x, the counter running along z; a counter whose
+## "front" is another way ("-z": the moon rave's long bar) is the same bar turned,
+## pivoting on its middle. "+x" (or none: every other cantina) is the scene's own frame.
+static func bar_frame(counter: Dictionary) -> Transform3D:
+	var front := str(counter.get("front", "+x"))
+	if front == "+x" or counter.is_empty():
+		return Transform3D.IDENTITY
+	var yaw: float = { "-x": PI, "+z": -PI * 0.5, "-z": PI * 0.5 }.get(front, 0.0)
+	var c := Vector3((float(counter.min[0]) + float(counter.max[0])) * 0.5, 0.0, (float(counter.min[2]) + float(counter.max[2])) * 0.5)
+	return Transform3D(Basis(Vector3.UP, yaw), c)
+
+
+## The counter's corners in its bar frame (min, max).
+static func local_counter(counter: Dictionary) -> Array:
+	var inv := bar_frame(counter).affine_inverse()
+	var a: Vector3 = inv * Vector3(float(counter.min[0]), float(counter.min[1]), float(counter.min[2]))
+	var b: Vector3 = inv * Vector3(float(counter.max[0]), float(counter.max[1]), float(counter.max[2]))
+	return [a.min(b), a.max(b)]
+
+
 func dress(town, materials: LookMaterials) -> void:
 	name = "CantinaDressing"
 	mats = materials
@@ -39,8 +60,10 @@ func dress(town, materials: LookMaterials) -> void:
 	var wall_w: Dictionary = town.get_box("cantina_wall_w")
 	if counter.is_empty():
 		return
-	var cmin := Vector3(counter.min[0], counter.min[1], counter.min[2])
-	var cmax := Vector3(counter.max[0], counter.max[1], counter.max[2])
+	transform = bar_frame(counter)
+	var lc := local_counter(counter)
+	var cmin: Vector3 = lc[0]
+	var cmax: Vector3 = lc[1]
 	# Issue #261: with no building (the moon's dome rave) the back bar stands on
 	# its own behind her, on a panel of its own.
 	var back_x := float(wall_w.max[0]) + 0.05 if not wall_w.is_empty() else cmin.x - 3.4
@@ -94,8 +117,15 @@ func dress(town, materials: LookMaterials) -> void:
 	for z in [-1.5, -1.1, -0.7]:
 		_cyl(Vector3(cmin.x + 0.4, cmax.y + 0.2, z), 0.025, 0.34, brass)
 		_box(Vector3(cmin.x + 0.4, cmax.y + 0.4, z), Vector3(0.05, 0.1, 0.03), dark_wood)
-	# Stools on the customer side (no collision).
-	for z in [-3.6, -2.4, -1.2, 1.2, 2.4, 3.6, 4.8, -4.8]:
+	# Stools on the customer side (no collision); along a long bar, all the way along it.
+	var stools: Array = [-3.6, -2.4, -1.2, 1.2, 2.4, 3.6, 4.8, -4.8]
+	if cmax.z - cmin.z > 10.6:
+		stools = []
+		var sz := cmin.z + 0.6
+		while sz < cmax.z - 0.5:
+			stools.append(sz)
+			sz += 1.2
+	for z in stools:
 		var sx := cmax.x + 0.75
 		_cyl(Vector3(sx, 0.38, z), 0.03, 0.76, brass)
 		_cyl(Vector3(sx, 0.78, z), 0.2, 0.07, mats.flat(Color("#6a2a24"), 0.8))
@@ -110,7 +140,7 @@ func dress(town, materials: LookMaterials) -> void:
 	for id in ["cantina_table_1", "cantina_table_2", "cantina_table_3"]:
 		var t: Dictionary = town.get_box(id)
 		if not t.is_empty():
-			lamps.append(Vector3((float(t.min[0]) + float(t.max[0])) * 0.5, 3.6, (float(t.min[2]) + float(t.max[2])) * 0.5))
+			lamps.append(transform.affine_inverse() * Vector3((float(t.min[0]) + float(t.max[0])) * 0.5, 3.6, (float(t.min[2]) + float(t.max[2])) * 0.5))
 	for p in lamps:
 		_cyl(Vector3(p.x, (p.y + ceiling) * 0.5, p.z), 0.008, ceiling - p.y, brass)
 		_cyl(p, 0.22, 0.18, mats.flat(Color("#2a2420"), 0.6, 0.5))
@@ -215,9 +245,16 @@ static func bottle_mesh(color: Color) -> Node3D:
 
 ## Where bottle number `i` stands: on her side of the counter top, in a row
 ## starting just beside her (the taps are on her other side), within reach.
+## In the scene's space (counter_min / max and serve_z are in the bar's frame).
 func slot(i: int) -> Vector3:
 	var z := serve_z + 0.25 + (i % SERVED_MAX) * SERVED_GAP
-	return Vector3(counter_min.x + 0.45, counter_max.y + 0.06, minf(z, counter_max.z - 0.2))
+	var local := Vector3(counter_min.x + 0.45, counter_max.y + 0.06, minf(z, counter_max.z - 0.2))
+	return global_transform * local if is_inside_tree() else transform * local
+
+
+## Issue #392: she stands at `at` (the scene's space): the next bottles go beside her.
+func serve_at(at: Vector3) -> void:
+	serve_z = (transform.affine_inverse() * at).z
 
 
 ## Put `bottle` down on the next free spot; the oldest goes once the row is full.

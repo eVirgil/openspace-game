@@ -204,6 +204,46 @@ func test_the_station_dome_is_one_big_rave() -> void:
 	assert_gte(station_town.markers().filter(func(m): return str(m.get("soldier", "")) == "local_raver").size(), 8)
 
 
+## Issue #392: the rave's room. The bar is across the dance floor from the stage,
+## long and wide as the kit says, with armed patrons round it, a lounge, the
+## fence's stall between the bar and the hall's mouth, and rave stalls.
+func test_the_rave_has_a_long_bar_a_lounge_and_stalls() -> void:
+	var t := TownLayout.new()
+	t.load_from_dict(PlanetGen.build("grit_station", cc).town)
+	assert_eq(t.validate(), [], "the station town validates")
+	var k: Dictionary = TownGen.new().kit.club_dome
+	var st: Dictionary = t.data.station
+	var c := Vector2(float(st.center[0]), float(st.center[2]))
+	var mid := func(b: Dictionary) -> Vector2: return Vector2((float(b.min[0]) + float(b.max[0])) * 0.5, (float(b.min[2]) + float(b.max[2])) * 0.5)
+	var bar: Dictionary = t.get_box("bar_counter")
+	var stage: Dictionary = t.get_box("cantina_stage")
+	var bc: Vector2 = mid.call(bar)
+	assert_lt((bc - c).dot(mid.call(stage) - c), 0.0, "the bar is on the far side of the dome from the stage")
+	assert_almost_eq(float(bar.max[0]) - float(bar.min[0]), float(k.bar.length), 0.01, "as long as the kit says")
+	assert_almost_eq(float(bar.max[2]) - float(bar.min[2]), float(k.bar.depth), 0.01, "as deep")
+	var near_bar := func(p: Vector3, m: float) -> bool:
+		var dx := maxf(maxf(float(bar.min[0]) - p.x, 0.0), p.x - float(bar.max[0]))
+		var dz := maxf(maxf(float(bar.min[2]) - p.z, 0.0), p.z - float(bar.max[2]))
+		return Vector2(dx, dz).length() <= m
+	var patrons := t.markers().filter(func(m): return str(m.get("soldier", "")) == "local_patron")
+	assert_gte(patrons.filter(func(m): return near_bar.call(Vector3(float(m.pos[0]), 0, float(m.pos[2])), 3.0)).size(), 6,
+		"armed patrons round the bar")
+	assert_gt(t.boxes().filter(func(b): return str(b.id).begins_with("lounge_booth_") and not str(b.id).contains("table")).size(), 0, "booths")
+	assert_gt(t.boxes().filter(func(b): return str(b.id).begins_with("lounge_table_")).size(), 0, "cocktail tables")
+	assert_gt(patrons.filter(func(m): return bool(m.get("lounge", false))).size(), 0, "people in the lounge")
+	assert_true(near_bar.call(t.marker_pos("bar_front"), 3.0), "bar_front in front of it")
+	assert_true(near_bar.call(t.marker_pos("cantina_owner"), 3.0), "Oda behind it")
+	var fence: Vector3 = t.marker_pos("vendor_1")
+	var mouth := Vector3(c.x + float(st.radius), 0, c.y)
+	assert_lt(Vector2(fence.x - mouth.x, fence.z - mouth.z).length(), 22.0, "the fence's stall is near the hall's mouth")
+	assert_true(near_bar.call(fence, 22.0), "and near the bar")
+	assert_false(t.get_box("stall_fn1").is_empty(), "the fence keeps his stall")
+	var rave := t.boxes().filter(func(b): return str(b.get("wares", "")) == "rave")
+	assert_between(rave.size(), 3, 4, "three or four rave stalls")
+	for b in rave:
+		assert_false(t.get_marker(str(b.id).replace("stall_rave_", "rave_vendor_")).is_empty(), "a merchant at %s" % b.id)
+
+
 func test_the_asteroid_station() -> void:
 	var p := PlanetGen.build("grit_station", cc)
 	assert_eq(p.type, "asteroid")
