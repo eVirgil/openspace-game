@@ -28,12 +28,16 @@ static func _finish(st: SurfaceTool) -> ArrayMesh:
 
 
 ## A box-section arc around the Y axis: walls, parapets, landing bays, and (rotated)
-## the wreck's broken ring and ribs. Angles are in radians.
+## the wreck's broken ring and ribs. Angles are in radians. `xf` turns it as it is
+## built (an arch stood up), so nobody has to read the mesh back to turn it: that
+## waits on the GPU.
 static func ring_segment(r_in: float, r_out: float, y0: float, y1: float,
-		a0: float = 0.0, a1: float = TAU, seg: int = 64) -> ArrayMesh:
+		a0: float = 0.0, a1: float = TAU, seg: int = 64, xf := Transform3D.IDENTITY) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)   # hard edges: flat, faceted normals
+	var quad := func(_st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, out: Vector3) -> void:
+		LookMeshKit.add_quad(_st, xf * a, xf * b, xf * c, xf * d, xf.basis * out)
 	for i in seg:
 		var t0 := a0 + (a1 - a0) * float(i) / seg
 		var t1 := a0 + (a1 - a0) * float(i + 1) / seg
@@ -48,16 +52,16 @@ static func ring_segment(r_in: float, r_out: float, y0: float, y1: float,
 		var i1b := d1 * r_in + Vector3(0, y0, 0)
 		var i0t := d0 * r_in + Vector3(0, y1, 0)
 		var i1t := d1 * r_in + Vector3(0, y1, 0)
-		add_quad(st, o0b, o1b, o1t, o0t, mid)            # outer wall
-		add_quad(st, i0b, i1b, i1t, i0t, -mid)           # inner wall
-		add_quad(st, i0t, i1t, o1t, o0t, Vector3.UP)     # top
-		add_quad(st, i0b, i1b, o1b, o0b, Vector3.DOWN)   # bottom
+		quad.call(st, o0b, o1b, o1t, o0t, mid)            # outer wall
+		quad.call(st, i0b, i1b, i1t, i0t, -mid)           # inner wall
+		quad.call(st, i0t, i1t, o1t, o0t, Vector3.UP)     # top
+		quad.call(st, i0b, i1b, o1b, o0b, Vector3.DOWN)   # bottom
 	if not is_equal_approx(a1 - a0, TAU):
 		for end in [[a0, -1.0], [a1, 1.0]]:
 			var t: float = end[0]
 			var d := Vector3(cos(t), 0.0, sin(t))
 			var tangent := Vector3(-sin(t), 0.0, cos(t)) * float(end[1])
-			add_quad(st, d * r_in + Vector3(0, y0, 0), d * r_out + Vector3(0, y0, 0),
+			quad.call(st, d * r_in + Vector3(0, y0, 0), d * r_out + Vector3(0, y0, 0),
 				d * r_out + Vector3(0, y1, 0), d * r_in + Vector3(0, y1, 0), tangent)
 	return _finish(st)
 

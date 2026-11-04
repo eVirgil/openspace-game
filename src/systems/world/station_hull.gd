@@ -53,6 +53,7 @@ var bay: Dictionary = {}           ## { xf (x out to the mouth), c, dir, r, mout
 var parts: Array = []
 var doors: Array = []              ## { tower, floor (index), xf, size }: the shaft's doors, opened by SpaceStation
 var hatches: Array = []            ## { tunnel, xf, size }: the shield in each tunnel's roof (you pass, the air does not)
+var rooms: Dictionary = {}         ## "<tower>/<floor>" -> [{ a (its door's angle), half (half its angle), open }]
 var tubes: Array = []              ## { tower, floor (index), c, r, y0, y1 }: the shield round the gap between two floors (SpaceStation draws it)
 var _built := false
 
@@ -89,8 +90,11 @@ func setup(d: Dictionary) -> void:
 		var at: Array = t.get("at", [0, 0])
 		var fl: Array = []
 		for f in t.get("floors", []):
+			# "rooms": true (the config's rooms.count), false (open: markets) or a count.
+			var rv = f.get("rooms", true)
+			var count := int(rv) if (rv is float or rv is int) else (int(d.get("rooms", {}).get("count", 8)) if bool(rv) else 0)
 			fl.append({ "id": str(f.get("id", "")), "y": float(f.get("y", 0.0)), "r": float(f.get("radius", 40.0)),
-				"rooms": bool(f.get("rooms", true)) })
+				"rooms": count > 0, "room_count": count, "open_rooms": int(f.get("open_rooms", -1)) })
 		fl.sort_custom(func(a, b): return float(a.y) < float(b.y))
 		towers.append({ "id": str(t.get("id", "")), "c": Vector2(float(at[0]), float(at[1])), "floors": fl })
 	_read_bay(d.get("bay", {}))
@@ -459,7 +463,11 @@ func _read_tunnels(list: Array) -> void:
 
 
 ## The angles (round tower `t`'s middle, 0 = +x, PI/2 = +z) where tunnels leave its
-## floor at `y`.
+## floor at `y` (what a floor's furniture keeps clear).
+func door_angles(t: Dictionary, y: float) -> Array:
+	return _door_angles(t, y)
+
+
 func _door_angles(t: Dictionary, y: float) -> Array:
 	var out: Array = []
 	var c: Vector2 = t.c
@@ -479,10 +487,17 @@ func _door_angles(t: Dictionary, y: float) -> Array:
 
 # ------------------------------------------------------------------ building
 
+## The rooms of floor `floor_id` in tower `tower_id` that have a door on the
+## walkway: { a, half, open } (see `rooms`), round the floor from angle 0.
+func rooms_of(tower_id: String, floor_id: String) -> Array:
+	return rooms.get(tower_id + "/" + floor_id, [])
+
+
 func _build() -> void:
 	parts = []
 	doors = []
 	hatches = []
+	rooms = {}
 	tubes = []
 	for t in towers:
 		var fl: Array = t.floors
@@ -659,7 +674,7 @@ func _rooms(t: Dictionary, i: int, doors_at: Array) -> void:
 	var ceil_y := y + floor_h
 	var pre := "%s_%s" % [str(t.id), str(f.id)]
 	var rc: Dictionary = cfg.get("rooms", {})
-	var n := int(rc.get("count", 8))
+	var n := int(f.get("room_count", rc.get("count", 8)))
 	var dw := float(rc.get("door_width", 2.6))
 	var dh := float(rc.get("door_height", 4.0))
 	var rr := gap_r + walk
@@ -678,11 +693,31 @@ func _rooms(t: Dictionary, i: int, doors_at: Array) -> void:
 	for d in doors_at:
 		gaps.append([d, corr])
 	_ring(pre + "_room_wall", c, rr - INNER_WALL * 0.5, rr + INNER_WALL * 0.5, y, ceil_y, "solid", "wall", gaps)
-	for a in room_doors:
-		_ring(pre + "_door_head_%d" % int(rad_to_deg(a)), c, rr - INNER_WALL * 0.5, rr + INNER_WALL * 0.5, y + dh, ceil_y,
+	# Which rooms are open ("open_rooms" on the floor; -1, all of them): spread evenly
+	# round the floor. The rest are someone's locked home: a shut door, a warm lock.
+	var n_open := int(f.get("open_rooms", -1))
+	var open_set := {}
+	var m := room_doors.size()
+	if n_open < 0 or n_open >= m:
+		for k in m:
+			open_set[k] = true
+	else:
+		for j in n_open:
+			open_set[floori((j + 0.5) * m / float(n_open))] = true
+	var list: Array = []
+	for k in m:
+		var a: float = room_doors[k]
+		var open := open_set.has(k)
+		list.append({ "a": a, "half": PI / n, "open": open })
+		var deg := int(rad_to_deg(a))
+		_ring(pre + "_door_head_%d" % deg, c, rr - INNER_WALL * 0.5, rr + INNER_WALL * 0.5, y + dh, ceil_y,
 			"solid", "wall", [[a + PI, PI * rr - dw * 0.5 - 0.05]], 1)
-		_radial("%s_door_light_%d" % [pre, int(rad_to_deg(a))], c, a, rr - 0.35, rr - 0.25, y + dh + 0.1, y + dh + 0.3,
-			dw, "decor", "glow")
+		_radial("%s_door_light_%d" % [pre, deg], c, a, rr - 0.35, rr - 0.25, y + dh + 0.1, y + dh + 0.3,
+			dw, "decor", "glow" if open else "lock")
+		if not open:
+			_radial("%s_door_shut_%d" % [pre, deg], c, a, rr - 0.12, rr + 0.12, y, y + dh, dw + 0.1, "solid", "trim")
+			_radial("%s_door_lock_%d" % [pre, deg], c, a, rr - 0.2, rr - 0.12, y + 1.2, y + 1.45, 0.25, "decor", "lock", dw * 0.3)
+	rooms[str(t.id) + "/" + str(f.id)] = list
 	for d in doors_at:
 		_ring(pre + "_corr_head_%d" % int(rad_to_deg(d)), c, rr - INNER_WALL * 0.5, rr + INNER_WALL * 0.5, y + tunnel_h, ceil_y,
 			"solid", "wall", [[d + PI, PI * rr - corr - 0.05]], 1)

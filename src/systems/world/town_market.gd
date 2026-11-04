@@ -35,6 +35,7 @@ var canopies := {}            ## stall id -> canopy kind
 var anchors := {}             ## stall id -> { "front": Vector3, "back": Vector3 } canopy edges (world)
 var items := {}               ## issue #355: stall id -> [Node3D] the trader's items on its counter
 var _rng := RandomNumberGenerator.new()
+var _cloths := {}
 var _wood: Material
 var _wood_top: Material
 var _iron: Material
@@ -63,17 +64,39 @@ func dress(parent: Node3D, stalls: Array, backs: Dictionary = {}, trades: Dictio
 	_string_lights(parent, list)
 
 
+## Stalls that are not town boxes (the space station's round market floors): each
+## { id, xf (its frame: y up, +X the customer side, the origin on the floor under
+## the counter's middle), size: Vector3(depth, height, length) }. No back panels
+## and no string lights; the same tables, canopies and wares.
+## `first`: the first stall's place in the whole row (the colours step along it).
+func dress_at(parent: Node3D, stalls: Array, first: int = 0, trades: Dictionary = {}) -> void:
+	for i in stalls.size():
+		_stall(parent, stalls[i], first + i, {}, trades.get(str(stalls[i].id), {}))
+
+
 func _stall(parent: Node3D, b: Dictionary, i: int, back: Dictionary, trade: Dictionary = {}) -> void:
-	var mn := Vector3(float(b.min[0]), float(b.min[1]), float(b.min[2]))
-	var mx := Vector3(float(b.max[0]), float(b.max[1]), float(b.max[2]))
 	var face := str(b.get("face", "+z"))
 	var along_x := face.ends_with("x")
-	var yaw: float = { "+x": 0.0, "-x": PI, "+z": -PI * 0.5, "-z": PI * 0.5 }.get(face, 0.0)
-	kit._xf = Transform3D(Basis(Vector3.UP, yaw), Vector3((mn.x + mx.x) * 0.5, mn.y, (mn.z + mx.z) * 0.5))
-	var size := mx - mn
-	var lx := size.x if along_x else size.z       # depth (customer side is +X)
-	var lz := size.z if along_x else size.x       # length along the counter
-	var h := size.y
+	var lx: float
+	var lz: float
+	var h: float
+	if b.has("xf"):
+		kit._xf = b.xf
+		var sz: Vector3 = b.size
+		lx = sz.x
+		h = sz.y
+		lz = sz.z
+		face = "+x"
+		along_x = true
+	else:
+		var mn := Vector3(float(b.min[0]), float(b.min[1]), float(b.min[2]))
+		var mx := Vector3(float(b.max[0]), float(b.max[1]), float(b.max[2]))
+		var yaw: float = { "+x": 0.0, "-x": PI, "+z": -PI * 0.5, "-z": PI * 0.5 }.get(face, 0.0)
+		kit._xf = Transform3D(Basis(Vector3.UP, yaw), Vector3((mn.x + mx.x) * 0.5, mn.y, (mn.z + mx.z) * 0.5))
+		var size := mx - mn
+		lx = size.x if along_x else size.z       # depth (customer side is +X)
+		lz = size.z if along_x else size.x       # length along the counter
+		h = size.y
 	_rng.seed = hash(str(b.id))
 	var id := str(b.id)
 	_lift = float(b.get("canopy_lift", 0.0))
@@ -150,7 +173,7 @@ func _panel(parent: Node3D, a: Vector3, b: Vector3, w: float, color: Color, bow:
 	var v := -d.normalized()
 	var n := u.cross(v)
 	var mi := MeshInstance3D.new()
-	mi.mesh = LookMeshKit.cloth(w, d.length(), bow, 6, 4)
+	mi.mesh = _cloth(w, d.length(), bow, 4)
 	mi.material_override = mats.canvas(color)
 	mi.transform = kit._xf * Transform3D(Basis(u, v, n), a)
 	mi.set_meta("decor", "awning")
@@ -162,12 +185,21 @@ func _panel(parent: Node3D, a: Vector3, b: Vector3, w: float, color: Color, bow:
 ## A short fringe hanging straight down from a canopy edge.
 func _valance(parent: Node3D, top: Vector3, w: float, color: Color) -> void:
 	var mi := MeshInstance3D.new()
-	mi.mesh = LookMeshKit.cloth(w, 0.28, 0.02, 6, 1)
+	mi.mesh = _cloth(w, 0.28, 0.02, 1)
 	mi.material_override = mats.canvas(color.darkened(0.15))
 	mi.transform = kit._xf * Transform3D(Basis(Vector3.UP, -PI * 0.5), top)
 	mi.set_meta("decor", "awning")
 	parent.add_child(mi)
 	awnings.append(mi)
+
+
+## A canopy's cloth, shared by every canopy of the same size (a row of matching
+## stalls draws one mesh, which batches).
+func _cloth(w: float, h: float, bow: float, rows: int) -> ArrayMesh:
+	var k := "%.2f_%.2f_%.2f_%d" % [w, h, bow, rows]
+	if not _cloths.has(k):
+		_cloths[k] = LookMeshKit.cloth(w, h, bow, 6, rows)
+	return _cloths[k]
 
 
 func _anchor(id: String, front: Vector3, back: Vector3) -> void:

@@ -20,6 +20,28 @@ room (`docs/lookdev/moon_rave/`). No other suites, and it was not played.
 - **The old cantina door's street lamp** still stands in the middle of the room
   (it was there before, where the cantina's door would be).
 
+## After the station's furniture (2026-11-04)
+
+**Checked:** a rendered probe on the Mac (Vulkan) at fixed spots aboard and
+outside, on main and on this branch back to back, and stills of every floor and
+room type; `test_smoke` and a headless boot. Nothing was played by hand.
+
+- **Nobody is aboard yet.** The stalls and booths have no keepers and sell
+  nothing; the favela, the suites and the engine deck are empty of people
+  (#315's crowd).
+- **The favela's shacks are solid boxes.** You cannot go inside one; you can
+  jetpack onto the roofs.
+- **The drop hatch is sealed.** It is drawn in the first cargo hold's floor and
+  opens with the wrecks below (#317).
+- **The top floor and the outpost floor are empty** (#314).
+- **A floor two away is empty glass.** Only the floor the camera is on and the
+  ones just above and below are drawn, so looking down the glass middle you see
+  bare floors further down.
+- **Plain walls.** The rooms are the hull's one wall finish, and much of the
+  furniture is plain shapes in flat colours: a textures and lighting pass would
+  help, the suites most of all (no light of their own, only glowing materials).
+- **Without the look layer there is no furniture** (and none of its colliders).
+
 ## After ship hulls that follow the model (2026-11-04)
 
 **Checked:** test_smoke, a headless town boot with the models on (every parked
