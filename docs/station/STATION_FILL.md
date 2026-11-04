@@ -10,9 +10,10 @@ from the config's `"fill"` block: one entry per floor id, by `use`.
 | `suites` | `homes_2` (second tower's top floor, the upper homes) | 8 big suites (10 rooms; the two by the tunnel's corridor have no door), all open, dressed like the cantina's club and the party barge: dark wood floors and panelling with a gold rail, neon lines, a bar with lit bottles, an aquarium, two velvet booths under chandeliers, a light-up dance floor ringed by cocktail tables, a long sofa, a grand piano in every other suite, a round bed under a gold canopy by the window. |
 | `homes` | (none today) | Long studios in a floor's open rooms (lounge, kitchen, partition, bedroom by the window), the rest locked with a shut door and an amber lock light. |
 | `market` | `markets`, `markets_2` | Rings of the town's market stalls (`TownMarket`: tables, canopies, wares), and an outer ring packed with shacks and booths like the favela's (`pack`). A lane is kept clear to every tunnel door. |
+| `remnant` | `outpost` (second tower's middle floor) | The Remnant's deck (issue #314): its rooms by turn are the cruiser's control room (`OutpostRoom.inside`, the planet map over its holo table, built near), bunk rooms, armouries, the commander's office and a mess; red stripes, banners and lamps down the walkway, and a staggered barricade with a lit checkpoint at the tunnel from the favela. Its reds are faction materials (`faction_mats`): taken, the deck is repainted in the locals' colours in place. The people are `StationRemnant`. |
 | `engines` | `engines` | Its 8 rooms by turn: reactors, cargo holds (one has the drop hatch in its floor, sealed until the wrecks below exist, #317), pump rooms, workshops. Pipes run round the walkway's ceiling. |
 
-The top floor and the second tower's outpost floor are empty here (#314).
+The top floor is still empty (the cantina comes with #314's rest).
 
 ## Render rules
 

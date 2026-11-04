@@ -54,6 +54,7 @@
         { "r": 31.0, "face": "out", "every_m": 7.0 },
         { "r": 36.8, "face": "in", "pack": true, "depth": [2.6, 3.0], "booth_share": 0.4, "hut_share": 0.15, "stack_share": 0.2 }
       ] },
+      "outpost": { "use": "remnant" },
       "engines": { "use": "engines", "rooms": ["engine", "cargo", "pumps", "workshop", "engine", "cargo", "pumps", "workshop"] }
     }
   },
@@ -83,6 +84,19 @@
     "rouse_max": 10,
     "home_pull": 0.5,
     "calm_back_s": 20.0
+  },
+  "remnant_note": "Issue #314: the Remnant's deck (src/systems/world/station_remnant.gd; its look is the fill's use 'remnant'). One whole floor ('tower', 'floor') whose rooms are by turn 'rooms': control (the cruiser's control room with the planet map over its holo table), bunks, armoury, command, mess; its walkway in their colours with a barricade and a checkpoint at its tunnel. Their troopers ('trooper', the commander 'commander') take their posts once the camera is within wake_within metres and sleep past sleep_m. Kill every one and the locals hold the deck for good (Territory place 'station_<landmark id>', saved with the world): the red is painted over in the locals' colours and, locals_after_s seconds later, guard_share of the posts get the locals' guards ('guard').",
+  "remnant": {
+    "tower": "second",
+    "floor": "outpost",
+    "rooms": ["control", "bunks", "armoury", "command", "bunks", "mess", "armoury", "bunks"],
+    "trooper": "cruiser_trooper",
+    "commander": "cruiser_honour_guard",
+    "guard": "local_guard",
+    "guard_share": 0.5,
+    "wake_within": 700.0,
+    "sleep_m": 120.0,
+    "locals_after_s": 8.0
   },
   "rooms": { "count": 8, "door_width": 2.6, "door_height": 4.0 },
   "tunnel": { "width": 6.0, "height": 5.0 },

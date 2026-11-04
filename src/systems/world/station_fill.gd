@@ -30,6 +30,7 @@ extends RefCounted
 
 const TownBuildings := preload("res://src/systems/world/town_buildings.gd")
 const TownMarket := preload("res://src/systems/world/town_market.gd")
+const StationRemnant := preload("res://src/systems/world/station_remnant.gd")
 const UP := Vector3.UP
 const FABRICS := [Color("#2f5d8a"), Color("#7a3b2e"), Color("#4f6b3a"), Color("#5b3f6e"), Color("#8a6a2e"), Color("#2f6f6a")]
 const HUTS := ["hut_block", "hut_round", "hut_stepped"]
@@ -51,6 +52,8 @@ var slowest := ""
 var _rng := RandomNumberGenerator.new()
 var _glows := {}
 var _q: Array = []                  ## the floor being built: what is left to do (Callables)
+var group := ""                     ## the Remnant deck's faction materials' group (faction_mats)
+var faction := {}                   ## role -> its registered material (LookMaterials.repaint repaints them)
 var _parent: Node3D
 
 
@@ -90,6 +93,8 @@ func begin(parent: Node3D, t: Dictionary, i: int) -> bool:
 			_favela(t, f, fc)
 		"suites":
 			_suites(t, f, fc)
+		"remnant":
+			_remnant(t, f)
 		_:
 			return false
 	_q.append(_collect)
@@ -878,6 +883,187 @@ func _chandelier(x: float, ceil_y: float, gold: Material) -> void:
 		var a := TAU * j / 8.0
 		_p(kit.ball(0.11, 0.22, false, 8), kit.window_glow, Vector3(x + cos(a) * 0.8, ceil_y - 2.6, sin(a) * 0.8))
 	_p(kit.ball(0.16, 0.32, false, 8), kit.window_glow, Vector3(x, ceil_y - 2.75, 0))
+
+
+# ------------------------------------------------------------------ the Remnant deck
+
+## The Remnant deck's colours, registered with the look's materials under `g` (so
+## LookMaterials.repaint paints them over when the locals take it): "mark" for
+## banners and stripes, "lamp" for the lights, "band" for the barricades' bands.
+## Made at once, before the floor is built, so a repaint can come first.
+func faction_mats(g: String) -> void:
+	group = g
+	faction = {
+		"mark": mats.faction_flat("mark", g, 0.65, 0.1),
+		"band": mats.faction_flat("band", g, 0.6, 0.3),
+		"lamp": mats.faction_glow("lamp", g),
+	}
+	(faction.lamp as StandardMaterial3D).emission_energy_multiplier = 2.5
+
+
+func _fm(role: String) -> Material:
+	if faction.is_empty():
+		faction_mats("station")
+	return faction[role]
+
+
+## One whole floor of the Remnant: its rooms by use (StationRemnant.rooms) and its
+## walkway in their colours, with a barricade and a checkpoint at the tunnel.
+func _remnant(t: Dictionary, f: Dictionary) -> void:
+	for r in StationRemnant.rooms(hull):
+		_q.append(_remnant_room.bind(r))
+		_count(str(r.use))
+	_q.append(_remnant_walkway.bind(t, f))
+
+
+func _remnant_room(r: Dictionary) -> void:
+	kit._xf = r.frame
+	var r0 := float(r.r0)
+	var r1 := float(r.r1)
+	var half := float(r.half)
+	# Every room: a stripe down the middle of the floor, red lamps along the walls.
+	_p(kit.box(r1 - r0 - 1.0, 0.02, 0.5), _fm("mark"), Vector3((r0 + r1) * 0.5, 0.03, 0))
+	for s: float in [-1.0, 1.0]:
+		var xm := (r0 + r1) * 0.5
+		_p(kit.box((r1 - r0) / cos(half), 0.08, 0.08), _fm("lamp"), Vector3(xm, hull.floor_h - 0.6, s * (xm * tan(half) - StationHull.INNER_WALL - 0.1)),
+			false, Basis(UP, -s * half))
+	match str(r.use):
+		"control":
+			var cr := StationRemnant.control_room(hull, r)
+			kit._xf = cr.frame
+			for p in OutpostRoom.inside(cr.b):
+				var id := str(p.id)
+				if id.begins_with("lining"):
+					continue
+				var c: Vector3 = p.center
+				if id == "floor":
+					c.y += 0.05
+				var m: Material = _glow(Color("#e8f6ff"), 3.0) if str(p.finish) == "glow" else _m(str(p.finish))
+				_p(kit.box((p.size as Vector3).x, (p.size as Vector3).y, (p.size as Vector3).z), m, c, bool(p.solid), p.basis)
+			kit._xf = r.frame
+			_p(kit.box(0.08, 4.0, 1.6), _fm("mark"), Vector3(r1 - 0.4, 6.0, 0))
+		"bunks":
+			_bunks(r0, r1, half)
+		"armoury":
+			_armoury(r0, r1, half)
+		"command":
+			_command(r0, r1, half)
+		"mess":
+			_mess(r0, r1, half)
+
+
+## Two-high bunks down both sides (posts, frames, mattresses, pillows), a
+## footlocker at each foot, lockers at the window end: the barracks' bunk room.
+func _bunks(r0: float, r1: float, half: float) -> void:
+	var frame := mats.painted(Color("#3b3f45"), 0.5, 0.6)
+	var cloth := mats.flat(Color("#59604c"), 0.95)
+	var pillow := mats.flat(Color("#c9c3b2"), 0.95)
+	var steel := mats.painted(Color("#4c5259"), 0.45, 0.55)
+	var x := r0 + 2.5
+	while x < r1 - 5.0:
+		for s: float in [-1.0, 1.0]:
+			var z := s * (_half_w(x, half) - 1.1)
+			for dx: float in [-0.95, 0.95]:
+				for dz: float in [-0.42, 0.42]:
+					_p(kit.box(0.06, 2.0, 0.06), frame, Vector3(x + dx, 1.0, z + dz))
+			for y: float in [0.38, 1.38]:
+				_p(kit.box(2.0, 0.08, 0.9), frame, Vector3(x, y, z))
+				_p(kit.box(1.9, 0.14, 0.82), cloth, Vector3(x, y + 0.11, z))
+				_p(kit.box(0.32, 0.1, 0.65), pillow, Vector3(x - 0.75, y + 0.23, z))
+			kit.add_collider(kit._xf * Transform3D(Basis.IDENTITY, Vector3(x, 1.0, z)), Vector3(2.0, 2.0, 0.9))
+			_p(kit.box(0.5, 0.45, 0.8), steel, Vector3(x + 1.3, 0.22, z), true)
+		x += 2.7
+	var lz := _half_w(r1 - 1.0, half) - 1.0
+	var n := maxi(2, floori(lz * 2.0 / 0.7))
+	for k in n:
+		var z := -lz + (k + 0.5) * lz * 2.0 / n
+		_p(kit.box(0.55, 2.0, 0.6), steel, Vector3(r1 - 0.6, 1.0, z), true)
+		_p(kit.box(0.02, 0.05, 0.5), _fm("band"), Vector3(r1 - 0.9, 1.7, z))
+
+
+## Rifle racks down both sides, ammunition crates, a workbench, a red cage at the end.
+func _armoury(r0: float, r1: float, half: float) -> void:
+	var dark := mats.painted(Color("#1d1f22"), 0.4, 0.7)
+	var x := r0 + 3.0
+	while x < r1 - 6.0:
+		for s: float in [-1.0, 1.0]:
+			var z := s * (_half_w(x, half) - 0.5)
+			_p(kit.box(2.4, 2.0, 0.4), _m("trim"), Vector3(x, 1.0, z), true)
+			for k in 6:
+				_p(kit.box(0.08, 1.15, 0.14), dark, Vector3(x - 1.0 + k * 0.4, 1.0, z - s * 0.26))
+			_p(kit.box(2.4, 0.06, 0.06), _fm("lamp"), Vector3(x, 2.05, z - s * 0.22))
+		x += 3.2
+	for k in 6:
+		var cx := r0 + 4.0 + (k % 3) * 1.4
+		var cz := -1.2 + (k / 3) * 2.4
+		_p(kit.box(1.0, 0.7, 0.8), _m("cargo"), Vector3(cx, 0.35 + (0.7 if k == 4 else 0.0), cz), true)
+	_p(kit.box(2.6, 0.95, 1.0), _m("console"), Vector3(r1 - 7.0, 0.48, 0), true)
+	_p(kit.box(2.6, 0.06, 1.1), _m("trim"), Vector3(r1 - 7.0, 0.98, 0))
+	var cw := _half_w(r1 - 3.0, half) - 0.8
+	for k in 9:
+		var z := -cw + k * cw * 2.0 / 8.0
+		_p(kit.box(0.06, 3.0, 0.06), _fm("band"), Vector3(r1 - 4.0, 1.5, z))
+	_p(kit.box(0.08, 0.08, cw * 2.0), _fm("lamp"), Vector3(r1 - 4.0, 3.0, 0))
+
+
+## The commander's office: a desk to the door with a chair, a wall of screens, a
+## map table and the Remnant's banners either side.
+func _command(r0: float, r1: float, half: float) -> void:
+	var dx := r0 + 12.0
+	_p(kit.box(1.1, 0.8, 3.0), _m("console"), Vector3(dx, 0.4, 0), true)
+	_p(kit.box(1.2, 0.06, 3.1), _m("trim"), Vector3(dx, 0.82, 0))
+	_p(kit.box(0.6, 1.3, 0.6), _m("hull"), Vector3(dx + 1.0, 0.65, 0), true)
+	_p(kit.box(0.08, 2.4, 5.0), _m("screen"), Vector3(r1 - 1.2, 2.6, 0))
+	for s: float in [-1.0, 1.0]:
+		_p(kit.box(0.08, 4.5, 1.4), _fm("mark"), Vector3(r1 - 1.3, 6.0, s * 3.6))
+	_p(kit.box(2.4, 0.9, 1.6), _m("console"), Vector3(r0 + 5.0, 0.45, 0), true)
+	_p(kit.box(2.2, 0.04, 1.4), _fm("lamp"), Vector3(r0 + 5.0, 0.92, 0))
+	for s: float in [-1.0, 1.0]:
+		var z := s * (_half_w(r0 + 8.0, half) - 0.3)
+		_p(kit.box(4.0, 0.9, 0.05), _m("screen"), Vector3(r0 + 8.0, 1.8, z))
+
+
+## The mess: two long tables with benches, a serving counter, a screen.
+func _mess(r0: float, r1: float, half: float) -> void:
+	for s: float in [-1.0, 1.0]:
+		var z := s * 2.6
+		_p(kit.box(8.0, 0.08, 1.2), _m("trim"), Vector3(r0 + 9.0, 0.76, z))
+		for lx: float in [-3.6, 0.0, 3.6]:
+			_p(kit.box(0.1, 0.72, 0.9), _m("hull"), Vector3(r0 + 9.0 + lx, 0.36, z), lx == 0.0)
+		for bz: float in [-0.95, 0.95]:
+			_p(kit.box(8.0, 0.08, 0.4), _m("hull"), Vector3(r0 + 9.0, 0.45, z + bz), true)
+	_p(kit.box(1.0, 1.05, 6.0), _m("console"), Vector3(r1 - 6.0, 0.52, 0), true)
+	_p(kit.box(1.1, 0.06, 6.1), _m("trim"), Vector3(r1 - 6.0, 1.08, 0))
+	_p(kit.box(0.08, 1.5, 3.0), _m("screen"), Vector3(r1 - 1.2, 2.5, 0))
+
+
+## The walkway in the Remnant's colours: a stripe round it, a banner each side of
+## every room's door, and at the tunnel's mouth a staggered barricade (solid, with a
+## way through round its sides) and a checkpoint arch with red lamps.
+func _remnant_walkway(t: Dictionary, f: Dictionary) -> void:
+	var y := float(f.y)
+	var rr := hull.gap_r + hull.walk
+	var n := 48
+	for k in n:
+		var a := TAU * k / n
+		kit._xf = radial(t, y, a)
+		_p(kit.box(0.4, 0.02, 2.0 * rr * tan(PI / n)), _fm("mark"), Vector3(rr - 0.8, 0.03, 0))
+	for r in StationRemnant.rooms(hull):
+		var room: Dictionary = r.room
+		for s: float in [-1.0, 1.0]:
+			kit._xf = radial(t, y, float(room.a) + s * 2.6 / rr)
+			_p(kit.box(0.06, 4.0, 1.1), _fm("mark"), Vector3(rr - 0.26, 7.5, 0))
+			_p(kit.box(0.08, 0.08, 1.2), _fm("lamp"), Vector3(rr - 0.28, 9.6, 0))
+	for d in hull.door_angles(t, y):
+		kit._xf = radial(t, y, float(d))
+		for b in [[rr - 3.5, 2.3], [rr - 3.5, -2.3], [rr - 6.0, 0.0]]:
+			_p(kit.box(0.7, 1.2, 2.4), _m("hull"), Vector3(float(b[0]), 0.6, float(b[1])), true)
+			_p(kit.box(0.72, 0.12, 2.42), _fm("band"), Vector3(float(b[0]), 1.0, float(b[1])))
+			_p(kit.box(0.74, 0.04, 2.0), _fm("lamp"), Vector3(float(b[0]), 1.22, float(b[1])))
+		for s: float in [-1.0, 1.0]:
+			_p(kit.box(0.35, 3.4, 0.35), _m("trim"), Vector3(rr - 1.2, 1.7, s * 2.9), true)
+		_p(kit.box(0.4, 0.4, 6.2), _m("trim"), Vector3(rr - 1.2, 3.6, 0))
+		_p(kit.box(0.42, 0.1, 5.6), _fm("lamp"), Vector3(rr - 1.2, 3.35, 0))
 
 
 # ------------------------------------------------------------------ the engine deck
