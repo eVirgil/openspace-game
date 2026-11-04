@@ -489,6 +489,38 @@ func neon(points: PackedVector3Array, color: Color, closed := false, radius := 0
 
 ## A mirror ball hung from `ceiling` at `pos`, turning slowly, with a few specks of
 ## light thrown round the room.
+## Issue #392: a laser droid's fan of beams, built into `parent` (its emitter
+## hangs at parent's origin; +Z of `face` is straight ahead), sweeping and
+## fading on this props' clock: the stage's droid (ClubDressing) and a floating
+## droid of yours with the laser rig (DroidController). `o` (all optional):
+## beams (per two tiers), tiers [tilt, tilt] (below level, the first dips more),
+## spread (radians either side), length (m), sweep_deg, sweep_s, colors.
+func laser_fan(parent: Node3D, face: Basis, o: Dictionary = {}) -> void:
+	var n := int(o.get("beams", 18))
+	var per := maxi(1, n / 2)
+	var tiers: Array = o.get("tiers", [-0.32, -0.13])
+	var spread := float(o.get("spread", 0.75))
+	var length := float(o.get("length", 34.0))
+	var cols: Array = o.get("colors", ["#3aff4a", "#ff2a3a", "#2bd9ff"])
+	for i in n:
+		var a := lerpf(-spread, spread, (i % per) / float(maxi(per - 1, 1)))
+		var tilt := float(tiers[0] if i < per else tiers[mini(1, tiers.size() - 1)])
+		var dir := (face * Vector3(sin(a), tilt, cos(a))).normalized()
+		var beam := Node3D.new()
+		parent.add_child(beam)
+		beam.basis = Basis.looking_at(dir, Vector3.UP)
+		var col := Color(str(cols[i % cols.size()]))
+		var core := _cyl(beam, 0.01, length, Vector3(0, 0, -length * 0.5), ClubTextures.glow(col, 7.0), Vector3(90, 0, 0))
+		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var halo := _cyl(beam, 0.04, length, Vector3(0, 0, -length * 0.5), ClubTextures.beam(col, 0.2), Vector3(90, 0, 0))
+		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fades.append([halo.material_override, 0.05, 0.3, 0.5, i * 0.11])
+		sweeps.append([beam, beam.basis, Vector3.UP, float(o.get("sweep_deg", 18.0)), float(o.get("sweep_s", 3.2)), i * 0.07])
+	var lens := ClubTextures.glow(Color(str(cols[0])), 6.0)
+	_sphere(parent, 0.09, Vector3.ZERO, lens)
+	cycles.append([lens, 0.2, 0.0])
+
+
 func mirror_ball(pos: Vector3, ceiling: float, r := 0.35) -> void:
 	_rod(self, pos + Vector3(0, r, 0), Vector3(pos.x, ceiling, pos.z), 0.01, _flat(Color("#808084"), 0.4, 0.8))
 	var ball := Node3D.new()

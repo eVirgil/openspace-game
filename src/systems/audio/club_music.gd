@@ -8,6 +8,10 @@ extends Node
 ## A new band plays every visit, so the music is back on when the town is built
 ## again after the last band was killed.
 ##
+## Issue #392: on a station whose dome is the club (club_dome), the hallway and
+## the landing pit count as inside too (also_inside), so the rave's mix is the
+## only music anywhere on the station, even in a gunfight.
+##
 ## Issue #269: a club can also follow a node (the party barge): heard by distance
 ## from it, inside within `follow_r` metres. With more than one club in a scene,
 ## the loudest one is what Sound plays.
@@ -19,6 +23,7 @@ var hear := 40.0
 var follow: Node3D       ## issue #269: a moving club (the barge); rect unused
 var follow_r := 0.0
 var inside_fn := Callable()   ## optional: (pos) -> bool, overrides "within follow_r"
+var also: Array = []          ## issue #392: more floors (Rect2s) that count as inside (the station's hall and pit)
 static var _levels: Dictionary = {}   ## instance id -> [playlist, near, inside]
 
 
@@ -31,6 +36,16 @@ func setup(id: String, zone: Dictionary, who: Node3D) -> ClubMusic:
 	rect = Rect2(float(a[0]), float(a[1]), float(b[0]) - float(a[0]), float(b[1]) - float(a[1]))
 	hear = float(Sound.lib().cfg.get("club", {}).get("hear", 40.0))
 	Sound.set_club_live(true)
+	return self
+
+
+## Issue #392: the moon rave's mix fills the whole station: these zones (the
+## town's zone dicts) count as inside too, on foot (in a ship you have taken off).
+func also_inside(zones: Array) -> ClubMusic:
+	for z in zones:
+		var a: Array = z.get("min", [0, 0])
+		var b: Array = z.get("max", [0, 0])
+		also.append(Rect2(float(a[0]), float(a[1]), float(b[0]) - float(a[0]), float(b[1]) - float(a[1])))
 	return self
 
 
@@ -60,6 +75,12 @@ func _process(_dt: float) -> void:
 		else:
 			d = distance(rect, p.x, p.z)
 			inside = d <= 0.0
+			if not inside and target.get("piloting") != true:
+				for r in also:
+					if distance(r, p.x, p.z) <= 0.0:
+						d = 0.0
+						inside = true
+						break
 		_levels[key] = [playlist, near(d, hear), inside]
 	_apply()
 

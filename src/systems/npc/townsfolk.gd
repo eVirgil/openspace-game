@@ -68,6 +68,10 @@ var _beast_next := 0.0            ## game seconds before a local may talk of the
 var _talk_cfg: Dictionary = {}    ## locals_say_m / _every_s / _first_s: the beast's, else the beast defaults
 var _nomad_lines: Array = []      ## the planet's natives' "locals_say" ([] if none)
 var _audio_tag := RegEx.create_from_string("\\[[^\\]]*\\]\\s*")
+var club_said: Array = []         ## issue #392: what the club's patrons have said as you passed (tests)
+var _club_talk: Dictionary = {}   ## locals_lines.json "club_talk" ({} when the town has no club)
+var _club_lines: Array = []       ## its lines for this club's style
+var _club_next := 0.0             ## game seconds before a patron may talk again
 
 ## The alarm went up here (any cause): the locals' barracks join it (Garrison.join_alarm).
 signal alarm_up(at: Vector3)
@@ -89,6 +93,11 @@ func setup(town_demo, all: Array) -> void:
 	_nomad_lines = natives.get("locals_say", []) if natives is Dictionary else []
 	_talk_cfg = _beast_cfg if not _beast_cfg.is_empty() else PlanetBeast.defaults()
 	_beast_next = float(_talk_cfg.get("locals_say_first_s", 6.0))
+	var style := str(town.data.get("club", {}).get("style", "")) if town.data is Dictionary else ""
+	if style != "":
+		_club_talk = CharacterKit._read_json(LINES_PATH).get("club_talk", {})
+		_club_lines = _club_talk.get(style, [])
+		_club_next = float(_club_talk.get("locals_say_first_s", 3.0))
 	for g in members:
 		if (not (g.has_meta("outpost") or g.has_meta("ranch")) or not is_same(members, demo.locals)) and not on_barracks(g):
 			_adopt(g)              # (issue #187: the town's leaves the outposts' and ranches' locals to theirs)
@@ -170,6 +179,7 @@ func _physics_process(dt: float) -> void:
 		_run_brain(g, dt, ppos)
 	if not alarm.active():
 		_calm_talk(alive, ppos)
+		_club_chat(alive, ppos)
 
 
 func _run_brain(g: NpcBody, dt: float, ppos: Vector3) -> void:
@@ -422,6 +432,25 @@ func _calm_talk(alive: Array, ppos: Vector3) -> void:
 	_beast_next = _clock + float(_talk_cfg.get("locals_say_every_s", 30.0))
 	(beast_said if i < lore.size() else nomads_said).append(text)
 	g.say(_audio_tag.sub(text, "", true).strip_edges(), 4.0, false)
+
+
+## Issue #392: calm, a club patron you walk close by says one of the club's
+## lines (locals_lines.json "club_talk"), at most one every so often for the room.
+func _club_chat(alive: Array, ppos: Vector3) -> void:
+	if _club_lines.is_empty() or ppos == Vector3.INF or _clock < _club_next:
+		return
+	var who: Array = _club_talk.get("who", [])
+	var near := alive.filter(func(g): return who.has(str(g.profile.get("id", ""))))
+	var g := _nearest(near, ppos)
+	if g == null or g.global_position.distance_to(ppos) > float(_club_talk.get("locals_say_m", 3.5)):
+		return
+	var text := str(_club_lines[_rng.randi() % _club_lines.size()])
+	if club_said.size() > 0 and _club_lines.size() > 1:
+		while text == str(club_said.back()):
+			text = str(_club_lines[_rng.randi() % _club_lines.size()])
+	_club_next = _clock + float(_club_talk.get("locals_say_every_s", 12.0))
+	club_said.append(text)
+	g.say(text, 3.5, false)
 
 
 func _say(g: NpcBody, key: String) -> void:

@@ -1,11 +1,12 @@
 class_name GearUpgrades
 extends RefCounted
-## What the fence sells besides buying contraband (issues #208, #209): one-time
-## upgrades for the pistol, the rifle and the jetpack, and quantonium armour once
-## the first bounty is paid. Pure and static; what is bought lives in
-## WorldState.gear_fits (saved): [offer id, ...].
+## What the market stalls sell from a menu (issues #208, #209): the gear trader's
+## one-time upgrades for the pistol, the rifle and the jetpack and his sniper rifle,
+## and the fence's quantonium armour once the first bounty is paid. Pure and
+## static; what is bought lives in WorldState.gear_fits (saved): [offer id, ...].
 ##
-## Each offer is data in content/core/vendors/fence.json "offers":
+## Each offer is data in a vendor's "offers" (content/core/vendors/gear_trader.json,
+## fence.json; VENDOR_PATHS), tagged here with the vendor's "vendor" id and "seller" label:
 ##   { id, label, price, target, mult: { "<path>": factor } }  an upgrade: factors
 ##       on paths in the target's data (a weapon file, or the jetpack item's
 ##       "jetpack.fuel"), put on by apply() where that data is used,
@@ -17,16 +18,30 @@ extends RefCounted
 ## (locked_offers), so the player knows it is there and what opens it.
 
 const FENCE_PATH := "res://content/core/vendors/fence.json"
+const TRADER_PATH := "res://content/core/vendors/gear_trader.json"
+const VENDOR_PATHS := [TRADER_PATH, FENCE_PATH]   ## the stalls with offers; ids are unique across them
 
 static var _offers: Array = []
 
 
+## Every stall's offers, each tagged with its "vendor" id and "seller" label.
 static func offers() -> Array:
 	if _offers.is_empty():
-		var f := FileAccess.open(FENCE_PATH, FileAccess.READ)
-		var d = JSON.parse_string(f.get_as_text()) if f != null else null
-		_offers = d.get("offers", []) if d is Dictionary else []
+		for path in VENDOR_PATHS:
+			var f := FileAccess.open(path, FileAccess.READ)
+			var d = JSON.parse_string(f.get_as_text()) if f != null else null
+			if not d is Dictionary:
+				continue
+			for o in d.get("offers", []):
+				o["vendor"] = str(d.get("id", ""))
+				o["seller"] = str(d.get("label", "")).to_lower()
+				_offers.append(o)
 	return _offers
+
+
+## Whether offer `o` is on vendor `vendor`'s stall ("" = any stall).
+static func _sold_by(o: Dictionary, vendor: String) -> bool:
+	return vendor == "" or str(o.get("vendor", "")) == vendor
 
 
 static func offer(id: String) -> Dictionary:
@@ -42,16 +57,17 @@ static func bought(id: String) -> bool:
 	return WorldState.gear_fits.has(id) and not bool(offer(id).get("endless", false))
 
 
-## The offers on the stall now: not bought yet, and their conditions hold.
-static func open_offers() -> Array:
-	return offers().filter(func(o): return not bought(str(o.id)) \
+## The offers on vendor `vendor`'s stall now ("" = every stall): not bought yet,
+## and their conditions hold.
+static func open_offers(vendor: String = "") -> Array:
+	return offers().filter(func(o): return _sold_by(o, vendor) and not bought(str(o.id)) \
 		and WorldState._conditions_hold(o.get("requires", {}), "stranger"))
 
 
 ## Offers not on sale yet but shown with their "locked" hint: not bought, and
-## their conditions do not hold.
-static func locked_offers() -> Array:
-	return offers().filter(func(o): return o.has("locked") and not bought(str(o.id)) \
+## their conditions do not hold ("" = every stall).
+static func locked_offers(vendor: String = "") -> Array:
+	return offers().filter(func(o): return _sold_by(o, vendor) and o.has("locked") and not bought(str(o.id)) \
 		and not WorldState._conditions_hold(o.get("requires", {}), "stranger"))
 
 
@@ -70,7 +86,7 @@ static func buy(id: String) -> String:
 		WorldState.gear_fits.append(id)
 	if o.has("item"):
 		WorldState.inventory.add(str(o.item))
-	WorldState.log_event("Bought %s from the fence." % str(o.get("label", id)).to_lower(), "market")
+	WorldState.log_event("Bought %s from the %s." % [str(o.get("label", id)).to_lower(), str(o.get("seller", "market"))], "market")
 	return "bought"
 
 

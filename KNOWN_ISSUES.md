@@ -2,6 +2,40 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the laser droid (2026-11-04)
+
+**Checked:** new test_laser_droid (2 tests: the rig is sold only by the moon's
+merchant and fits only floating droids; E on, E off, saved both ways, dark when
+knocked out, back on when it reboots), test_droid_upgrades_backpack (14),
+test_rave_droid (1), the layout test (the merchant's marker on the moon and not
+on the lava moon), test_smoke, a headless boot of the moon with the look on (the
+merchant's site is there), a stall still and a clip of the lasers going on and
+off (`docs/lookdev/moon_rave/`). No other suites, and it was not played.
+
+- **Other players do not see your lasers over LAN:** your droids go to them as
+  pictures (NetWorld) without the rig.
+- **The lasers do not keep time with the club's BPM** or change colour (could-
+  haves in the issue): the rig runs at 126 BPM wherever you are.
+- **The beams pass through walls and the floor,** like the stage droid's.
+
+## After the moon rave's room (2026-11-04)
+
+**Checked:** new tests in test_planets (the room's layout: bar across from the
+stage, its size, the patrons round it, the lounge, the fence's stall between the
+bar and the hall, the rave stalls) and test_sound (the mix in the dome, the hall
+and the pit, a fight, the DJ dead), test_smoke, a headless boot of the moon's
+town (a patron spoke at the bar; inside the club in the hall), and stills of the
+room (`docs/lookdev/moon_rave/`). No other suites, and it was not played.
+
+- **Twenty-one patrons and four more merchants** stand in the dome on top of the
+  ravers. Not timed on screen; if the moon is slow, the lounge's "people" counts
+  in the kit are the first thing to cut.
+- **Patrons stand; nobody sits** in the booths (no sitting pose).
+- **The rave stalls' wares do not pulse on the beat** (a could-have in the
+  issue): they are batched like the desert market's.
+- **The old cantina door's street lamp** still stands in the middle of the room
+  (it was there before, where the cantina's door would be).
+
 ## After the station's furniture (2026-11-04)
 
 **Checked:** a rendered probe on the Mac (Vulkan) at fixed spots aboard and

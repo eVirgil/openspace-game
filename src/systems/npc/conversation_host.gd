@@ -127,9 +127,15 @@ func _build_cantina_owner() -> void:
 	var om: Dictionary = town.get_marker("cantina_owner")
 	var body := CantinaOwnerNPC.new(mats, str(om.get("look", "cantina_owner")))
 	demo.add_child(body)
-	var stand_x := float(counter.min[0]) - 0.55 if not counter.is_empty() else marker.x
-	body.global_position = Vector3(stand_x, marker.y, marker.z)
-	body.rotation.y = atan2(front.x - stand_x, 0.0)
+	# Just behind the counter, facing the customers (issue #392: in the bar's own
+	# frame, so a counter facing another way turns her with it).
+	var frame := CantinaDressing.bar_frame(counter)
+	var local := frame.affine_inverse() * marker
+	var stand_x := (CantinaDressing.local_counter(counter)[0] as Vector3).x - 0.55 if not counter.is_empty() else local.x
+	body.global_position = frame * Vector3(stand_x, local.y, local.z)
+	var lf := frame.affine_inverse() * front
+	var face := frame.basis * Vector3(signf(lf.x - stand_x) if lf.x != stand_x else 1.0, 0.0, 0.0)
+	body.rotation.y = atan2(face.x, face.z)
 	body.look_at_target = demo._player
 	if demo.use_look:
 		var dressing := CantinaDressing.new()

@@ -651,7 +651,11 @@ func _add_club_music() -> void:
 	for z in town.zones():
 		if str(z.get("id", "")) == "cantina":
 			var id := str(planet.get("cfg", {}).get("club", Sound.lib().cfg.get("club", {}).get("default", "")))
-			add_child(ClubMusic.new().setup(id, z, _player))
+			var music := ClubMusic.new().setup(id, z, _player)
+			# Issue #392: the dome is the club: its mix plays in the hall and the pit too.
+			if not (town.data.get("club", {}) as Dictionary).is_empty() and not (town.data.get("station", {}) as Dictionary).is_empty():
+				music.also_inside(town.zones().filter(func(o): return str(o.get("id", "")) in ["hall", "landing_bay"]))
+			add_child(music)
 			return
 
 

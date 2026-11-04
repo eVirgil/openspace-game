@@ -22,7 +22,7 @@ const DATA := "res://content/core/droids/droids.json"
 
 static var _cfg: Dictionary = {}
 
-var owned: Array = []       ## [{ uid, kind, variant, cargo: { item id -> count }, up: { upgrade -> level } }]
+var owned: Array = []       ## [{ uid, kind, variant, cargo: { item id -> count }, up: { upgrade -> level }, lasers_on? }]
 var wrecks: Array = []      ## [{ uid, kind, variant, pos: [x, y, z] }]
 var wrecks_seeded := false  ## the home ball's starting field is generated once and saved
 var streak := 0             ## range remote bolts blocked in a row
@@ -76,10 +76,13 @@ static func pick_variant(kind: String, rng: RandomNumberGenerator) -> String:
 
 ## How droid `d` of yours looks: its kind's base_variant, or once it has any
 ## upgrade, the upgraded_variant. Falls back to its own variant.
+## Issue #392: an upgrade with its own look (the laser rig's "variant") wins.
 static func look_variant(d: Dictionary) -> String:
 	var kc := kind_cfg(str(d.get("kind", "")))
 	var upgraded := false
 	for key in (d.get("up", {}) as Dictionary):
+		if int(d.up[key]) > 0 and upgrade_cfg(str(key)).has("variant"):
+			return str(upgrade_cfg(str(key)).variant)
 		upgraded = upgraded or int(d.up[key]) > 0
 	return str(kc.get("upgraded_variant" if upgraded else "base_variant", d.get("variant", "")))
 
@@ -158,23 +161,31 @@ static func upgrade_max(key: String) -> int:
 
 
 ## The upgrades a kind can take: health for all, cargo for a droid that carries,
-## damage for one with a gun.
-static func upgrades_for(kind: String) -> Array:
-	var kc := kind_cfg(kind)
+## damage for one with a gun. `at` (issue #392): a merchant that sells its own
+## ("sold_at", the moon rave's laser rig) offers only those; every other merchant
+## ("") offers the rest.
+static func upgrades_for(kind: String, at := "") -> Array:
 	var out: Array = []
 	for key in (config().get("upgrades", {}) as Dictionary):
-		match str(key):
-			"note":
-				pass
-			"cargo":
-				if bool(kc.get("carries", false)):
-					out.append(key)
-			"damage":
-				if kc.has("gun"):
-					out.append(key)
-			_:
-				out.append(key)
+		if str(key) != "note" and str(upgrade_cfg(str(key)).get("sold_at", "")) == at and fits(kind, str(key)):
+			out.append(key)
 	return out
+
+
+## Whether a droid of `kind` can take upgrade `key` at all, wherever it is sold.
+static func fits(kind: String, key: String) -> bool:
+	var kc := kind_cfg(kind)
+	var uc := upgrade_cfg(key)
+	if uc.is_empty() or key == "note":
+		return false
+	if uc.has("kinds"):
+		return (uc.kinds as Array).has(kind)
+	match key:
+		"cargo":
+			return bool(kc.get("carries", false))
+		"damage":
+			return kc.has("gun")
+	return true
 
 
 ## Capped at the levels on sale: a save from when there were more has them all.
@@ -184,7 +195,7 @@ static func level(d: Dictionary, key: String) -> int:
 
 ## What the next level of `key` costs this droid, or -1 (maxed, or not for its kind).
 static func upgrade_price(d: Dictionary, key: String) -> int:
-	if not upgrades_for(str(d.get("kind", ""))).has(key):
+	if not fits(str(d.get("kind", "")), key):
 		return -1
 	var prices: Array = upgrade_cfg(key).get("prices", [])
 	var lv := level(d, key)
@@ -214,7 +225,7 @@ static func cargo_slots(d: Dictionary) -> int:
 ## Returns { cost, level }, or { error: "unknown" | "maxed" | "cant_afford" }.
 func upgrade(uid: int, key: String, credits: int) -> Dictionary:
 	var d := find(uid)
-	if d.is_empty() or not upgrades_for(str(d.kind)).has(key):
+	if d.is_empty() or not fits(str(d.kind), key):
 		return { "error": "unknown" }
 	var cost := upgrade_price(d, key)
 	if cost < 0:
@@ -225,7 +236,30 @@ func upgrade(uid: int, key: String, credits: int) -> Dictionary:
 		d["up"] = {}
 	d.up[key] = level(d, key) + 1
 	d.variant = look_variant(d)          # any upgrade: the shiny look
+	if key == "lasers":
+		d["lasers_on"] = false           # issue #392: a new rig is dark until E beside it
 	return { "cost": cost, "level": int(d.up[key]) }
+
+
+# ---- the laser rig (issue #392) ---------------------------------------------------------
+
+## Droid `d` wears the laser rig.
+static func has_lasers(d: Dictionary) -> bool:
+	return level(d, "lasers") > 0
+
+
+## Its lasers are on (E beside it; a new rig is dark).
+static func lasers_on(d: Dictionary) -> bool:
+	return has_lasers(d) and bool(d.get("lasers_on", false))
+
+
+## Turn droid `uid`'s lasers on or off. Returns the new state (false with no rig).
+func set_lasers(uid: int, on: bool) -> bool:
+	var d := find(uid)
+	if d.is_empty() or not has_lasers(d):
+		return false
+	d["lasers_on"] = on
+	return on
 
 
 # ---- cargo ----------------------------------------------------------------------
@@ -408,6 +442,8 @@ func from_save(d: Dictionary) -> void:
 				up[str(key)] = int(o.up[key])
 			var mine := { "uid": int(o.uid), "kind": str(o.kind), "variant": str(o.get("variant", "")),
 				"cargo": (o.get("cargo", {}) as Dictionary).duplicate(), "up": up }
+			if o.has("lasers_on"):
+				mine["lasers_on"] = bool(o.lasers_on)
 			mine.variant = look_variant(mine)    # older saves: the random look becomes the base one
 			owned.append(mine)
 	wrecks = []
