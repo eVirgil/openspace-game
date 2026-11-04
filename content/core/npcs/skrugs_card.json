@@ -117,8 +117,8 @@
         "rifle"
       ],
       "event": "heard_of_rifle",
-      "say": "the Remnant guards keep guns lying around on top of the barracks. Nobody watches the roof.",
-      "line": "The Remnant? Sloppy lot. Guns left lying on top of the barracks, and nobody watching the roof."
+      "say": "the Remnant keep a spare rifle hidden in the barracks office, stuffed in among the consoles. Walk in the front door off the yard, the office is straight through the corridor.",
+      "line": "The Remnant? Sloppy lot. There's a rifle stashed in one of the consoles in their barracks office. Straight in the front door, across the corridor."
     },
     {
       "words": [

@@ -44,7 +44,8 @@ func _all(node: Node, cls: String, out: Array) -> Array:
 func test_decor_collision_is_only_its_props() -> void:
 	var on = _demo(true)
 	var off = _demo(false)
-	var n: int = on.town.boxes().size()
+	# Issue #321: the barracks hall ("shell") is its pieces, each a box with a body.
+	var n: int = on.town.boxes().filter(func(b): return str(b.kind) != "shell").size()
 	assert_eq(_count(on.get_node("Town"), "StaticBody3D"), n, "one body per box with look on")
 	assert_eq(_count(off.get_node("Town"), "StaticBody3D"), n, "and with look off")
 	var props: Node = on.decor.get_node("Buildings/Props")
@@ -86,6 +87,8 @@ func test_props_are_solid() -> void:
 func test_every_box_has_a_material_when_look_on() -> void:
 	var d = _demo(true)
 	for b in d.town.boxes():
+		if str(b.kind) == "shell" or b.has("part_of"):
+			continue                       # issue #321: the barracks hall is drawn by BarracksLook and the kit
 		var body: Node = d.get_node("Town/" + str(b.id))
 		var mi: MeshInstance3D = body.get_node("Mesh")
 		if SKIPPED_IDS.has(str(b.id)):

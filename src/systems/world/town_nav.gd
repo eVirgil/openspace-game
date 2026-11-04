@@ -57,7 +57,9 @@ static func source_geometry(town) -> NavigationMeshSourceGeometryData3D:
 	var src := NavigationMeshSourceGeometryData3D.new()
 	src.add_faces(box_faces(town), Transform3D.IDENTITY)
 	for b in obstruction_boxes(town):
-		_obstruct(src, b, 0.5)
+		# Issue #321: a wall under a roof (the barracks hall's) clears only up to its
+		# top, so the roof over it stays walkable for the riflemen.
+		_obstruct(src, b, -0.05 if bool(b.get("under_roof", false)) else 0.5)
 	for b in stood_on_boxes(town):
 		_obstruct(src, b, -0.5)
 	return src
@@ -104,6 +106,8 @@ static func _stood_on(town, b: Dictionary) -> bool:
 static func box_faces(town) -> PackedVector3Array:
 	var faces := PackedVector3Array()
 	for b in town.boxes():
+		if str(b.kind) == "shell":                # issue #321: the barracks hall is its pieces
+			continue
 		if str(b.kind) == "bowl":
 			for m in PitBowl.parts(b, town).values():
 				faces.append_array((m as ArrayMesh).get_faces())

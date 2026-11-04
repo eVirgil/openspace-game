@@ -4730,7 +4730,8 @@
    ],
    "look": "hall",
    "face": "-z",
-   "style": "garrison"
+   "style": "garrison",
+   "interior": "barracks"
   },
   {
    "id": "barracks_upper",

@@ -35,6 +35,7 @@ var market: TownMarket        ## the stalls
 var cables: Array[MeshInstance3D] = []
 var style: TownStyle          ## issue #45: the planet's town style (null = the port's own look)
 var location_id := "port_town"   ## issue #355: whose vendors work the stalls (content/core/vendors "location")
+var barracks: BarracksLook    ## issue #321: the inside of the walk-in barracks halls (null when the town has none)
 var _rng := RandomNumberGenerator.new()
 
 
@@ -48,6 +49,10 @@ func dress(town, look_env: LookEnvironment) -> void:
 	kit = TownBuildings.new(mats, look)
 	kit.town = town
 	_build_buildings(town)
+	if not BarracksHall.halls(town.boxes()).is_empty():
+		barracks = BarracksLook.new()              # issue #321: before the flush, its bunks and doors batch with the town's
+		add_child(barracks)
+		barracks.dress(town, kit, mats, get_parent())
 	_dress_cantina(town)
 	_light_stair_tower(town)
 	_dress_spaceport(town)
@@ -140,7 +145,12 @@ func material_for(town, b: Dictionary) -> Material:
 
 func _apply_materials(town) -> void:
 	for b in town.boxes():
+		if str(b.kind) == "shell":
+			continue                                # issue #321: no node, its pieces are the hall
 		var mi := _box_mesh(str(b.id))
+		if mi != null and b.has("part_of"):
+			mi.visible = false                       # issue #321: BarracksLook and the kit draw the hall
+			continue
 		if mi == null:
 			push_warning("TownDecor: no gameplay node for box " + str(b.id))
 			continue

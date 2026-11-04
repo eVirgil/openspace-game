@@ -517,6 +517,8 @@ func _build_boxes() -> void:
 	root.name = "Town"
 	add_child(root)
 	for b in town.boxes():
+		if b.kind == "shell":
+			continue                             # issue #321: the barracks hall is its pieces
 		var color: Color = Greybox.KIND_COLORS.get(b.kind, Color.MAGENTA)
 		var node: StaticBody3D
 		if b.kind == "ramp":
