@@ -2,6 +2,22 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After ship hulls that follow the model (2026-11-04)
+
+**Checked:** test_smoke, a headless town boot with the models on (every parked
+ship, the barracks interceptor and the outpost ships carry 48 to 95 convex
+pieces, no box), and stills of the four flyable ships with their hull drawn over
+them. No other suites were run, and it was not played.
+
+- **The hull is a little fuller than the model.** Each ~1.2 m cell of the mesh is
+  wrapped in one convex piece, so a dip smaller than a cell (between two engine
+  pods, under a canopy lip) is filled in. Smaller `hull_fit.cell` follows closer
+  for more pieces.
+- **A friend's ship in space is still hit as a sphere** and the fight's own
+  ships still by distance; only bolts that the physics world carries (the
+  town's sky, a parked ship) see the new shape.
+- **An upgrade T-89 bolts on mid-game** (`ShipPilot.refit`) is not in that
+  ship's hull until the next load, as it was not in its box.
 ## After hijacking (2026-11-04)
 
 **Checked:** a two-process loopback probe, run by hand and not added to the repo
