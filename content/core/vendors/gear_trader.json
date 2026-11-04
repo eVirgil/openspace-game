@@ -13,5 +13,15 @@
   "endless_stock": [
     "jetpack"
   ],
-  "note": "IP-neutral. Market stall. Pays buy_rate x item value for gear and sells what it holds at sell_rate x value, so anything sold to it can be bought back. 'endless_stock': what it always has and never runs out of, at sell_rate x value: jetpacks (one each time; a jetpack sold to it does not pile up)."
+  "offers": [
+    { "id": "pistol_recoil", "label": "Pistol: steady grip", "about": "half the recoil, tighter shots", "price": 150, "target": "pistol_blaster", "mult": { "recoil": 0.35, "spread_deg": 0.4 } },
+    { "id": "pistol_damage", "label": "Pistol: overcharged cells", "about": "75% more damage", "price": 150, "target": "pistol_blaster", "mult": { "damage": 1.75 } },
+    { "id": "pistol_rate", "label": "Pistol: hair trigger", "about": "fires 60% faster", "price": 150, "target": "pistol_blaster", "mult": { "rate": 0.62 } },
+    { "id": "rifle_recoil", "label": "Rifle: steady grip", "about": "half the recoil, tighter shots", "price": 300, "target": "rifle_blaster", "mult": { "recoil": 0.35, "spread_deg": 0.4 } },
+    { "id": "rifle_damage", "label": "Rifle: overcharged cells", "about": "75% more damage", "price": 300, "target": "rifle_blaster", "mult": { "damage": 1.75 } },
+    { "id": "rifle_rate", "label": "Rifle: hair trigger", "about": "fires 60% faster", "price": 300, "target": "rifle_blaster", "mult": { "rate": 0.62 } },
+    { "id": "jetpack_fuel", "label": "Jetpack: long-range tank", "about": "twice the fuel", "price": 250, "target": "jetpack", "mult": { "jetpack.fuel": 2.0 } },
+    { "id": "sniper_rifle", "label": "Sniper rifle", "about": "a long black rifle that hits dead on at 100 m; weapon 4", "price": 600, "item": "sniper_rifle", "endless": true }
+  ],
+  "note": "IP-neutral. Market stall: the legal shop (the fence is the other side of the market: contraband, bounties, his armour). Pays buy_rate x item value for gear and sells what it holds at sell_rate x value, so anything sold to it can be bought back. 'endless_stock': what it always has and never runs out of, at sell_rate x value: jetpacks (one each time; a jetpack sold to it does not pile up). Issues #208, #209: 'offers' it sells from a menu (src/systems/items/gear_upgrades.gd): gun and jetpack upgrades, each once (factors on paths in the target's data), and the sniper rifle ('endless': he never runs out of it)."
 }

@@ -2,6 +2,16 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The gear trader is the market's legit shop (2026-11-04)
+
+- **The gear trader now sells the gun upgrades, the jetpack's long-range tank
+  and the sniper rifle,** next to his jetpacks: everything legal, on one stall.
+  Same prices, and upgrades already bought stay on.
+- **The fence keeps the shady side:** contraband at twice its value, buying
+  anything else you carry, the bounties, his jobs and his quantonium armour.
+  Ask him for an upgrade and he sends you to the gear trader.
+- Same at the ranches, which have both stalls.
+
 ## Walk into the barracks: a corridor, the Remnant's office and a bunk room (2026-11-04)
 
 - **The barracks hall has a real front door** off the yard (the middle door; the
