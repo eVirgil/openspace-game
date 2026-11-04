@@ -61,6 +61,12 @@
           "body": "#1d1e22",
           "trim": "#5a5a60",
           "eye": "#ff3030"
+        },
+        "rave": {
+          "body": "#141418",
+          "trim": "#ff2bd6",
+          "eye": "#ff2bd6",
+          "note": "Issue #392: the moon rave's laser droid's colours: the stage's own (RaveDroid) and yours once it wears the laser rig (upgrades 'lasers')."
         }
       },
       "look": {
@@ -299,7 +305,27 @@
       "assassin"
     ]
   },
+  "club_vendor": {
+    "id": "droid_merchant_club",
+    "label": "Droid Merchant",
+    "marker": "droid_vendor_club",
+    "reach": 3.5,
+    "stock": ["floating"],
+    "sells": "rave",
+    "note": "Issue #392: the moon rave's droid merchant, at a stall of its own in the dome (town_kit.json 'club_dome' 'droid_vendor', on a planet whose 'club_dome' has 'droid_merchant'). Sells floating droids and the upgrades 'sold_at' 'rave' (the laser rig), and buys droids back like the market's."
+  },
   "upgrades": {
+    "lasers": {
+      "label": "Laser rig",
+      "prices": [300],
+      "kinds": ["floating"],
+      "sold_at": "rave",
+      "variant": "rave",
+      "fan": { "beams": 12, "tiers": [-0.2, -0.04], "spread": 0.8, "length": 16.0, "sweep_deg": 20.0, "sweep_s": 2.8, "colors": ["#3aff4a", "#ff2a3a", "#2bd9ff"] },
+      "ring": { "y": 0.22, "inner": 0.42, "outer": 0.47, "color": "#ff2bd6" },
+      "bpm": 126,
+      "note": "Issue #392: the laser rig, for a floating droid ('kinds'), sold only by a droid merchant whose stall says it sells 'rave' upgrades (droids.json 'club_vendor'; 'sold_at'). Fitted, the droid wears the 'variant' look (black, magenta trim and eye) and a neon ring round its belly ('ring', model metres), and a fan of lasers hangs under it like the stage's laser droid ('fan': beams in two tiers dipping 'tiers' under level, 'spread' radians either side of ahead, 'length' metres, sweeping 'sweep_deg' every 'sweep_s' seconds). A new rig is dark: E beside the droid turns the lasers on or off, anywhere, and on or off is saved with the droid ('lasers_on'). They go dark when it is knocked out and come back when it reboots."
+    },
     "health": { "label": "Armour plating", "prices": [260], "per_level": 1.5 },
     "cargo": { "label": "Cargo racks", "prices": [190], "per_level": 6 },
     "damage": { "label": "Gun capacitor", "prices": [350], "per_level": 1.05 },
@@ -496,6 +522,10 @@
     "event_found": "Someone dragged a broken %s back to life out in the desert.",
     "event_remnant_droid": "Someone scrapped one of the Remnant's patrol droids.",
     "deliver": "Hand over your %s for Oda's friend  (%d still wanted)",
-    "delivered": "Your %s is the droid merchant's now. %d more to go."
+    "delivered": "Your %s is the droid merchant's now. %d more to go.",
+    "lasers_on": "[E] Turn your %s's lasers on",
+    "lasers_off": "[E] Turn your %s's lasers off",
+    "lasers_now_on": "Lasers on.",
+    "lasers_now_off": "Lasers off."
   }
 }

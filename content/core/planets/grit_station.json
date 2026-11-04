@@ -7,7 +7,7 @@
   "stage_dancer": true,
   "seed": 45,
   "style": "metallic",
-  "club": "salvage_rave", "club_dome": { "style": "rave", "bpm": 126, "dim": 0.25 },
+  "club": "salvage_rave", "club_dome": { "style": "rave", "bpm": 126, "dim": 0.25, "droid_merchant": true },
   "domes": [
     { "id": "barracks", "side": "+z", "fill": "barracks", "note": "The Remnant's metal barracks, at the end of a second tunnel out of the landing pit (town_kit.json 'domes'); taken like the port's barracks (territory.json 'moon')." },
     { "id": "homes", "side": "-z", "fill": "homes", "note": "The locals' homes: the station's gray homes, at the end of a third tunnel." }

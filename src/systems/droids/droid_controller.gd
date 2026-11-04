@@ -76,7 +76,8 @@ var remnant: Array = []             ## DroidUnit (the Remnant's patrol, and issu
 var vendor_pos := Vector3.INF
 var vendor_face := Vector3.ZERO     ## issue #80: the way the droid merchant faces (the aisle); behind = the other way
 var vendor_sites: Array = []        ## town stall plus independent planet relays
-var focus: Dictionary = {}          ## what E would act on: { kind: "vendor"|"wreck"|"cargo", uid }
+var focus: Dictionary = {}          ## what E would act on: { kind: "vendor"|"wreck"|"cargo"|"lasers", uid }
+var site_i := -1                    ## issue #392: the stall whose menu is open (vendor_sites index)
 var fixing: Dictionary = {}         ## { uid, left }
 var rng := RandomNumberGenerator.new()
 var shots_fired := 0
@@ -125,6 +126,19 @@ func _ready() -> void:
 				"label": str(v.get("label", "Droid Merchant")) })
 			vendor_pos = town_pos
 			vendor_face = face
+	# Issue #392: the moon rave's droid merchant (its own stock, and the laser rig).
+	var cv: Dictionary = cfg.get("club_vendor", {})
+	if demo != null and "town" in demo and demo.town != null and not cv.is_empty() \
+			and not demo.town.get_marker(str(cv.get("marker", ""))).is_empty():
+		var at: Vector3 = demo.town.marker_pos(str(cv.marker))
+		var cm: Dictionary = demo.town.get_marker(str(cv.marker))
+		var cface := Vector3.ZERO
+		if cm.has("face"):
+			cface = Vector3(float(cm.face[0]) - at.x, 0.0, float(cm.face[2]) - at.z).normalized()
+		var g := gear
+		vendor_sites.append({ "id": str(cv.get("id", "droid_merchant_club")), "pos": at, "face": cface,
+			"label": str(cv.get("label", "Droid Merchant")), "stock": cv.get("stock", []), "sells": str(cv.get("sells", "")),
+			"open": func() -> bool: return g == null or g.is_open(cv) })
 	if demo != null and "droid_merchant_outposts" in demo and demo.droid_merchant_outposts != null:
 		for site in demo.droid_merchant_outposts.sites:
 			vendor_sites.append(site)
@@ -231,6 +245,11 @@ func _find_focus() -> Dictionary:
 		if bool(DroidRoster.kind_cfg(str(d.get("kind", ""))).get("carries", false)) \
 				and _flat_dist(p, companions[uid].global_position) <= 2.4:
 			return { "kind": "cargo", "uid": uid }
+	for uid in companions:              # issue #392: a droid of yours with the laser rig
+		var d := roster().find(uid)
+		if DroidRoster.has_lasers(d) and not companions[uid].dead \
+				and _flat_dist(p, companions[uid].global_position) <= 2.4:
+			return { "kind": "lasers", "uid": uid }
 	return {}
 
 
@@ -263,6 +282,9 @@ func prompt_text() -> String:
 			return _l("fix") % [DroidRoster.label(str(w.get("kind", ""))).to_lower(), int(cfg.get("fix_seconds", 10.0))]
 		"cargo":
 			return _l("hold")
+		"lasers":
+			var d := roster().find(int(focus.uid))
+			return _l("lasers_off" if DroidRoster.lasers_on(d) else "lasers_on") % droid_name(d).to_lower()
 	return ""
 
 
@@ -290,6 +312,8 @@ func interact() -> String:
 				return ""
 			_open_hold(int(focus.uid), opts)
 			return "menu"
+		"lasers":
+			return "lasers_on" if toggle_lasers(int(focus.uid)) else "lasers_off"
 	return ""
 
 
@@ -302,6 +326,7 @@ func _vendor_label(site: int) -> String:
 func _select_vendor(site: int) -> void:
 	if site < 0 or site >= vendor_sites.size():
 		return
+	site_i = site
 	vendor_pos = vendor_sites[site].pos
 	vendor_face = vendor_sites[site].face
 
@@ -313,9 +338,14 @@ func _open_menu(title: String, opts: Array, pick: Callable, keep_cursor := false
 		_was_locked = true
 
 
+## Issue #392: the stall whose menu is open ({} = the market's, as before).
+func _site() -> Dictionary:
+	return vendor_sites[site_i] if site_i >= 0 and site_i < vendor_sites.size() else {}
+
+
 func trade_options() -> Array:
 	var out := []
-	for kind in cfg.get("vendor", {}).get("stock", []):
+	for kind in _site().get("stock", cfg.get("vendor", {}).get("stock", [])):
 		out.append({ "id": "buy:" + str(kind), "text": _l("buy") % [DroidRoster.label(str(kind)), price_here(str(kind))] })
 	if not roster().owned.is_empty():
 		out.append({ "id": "upgrades", "text": _l("upgrades") })
@@ -379,7 +409,7 @@ func droid_name(d: Dictionary) -> String:
 func upgrade_options() -> Array:
 	var out := []
 	for d in roster().owned:
-		for key in DroidRoster.upgrades_for(str(d.kind)):
+		for key in DroidRoster.upgrades_for(str(d.kind), str(_site().get("sells", ""))):
 			var price := DroidRoster.upgrade_price(d, str(key))
 			if price < 0:
 				continue
@@ -832,6 +862,8 @@ func _spawn_companion(d: Dictionary, at: Vector3, from_y := INF) -> DroidUnit:
 		u.look.position.y = u.lift_now
 		u.shape.position.y = u.lift_now
 	DroidKit.set_awake(u.look, true)
+	if DroidRoster.has_lasers(d):
+		_fit_rig(u, DroidRoster.lasers_on(d))
 	u.max_hp = DroidRoster.health(d)
 	u.hp = u.max_hp
 	if int(d.uid) == LENT_UID:
@@ -1018,6 +1050,8 @@ func _hurt_companion(u: DroidUnit, amount: float) -> void:
 	if u.uid == LENT_UID:
 		lent_down = true                      # issue #310: down for the rest of the heist
 	u.collision_layer = 0
+	if u.rig != null:
+		u.rig.visible = false               # issue #392: dark until it reboots
 	ExplosionFx.small(u.get_parent(), u.center())
 	Sound.play("droid_pop", u.center())
 	_lay_down(u)
@@ -1025,6 +1059,46 @@ func _hurt_companion(u: DroidUnit, amount: float) -> void:
 		_toast(Heist.line("droid_down"))
 		return
 	_toast(_l("knocked_out") % [DroidRoster.label(u.kind).to_lower(), int(u.down_left)])
+
+
+## Issue #392: the laser rig on droid `u` (a floating droid of yours): a neon ring
+## round its belly and the stage droid's fan of lasers under it, sweeping ahead
+## of it (ClubProps.laser_fan, on its own clock, so the beat goes on whatever the
+## club is doing). `on`: the beams lit; the ring stays.
+func _fit_rig(u: DroidUnit, on: bool) -> void:
+	var lc := DroidRoster.upgrade_cfg("lasers")
+	var rig := ClubProps.new("rave", float(lc.get("bpm", 126.0)))
+	rig.name = "LaserRig"
+	rig.live_fn = func() -> bool: return true
+	u.look.add_child(rig)
+	var rc: Dictionary = lc.get("ring", {})
+	var ring := TorusMesh.new()
+	ring.inner_radius = float(rc.get("inner", 0.42))
+	ring.outer_radius = float(rc.get("outer", 0.47))
+	var glow := ClubTextures.glow(Color(str(rc.get("color", "#ff2bd6"))), 6.0)
+	var mi := rig._put(rig, ring, Vector3(0, float(rc.get("y", 0.22)), 0), glow)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rig.pulses.append([glow, 3.0, 8.0, 1.0, 0.0])
+	var lasers := Node3D.new()
+	lasers.name = "Lasers"
+	lasers.position = Vector3(0, -0.1, 0)        # the emitter under its belly
+	rig.add_child(lasers)
+	rig.laser_fan(lasers, Basis(Vector3.UP, PI), lc.get("fan", {}))     # ahead of it: the model faces -Z
+	lasers.visible = on
+	u.rig = rig
+	u.lasers = lasers
+
+
+## Turn droid `uid`'s lasers on or off (E beside it). Returns the new state.
+func toggle_lasers(uid: int) -> bool:
+	var d := roster().find(uid)
+	var on := roster().set_lasers(uid, not DroidRoster.lasers_on(d))
+	var u: DroidUnit = companions.get(uid)
+	if u != null and u.lasers != null:
+		u.lasers.visible = on
+	_toast(_l("lasers_now_on" if on else "lasers_now_off"))
+	_beep(u)
+	return on
 
 
 ## Where a droid left far behind rejoins: the oldest point of your trail at most
@@ -1991,6 +2065,8 @@ class DroidUnit extends StaticBody3D:
 	var engaged: Node3D             ## the enemy one of yours is going after (see _engage)
 	var engage_from := Vector3.INF  ## where it stood when that fight found it
 	var down_left := 0.0            ## a knocked-out droid of yours: seconds until it reboots
+	var rig: ClubProps              ## issue #392: the laser rig (ring and beams), null without one
+	var lasers: Node3D              ## ...its beams
 	var shots := 0                  ## issue #402: bolts it has fired (NetWorld sends each one)...
 	var last_aim := Vector3.INF     ## ...and where the last went
 
