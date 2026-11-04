@@ -45,13 +45,15 @@
     {
       "id": "barracks_rifle",
       "item": "rifle_blaster",
-      "marker": "trooper_roof_c",
-      "offset": [-4.5, 0.0, 1.0],
-      "reach": 2.2,
+      "marker": "barracks_rifle_spot",
+      "offset": [0.0, 0.0, 0.0],
+      "reach": 2.0,
       "story_only": true,
+      "inside": "barracks_console",
+      "prompt": "search_console",
       "event": "rifle_taken",
       "taken_flag": "barracks_rifle_taken",
-      "note": "Issue #210: a rifle the guards left lying on top of the barracks. Story saves only (freeplay has every gun). Taking it finishes the 'Steal a rifle' quest; the roof's riflemen see whoever comes up."
+      "note": "Issue #210: a rifle the guards left behind. Story saves only (freeplay has every gun). Taking it finishes the 'Steal a rifle' quest. Issue #321: hidden inside the barracks office's middle console ('inside': no look, no glow; 'prompt': '[E] Search the console', flow/gear.json search_console), at the marker the barracks interior stamps in every layout (content/core/towns/barracks_interior.json rifle). The troopers walking the hall see whoever comes in."
     },
     {
       "id": "tower_blade",

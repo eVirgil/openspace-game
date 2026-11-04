@@ -38,6 +38,7 @@
     "offer_locked": "%s  (%d cr): locked, %s",
     "offer_locked_toast": "%s: the fence only sells it %s.",
     "open_droid": "[E] Open the cargo droid",
+    "search_console": "[E] Search the console",
     "open_crate": "[E] Open the supply crate",
     "crate_opened": "The supply crate held %s",
     "crate_credits": "%d credits",

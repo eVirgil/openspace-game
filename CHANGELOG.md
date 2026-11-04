@@ -2,6 +2,30 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Walk into the barracks: a corridor, the Remnant's office and a bunk room (2026-11-04)
+
+- **The barracks hall has a real front door** off the yard (the middle door; the
+  others are locked, with a red light). Inside, a corridor runs the length of
+  the hall with locked doors down both sides.
+- **The office is the cruiser's control room:** rows of consoles and screens,
+  red and blue light, and a holo table with the planet map spinning over it
+  (the port marked "here", the outposts in their owners' colours, the cruiser
+  in orbit, the moons).
+- **A bunk room** beside the way in: two rows of two-high bunks, footlockers and
+  lockers.
+- **Two Remnant troopers** walk a loop from the corridor into the office and
+  round the holo table. They are the town garrison's: they fight back and come
+  back like the rest.
+- **The rifle moved inside:** in a story save it is hidden in the office's
+  middle console. "[E] Search the console" takes it and finishes "Steal a
+  rifle". Oda, Skrugs and the quest point you there; the general warns you off,
+  and the fence and T-89 know the hall can be walked into.
+- **Alarm lights:** red lamps in the corridor, the office, the bunk room and over
+  the door pulse while the town alarm sounds and go dark on calm.
+- **Every barracks:** the square port, the round port and any generated town big
+  enough to have one. The roof riflemen and the bridge to the bunk tower are as
+  before.
+
 ## The station's floors are furnished (issue #315, part 1, 2026-11-04)
 
 - **Two market floors.** Rings of market stalls round the walkway, with
