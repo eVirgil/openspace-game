@@ -10,8 +10,8 @@ extends RefCounted
 ## (content/core/stations/<id>.json), and where it hangs is a "kind": "station"
 ## landmark naming that file, in whichever world or planet config has it. Take the
 ## landmark out and the station is gone; put it in another planet's landmarks and it
-## is there. Today it is in the moon's (content/core/planets/grit_station.json),
-## "side": "far": over the moon's far side from the home planet.
+## is there. Today it is in the ringed giant's (content/core/planets/ringed_giant.json),
+## over the top of the ball where its town was; it started over the moon's far side.
 ##
 ## Pure: every part is a box in the station's own frame, and every place the
 ## elevator, the pads and the docking autopilot use is a point in it. The same

@@ -1520,6 +1520,12 @@ Every significant technical choice, the alternative, and why. Newest on top.
   to the rock under it, which reads as orbit, not as a building on the ground.
 - **In the moon's own scene.** 1400 m over the far side keeps all of it inside
   the moon's 2600 m handoff, so nothing has to be drawn in two scenes at once.
+- **Moved to the ringed giant.** The station's landmark now sits in
+  `ringed_giant.json` (`at` [0, 0, 0], 200 m up), right over where the giant's
+  deck town was, inside the giant's own scene. The giant keeps a size-1 deck
+  town under it only because every planet still needs a town (spawn on load,
+  crash tow, waking after a fall); making the station's bay stand in for all of
+  that is the next step.
 - **Docking is shared, not copied.** ShipPilot's Z autopilot asks a "dock
   target" (`dock_target()`): the cruiser or any station in reach. Both answer
   the same calls (`can_dock`, `dock_path`, `dock_yaw`, `dock_cfg`, `line`),

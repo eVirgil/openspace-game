@@ -26,7 +26,7 @@ func _initialize() -> void:
 	_scenes = [
 		{ "id": "grit_station", "bar": true, "shots": ["overview", "street", "gate_from_hall", "hall", "pit", "cantina", "out_back", "rock", "ball", "home_from_station", "sun"] },
 		{ "id": "port_desert", "shots": ["station_from_port_space", "giant_from_port", "giant_from_space"] },
-		{ "id": "ringed_giant", "shots": ["aerial", "street", "edge", "ball", "deck_over_clouds"] },
+		{ "id": "ringed_giant", "shots": ["station_over_giant", "station_from_deck", "ball", "deck_over_clouds"] },
 		{ "id": "style_metallic", "cfg": { "type": "sand", "town_size": 30, "style": "metallic", "seed": 7 }, "shots": ["aerial"] },
 		{ "id": "style_snowy", "cfg": { "type": "snow", "town_size": 30, "style": "snowy", "seed": 7 }, "shots": ["aerial", "street"] },
 		{ "id": "style_pastel", "cfg": { "type": "water", "town_size": 30, "style": "pastel", "seed": 7 }, "shots": ["aerial", "street"] },
@@ -160,6 +160,11 @@ func _view(demo, shot: String) -> Array:
 			var gn: Dictionary = _neighbour(demo, "ringed_giant")
 			var gat: Vector3 = gn.at
 			return [gat * 0.6 + Vector3(0, 9000, 0), gat]
+		# The space station (content/core/stations/) over the top of the giant.
+		"station_over_giant":
+			return [Vector3(520, 120, 460), Vector3(20, 200, 0)]
+		"station_from_deck":
+			return [c + Vector3(-30, 3.0, 50), Vector3(0, 200, 0)]
 		"deck_over_clouds":
 			return [c + Vector3(w * 1.4, -40.0, w * 1.1), c + Vector3(0, -20.0, 0)]
 		"station_from_port_space":

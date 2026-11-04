@@ -312,7 +312,11 @@ landing bays).
   (`TownDemo.sky_giant_reach`).
 - **Quiet sky** (`encounter: ""`): a space fight's flight does not check the
   clouds yet.
-- The Nitrogen Belt station (#311) is a separate planet, to come.
+- **The space station** (`content/core/stations/orbital_station.json`, PR #501)
+  hangs over the top of the ball, 200 m above where the deck town was, as a
+  `"kind": "station"` landmark in the giant's config: fly in and press Z to dock
+  in its round bay. The deck town under it is size 1, kept only because every
+  planet still needs a town (spawn on load, crash tow, waking after a fall).
 
 ## The test planet: Grit Station
 
