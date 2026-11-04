@@ -2,9 +2,9 @@
   "id": "remnant_outpost_west",
   "kind": "remnant_outpost",
   "label": "the glass flats outpost",
-  "note": "Issue #187: one of the Remnant's four outposts on the far sides of the town (the first three, near/mid/far, are out the front gate). Same pieces as remnant_outpost_mid.json (see its note): a building dressed by src/systems/world/remnant_outposts.gd, a ship at 'ship', three troopers at guard_a/b/c, an assassin droid on 'patrol', a floating droid on 'floater', a cargo droid on 'cargo', and the bounty target at 'target'. Local frame: +x faces the town.",
+  "note": "Issue #187: one of the Remnant's four outposts on the far sides of the town (the first three, near/mid/far, are out the front gate). Same pieces as remnant_outpost_mid.json (see its note): a building dressed by src/systems/world/remnant_outposts.gd, a ship at 'ship', three troopers at guard_a/b/c, an assassin droid on 'patrol', a floating droid on 'floater', a cargo droid on 'cargo', and the bounty target at 'target'. Local frame: +x faces the town. Issue #309: 'room' makes the block a control room you can walk into (src/systems/world/outpost_room.gd): walls, a roof and a doorway in its +x face on the same footprint, consoles, a holo table and the hack console Heist opens (content/core/story/heist.json). guard_c stands inside, at the consoles with his back to the door.",
   "buildings": [
-    { "id": "block", "shape": "box", "size": [8, 4.5, 6], "position": [0, 0, 0], "visual": false }
+    { "id": "block", "shape": "box", "size": [8, 4.5, 6], "position": [0, 0, 0], "visual": false, "room": {} }
   ],
   "ship": "remnant_interceptor",
   "look": { "mast": false, "tower": false },
@@ -12,7 +12,7 @@
   "points": {
     "guard_a": [6, 0, 4],
     "guard_b": [6, 0, -5],
-    "guard_c": [-7, 0, -6],
+    "guard_c": [-1.3, 0, -1],
     "target": [-2, 0, 7],
     "ship": [-14, 0, 2],
     "patrol": [[9, 0, 9], [9, 0, -9], [-9, 0, -9], [-9, 0, 9]],

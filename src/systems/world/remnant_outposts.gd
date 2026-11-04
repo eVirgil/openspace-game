@@ -33,9 +33,17 @@ extends Node3D
 ## Issue #425: once the cruiser has fallen the Remnant run short here too; a
 ## friend of theirs pointed at the outpost's resupply quest hands a load over
 ## on walking up (Territory.deliver_remnant).
+##
+## Issue #309: each building is a control room you can walk into (OutpostRoom):
+## walls, a roof and a doorway toward the town, consoles, a holo table and red and
+## blue light like the cruiser's bridge, and one trooper (guard_c) inside at the
+## consoles with his back to the door. Hold [E] at the hack console for
+## Heist.hack_seconds() while a heist names the outpost and it drops the stash.
 
 const CoreContent := preload("res://src/systems/dataload/core_content.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
+const ROOM_SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
+const ROOM_FINISHES := { "console": 7, "screen": 12, "bridge": 9, "wall": 3 }   ## CruiserHull's finishes
 const GROUND_HALF := 40.0          ## metres of sand collider either side of the anchor
 const GROUND_STEP := 2.0
 const WAKE_DIST := 320.0           ## bodies further than this from the player sleep
@@ -51,12 +59,19 @@ var swaps := 0                     ## issue #187: outposts that changed hands in
 var target: NpcBody                ## the bounty target, while one is out there
 var target_run := -1               ## which contract it is
 var bounty_kills := 0              ## for tests and traces
+var hacking := 0.0                 ## issue #309: seconds [E] has been held at a console so far
+var hack_at := ""                  ## ... the outpost whose console is in reach ("" = none)
+var hacks := 0                     ## ... consoles hacked in this scene, for tests and traces
+var _bar_up := false
+var _room_mats: Dictionary = {}    ## finish -> material, shared by every room
+var _room_draw: Dictionary = {}    ## world.json's draw_distance block (room_m), read once
 
 
 func setup(town_demo, world_ground: WorldGround) -> void:
 	demo = town_demo
 	ground = world_ground
 	name = "RemnantOutposts"
+	process_physics_priority = 10      # issue #309: after GearController, so the console's prompt wins
 
 
 ## Read the outposts and build them, troopers included. Called by the town before
@@ -102,7 +117,7 @@ func _build_outpost(id: String, world: Dictionary) -> void:
 			o.origin = sp.surface_at(at.x, at.z)
 		o.xf = Transform3D(PlanetSphere.tilt_to(ground.up_at(o.origin)) * Basis(Vector3.UP, yaw), o.origin)
 		outposts.append(o)
-		var parts: Array = [_build_ground.bind(o), _build_nav.bind(o), _build_props.bind(o)]
+		var parts: Array = [_build_ground.bind(o), _build_room.bind(o), _build_nav.bind(o), _build_props.bind(o)]
 		if demo.use_look:
 			parts.append(_dress.bind(o))
 		parts.append(_park_ship.bind(o))
@@ -159,9 +174,8 @@ func droid_specs() -> Array:
 const TROOPER_POSTS := ["guard_a", "guard_b", "guard_c"]
 
 func _add_guard(o: Dictionary, key: String) -> NpcBody:
-	var here := point(o, key)
-	var face: Vector3 = here + (here - (o.origin as Vector3)).normalized()      # looking out, away from the building
-	var g: NpcBody = demo.make_soldier("outpost_trooper", here, atan2(face.x - here.x, face.z - here.z),
+	var post := _post(o, key)
+	var g: NpcBody = demo.make_soldier("outpost_trooper", post[0], post[1],
 		"%s/%s" % [o.id, key], "npc:%s/%s" % [o.id, key])
 	if g == null:
 		return null
@@ -172,15 +186,30 @@ func _add_guard(o: Dictionary, key: String) -> NpcBody:
 
 ## Issue #187: one of the locals' guards on an outpost post, facing out like a trooper.
 func _add_local(o: Dictionary, key: String, soldier: String) -> NpcBody:
-	var here := point(o, key)
-	var face: Vector3 = here + (here - (o.origin as Vector3)).normalized()
-	var g: NpcBody = demo.make_soldier(soldier, here, atan2(face.x - here.x, face.z - here.z),
+	var post := _post(o, key)
+	var g: NpcBody = demo.make_soldier(soldier, post[0], post[1],
 		"%s/%s" % [o.id, key], "npc:%s/locals/%s#%d" % [o.id, key, WorldState.count("outposts_taken")])
 	if g == null:
 		return null
 	adopt(g, str(o.id))
 	held_by.append(g)
 	return g
+
+
+## Where someone on post `key` stands and the way they face: [position, yaw].
+## Outside, looking out, away from the building. Issue #309: one posted inside the
+## control room stands on its floor with their back to the door, at the consoles.
+func _post(o: Dictionary, key: String) -> Array:
+	var lp := WorldGround._v3(o.cfg.get("points", {}).get(key, [0, 0, 0]))
+	var room: Dictionary = o.get("room", {})
+	if not room.is_empty() and OutpostRoom.contains(room.b, lp):
+		var xf: Transform3D = o.xf
+		var at := xf * Vector3(lp.x, float(room.lift) + 0.05, lp.z)
+		var fwd := xf.basis * Vector3.LEFT
+		return [at, atan2(fwd.x, fwd.z)]
+	var here := point(o, key)
+	var face: Vector3 = here + (here - (o.origin as Vector3)).normalized()
+	return [here, atan2(face.x - here.x, face.z - here.z)]
 
 
 ## The people standing at outpost `o` for one side, alive or not.
@@ -295,7 +324,7 @@ func _drop(g: NpcBody, id: String) -> void:
 
 
 func _toast(text: String) -> void:
-	if text != "" and demo.gear != null and demo.gear.hud != null:
+	if text != "" and demo != null and demo.gear != null and demo.gear.hud != null:
 		demo.gear.hud.toast(text, 5.0)
 
 
@@ -312,6 +341,7 @@ func _physics_process(dt: float) -> void:
 	if p == null:
 		return
 	_tick_control(dt, p)
+	_tick_hack(dt, p)
 	for g in guards + held_by + ([target] if target != null else []):
 		if is_instance_valid(g) and not g.dead:
 			var far: bool = g.global_position.distance_to(p.global_position) > WAKE_DIST
@@ -381,9 +411,20 @@ func _build_nav(o: Dictionary) -> void:
 	if demo.nav == null or demo.terrain == null:
 		return
 	var obstructions: Array = []
+	# Issue #309: a control room's walls, not its lintel and roof (the floor under
+	# them is walkable), and the solid things inside it.
+	var blocks: Array = []
+	for b in WorldGround.pieces(o.cfg):
+		if bool(b.get("nav", true)):
+			blocks.append([WorldGround._v3(b.get("size", [1, 1, 1])), WorldGround._v3(b.get("position", [0, 0, 0]))])
 	for b in o.cfg.get("buildings", []):
-		var size := WorldGround._v3(b.get("size", [1, 1, 1]))
-		var pos := WorldGround._v3(b.get("position", [0, 0, 0]))
+		for part in OutpostRoom.inside(b):
+			if bool(part.solid):
+				var ps: Vector3 = part.size
+				blocks.append([ps, (part.center as Vector3) - Vector3(0, ps.y * 0.5, 0)])
+	for bk in blocks:
+		var size: Vector3 = bk[0]
+		var pos: Vector3 = bk[1]
 		var outline := PackedVector3Array([
 			Vector3(pos.x - size.x * 0.5, 0.0, pos.z - size.z * 0.5),
 			Vector3(pos.x + size.x * 0.5, 0.0, pos.z - size.z * 0.5),
@@ -451,10 +492,21 @@ func _dress(o: Dictionary) -> void:
 		var hz := s.z * 0.5
 		# On a slope the walls run down to the lowest sand under them, so no edge floats.
 		var skirt := 1.0 + _sink(o, c, hx + 0.2, hz + 0.2)
-		_mesh(o, _box(s + Vector3(0, skirt, 0)), wall, c + Vector3(0, (s.y - skirt) * 0.5, 0))
+		var room := OutpostRoom.is_room(b)
+		# Issue #309: a control room's walls are its shell's pieces, with the doorway
+		# open; the plinth and the red band go round the outside only.
+		for piece in OutpostRoom.shell(b):
+			var ps := WorldGround._v3(piece.get("size", [1, 1, 1]))
+			var pc := WorldGround._v3(piece.get("position", [0, 0, 0]))
+			var down := skirt if pc.y - c.y <= 0.001 else 0.0
+			_mesh(o, _box(ps + Vector3(0, down, 0)), wall, pc + Vector3(0, (ps.y - down) * 0.5, 0))
 		_mesh(o, _box(Vector3(s.x + 0.6, 0.35, s.z + 0.6)), black, c + Vector3(0, s.y + 0.17, 0))
-		_mesh(o, _box(Vector3(s.x + 0.3, 0.5 + skirt - 1.0, s.z + 0.3)), black, c + Vector3(0, 0.1 - (skirt - 1.0) * 0.5, 0))
-		_mesh(o, _box(Vector3(s.x + 0.04, 0.3, s.z + 0.04)), red, c + Vector3(0, s.y - 0.6, 0))
+		if room:
+			_ring(o, c, s, 0.3, 0.5 + skirt - 1.0, 0.1 - (skirt - 1.0) * 0.5, black, OutpostRoom.door_width(b) + 0.4)
+			_ring(o, c, s, 0.04, 0.3, s.y - 0.6, red)
+		else:
+			_mesh(o, _box(Vector3(s.x + 0.3, 0.5 + skirt - 1.0, s.z + 0.3)), black, c + Vector3(0, 0.1 - (skirt - 1.0) * 0.5, 0))
+			_mesh(o, _box(Vector3(s.x + 0.04, 0.3, s.z + 0.04)), red, c + Vector3(0, s.y - 0.6, 0))
 		# Corner posts, and steel ribs down the long sides.
 		for sx in [-1.0, 1.0]:
 			for sz in [-1.0, 1.0]:
@@ -464,13 +516,22 @@ func _dress(o: Dictionary) -> void:
 			var x := -hx + s.x * float(i) / float(ribs)
 			for sz in [-1.0, 1.0]:
 				_mesh(o, _box(Vector3(0.14, s.y - 0.4, 0.1)), steel, c + Vector3(x, s.y * 0.5, (hz + 0.03) * sz))
-		# The door, toward the town: a red frame, a dark door with a seam, a step, a lamp over it.
-		_mesh(o, _box(Vector3(0.14, 2.5, 1.8)), red, c + Vector3(hx + 0.02, 1.25, 0))
-		_mesh(o, _box(Vector3(0.16, 2.2, 1.4)), black, c + Vector3(hx + 0.06, 1.1, 0))
-		_mesh(o, _box(Vector3(0.17, 2.1, 0.03)), steel, c + Vector3(hx + 0.07, 1.1, 0))
-		var step := 0.18 + _sink(o, c + Vector3(hx + 0.4, 0, 0), 0.4, 1.0)
-		_mesh(o, _box(Vector3(0.8, step, 2.0)), steel, c + Vector3(hx + 0.4, 0.18 - step * 0.5, 0))
-		_mesh(o, _box(Vector3(0.22, 0.12, 0.7)), mats.glow(Color("#ffb04a")), c + Vector3(hx + 0.12, 2.75, 0))
+		if room:
+			# Issue #309: the doorway, open, in a red frame, a lamp over it.
+			var dw := OutpostRoom.door_width(b)
+			var dh := OutpostRoom.door_height(b)
+			for sz: float in [-1.0, 1.0]:
+				_mesh(o, _box(Vector3(0.14, dh + 0.2, 0.2)), red, c + Vector3(hx + 0.02, (dh + 0.2) * 0.5, (dw * 0.5 + 0.1) * sz))
+			_mesh(o, _box(Vector3(0.14, 0.2, dw + 0.4)), red, c + Vector3(hx + 0.02, dh + 0.1, 0))
+			_mesh(o, _box(Vector3(0.22, 0.12, 0.7)), mats.glow(Color("#ffb04a")), c + Vector3(hx + 0.12, dh + 0.35, 0))
+		else:
+			# The door, toward the town: a red frame, a dark door with a seam, a step, a lamp over it.
+			_mesh(o, _box(Vector3(0.14, 2.5, 1.8)), red, c + Vector3(hx + 0.02, 1.25, 0))
+			_mesh(o, _box(Vector3(0.16, 2.2, 1.4)), black, c + Vector3(hx + 0.06, 1.1, 0))
+			_mesh(o, _box(Vector3(0.17, 2.1, 0.03)), steel, c + Vector3(hx + 0.07, 1.1, 0))
+			var step := 0.18 + _sink(o, c + Vector3(hx + 0.4, 0, 0), 0.4, 1.0)
+			_mesh(o, _box(Vector3(0.8, step, 2.0)), steel, c + Vector3(hx + 0.4, 0.18 - step * 0.5, 0))
+			_mesh(o, _box(Vector3(0.22, 0.12, 0.7)), mats.glow(Color("#ffb04a")), c + Vector3(hx + 0.12, 2.75, 0))
 		_mesh(o, _box(Vector3(0.05, 2.6, 0.9)), red, c + Vector3(hx + 0.05, s.y - 1.7, hz - 0.9))
 		# Vents: two on the back, one on each side.
 		for v in [Vector3(-hx - 0.05, 1.4, -hz * 0.45), Vector3(-hx - 0.05, 1.4, hz * 0.45)]:
@@ -510,6 +571,25 @@ func _dress(o: Dictionary) -> void:
 	mats.repaint(str(o.side), str(o.id))         # issue #393: painted for whoever holds it now
 
 
+## Issue #309: a band round a room's outside (the plinth, the red stripe) as four
+## strips no deeper than its walls, so none of it shows inside; `gap` leaves the
+## doorway open in the front strip.
+func _ring(o: Dictionary, c: Vector3, s: Vector3, grow: float, h: float, y: float, mat: Material, gap := 0.0) -> void:
+	var t := grow * 0.5 + 0.15
+	var ox := s.x * 0.5 + grow * 0.5 - t * 0.5
+	var oz := s.z * 0.5 + grow * 0.5 - t * 0.5
+	var lz := s.z + grow - 2.0 * t
+	for sz: float in [-1.0, 1.0]:
+		_mesh(o, _box(Vector3(s.x + grow, h, t)), mat, c + Vector3(0, y, oz * sz))
+	_mesh(o, _box(Vector3(t, h, lz)), mat, c + Vector3(-ox, y, 0))
+	if gap <= 0.0:
+		_mesh(o, _box(Vector3(t, h, lz)), mat, c + Vector3(ox, y, 0))
+		return
+	var seg := (lz - gap) * 0.5
+	for sz: float in [-1.0, 1.0]:
+		_mesh(o, _box(Vector3(t, h, seg)), mat, c + Vector3(ox, y, (gap + seg) * 0.5 * sz))
+
+
 ## How far the sand falls below the outpost's floor (local y = 0) at the corners and
 ## edge midpoints of a footprint centred at `c` (local), or 0.
 func _sink(o: Dictionary, c: Vector3, hx: float, hz: float) -> float:
@@ -526,6 +606,281 @@ func _vent(o: Dictionary, at: Vector3, basis: Basis, grille: Material, frame: Ma
 	_mesh(o, _box(Vector3(0.08, 0.6, 1.0)), frame, at, basis)
 	for k in 3:
 		_mesh(o, _box(Vector3(0.1, 0.07, 0.86)), grille, at + basis * Vector3(0.0, -0.18 + k * 0.18, 0.0), basis)
+
+
+## Issue #309: how far the sand rises above the outpost's floor (local y = 0)
+## anywhere under a footprint centred at `c` (local), or 0.
+func _rise(o: Dictionary, c: Vector3, hx: float, hz: float) -> float:
+	var inv := (o.xf as Transform3D).affine_inverse()
+	var high := 0.0
+	for i in 5:
+		for j in 5:
+			var at := Vector3(c.x + hx * (-1.0 + 0.5 * i), 0, c.z + hz * (-1.0 + 0.5 * j))
+			high = maxf(high, (inv * world_point(o, at)).y - c.y)
+	return high
+
+
+# ------------------------------------------------------------------ the control room (issue #309)
+
+const FLOOR_CLEAR := 0.15          ## the room's floor over the highest sand inside (the drawn sand is a little rough)
+
+## The outpost's control room, if its building is one (OutpostRoom): a floor
+## lifted just over the highest sand inside (no dune pokes through), a ramp from
+## the sand up to the doorway, and the consoles and holo table as solid shapes,
+## always (cover with or without the look); with the look on, the bridge's
+## finishes, screens, a holo map and a red and a blue light.
+## o.room = { b: the building, lift: the floor's height, stand: where you hack (local) }.
+func _build_room(o: Dictionary) -> void:
+	var b := {}
+	for bb in o.cfg.get("buildings", []):
+		if OutpostRoom.is_room(bb):
+			b = bb
+			break
+	if b.is_empty():
+		return
+	var s := WorldGround._v3(b.get("size", [1, 1, 1]))
+	var c := WorldGround._v3(b.get("position", [0, 0, 0]))
+	var w := OutpostRoom.wall(b)
+	var lift := _rise(o, c, s.x * 0.5 - w, s.z * 0.5 - w) + FLOOR_CLEAR
+	var up := Vector3(0, lift, 0)
+	o["room"] = { "b": b, "lift": lift, "stand": OutpostRoom.stand(b) + up }
+	var body := StaticBody3D.new()
+	body.name = "Room_" + str(o.id)
+	add_child(body)
+	body.global_transform = o.xf
+	var parts := OutpostRoom.inside(b)
+	for part in parts:
+		if bool(part.solid):
+			_box_shape(body, part.size, Transform3D(part.basis, (part.center as Vector3) + up))
+	# The floor, from the back wall out under the doorway, down past the lowest sand.
+	var thick := 0.4 + lift + _sink(o, c, s.x * 0.5, s.z * 0.5)
+	var fx0 := c.x - s.x * 0.5 + w
+	var fx1 := c.x + s.x * 0.5
+	_box_shape(body, Vector3(fx1 - fx0, thick, s.z - 2.0 * w),
+		Transform3D(Basis.IDENTITY, Vector3((fx0 + fx1) * 0.5, c.y + lift - thick * 0.5, c.z)))
+	var ramp := _door_ramp(o, b, lift)
+	if not ramp.is_empty():
+		_box_shape(body, ramp.size, ramp.xf)
+	if demo.use_look:
+		_room_look(o, b, parts, up, ramp)
+
+
+func _box_shape(body: StaticBody3D, size: Vector3, xf: Transform3D) -> void:
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = size
+	cs.shape = bx
+	cs.transform = xf
+	body.add_child(cs)
+
+
+## A ramp from the sand in front of the doorway up to the room's floor, so nobody
+## trips on the sill: { size, xf } (local), or {} when the floor is level with the sand.
+func _door_ramp(o: Dictionary, b: Dictionary, lift: float) -> Dictionary:
+	var d := OutpostRoom.doorway(b)
+	var run := clampf(lift * 5.0, 0.8, 2.4)
+	var foot := ((o.xf as Transform3D).affine_inverse() * world_point(o, d + Vector3(run, 0, 0))).y - 0.05
+	var top := d + Vector3(0, lift, 0)
+	var low := Vector3(d.x + run, foot, d.z)
+	if top.y - low.y < 0.06:
+		return {}
+	var along := (low - top).normalized()
+	var n := Vector3(-along.y, along.x, 0.0)          # up, out of its top
+	var thick := 0.25
+	return { "size": Vector3((low - top).length(), thick, OutpostRoom.door_width(b) + 0.4),
+		"xf": Transform3D(Basis(along, n, Vector3.BACK), (top + low) * 0.5 - n * thick * 0.5) }
+
+
+## The room's look: every part of a finish as one mesh in the outpost's frame
+## (the cruiser's shader, so the consoles, screens, floor and bulkheads are the
+## bridge's), the holo table's map, the lights and the ramp.
+func _room_look(o: Dictionary, b: Dictionary, parts: Array, up: Vector3, ramp: Dictionary) -> void:
+	var groups := {}
+	for part in parts:
+		var f := str(part.finish)
+		if not groups.has(f):
+			groups[f] = []
+		groups[f].append(part)
+	for f in groups:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for part in groups[f]:
+			var bm := BoxMesh.new()
+			bm.size = part.size
+			st.append_from(bm, 0, Transform3D(part.basis, (part.center as Vector3) + up))
+		var mi := MeshInstance3D.new()
+		mi.name = "Room_%s_%s" % [o.id, f]
+		mi.mesh = st.commit()
+		mi.material_override = _room_mat(str(f))
+		if f in ["screen", "glow"]:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+		mi.global_transform = o.xf
+		_near_only(mi)
+	var s := WorldGround._v3(b.get("size", [1, 1, 1]))
+	var c := WorldGround._v3(b.get("position", [0, 0, 0]))
+	var holo := OutpostRoom.holo(b) + up
+	var cone := CylinderMesh.new()                    # the map's light, widening up off the table
+	cone.top_radius = 0.55
+	cone.bottom_radius = 0.3
+	cone.height = 0.7
+	cone.radial_segments = 20
+	cone.cap_top = false
+	cone.cap_bottom = false
+	var map := _mesh(o, cone, _holo_mat(), holo + Vector3(0, 1.38, 0))
+	map.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_near_only(map)
+	var reach := maxf(s.x, s.z) * 0.85
+	for l in [[Color("#ff3a2a"), 1.8, c + up + Vector3(-s.x * 0.5 + 1.3, s.y - 1.6, 0)],
+			[Color("#4aa8ff"), 1.4, holo + Vector3(0, 2.2, 0)]]:
+		var light := OmniLight3D.new()
+		light.light_color = l[0]
+		light.light_energy = l[1]
+		light.omni_range = reach
+		light.shadow_enabled = false
+		add_child(light)
+		light.global_position = (o.xf as Transform3D) * (l[2] as Vector3)
+		_near_only(light)
+	if not ramp.is_empty():
+		var xf: Transform3D = ramp.xf
+		_mesh(o, _box(ramp.size), demo._flat_mats().flat(Color("#5d6168"), 0.35, 0.75), xf.origin, xf.basis)
+
+
+## The room's inside is drawn only up close (content/look/world.json
+## draw_distance.room_m): its own range, so DrawDistance's size rules leave it be;
+## the "draw_distance_m" meta lets Low graphics scale it with the rest.
+func _near_only(n: Node3D) -> void:
+	var dd: Dictionary = ItemKit._read_json(DrawDistance.LOOK_PATH).get("draw_distance", {}) if _room_draw.is_empty() else _room_draw
+	_room_draw = dd
+	var end := float(dd.get("room_m", 50.0))
+	n.set_meta(DrawDistance.BASE, end)
+	if n is Light3D:
+		var l := n as Light3D
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = end
+		l.distance_fade_length = float(dd.get("light_fade_m", 20.0))
+	elif n is GeometryInstance3D:
+		var gi := n as GeometryInstance3D
+		gi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		gi.visibility_range_end = end
+		gi.visibility_range_end_margin = end * float(dd.get("fade_margin", 0.1))
+
+
+func _room_mat(f: String) -> Material:
+	if _room_mats.has(f):
+		return _room_mats[f]
+	var m: Material
+	if ROOM_FINISHES.has(f):
+		var sm := ShaderMaterial.new()
+		sm.shader = ROOM_SHADER
+		sm.set_shader_parameter("finish", ROOM_FINISHES[f])
+		sm.set_shader_parameter("noise_tex", demo._flat_mats().noise)
+		m = sm
+	else:                                   # "glow": the ceiling's light bars
+		var g := StandardMaterial3D.new()
+		g.albedo_color = Color("#e8f6ff")
+		g.emission_enabled = true
+		g.emission = Color("#e8f6ff")
+		g.emission_energy_multiplier = 3.0
+		g.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m = g
+	_room_mats[f] = m
+	return m
+
+
+func _holo_mat() -> Material:
+	if _room_mats.has("holo"):
+		return _room_mats.holo
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = Color(0.3, 0.65, 1.0, 0.14)
+	_room_mats["holo"] = m
+	return m
+
+
+## The outpost whose hack console the player at `p` (world) stands in front of, or {}.
+func console_in_reach(p: Vector3) -> Dictionary:
+	for o in outposts:
+		var room: Dictionary = o.get("room", {})
+		if room.is_empty():
+			continue
+		var l: Vector3 = (o.xf as Transform3D).affine_inverse() * p - (room.stand as Vector3)
+		if Vector2(l.x, l.z).length() <= Heist.reach() and absf(l.y) <= 1.6:
+			return o
+	return {}
+
+
+## Where you stand to hack outpost `o`'s console, in the world.
+func console_point(o: Dictionary) -> Vector3:
+	return (o.xf as Transform3D) * (o.room.stand as Vector3)
+
+
+## One frame at a console: what the player at `p` holding [E] (`held`) gets. ""
+## (no console in reach), "locked" (no heist here), "wiped" (this heist's console,
+## hacked already), "ready", "hacking", or "done" (held long enough: the stash is
+## out). Letting go or stepping away starts it over. Being seen changes nothing.
+func hack_step(dt: float, held: bool, p: Vector3) -> String:
+	var o := console_in_reach(p)
+	if o.is_empty():
+		hacking = 0.0
+		hack_at = ""
+		return ""
+	hack_at = str(o.id)
+	if not Heist.armed(hack_at):
+		hacking = 0.0
+		return "wiped" if Heist.target() == hack_at else "locked"
+	if not held:
+		hacking = 0.0
+		return "ready"
+	hacking += dt
+	if hacking < Heist.hack_seconds():
+		return "hacking"
+	hacking = 0.0
+	Heist.on_hacked(hack_at, str(o.label))
+	hacks += 1
+	_toast(Heist.line("hacked") % [Heist.stash_count(), str(WorldState._item(Heist.stash_item()).get("label", "")).to_lower()])
+	_sync_stash()
+	return "done"
+
+
+func _tick_hack(dt: float, p: Node3D) -> void:
+	_sync_stash()
+	var gear = demo.gear
+	var busy: bool = p.get("locked") == true or p.get("piloting") == true \
+		or (gear != null and (not gear.focus.is_empty() or gear.menu.is_open()))
+	var held := not busy and InputMap.has_action("interact") and Input.is_action_pressed("interact")
+	var state := "" if busy else hack_step(dt, held, p.global_position)
+	if gear == null or gear.hud == null:
+		return
+	match state:
+		"locked", "wiped":
+			gear.hud.set_prompt(Heist.line(state))
+		"ready":
+			gear.hud.set_prompt(Heist.line("ready") % roundi(Heist.hack_seconds()))
+		"hacking":
+			gear.hud.set_prompt(Heist.line("hacking") % int(100.0 * hacking / Heist.hack_seconds()))
+	var bar := state == "hacking"
+	if bar or _bar_up:
+		gear.hud.set_progress(hacking / Heist.hack_seconds() if bar else -1.0)
+	_bar_up = bar
+
+
+## The hacked console's stash lies in front of it until you take it (and is put
+## back there after a load, or when you come back to the outpost).
+func _sync_stash() -> void:
+	var e := Heist.stash_entry()
+	if e.is_empty() or demo == null or demo.gear == null or demo.gear.pickup_node(str(e.id)) != null:
+		return
+	var o := outpost(Heist.target())
+	if o.is_empty() or not o.has("room"):
+		return
+	var at: Vector3 = (o.xf as Transform3D) * ((o.room.stand as Vector3) + Vector3(0, 0.02, 0.8))
+	var n: Node3D = demo.gear.drop_item(e, at)
+	if n != null:
+		n.transform = Transform3D((o.xf as Transform3D).basis, at)
 
 
 # ------------------------------------------------------------------ props (issue #76)

@@ -2,6 +2,23 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Walk into the outposts' control rooms (2026-11-03)
+
+- **Every Remnant outpost has an open doorway on the town side,** into a small
+  control room like the star cruiser's bridge: rows of consoles under screens,
+  a holo table with its map glowing over it, red and blue light. Ships and
+  speeders still hit the building; the footprint is the same.
+- **One trooper now stands inside,** at the consoles with his back to the door
+  (the locals post one there too when they hold it). Troopers walk in and out
+  after you.
+- **The console at the back can be hacked:** hold [E] for 5 seconds, a bar
+  fills, and a stash of 15 flasks of refined quantonium drops at your feet.
+  Let go or step away and it starts over. Being seen raises the alarm as usual;
+  the hack keeps going. For now it is locked: heists (coming next) open it.
+- **The sand under each outpost is levelled,** so the floor is flat and nothing
+  pokes through it.
+- **The inside only draws within 50 m,** so the rooms cost nothing from afar.
+
 ## Your speeder waits outside the back gate when you respawn (2026-11-03)
 
 - **Wake up after being downed and your speeder is in a row outside the back

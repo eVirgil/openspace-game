@@ -235,10 +235,12 @@ func roll_crate_prize() -> Dictionary:
 ## Issue #64: one loot box at a time. Contraband lying in the world (the desert
 ## cache) only shows in free play, and only while no drop of Oda's is out and
 ## the player carries none: it never gets in the way of the story's runs.
+## A job's own goods ("job": the heist's stash, issue #309) always show.
 func _sync_loose_contraband() -> void:
 	var allowed := Story.chapter() == "free" and WorldState.smuggle_drop().is_empty() and not WorldState.carrying_contraband()
 	for n in pickups:
-		if is_instance_valid(n) and bool(content.get_item(str(n.pickup.get("item", ""))).get("contraband", false)):
+		if is_instance_valid(n) and not bool(n.pickup.get("job", false)) \
+				and bool(content.get_item(str(n.pickup.get("item", ""))).get("contraband", false)):
 			n.visible = allowed
 
 
