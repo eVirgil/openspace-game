@@ -41,6 +41,22 @@ Plain English, newest on top. One entry per milestone.
   when killed.
 - The prompt and the bar show the time left.
 
+## A laser droid of your own (2026-11-04)
+
+- **A droid merchant in the moon rave,** at a stall of their own by the stage.
+  They sell floating droids and the **laser rig** (300 cr) for any floating
+  droid you own. The rig is sold only there.
+- **A floating droid with the rig wears the rave droid's colours,** black with
+  magenta trim and eye and a neon ring round its belly, and carries a fan of
+  lasers under it, the same fan as the stage's laser droid.
+- **E next to it turns the lasers on or off,** anywhere: the moon, the desert,
+  the port cantina, the barge. The prompt says which, and on or off is saved
+  with the droid. A new rig starts off.
+- **It fights like any floating droid.** The lasers keep sweeping while it
+  shoots, go dark when it is knocked out and come back when it reboots.
+- The price, the beams and the colours are in `content/core/droids/droids.json`
+  ("upgrades" "lasers", "club_vendor").
+
 ## The moon rave: a long bar, a lounge and stalls (2026-11-04)
 
 - **The bar is across the dance floor from the stage** now, a 12 m counter

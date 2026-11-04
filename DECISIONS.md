@@ -2,6 +2,30 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — Your laser droid (issue #392, part 2)
+
+- **The rig is an upgrade, like the others,** one level on the droid's "up", so it
+  is bought, saved and shown the way armour plating is. It names its own look
+  ("variant": "rave"), which wins over the chrome look any other upgrade gives.
+- **Where an upgrade is sold is data** ("sold_at": "rave" on the upgrade, "sells":
+  "rave" on the merchant). `DroidRoster.upgrades_for(kind)` is every other
+  merchant's list exactly as before; `upgrades_for(kind, "rave")` is the moon
+  merchant's. Whether a droid can take an upgrade at all is `fits`, so a rig
+  bought on the moon is kept everywhere. Alternative: a flag on the
+  controller's site. Rejected: the roster would then let any site sell it.
+- **The moon merchant is a vendor site of its own** (droids.json "club_vendor",
+  with its own stock: floating only), not the market's merchant moved: the port
+  still has its own. Only a planet whose "club_dome" says "droid_merchant" gets
+  the stall, so the lava moon's rave (the same kit) has none and the rig stays
+  the moon's.
+- **One beam fan for both droids** (`ClubProps.laser_fan`), its numbers in a
+  dictionary: the stage droid keeps its old ones, yours takes the rig's "fan"
+  (shorter, a little higher, so it reads at your side). Each laser droid of
+  yours carries its own ClubProps clock that never stops, so the beams sweep
+  in the desert and after the DJ is dead.
+- **A new rig is dark.** The issue's test reads "interact() beside it: lasers on",
+  and the first E is the one that shows the player what the prompt does.
+
 ## 2026-11-04 — The moon rave's room (issue #392, part 1)
 
 - **The bar turns, the bar code does not.** Every bar was built with the owner on

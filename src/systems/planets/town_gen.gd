@@ -372,7 +372,7 @@ func _club_dome(dome: Rect2, opts: Dictionary = {}) -> void:
 		w += 1
 	_dome_bar(c, k, floor_mid, opts)
 	_dome_lounge(c, k)
-	_dome_stalls(c, k)
+	_dome_stalls(c, k, bool(opts.get("club_dome", {}).get("droid_merchant", false)))
 
 
 ## Issue #392: the bar across the dance floor from the stage (the kit's "bar"): a
@@ -451,12 +451,16 @@ func _lounge_patron(n: int, at: Vector2, table: Vector2) -> void:
 
 ## Issue #392: the stalls round the rave (the kit's "stall" sizes): the fence's,
 ## on the way from the hallway to the bar (stall_fn1 / vendor_1, its trade in
-## content/core/vendors), and the rave stalls round the edge, set dressing with a
-## merchant at each.
-func _dome_stalls(c: Vector2, k: Dictionary) -> void:
+## content/core/vendors), the droid merchant's where the planet has one
+## (`droids`: droids.json "club_vendor"), and the rave stalls round the edge, set
+## dressing with a merchant at each.
+func _dome_stalls(c: Vector2, k: Dictionary, droids := false) -> void:
 	var f: Dictionary = k.get("fence", {})
 	if not f.is_empty():
 		_dome_stall("stall_fn1", "vendor_1", c + _v2(f.at), str(f.get("face", "-z")), k, "")
+	var dv: Dictionary = k.get("droid_vendor", {})
+	if droids and not dv.is_empty():
+		_dome_stall("stall_droids", "droid_vendor_club", c + _v2(dv.at), str(dv.get("face", "+z")), k, "")
 	var n := 1
 	for s in k.get("stalls", []):
 		_dome_stall("stall_rave_%d" % n, "rave_vendor_%d" % n, c + _v2(s.at), str(s.get("face", "+x")), k, "rave")

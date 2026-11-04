@@ -242,6 +242,12 @@ func test_the_rave_has_a_long_bar_a_lounge_and_stalls() -> void:
 	assert_between(rave.size(), 3, 4, "three or four rave stalls")
 	for b in rave:
 		assert_false(t.get_marker(str(b.id).replace("stall_rave_", "rave_vendor_")).is_empty(), "a merchant at %s" % b.id)
+	var dv := str(DroidRoster.config().club_vendor.marker)
+	assert_false(t.get_marker(dv).is_empty(), "the droid merchant's marker")
+	assert_false(t.get_box("stall_droids").is_empty(), "and stall")
+	var lava := TownLayout.new()
+	lava.load_from_dict(PlanetGen.build("cinder_station", cc).town)
+	assert_true(lava.get_marker(dv).is_empty(), "the laser rig is sold only on the moon")
 
 
 func test_the_asteroid_station() -> void:

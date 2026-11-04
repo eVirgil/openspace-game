@@ -58,6 +58,8 @@
     "stalls_note": "A stall is a counter 'size' metres (along, deep) centred on 'at', its customers on its 'face' side, a back panel 'back' metres behind, the merchant 'keeper' metres behind (between them). 'fence': the fence's stall (vendor_1, content/core/vendors/station_fence.json), on the path from the hallway to the bar. 'rave': set dressing round the edge of the room, a merchant at each and nothing to buy (TownMarket's 'rave' wares, each its own mix).",
     "stall": { "size": [4.0, 1.0], "height": 1.1, "back": 3.3, "back_h": 2.6, "keeper": 1.8 },
     "fence": { "at": [20.0, 9.0], "face": "-z" },
+    "droid_vendor_note": "The droid merchant's stall (droid_vendor_club, droids.json 'club_vendor': floating droids and the laser rig), only on a planet whose 'club_dome' has 'droid_merchant': true (the moon).",
+    "droid_vendor": { "at": [22.0, -17.5], "face": "+z" },
     "stalls": [
       { "at": [-26.5, -12.0], "face": "+x" },
       { "at": [-26.5, 6.0], "face": "+x" },
