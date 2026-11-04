@@ -156,6 +156,7 @@ var bay_landing := false          ## issue #75: Z near the bay: she is flying he
 var bay_landings := 0             ## times that brought her down (traces, tests)
 var docking := false              ## issue #193: Z by the cruiser: she is flying herself into its bay
 var dockings := 0                 ## times that brought her down there (traces, tests)
+var _dock_target = null           ## what she is docking in: the cruiser or a SpaceStation
 var _dock_curve: Curve3D          ## the docking flight, one smooth curve from her to over the pad
 var _dock_s := 0.0                ## metres along it so far
 var _dock_v := 0.0                ## her speed along it
@@ -789,14 +790,48 @@ func near_cruiser() -> bool:
 	return piloting and c != null and atmo.state == AtmoFlight.State.FLYING and c.can_dock(atmo.position())
 
 
+## The space stations in this sky (SpaceStation), untyped for the same reason.
+func stations() -> Array:
+	var list = demo.get("stations") if demo != null else null
+	return (list as Array).filter(func(s): return is_instance_valid(s)) if list is Array else []
+
+
+## The station `p` is aboard, or null.
+func station_aboard(p: Vector3):
+	for s in stations():
+		if s.aboard(p):
+			return s
+	return null
+
+
+## What Z flies her into from here: the cruiser in reach, else a space station in
+## reach (both answer can_dock, dock_path, dock_yaw, dock_cfg and line), else null.
+func dock_target():
+	if not piloting or atmo.state != AtmoFlight.State.FLYING:
+		return null
+	var p := atmo.position()
+	var c = cruiser()
+	if c != null and c.can_dock(p):
+		return c
+	for s in stations():
+		if s.can_dock(p):
+			return s
+	return null
+
+
+func near_dock() -> bool:
+	return dock_target() != null
+
+
 ## Z by the cruiser: she flies herself round the hull and in. A fight running is not
 ## broken off: it goes on without her while she docks and is down in the bay
 ## (_out_of_fight), and she is back in it when she flies out. False when not near
 ## enough.
 func dock() -> bool:
-	if docking or not near_cruiser():
+	if docking or not near_dock():
 		return false
-	var c = cruiser()
+	var c = dock_target()
+	_dock_target = c
 	var f = atmo.flight
 	var pts: Array = c.dock_path(atmo.position())
 	bay_landing = false
@@ -850,8 +885,8 @@ static func dock_curve(from: Vector3, heading: Vector3, pts: Array) -> Curve3D:
 ## (Z docks first), else your own bay on this planet by its town's ("Quartzspring
 ## bay"); "" when neither.
 func dock_place() -> String:
-	if near_cruiser():
-		var c = cruiser()
+	if near_dock():
+		var c = dock_target()
 		return GameFlow.label("bay_place") % (c.vessel_name if c.vessel_name != "" else c.label())
 	if near_bay():
 		return bay_place()
@@ -871,7 +906,7 @@ func bay_place() -> String:
 ## the spot to the pad's heading (nose out to space) as she sinks to just over
 ## the deck, and the normal landing sets her down.
 func _dock_step(dt: float) -> void:
-	var c = cruiser()
+	var c = _dock_target if _dock_target != null and is_instance_valid(_dock_target) else null
 	if c == null or _dock_curve == null:
 		docking = false
 		return
@@ -1230,6 +1265,9 @@ func _on_foot() -> void:
 			# Issue #193: aboard the cruiser you are in space, but up close: its shadows
 			# and props stay on (the town's people, far below, stay off).
 			alt = minf(alt, float(c.cfg.get("detail_altitude", 600.0)))
+		var st = station_aboard(p.global_position)
+		if st != null:
+			alt = minf(alt, float(st.cfg.get("detail_altitude", 600.0)))     # the same, aboard a station
 		demo.detail.update_for(alt)
 	var i := nearest_berth() if not p.locked else -1
 	var near := i >= 0
@@ -1765,7 +1803,7 @@ func _update_hud(agl_now: float) -> void:
 				tip = GameFlow.label("bay_heading") % bay_place()
 			elif docking:
 				tip = GameFlow.label("bay_heading") % _dock_to
-			elif near_cruiser() or near_bay():
+			elif near_dock() or near_bay():
 				tip = (tip + "    " if tip != "" else "") + GameFlow.label("bay_land") % dock_place()
 		AtmoFlight.State.LANDING:
 			tip = GameFlow.label("landing")
