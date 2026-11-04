@@ -133,6 +133,8 @@ func test_buildings_drawn_by_the_kit() -> void:
 		if look == "" or look == "stall" or look == "stall_back":
 			continue          # the market dresses these, not the building kit
 		looks += 1
+		if str(b.kind) == "shell":
+			continue          # issue #321: the barracks hall is its pieces, no greybox node of its own
 		var mi: MeshInstance3D = d.get_node("Town/%s/Mesh" % b.id)
 		assert_false(mi.visible, "%s: the greybox stand-in is hidden" % b.id)
 	var built := 0
@@ -154,6 +156,8 @@ func test_round_buildings_have_round_collision() -> void:
 	var d = _demo(false)
 	var round := 0
 	for b in d.town.boxes():
+		if str(b.kind) == "shell":
+			continue          # issue #321: the barracks hall is its pieces, no node of its own
 		var shape: Shape3D = (d.get_node("Town/%s" % b.id).get_child(1) as CollisionShape3D).shape
 		if str(b.get("shape", "")) == "round":
 			round += 1
