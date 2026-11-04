@@ -322,6 +322,26 @@ func test_gun_and_jetpack_upgrades() -> void:
 	assert_eq(WorldState.credits, 1000 - 150 - 250)
 
 
+func test_the_gear_trader_sells_the_legal_goods_and_the_fence_the_armour() -> void:
+	var gear := GearController.new()
+	gear.content = content
+	gear.labels = CharacterKit._read_json("res://content/core/flow/gear.json").labels
+	var rows := func(id: String) -> Array:
+		return gear.trade_options(content.get_vendor(id)).map(func(r): return str(r.id))
+	var trader: Array = rows.call("gear_trader")
+	for id in ["pistol_damage", "rifle_rate", "jetpack_fuel", "sniper_rifle"]:
+		assert_true(trader.has("offer:" + id), "the gear trader sells " + id)
+	assert_true(trader.has("buy:jetpack"), "and jetpacks")
+	assert_false(trader.has("locked:quantonium_armour"), "not the fence's armour")
+	var fence: Array = rows.call("fence")
+	assert_true(fence.has("locked:quantonium_armour"), "the fence's armour")
+	assert_false(fence.any(func(r): return str(r).begins_with("offer:")), "and no upgrades at the fence")
+	assert_eq(gear.offer_wares(), [], "nothing for him to offer in the chat before the bounty")
+	gear.free()
+	var card := NpcBrain.new(null, "res://content/core/npcs/fence_card.json")
+	assert_string_contains(str(card.card.rules), "gear trader", "he sends you there for upgrades")
+
+
 func test_the_fence_shows_the_armour_locked_until_the_bounty() -> void:
 	var ids := func(a: Array): return a.map(func(o): return str(o.id))
 	assert_true(ids.call(GearUpgrades.locked_offers()).has("quantonium_armour"), "on the menu, locked")

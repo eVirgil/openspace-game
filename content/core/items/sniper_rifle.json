@@ -5,5 +5,5 @@
   "value": 600,
   "look": "rifle_case",
   "must_own": true,
-  "note": "The sniper rifle as something you own. 'must_own': it can only be drawn while you carry it, in a story save and in free roam alike (WorldState.weapon_allowed). The fence sells it from day one."
+  "note": "The sniper rifle as something you own. 'must_own': it can only be drawn while you carry it, in a story save and in free roam alike (WorldState.weapon_allowed). The gear trader sells it from day one."
 }
