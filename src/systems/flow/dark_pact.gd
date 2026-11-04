@@ -186,12 +186,15 @@ static func on_cruiser() -> bool:
 	return not offered() or refused() or WorldState.has_flag("dark_oath_broken")
 
 
-## On the barracks roof, facing the gate, while the Remnant hold the planet: on
-## the oath in story mode, always in free roam.
+## On the barracks roof, facing the gate. In story mode: on the oath, once the
+## Remnant hold the barracks again (you cleared its local guards), whatever
+## outposts the locals hold. In free roam: while the Remnant hold the planet.
 static func on_roof() -> bool:
-	if dead_at("barracks") or not Story.cruiser_taken() or not Territory.remnant_planet():
+	if dead_at("barracks") or not Story.cruiser_taken():
 		return false
-	return joined() or not WorldState.story_mode()
+	if WorldState.story_mode():
+		return joined() and Territory.owner(Territory.BARRACKS) == Territory.REMNANT
+	return Territory.remnant_planet()
 
 
 ## He is at `where` to fight you on sight (else he only fights back).

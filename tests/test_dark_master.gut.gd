@@ -168,6 +168,28 @@ func test_home_to_oda_without_meeting_him_and_the_offer_is_gone() -> void:
 	assert_false(DarkPact.on_cruiser())
 
 
+func test_on_the_oath_he_takes_the_roof_whatever_outposts_the_locals_hold() -> void:
+	_story_at_kill()
+	Territory.take(str(Story.OUTPOSTS[0]))     # cleared on the way through the story
+	DarkPact.join()
+	assert_false(DarkPact.on_roof(), "not while the locals hold the barracks")
+	_kill_barracks_guards()
+	assert_false(Territory.remnant_planet(), "the locals still hold an outpost")
+	assert_true(DarkPact.on_roof(), "the barracks are the Remnant's: he stands on the roof")
+	Territory.take(str(Story.OUTPOSTS[1]), true)   # one more runs short and falls (issue #425)
+	assert_true(DarkPact.on_roof(), "and stays there")
+
+
+func test_in_free_roam_the_roof_needs_the_whole_planet() -> void:
+	WorldState.new_game(WorldState.FREEPLAY)
+	WorldState.on_cruiser_taken("General Test", CruiserHull.data().get("reward", {}))
+	_kill_barracks_guards()
+	assert_eq(Territory.owner(Territory.BARRACKS), Territory.REMNANT)
+	assert_true(DarkPact.on_roof())
+	Territory.take(str(Story.OUTPOSTS[0]))
+	assert_false(DarkPact.on_roof(), "an outpost lost: not on the roof")
+
+
 func test_killing_him_on_the_roof_while_sworn_turns_the_remnant() -> void:
 	_story_at_kill()
 	DarkPact.join()
