@@ -167,6 +167,60 @@ func frame_for(sp: PlanetSphere, lm: Dictionary, world: Dictionary = {}) -> Tran
 	return Transform3D(Basis(UP, turn), pos)
 
 
+## A planet whose town is this station (its config's "station_town": the landmark
+## id): the town is only the station's bay, in the planet's own coordinates. The
+## ship's pad box ("ship") on the dock pad, where you arrive, and "player_spawn"
+## beside it on the bay's deck (where a save loaded here puts you), standing on
+## a painted plate (kind "pad": the town validator wants a marker to stand on a
+## town box; the station's own deck is what you walk on). No wall, no deck, no
+## cantina: everything else is the station.
+static func town_for(town_id: String, lm: Dictionary, sp: PlanetSphere, world: Dictionary = {}) -> Dictionary:
+	var h := for_id(str(lm.get("station", "")))
+	if h == null:
+		return {}
+	var xf := h.frame_for(sp, lm, world)
+	var pad := h.dock_pad()
+	if pad.is_empty():
+		return {}
+	var c: Vector3 = xf * (pad.at as Vector3)
+	var dims := [8.82, 2.36, 7.8]                 # the pad ship's box (town_kit.json ship_boxes.pad)
+	var hx := float(dims[0]) * 0.5
+	var hz := float(dims[2]) * 0.5
+	var sp_at: Vector3 = xf * h.spawn_point()
+	var deck_y := c.y
+	sp_at.y = deck_y + 0.02
+	var yaw := rad_to_deg(float(pad.yaw) + xf.basis.get_euler().y)
+	var boxes := [
+		{ "id": "ship", "zone": "landing_bay", "kind": "ship", "min": [c.x - hx, deck_y, c.z - hz], "max": [c.x + hx, deck_y + float(dims[1]), c.z + hz],
+			"parked_yaw_deg": yaw },
+		{ "id": "spawn_plate", "zone": "landing_bay", "kind": "pad", "standable": true, "hidden": true,
+			"min": [sp_at.x - 1.0, deck_y, sp_at.z - 1.0], "max": [sp_at.x + 1.0, sp_at.y, sp_at.z + 1.0] },
+	]
+	var x0 := minf(c.x - hx, sp_at.x - 1.0) - 2.0
+	var x1 := maxf(c.x + hx, sp_at.x + 1.0) + 2.0
+	var z0 := minf(c.z - hz, sp_at.z - 1.0) - 2.0
+	var z1 := maxf(c.z + hz, sp_at.z + 1.0) + 2.0
+	return {
+		"id": town_id,
+		"kind": "station",
+		"units": "meters",
+		"note": "Made by StationHull.town_for: this planet's town is the space station's bay.",
+		"bounds": { "min": [x0, z0], "max": [x1, z1] },
+		"player_clearance": 0.6,
+		"walk_speed_hint": 4.5,
+		"blocking_kinds": ["wall", "solid", "cover", "counter", "ship"],
+		"zones": [{ "id": "landing_bay", "min": [x0, z0], "max": [x1, z1] }],
+		"boxes": boxes,
+		"markers": [{ "id": "player_spawn", "pos": [sp_at.x, sp_at.y, sp_at.z], "role": "spawn" }],
+		"routes": [],
+		"garrison": {},
+		"locals": {},
+		"counts": { "guards": 0, "residents": 0, "roamers": 0, "stalls": 0, "merchants": 0, "bays": 1 },
+		"club": {},
+		"station_town": str(lm.get("id", "")),
+	}
+
+
 ## The centre of the ball planet `planet_id` is near, in its own scene's
 ## coordinates (PlanetGen.neighbours: the one that is not a child), or null.
 static func _parent_center(planet_id: String):

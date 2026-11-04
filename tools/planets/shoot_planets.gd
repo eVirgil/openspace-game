@@ -26,7 +26,7 @@ func _initialize() -> void:
 	_scenes = [
 		{ "id": "grit_station", "bar": true, "shots": ["overview", "street", "gate_from_hall", "hall", "pit", "cantina", "out_back", "rock", "ball", "home_from_station", "sun"] },
 		{ "id": "port_desert", "shots": ["station_from_port_space", "giant_from_port", "giant_from_space"] },
-		{ "id": "ringed_giant", "shots": ["station_over_giant", "station_from_deck", "ball", "deck_over_clouds"] },
+		{ "id": "ringed_giant", "shots": ["station_over_giant", "bay_from_spawn", "ball"] },
 		{ "id": "style_metallic", "cfg": { "type": "sand", "town_size": 30, "style": "metallic", "seed": 7 }, "shots": ["aerial"] },
 		{ "id": "style_snowy", "cfg": { "type": "snow", "town_size": 30, "style": "snowy", "seed": 7 }, "shots": ["aerial", "street"] },
 		{ "id": "style_pastel", "cfg": { "type": "water", "town_size": 30, "style": "pastel", "seed": 7 }, "shots": ["aerial", "street"] },
@@ -163,8 +163,11 @@ func _view(demo, shot: String) -> Array:
 		# The space station (content/core/stations/) over the top of the giant.
 		"station_over_giant":
 			return [Vector3(520, 120, 460), Vector3(20, 200, 0)]
-		"station_from_deck":
-			return [c + Vector3(-30, 3.0, 50), Vector3(0, 200, 0)]
+		"bay_from_spawn":
+			var spn: Vector3 = t.marker_pos("player_spawn")
+			var shp: Dictionary = t.get_box("ship")
+			var sc := Vector3((float(shp.min[0]) + float(shp.max[0])) * 0.5, float(shp.min[1]) + 1.5, (float(shp.min[2]) + float(shp.max[2])) * 0.5)
+			return [spn + Vector3(0, 1.7, 0) + (spn - sc).normalized() * 4.0, sc]
 		"deck_over_clouds":
 			return [c + Vector3(w * 1.4, -40.0, w * 1.1), c + Vector3(0, -20.0, 0)]
 		"station_from_port_space":

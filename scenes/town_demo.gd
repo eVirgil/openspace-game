@@ -231,6 +231,7 @@ func build_plan(staged_build: bool) -> Array:
 			if terrain != null:
 				_dress_desert()
 			return true)
+		add.call("gas_ring", SHELL, func(): _dress_gas_ring(); return true)
 		add.call("dress_platform", SHELL, func():
 			if platform is AsteroidWorld:
 				(platform as AsteroidWorld).dress_outside(look, decor.mats)   # what shows from space
@@ -391,8 +392,23 @@ func _terrain_far(budget_left: float) -> bool:
 	return (terrain as PlanetTerrain).refine_far_step(budget_left) if terrain is PlanetTerrain else true
 
 
+## A gas ball's ring (the planet's body.ring) round its centre, as its neighbours
+## draw it (SpaceTravel.make_ring), so nothing changes at the handoff.
+func _dress_gas_ring() -> void:
+	var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
+	var ring: Dictionary = planet.get("cfg", {}).get("body", {}).get("ring", {})
+	var r := float(planet.get("world", {}).get("terrain", {}).get("sphere_radius", 0.0))
+	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or ring.is_empty() or r <= 0.0:
+		return
+	var rmi := SpaceTravel.make_ring(Vector3(0, -r, 0), r, ring)
+	add_child(rmi)
+	var m := rmi.material_override as ShaderMaterial
+	m.set_shader_parameter("visibility", 0.8)
+	look.track_material(m)
+
+
 func _build_platform(ground_kind: String) -> void:
-	if ground_kind == "platform" or (ground_kind == "ball" and bool(planet.get("type_cfg", {}).get("deck", false))):
+	if ground_kind == "platform" or (ground_kind == "ball" and bool(planet.get("deck", false))):
 		platform = PlatformWorld.new()      # a gas ball's town floats on a deck too (the ringed giant)
 	elif ground_kind == "ball" and bool(planet.get("type_cfg", {}).get("enclosed", false)) and terrain != null:
 		# Issue #99: the sealed station on the asteroid's ball (dome, hallway, pit liner).
@@ -506,6 +522,8 @@ func _build_boxes() -> void:
 		else:
 			var cs := Greybox.center_size(b)
 			node = Greybox.make_box(b.id, cs[0], cs[1], color, Basis.IDENTITY, str(b.get("shape", "")) == "round")
+		if bool(b.get("hidden", false)):
+			node.visible = false                 # data only (a station town's spawn plate: the station's deck shows)
 		if b.kind == "pad":
 			for ch in node.get_children():       # issue #58: a painted plate, nothing to trip on
 				if ch is CollisionShape3D:

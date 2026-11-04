@@ -106,6 +106,18 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		size = lsize
 	elif town_id != "":
 		town = cc.get_location(town_id)            # authored
+	elif cfg.has("station_town"):
+		# The planet's town is a space station's bay (the ringed giant): its
+		# "station" landmark named here; no deck, no wall, no cantina.
+		town_id = id + "_town"
+		var slm: Dictionary = {}
+		for lm in cfg.get("landmarks", []):
+			if str(lm.get("id", "")) == str(cfg.station_town):
+				slm = lm
+		var sr := float(tcfg.get("surface", {}).get("radius", tcfg.get("body", {}).get("radius", 1500.0)))
+		town = StationHull.town_for(town_id, slm, PlanetSphere.new(sr), { "planet": id })
+		if town.is_empty():
+			push_warning("PlanetGen: %s has no station landmark %s" % [id, str(cfg.station_town)])
 	else:
 		town_id = id + "_town"
 		var opts := {}
@@ -151,6 +163,7 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		"type": type,
 		"type_cfg": tcfg,
 		"ground": str(tcfg.get("ground", "terrain")),
+		"deck": bool(tcfg.get("deck", false)) and not cfg.has("station_town"),   # a town on a floating deck
 		"size": size,
 		"town_id": town_id,
 		"town": town,

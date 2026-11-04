@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The ringed giant: a real gas planet with the station as its town (2026-11-03)
+
+- **The ringed giant in the port's sky is real now,** in the same spot and about
+  the same size as the old painting, which is gone. It is smaller than it looked,
+  so the flight out is a couple of minutes.
+- **A real ball of gas you fly all the way round,** handed over to its own
+  scene with no fade, like Grit Station. Its ring is drawn too (a look, not solid).
+- **The clouds kill you.** Nothing holds a ship up in them: go down into them
+  and the ship is lost, at any speed.
+- **The space station is its town.** The station from the moon now hangs over
+  the top of the giant; Z docks you in its round bay, and a save loaded on the
+  giant starts you there, by your ship on the dock pad. No deck, no cantina yet.
+- **A new planet type, `gas_ball`,** so the next gas giant is a config file.
+
 ## A space station behind the moon (2026-11-03)
 
 - **A station hangs over the moon's far side,** out of sight of the port. Fly

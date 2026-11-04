@@ -1,9 +1,10 @@
 {
   "id": "ringed_giant",
-  "note": "The ringed giant from the port's sky, made real: a gas_ball, a real ball of gas 3.5 km in radius (its type's surface) that you fly round, with a town floating on a deck on top (deck, keel, glass enclosure, gate shield, landing bays). Fly within its handoff of the cloud tops and its scene takes over with no fade, like Grit Station; go down into the clouds and the ship is lost. It hangs exactly where the sky painting was (azimuth 26, elevation 17 from the port: 'at' is that direction, 30 km out), so it looks as big as the painting did; it is smaller than the painting made it look, so the flight is short. replaces_sky_painting turns the painted giant off wherever this real one is drawn and on the planet itself. body: its look from space and its own sky (banded like the painting, with its ring; inner and outer in planet radii). The space station (content/core/stations/orbital_station.json, PR #501) hangs right over the top of the ball where the deck town was: it is the place you go (Z docks you in its round bay). The deck under it is a size-1 town kept only because every planet still needs a town: where you spawn when a save loads here, where a crashed ship is towed and where you wake after falling off.",
+  "note": "The ringed giant from the port's sky, made real: a gas_ball, a real ball of gas 3.5 km in radius (its type's surface) that you fly round. Fly within its handoff of the cloud tops and its scene takes over with no fade, like Grit Station; go down into the clouds and the ship is lost. It hangs exactly where the sky painting was (azimuth 26, elevation 17 from the port: 'at' is that direction, 30 km out), so it looks as big as the painting did; it is smaller than the painting made it look, so the flight is short. replaces_sky_painting turns the painted giant off wherever this real one is drawn and on the planet itself. body: its look from space and its own sky (banded like the painting, with its ring; inner and outer in planet radii). Its town is the space station (content/core/stations/orbital_station.json, PR #501) over the top of the ball: station_town names its landmark, and StationHull.town_for makes the town only the station's bay, so a save loaded here puts you in the bay, a crashed ship is towed to the dock pad and falling out puts you back in the bay. No deck, no cantina. Z docks you in the bay.",
   "name": "",
   "type": "gas_ball",
   "town_size": 1,
+  "station_town": "orbital_station",
   "near": "port_desert",
   "at": [12576, 8771, -25786],
   "replaces_sky_painting": true,
@@ -22,7 +23,7 @@
       "at": [0, 0, 0],
       "altitude": 200,
       "yaw_deg": 0,
-      "note": "The station (moved here from the moon, PR #501) over the top of the giant, 200 m above the deck's level: the market floor and the bay's deck are 200 m up, its spires well clear of the small landing deck below. Inside the giant's own scene (its handoff reaches 2600 m above the clouds)."
+      "note": "The station (moved here from the moon, PR #501) over the top of the giant, 200 m above the ball's radius (the clouds are 120 m under that): the market floor and the bay's deck are 200 m up. Inside the giant's own scene (its handoff reaches 2600 m above the clouds)."
     }
   ]
 }

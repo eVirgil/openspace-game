@@ -281,14 +281,15 @@ See `KNOWN_ISSUES.md`.
 `content/core/planets/ringed_giant.json` is the gas giant that hung painted in
 the port's sky (`planet_*` in `content/look/time_of_day.json`). It is a
 `gas_ball`: a real ball, like the asteroid, that you fly round, with gravity
-toward its centre and "up" turning with it. Its town floats on a deck on top
-(`deck: true`: the platform worlds' deck, keel, glass enclosure, gate shield and
-landing bays).
+toward its centre and "up" turning with it. A `gas_ball` town floats on a deck on
+top (`deck: true`: the platform worlds' deck, keel, glass enclosure, gate shield
+and landing bays); the ringed giant's own town is the space station instead (see
+below).
 
 - **The clouds are the ball.** `GasSphere` (`src/systems/planets/gas_sphere.gd`)
   puts smooth cloud tops `surface.depth` metres below the deck's level all the
   way round, drawn by `PlanetTerrain` in `gas_giant.gdshader`. Nothing there holds
-  you up: a ship more than `surface.lethal_depth` below the deck's level is lost,
+  you up: a ship more than `surface.lethal_depth` below the ball's radius is lost,
   at any speed (`WorldGround.lethal_at`, checked in `AtmoFlight.step`: a crash, so
   it is towed back to its bay). Fall off the deck and you die on the way down,
   as on any platform.
@@ -304,7 +305,7 @@ landing bays).
   banded ball) and `ring` (`inner`/`outer` in planet radii, `color`, `normal`;
   `gas_ring.gdshader`, not solid). Seen from another planet both fade into the
   daylight sky the way the painting did. The giant's own scene draws the same
-  ring (`PlatformWorld._gas_ball_ring`).
+  ring (`TownDemo._dress_gas_ring`).
 - **`replaces_sky_painting: true`** turns the painted giant off on the planet
   itself and on any planet whose sky it hangs in (`PlanetGen.sky_painting`).
   Grit Station keeps its painting.
@@ -312,11 +313,13 @@ landing bays).
   (`TownDemo.sky_giant_reach`).
 - **Quiet sky** (`encounter: ""`): a space fight's flight does not check the
   clouds yet.
-- **The space station** (`content/core/stations/orbital_station.json`, PR #501)
-  hangs over the top of the ball, 200 m above where the deck town was, as a
-  `"kind": "station"` landmark in the giant's config: fly in and press Z to dock
-  in its round bay. The deck town under it is size 1, kept only because every
-  planet still needs a town (spawn on load, crash tow, waking after a fall).
+- **The space station is its town** (`content/core/stations/orbital_station.json`,
+  PR #501). Its `"kind": "station"` landmark hangs it 200 m over the top of the
+  ball, and `"station_town"` names that landmark as the planet's town:
+  `StationHull.town_for` makes a town of only the station's bay (your ship's pad
+  on the dock pad, `player_spawn` beside it), so a save loaded here starts you in
+  the bay, a crashed ship is towed to the dock pad, and there is no deck. Fly in
+  and press Z to dock. Any planet can do the same with any station landmark.
 
 ## The test planet: Grit Station
 

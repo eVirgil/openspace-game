@@ -206,27 +206,10 @@ func dress(env: LookEnvironment, mats: LookMaterials) -> void:
 		"lava":
 			_sea(true, env)
 		"gas":
-			if str(planet.get("ground", "")) == "ball":
-				_gas_ball_ring(env)     # the ringed giant: its own ball is the clouds (PlanetTerrain)
-			else:
-				_clouds()
+			if str(planet.get("ground", "")) != "ball":
+				_clouds()               # a gas ball's own ball is the clouds (PlanetTerrain); its ring is the town scene's
 		"rock":
 			_asteroid(mats)
-
-
-## A gas ball's ring (the planet's body.ring), round its centre, as its
-## neighbours draw it (SpaceTravel.make_ring), so nothing changes at the handoff.
-func _gas_ball_ring(env: LookEnvironment) -> void:
-	var ring: Dictionary = planet.get("cfg", {}).get("body", {}).get("ring", {})
-	var r := float(planet.get("world", {}).get("terrain", {}).get("sphere_radius", 0.0))
-	if ring.is_empty() or r <= 0.0:
-		return
-	var rmi := SpaceTravel.make_ring(Vector3(0, -r, 0), r, ring)
-	add_child(rmi)
-	var m := rmi.material_override as ShaderMaterial
-	m.set_shader_parameter("visibility", 0.8)
-	if env != null:
-		env.track_material(m)
 
 
 func _dress_keel(mats: LookMaterials) -> void:

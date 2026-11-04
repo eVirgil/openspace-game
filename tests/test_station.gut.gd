@@ -7,6 +7,7 @@ extends GutTest
 ## elevators carry you between floors.
 
 const TownDemo := preload("res://scenes/town_demo.gd")
+const TownLayout := preload("res://src/systems/world/town_layout.gd")
 const ID := "orbital_station"
 const HOST := "ringed_giant"       ## the planet that carries it
 
@@ -101,7 +102,18 @@ func test_it_hangs_over_the_giant_where_its_town_was_inside_its_scene() -> void:
 	var reach: float = _hull().top_y() - _hull().bottom_y() + 200.0
 	assert_lt(alt + reach, PlanetGen.handoff_altitude(str(g.type)), "all of it in the giant's own scene")
 	assert_eq(xf.basis.y, Vector3.UP, "level, like the cruiser")
-	assert_eq(int(g.size), 1, "the town under it is only a landing deck")
+	assert_eq(str(g.town.get("kind", "")), "station", "its town is the station's bay")
+	assert_false(bool(g.deck), "no deck under it")
+	assert_true(g.town.boxes.filter(func(b): return str(b.kind) in ["floor", "wall", "solid"]).is_empty(), "no town buildings")
+	var t := TownLayout.new()
+	t.load_from_dict(g.town)
+	assert_eq(t.validate().size(), 0, str(t.validate()))
+	var pad: Vector3 = xf * (_hull().dock_pad().at as Vector3)
+	var ship: Dictionary = t.get_box("ship")
+	assert_almost_eq(Vector2((float(ship.min[0]) + float(ship.max[0])) * 0.5, (float(ship.min[2]) + float(ship.max[2])) * 0.5).distance_to(Vector2(pad.x, pad.z)), 0.0, 0.05, "your ship's pad is the dock pad")
+	assert_almost_eq(float(ship.min[1]), pad.y, 0.05)
+	var spawn := t.spawn_pos()
+	assert_true(_hull().aboard(xf.affine_inverse() * (spawn + Vector3(0, 0.5, 0))), "you start aboard, in the bay")
 
 
 func test_it_is_a_component_the_home_planet_does_not_have_and_another_can_take() -> void:
@@ -322,6 +334,25 @@ func test_out_on_a_roof_walk_you_are_left_there() -> void:
 	await wait_physics_frames(10)
 	assert_eq(s.falls, 0, "not pulled back in")
 	assert_lt(p.global_position.distance_to(roof), 2.0, "still on the roof")
+
+
+## The giant's town is the station's bay: a save loaded on the giant starts you
+## aboard, by your ship on the dock pad, standing on the bay's deck.
+func test_a_save_loaded_on_the_giant_starts_you_in_the_bay() -> void:
+	var t = _host()
+	var s = await _station(t)
+	if s == null:
+		fail_test("no station")
+		return
+	await wait_physics_frames(30)
+	var p = t._player
+	assert_true(s.aboard(p.global_position), "aboard the station")
+	assert_true(p.is_on_floor(), "standing on the bay's deck")
+	assert_null(t.platform, "no deck town under it")
+	var pilot: ShipPilot = t.pilot
+	var home: Vector3 = pilot.berths[0].home
+	var pad: Vector3 = s.dock_point()
+	assert_almost_eq(Vector2(home.x, home.z).distance_to(Vector2(pad.x, pad.z)), 0.0, 1.5, "your ship waits on the dock pad")
 
 
 func test_falling_out_puts_you_back_in_the_bay() -> void:
