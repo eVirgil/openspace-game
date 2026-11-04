@@ -11,5 +11,16 @@
   "near": "port_desert",
   "at": [9000, 5200, -6500],
   "cantina_owner": { "look": "cantina_owner_station" },
-  "encounter": ""
+  "encounter": "",
+  "landmarks": [
+    {
+      "id": "orbital_station",
+      "kind": "station",
+      "station": "orbital_station",
+      "side": "far",
+      "altitude": 1400,
+      "yaw_deg": 0,
+      "note": "A space station holding over the moon's far side from the home planet (out of sight of the port), 1400 m up: inside the moon's own scene (its handoff reaches 2600 m), so you fly to the moon, round it, and Z takes you into the bay. Its bay's mouth turns toward the moon's port; yaw_deg turns it about its up. The station is its own component (content/core/stations/orbital_station.json, src/systems/world/station_hull.gd): to take it to another planet, move this block into that planet's landmarks ('side': 'far' needs a planet with a 'near' parent; otherwise give 'at' and 'altitude' like the cruiser's)."
+    }
+  ]
 }
