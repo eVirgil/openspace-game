@@ -275,6 +275,29 @@ one procedural character costs tens to hundreds of milliseconds to build (the
 player's body, the cantina owner, the port's outpost guards and native packs).
 See `KNOWN_ISSUES.md`.
 
+## The ringed giant: the sky painting, made real
+
+`content/core/planets/ringed_giant.json` is the gas planet that hung painted in
+the port's sky (`planet_*` in `content/look/time_of_day.json`). It is a `gas`
+planet like any other: a town of size 20 floating on a deck over the cloud decks,
+with landing bays, a glass enclosure and the gate shield. Fly into it and you fade
+down to the town; fly out of its sky and you fade back home.
+
+- **Where the painting was.** `at` is the painting's direction from the port
+  (azimuth 26, elevation 17), 30 km out. Its radius is 3.5 km, so it looks as big
+  as the painting did. It is really smaller than the home planet, so the flight
+  is short.
+- **`body` in a planet's config** overrides its type's look from space. The
+  giant's sets the painting's colours, `bands` (the painting's bands; any value
+  above 0 draws `gas_giant.gdshader`) and `ring` (`inner`/`outer` in planet
+  radii, `color`, `normal`; drawn by `gas_ring.gdshader`, and not solid). In
+  daylight both fade into the sky the way the painting did.
+- **`replaces_sky_painting: true`** turns the painted giant off on the planet
+  itself and on any planet whose sky it hangs in (`PlanetGen.sky_painting`).
+  Grit Station keeps its painting.
+- **The ground camera** sees far enough to show it (`TownDemo.sky_giant_reach`).
+- The Nitrogen Belt station (#311) is a separate planet, to come.
+
 ## The test planet: Grit Station
 
 `content/core/planets/grit_station.json` is the planet the issue asks for:

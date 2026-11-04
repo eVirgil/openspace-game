@@ -25,7 +25,8 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	_scenes = [
 		{ "id": "grit_station", "bar": true, "shots": ["overview", "street", "gate_from_hall", "hall", "pit", "cantina", "out_back", "rock", "ball", "home_from_station", "sun"] },
-		{ "id": "port_desert", "shots": ["station_from_port_space"] },
+		{ "id": "port_desert", "shots": ["station_from_port_space", "giant_from_port", "giant_from_space"] },
+		{ "id": "ringed_giant", "shots": ["aerial", "street", "edge"] },
 		{ "id": "style_metallic", "cfg": { "type": "sand", "town_size": 30, "style": "metallic", "seed": 7 }, "shots": ["aerial"] },
 		{ "id": "style_snowy", "cfg": { "type": "snow", "town_size": 30, "style": "snowy", "seed": 7 }, "shots": ["aerial", "street"] },
 		{ "id": "style_pastel", "cfg": { "type": "water", "town_size": 30, "style": "pastel", "seed": 7 }, "shots": ["aerial", "street"] },
@@ -86,6 +87,13 @@ func _run() -> void:
 	quit()
 
 
+func _neighbour(demo, id: String) -> Dictionary:
+	for n in demo.planet.neighbours:
+		if n.id == id:
+			return n
+	return demo.planet.neighbours[0]
+
+
 ## [eye, target] for a shot, from the town's own data.
 func _view(demo, shot: String) -> Array:
 	var t = demo.town
@@ -142,6 +150,16 @@ func _view(demo, shot: String) -> Array:
 		"sun":
 			var se := c + Vector3(0, 20, 0)
 			return [se, se + demo.look.sun_dir * 100.0]
+		# The ringed giant (content/core/planets/ringed_giant.json) from the port: where
+		# the sky painting was, and up close in space.
+		"giant_from_port":
+			var gd: Vector3 = _neighbour(demo, "ringed_giant").at
+			var eye := c + Vector3(0, 4.0, 0)
+			return [eye, eye + gd.normalized() * 1000.0]
+		"giant_from_space":
+			var gn: Dictionary = _neighbour(demo, "ringed_giant")
+			var gat: Vector3 = gn.at
+			return [gat * 0.55 + Vector3(0, 3000, 0), gat]
 		"station_from_port_space":
 			var sn: Dictionary = demo.planet.neighbours[0]
 			return [(sn.at as Vector3) + Vector3(-2500, 1800, 3500), sn.at]

@@ -139,6 +139,7 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 	if not bd.is_empty():
 		trect = Rect2(float(bd.min[0]), float(bd.min[1]), float(bd.max[0]) - float(bd.min[0]), float(bd.max[1]) - float(bd.min[1]))
 	var natives := NativesData.resolve(id, cfg, tcfg, int(cfg.get("seed", NameEngine.fnv(id) % 100000)), trect)
+	var near := neighbours(id, cc)
 	return {
 		"id": id,
 		"cfg": cfg,
@@ -156,7 +157,8 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		"encounter": cfg.get("encounter", null),
 		"name": str(cfg.get("name", "")),
 		"town_name": str(cfg.get("town_name", "")),
-		"neighbours": neighbours(id, cc),
+		"neighbours": near,
+		"sky_painting": sky_painting(cfg, near),
 		"natives": natives,
 		"beast": cfg.get("beast", {}),
 		"barge": cfg.get("barge", {}),
@@ -245,7 +247,8 @@ static func ball_radius(o: Dictionary, cc = null) -> float:
 			return r
 	if str(t.get("ground", "")) == "ball":
 		return float(t.get("surface", {}).get("radius", 1500.0))
-	return float(o.get("body_radius", t.get("body", {}).get("radius", 1000.0)))
+	var ob: Dictionary = o.get("body", {})
+	return float(o.get("body_radius", ob.get("radius", t.get("body", {}).get("radius", 1000.0))))
 
 
 ## How close to a planet's surface its own scene takes over (issue #99), or 0 when
@@ -256,7 +259,8 @@ static func handoff_altitude(type: String) -> float:
 
 static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 	var t: Dictionary = types().get("types", {}).get(str(o.get("type", "sand")), {})
-	var body: Dictionary = t.get("body", {})
+	var body: Dictionary = t.get("body", {}).duplicate()
+	body.merge(o.get("body", {}), true)          # the planet's own look from space wins
 	# Issue #77: a planet that is a real ball (its world's terrain.sphere_radius)
 	# looks its true size from a neighbour's sky. Issue #99: so does a ball type.
 	var r := ball_radius(o, cc)
@@ -271,7 +275,22 @@ static func _neighbour(o: Dictionary, at: Vector3, cc) -> Dictionary:
 		"radius": r,
 		"color": Color(str(body.get("color", "#a08060"))),
 		"dark": Color(str(body.get("dark", "#504030"))),
+		"bands": float(body.get("bands", 0.0)),          # > 0: banded like the sky painting
+		"ring": body.get("ring", {}),                     # { inner, outer, color, normal }, radii
+		"sky_giant": bool(o.get("replaces_sky_painting", false)),
 	}
+
+
+## False when the painted ringed giant must not show in this planet's sky: the
+## planet is the real giant, or the real one hangs in its sky (a neighbour with
+## replaces_sky_painting).
+static func sky_painting(cfg: Dictionary, near: Array) -> bool:
+	if bool(cfg.get("replaces_sky_painting", false)):
+		return false
+	for n in near:
+		if bool(n.get("sky_giant", false)):
+			return false
+	return true
 
 
 ## Generated names: the planet's (and its town's) own "name" in the config wins,

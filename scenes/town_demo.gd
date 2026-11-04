@@ -402,6 +402,8 @@ func _build_platform(ground_kind: String) -> void:
 func _build_look() -> void:
 	look = LookEnvironment.new()
 	_lay_sky(look, planet.get("sky", {}))
+	if not bool(planet.get("sky_painting", true)):
+		look.painted_planet = 0.0      # the real ringed giant is drawn instead (or we are on it)
 	add_child(look)
 	# Issue #381: the world's time of day (moved on after a faded trip, or the
 	# story chapter's); a scene given its own preset keeps it, and a LAN guest
@@ -1466,9 +1468,22 @@ func _barracks_unseen() -> bool:
 
 ## The far plane: out to the horizon landforms when the desert is on.
 func view_far() -> float:
+	var far := 12000.0 if terrain != null or platform != null else 4000.0
 	if terrain is PlanetTerrain:
-		return 4.0 * (terrain as PlanetTerrain).sphere.radius   # the whole ball, from orbit too
-	return 12000.0 if terrain != null or platform != null else 4000.0
+		far = 4.0 * (terrain as PlanetTerrain).sphere.radius   # the whole ball, from orbit too
+	return maxf(far, sky_giant_reach())
+
+
+## How far the camera must see to show the real ringed giant (and its ring) in
+## this planet's sky, or 0 when there is none (PlanetGen: replaces_sky_painting).
+func sky_giant_reach() -> float:
+	var out := 0.0
+	for n in planet.get("neighbours", []):
+		if not bool(n.get("sky_giant", false)):
+			continue
+		var reach := float(n.radius) * maxf(1.0, float((n.get("ring", {}) as Dictionary).get("outer", 1.0)))
+		out = maxf(out, ((n.at as Vector3).length() + reach) * 1.05)
+	return out
 
 
 # ---------------------------------------------------------------- planets (issue #45)

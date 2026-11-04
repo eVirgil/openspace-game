@@ -226,7 +226,7 @@ func test_the_asteroid_station() -> void:
 	assert_eq(n.size(), 1)
 	assert_eq(n[0].id, "port_desert", "you can fly home")
 	var home := PlanetGen.build("port_desert", cc)
-	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station"], "and the port sees the station")
+	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "ringed_giant"], "and the port sees the station (and the ringed giant)")
 	assert_eq(home.neighbours[0].at, Vector3(9000, 5200, -6500))
 	# Issue #99: one map. The station's port is on top of its ball; from the station
 	# the port's ball is exactly where the shift between the two scenes puts it.
@@ -412,3 +412,35 @@ func test_jobs_are_always_offered_off_the_home_planet() -> void:
 
 static func _v(a) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
+
+
+## The ringed giant (content/core/planets/ringed_giant.json): a cloud town on a
+## platform with landing bays, hanging where the port's sky painting was, about
+## the size the painting looked, with the painting off wherever the real one is.
+func test_the_ringed_giant_replaces_the_painting() -> void:
+	var g := PlanetGen.build("ringed_giant", cc)
+	assert_eq(g.type, "gas")
+	assert_eq(g.ground, "platform", "a town floating on a deck over the clouds")
+	assert_gt(int(g.town.counts.bays), 0, "it has a landing bay")
+	var t := TownLayout.new()
+	t.load_from_dict(g.town)
+	assert_eq(t.validate().size(), 0, str(t.validate().slice(0, 3)))
+	var port := PlanetGen.build("port_desert", cc)
+	var n: Dictionary = {}
+	for x in port.neighbours:
+		if x.id == "ringed_giant":
+			n = x
+	assert_false(n.is_empty(), "the port can fly to it")
+	assert_true(bool(n.sky_giant))
+	assert_gt(float(n.bands), 0.0, "banded like the painting")
+	assert_false((n.ring as Dictionary).is_empty(), "with its ring")
+	var sky: Dictionary = ItemKit._read_json("res://content/look/time_of_day.json").presets.golden.sky
+	var painted := LookEnvironment.direction(float(sky.planet_azimuth_deg), float(sky.planet_elevation_deg))
+	var at: Vector3 = n.at
+	assert_lt(rad_to_deg(at.normalized().angle_to(painted)), 0.5, "where the painting was")
+	var looks := asin(float(n.radius) / at.length())
+	assert_almost_eq(looks, asin(float(sky.planet_radius)), 0.15 * asin(float(sky.planet_radius)), "about as big as the painting looked")
+	assert_lt(float(n.radius), 5000.0 * 1.5, "smaller than it looked: a short flight")
+	assert_false(bool(port.sky_painting), "the port shows the real one, not the painting")
+	assert_false(bool(g.sky_painting), "no painted giant over the giant itself")
+	assert_true(bool(PlanetGen.build("grit_station", cc).sky_painting), "the station keeps its sky")

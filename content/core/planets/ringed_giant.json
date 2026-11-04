@@ -1,0 +1,17 @@
+{
+  "id": "ringed_giant",
+  "note": "The ringed giant from the port's sky, made real: a gas planet with a town floating on a cloud platform (the gas type: deck, keel, glass enclosure, gate shield, landing bays, cloud decks below). It hangs exactly where the sky painting was (azimuth 26, elevation 17 from the port: 'at' is that direction, 30 km out) and its angular size matches it (radius 3.5 km at 30 km). It is smaller than the painting made it look, so the flight is short. replaces_sky_painting turns the painted giant off wherever this real one is drawn and on the planet itself. body: how it looks from a neighbour's sky (banded like the painting, with its ring; outer and inner in planet radii). Fly into it and you fade down to the cloud town. The Nitrogen Belt station (issue #311) is a separate planet and comes later.",
+  "name": "",
+  "type": "gas",
+  "town_size": 20,
+  "near": "port_desert",
+  "at": [12576, 8771, -25786],
+  "replaces_sky_painting": true,
+  "body": {
+    "radius": 3500.0,
+    "color": "#d9c4b0",
+    "dark": "#8a6f68",
+    "bands": 22.0,
+    "ring": { "inner": 1.35, "outer": 2.5, "color": "#e8d6c0", "normal": [0.25, 0.95, 0.2] }
+  }
+}
