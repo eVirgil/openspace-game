@@ -2,6 +2,14 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Jetpacks at the gear trader, and stash one or all in a cargo droid (2026-11-04)
+
+- **The gear trader sells jetpacks** and never runs out, at the jetpack's value
+  (120 cr). It still buys them back at half that.
+- **A cargo droid's hold stashes one at a time:** Enter stashes one of a stack,
+  **Shift+Enter** stashes the whole stack, and each row has **Stash one** and
+  **Stash all** buttons you can click. The hold stays open after each stash.
+
 ## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New

@@ -10,5 +10,8 @@
   "buy_rate": 0.5,
   "sell_rate": 1.0,
   "stock": [],
-  "note": "IP-neutral. Market stall. Pays buy_rate x item value for gear and sells what it holds at sell_rate x value, so a sold jetpack can be bought back."
+  "endless_stock": [
+    "jetpack"
+  ],
+  "note": "IP-neutral. Market stall. Pays buy_rate x item value for gear and sells what it holds at sell_rate x value, so anything sold to it can be bought back. 'endless_stock': what it always has and never runs out of, at sell_rate x value: jetpacks (one each time; a jetpack sold to it does not pile up)."
 }
