@@ -2,7 +2,7 @@
 
 Plain English, newest on top. One entry per milestone.
 
-## New version is 1.6.1 (2026-11-03)
+## New version is 1.6.1 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New
   version is 1.5", is in it.
