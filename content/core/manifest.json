@@ -11,7 +11,7 @@
   "soldiers": ["gate_guard", "tower_sentry", "roof_rifleman", "yard_trooper", "local_resident", "local_merchant", "local_fence", "local_guard", "local_gate_guard", "local_sentry", "outpost_trooper", "bounty_target", "cantina_dancer", "club_dj", "club_drummer", "club_bassist", "local_patron", "club_dj_rave", "local_raver", "cruiser_trooper", "cruiser_sentry", "cruiser_honour_guard", "cruiser_general", "barracks_general", "general_guard", "dark_master", "barge_partygoer", "barge_guard", "heist_crew_local", "heist_crew_remnant"],
   "encounters": ["orbital_skirmish", "cruiser_escort"],
   "items": ["jetpack", "unmarked_cells", "refined_quantonium", "holocrystals", "space_whale_teeth", "food", "quartz", "red_energy_saber", "rifle_blaster", "energy_blade", "quantonium_armour", "sniper_rifle"],
-  "vendors": ["gear_trader", "fence", "food_stall", "station_fence"],
+  "vendors": ["gear_trader", "fence", "food_stall", "station_fence", "lava_station_fence"],
   "towns": ["port_square", "port_round"],
   "pickups": ["port_town", "grit_station_town"],
   "worlds": ["port_desert"],
