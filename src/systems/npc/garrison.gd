@@ -242,6 +242,31 @@ func remove_member(g: NpcBody) -> void:
 		z.guards.erase(g)
 
 
+## Bodies freed under the garrison (a LAN guest's town frees those the host's has
+## not got, NetWorld) leave every list, as remove_member would have taken them.
+func _drop_freed() -> void:
+	var gone := false
+	for g in brains:
+		if not is_instance_valid(g):
+			gone = true
+			break
+	if not gone:
+		for g in members:
+			if not is_instance_valid(g):
+				gone = true
+				break
+	if not gone:
+		return
+	for list in [members, guards] + zones.map(func(z): return z.guards):
+		for i in range((list as Array).size() - 1, -1, -1):
+			if not is_instance_valid(list[i]):
+				(list as Array).remove_at(i)
+	for d in [brains, claimed, _warn_left]:
+		for g in (d as Dictionary).keys():
+			if not is_instance_valid(g):
+				(d as Dictionary).erase(g)
+
+
 ## A trooper comes back as a new face: not while the alarm is up (they wait for
 ## it to end), and the garrison's memory of the player does not pass to them.
 func _tick_respawns() -> void:
@@ -278,6 +303,7 @@ func _physics_process(dt: float) -> void:
 	if checkpoint == null or player == null:
 		return
 	_clock += dt
+	_drop_freed()
 	_tick_respawns()
 	_check_spots()
 	_tick_locks(dt)
