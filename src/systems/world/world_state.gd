@@ -60,6 +60,7 @@ static var kept_ships: Array = []          ## issue #368: stolen ships Skrugs cl
 static var ship_spots: Dictionary = {}     ## issue #368: owned ship key -> { planet, pos, rot } where it was last left (Fleet)
 static var primary_ship := ""              ## issue #368: the owned ship key that wakes with you ("" = the first; Fleet.primary)
 static var quests: Dictionary = {}         ## issue #201: optional quest id -> { state: "open"|"done", waypoint } (Quests)
+static var heist: Dictionary = {}          ## issue #306: the heist on: { run, outpost, hacked } (Heist)
 static var control: Dictionary = {}        ## issue #187: who holds each outpost, and the supply run out (Territory)
 static var map_waypoint: Dictionary = {}   ## the F11 map's waypoint: { id, label, target, planet, arrive } (GlobeMap)
 static var objective_pin := ""             ## the job the player made the waypoint in the Ledger ("" = most urgent; Objective.pin)
@@ -107,6 +108,7 @@ static func reset() -> void:
 	mode = FREEPLAY
 	quests = {}
 	control = {}
+	heist = {}
 	map_waypoint = {}
 	objective_pin = ""
 	QuestNews.clear()
@@ -976,6 +978,7 @@ static func to_save() -> Dictionary:
 		"primary_ship": primary_ship,
 		"gear_fits": gear_fits.duplicate(),
 		"control": control.duplicate(true),
+		"heist": heist.duplicate(true),
 		"map_waypoint": map_waypoint.duplicate(),
 		"objective_pin": objective_pin,
 	}
@@ -1024,6 +1027,7 @@ static func from_save(d: Dictionary) -> void:
 	primary_ship = str(d.get("primary_ship", ""))
 	gear_fits = d.get("gear_fits", []).duplicate()
 	control = d.get("control", {}).duplicate(true)
+	heist = d.get("heist", {}).duplicate(true)
 	map_waypoint = d.get("map_waypoint", {}).duplicate()
 	objective_pin = str(d.get("objective_pin", ""))
 	if mode == FREEPLAY and str(story.get("chapter", "")) == "free" and not has_flag(FREE_SHIP_GONE):

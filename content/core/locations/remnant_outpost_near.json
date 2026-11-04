@@ -2,9 +2,9 @@
   "id": "remnant_outpost_near",
   "kind": "remnant_outpost",
   "label": "the dry wash outpost",
-  "note": "Issue #64: one of the Remnant's three desert outposts out the front gate (near, mid, far: each further out and a little different). Set in the world as a landmark (content/core/worlds/port_desert.json), so ships and speeders collide with the building. Local frame: +x faces the town. 'visual': false = no placeholder box; src/systems/world/remnant_outposts.gd dresses it dark grey, black and red, parks the 'ship' at the 'ship' point (issue #76: the Remnant's dark interceptor or freighter, flyable: boarding it sets off the outpost's alarm), and puts three troopers (outpost_trooper) at guard_a / guard_b / guard_c, an assassin droid walking 'patrol', a floating droid on 'floater' and a cargo droid shuffling along 'cargo' (issue #76: it runs into the desert on the alarm and is left there broken), and a bounty target (bounty_target) at 'target' when Oda's contract names this outpost. 'look' says what makes this one different. Issue #76: 'props' are the crates, canisters and drums lying about (solid: cover); 'stack' piles that many, 'lying' tips one on its side.",
+  "note": "Issue #64: one of the Remnant's three desert outposts out the front gate (near, mid, far: each further out and a little different). Set in the world as a landmark (content/core/worlds/port_desert.json), so ships and speeders collide with the building. Local frame: +x faces the town. 'visual': false = no placeholder box; src/systems/world/remnant_outposts.gd dresses it dark grey, black and red, parks the 'ship' at the 'ship' point (issue #76: the Remnant's dark interceptor or freighter, flyable: boarding it sets off the outpost's alarm), and puts three troopers (outpost_trooper) at guard_a / guard_b / guard_c, an assassin droid walking 'patrol', a floating droid on 'floater' and a cargo droid shuffling along 'cargo' (issue #76: it runs into the desert on the alarm and is left there broken), and a bounty target (bounty_target) at 'target' when Oda's contract names this outpost. 'look' says what makes this one different. Issue #76: 'props' are the crates, canisters and drums lying about (solid: cover); 'stack' piles that many, 'lying' tips one on its side. Issue #309: 'room' makes the block a control room you can walk into (src/systems/world/outpost_room.gd): walls, a roof and a doorway in its +x face on the same footprint, consoles, a holo table and the hack console Heist opens (content/core/story/heist.json). guard_c stands inside, at the consoles with his back to the door.",
   "buildings": [
-    { "id": "block", "shape": "box", "size": [8,4.5,6], "position": [0, 0, 0], "visual": false }
+    { "id": "block", "shape": "box", "size": [8,4.5,6], "position": [0, 0, 0], "visual": false, "room": {} }
   ],
   "ship": "remnant_interceptor",
   "look": { "mast": false, "tower": false },
@@ -12,7 +12,7 @@
   "points": {
     "guard_a": [6, 0, 4],
     "guard_b": [6, 0, -5],
-    "guard_c": [-7, 0, -6],
+    "guard_c": [-1.3, 0, -1],
     "target": [-2, 0, 7],
     "ship": [-14,0,2],
     "patrol": [[9, 0, 9], [9, 0, -9], [-9, 0, -9], [-9, 0, 9]],

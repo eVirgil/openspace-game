@@ -11,7 +11,7 @@
   "outposts": {
     "posts": {
       "guard_a": "local_sentry",
-      "guard_b": "local_sentry"
+      "guard_b": "local_sentry", "guard_c": "local_sentry"
     }
   },
   "barracks": {

@@ -115,7 +115,8 @@ static func for_planet(planet: Dictionary) -> PlanetTerrain:
 	pt.cache_key = "%s/%d" % [str(planet.get("id", "")), int(r)]
 	var site := SpaceTravel.site_of(planet.get("town", {}))
 	pt.configure_site(site.floor, site.walls, site.sunken, 0.0)
-	pt.configure_flat_sites(droid_flat_sites(planet, pt.sphere) + camp_flat_sites(planet, pt.sphere))
+	pt.configure_flat_sites(droid_flat_sites(planet, pt.sphere) + camp_flat_sites(planet, pt.sphere)
+		+ outpost_flat_sites(planet, pt.sphere))
 	return pt
 
 
@@ -166,6 +167,47 @@ static func camp_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
 			"plane_c": mid,
 			"plane_u": sp.up_at(mid),
 			"blend": float(cfg.get("pad_blend_m", 22.0)),
+		})
+	return sites
+
+
+## Issue #309: level ground under each Remnant outpost (the home planet only), so
+## its control room's floor is the sand at its doorway, not a metre or four over a
+## dune's slope. Sized from the location's buildings plus OUTPOST_PAD_MARGIN; like
+## a camp's, the pad is the plane square to "up" there, through the mean height
+## of the ground across it before levelling.
+const OUTPOST_PAD_MARGIN := 2.5
+const OUTPOST_PAD_BLEND := 12.0
+
+static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
+	if str(planet.get("id", "")) != PlanetGen.home_id():
+		return []
+	var sites: Array = []
+	for lm in planet.get("world", {}).get("landmarks", []):
+		var location_id := str(lm.get("location", ""))
+		if not location_id.begins_with("remnant_outpost_"):
+			continue
+		var loc = ItemKit._read_json("res://content/core/locations/%s.json" % location_id)
+		var half := 0.0
+		for b in (loc.get("buildings", []) if loc is Dictionary else []):
+			var bs := WorldGround._v3(b.get("size", [0, 0, 0]))
+			var bp := WorldGround._v3(b.get("position", [0, 0, 0]))
+			half = maxf(half, Vector2(bp.x, bp.z).length() + Vector2(bs.x, bs.z).length() * 0.5)
+		if half <= 0.0:
+			continue
+		half += OUTPOST_PAD_MARGIN
+		var at := WorldGround._v3(lm.get("at", [0, 0, 0]))
+		var sum := 0.0
+		for i in 3:
+			for j in 3:
+				sum += sp.elevation(sp.map_dir(at.x + (i - 1) * half, at.z + (j - 1) * half))
+		var mid := sp.center + sp.map_dir(at.x, at.z) * (sp.radius + sum / 9.0)
+		sites.append({
+			"rect": Rect2(at.x - half, at.z - half, half * 2.0, half * 2.0),
+			"y": sum / 9.0,
+			"plane_c": mid,
+			"plane_u": sp.up_at(mid),
+			"blend": OUTPOST_PAD_BLEND,
 		})
 	return sites
 

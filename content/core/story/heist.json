@@ -1,0 +1,16 @@
+{
+  "note": "IP-neutral. Heists (issue #306): rob an outpost's control room. Read by src/systems/flow/heist.gd. Issue #309: the console in every outpost's control room (src/systems/world/outpost_room.gd). Hold [E] at it for hack.seconds and it drops hack.stash (count of item) at your feet, picked up like a smuggling drop (contraband: the gate's search finds it). It only has something to release while a heist names that outpost (WorldState.heist); otherwise it is locked. reach: metres from the spot in front of the console. The alarm is not touched: being seen raises it as usual and the hack keeps going.",
+  "hack": {
+    "seconds": 5.0,
+    "reach": 1.4,
+    "stash": { "item": "refined_quantonium", "count": 15 }
+  },
+  "lines": {
+    "locked": "The console is locked. Nothing on it worth taking.",
+    "ready": "[E] Hold to hack the console (%d s)",
+    "hacking": "Hacking the console...  %d%%",
+    "wiped": "The console is wiped. Nothing left on it.",
+    "hacked": "The console gives up its stash: %d flasks of %s.",
+    "log_hacked": "Hacked the control room console at %s."
+  }
+}

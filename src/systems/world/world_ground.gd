@@ -499,7 +499,7 @@ func _add_landmark(lm: Dictionary, content) -> void:
 		"location":
 			var loc: Dictionary = content.get_location(str(lm.get("location", ""))) if content != null else {}
 			var yaw := deg_to_rad(float(lm.get("yaw_deg", 0.0)))
-			for b in loc.get("buildings", []):
+			for b in pieces(loc):
 				var s := _v3(b.get("size", [4, 4, 4]))
 				var p := _v3(b.get("position", [0, 0, 0])).rotated(Vector3.UP, yaw)
 				var c := Vector3(at.x + p.x, base, at.z + p.z)
@@ -531,7 +531,7 @@ func _add_landmark_on_ball(lm: Dictionary, content, at: Vector3) -> void:
 		"location":
 			var loc: Dictionary = content.get_location(str(lm.get("location", ""))) if content != null else {}
 			var xf := Transform3D(PlanetSphere.tilt_to(up) * Basis(Vector3.UP, yaw), base)
-			for b in loc.get("buildings", []):
+			for b in pieces(loc):
 				var s := _v3(b.get("size", [4, 4, 4]))
 				var c := _v3(b.get("position", [0, 0, 0]))
 				# "rise" is in the world frame on a flat world; here the box's own frame
@@ -539,6 +539,15 @@ func _add_landmark_on_ball(lm: Dictionary, content, at: Vector3) -> void:
 				add_box(str(lm.get("id", "")) + "/" + str(b.get("id", "")), "solid",
 					Vector3(c.x - s.x * 0.5, c.y, c.z - s.z * 0.5), Vector3(c.x + s.x * 0.5, c.y + s.y, c.z + s.z * 0.5),
 					_rise_local(str(b.get("rise", "")), yaw), bool(b.get("visual", true)), xf)
+
+
+## A location's buildings as solid boxes. Issue #309: a control room (a building
+## with "room") is its walls and roof, with a doorway (OutpostRoom.shell).
+static func pieces(loc: Dictionary) -> Array:
+	var out: Array = []
+	for b in loc.get("buildings", []):
+		out.append_array(OutpostRoom.shell(b))
+	return out
 
 
 ## A world-frame ramp side ("+x", "-z", ...) as seen from a frame turned by yaw.

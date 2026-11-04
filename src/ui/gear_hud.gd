@@ -8,6 +8,7 @@ const INK := Color(0.95, 0.92, 0.85, 0.95)
 
 var prompt: Label
 var toast_label: Label
+var bar: ProgressBar             ## issue #309: a hold-to-act progress (the console hack); hidden when unused
 var _toast_left := 0.0
 var _queued: Array = []          ## [{ text, secs }] tips waiting for the toast on screen to finish
 
@@ -22,6 +23,18 @@ func _ready() -> void:
 	RetroUI.prompt(prompt)
 	toast_label = _label(-250.0)
 	toast_label.visible = false
+	bar = ProgressBar.new()
+	bar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	bar.position = Vector2(-160, -176)
+	bar.size = Vector2(320, 14)
+	bar.min_value = 0.0
+	bar.max_value = 1.0
+	bar.step = 0.0
+	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.visible = false
+	RetroUI.skin(bar)
+	add_child(bar)
 
 
 func _label(from_bottom: float) -> Label:
@@ -42,6 +55,14 @@ func set_prompt(text: String) -> void:
 	if prompt != null:
 		prompt.text = text
 		prompt.visible = text != ""
+
+
+## Issue #309: how far a held action has got, 0..1; below 0 hides the bar.
+func set_progress(frac: float) -> void:
+	if bar == null:
+		return
+	bar.visible = frac >= 0.0
+	bar.value = clampf(frac, 0.0, 1.0)
 
 
 func toast(text: String, secs: float = 3.0) -> void:
