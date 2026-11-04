@@ -2,6 +2,22 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Take the lava moon: the same domes, barracks and outposts (2026-11-04)
+
+- **The lava moon gets the moon's expansion:** two more tunnels out of its
+  landing bay, to a barracks dome and a homes dome, and five Remnant outposts out
+  among the lava, 500 to 560 m from the station.
+- **Taken on its own,** on the moon's rules: kill the troopers at an outpost and
+  the locals move in; hold all five and the Remnant are driven off the lava
+  moon, barracks and all. The port and the moon are not touched by it, and the
+  other way round. F1 and the lava moon's map show it.
+- **The outposts stand on raised basalt pads,** 1.5 m over the lava and wide
+  enough for the ship and the patrol, so nobody is standing in it.
+- **No lava within 180 m of the port** (was 130), so the new domes and tunnels
+  sit on dry rock.
+- Fronts past the port's are a list in `territory.json` ("fronts"): the next
+  planet to take is a block of data.
+
 ## Take the moon: two more domes, a barracks and five outposts (2026-11-04)
 
 - **Two more tunnels out of the moon's landing bay,** north and south, each down

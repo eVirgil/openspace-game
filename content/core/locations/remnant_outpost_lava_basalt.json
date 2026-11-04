@@ -1,0 +1,31 @@
+{
+  "id": "remnant_outpost_lava_basalt",
+  "kind": "remnant_outpost",
+  "label": "the black rock outpost",
+  "note": "One of the Remnant's five outposts on the lava moon (Territory's 'lava_moon' front, content/core/story/territory.json): the same building, troopers, droids and rules as the port's outposts (this file is remnant_outpost_north.json's, renamed), on a raised basalt pad above the lava (PlanetTerrain.outpost_flat_sites), set out as a landmark in content/core/planets/cinder_station.json. Kill every trooper here and the locals move in; hold all five at once and the Remnant are driven off the lava moon. Local frame: +x faces the station.",
+  "buildings": [
+    { "id": "block", "shape": "box", "size": [9, 5, 6.5], "position": [0, 0, 0], "visual": false, "room": {} }
+  ],
+  "ship": "remnant_interceptor",
+  "look": { "mast": true, "tower": false },
+  "zone": { "note": "Issue #308: a ring of radius metres round the outpost is a checkpoint zone. Below the wave band the nearest trooper (a role below) who sees you walks up and the gate's card opens, on the gate's rules (content/core/soldiers/gate_guard.json checkpoint block; anything in this checkpoint block wins). Leave the ring and the card closes; cleared, the outpost leaves you alone for cleared_s.", "radius": 18.0, "roles": ["sentry"], "checkpoint": { "cleared_s": 240.0 } },
+  "points": {
+    "guard_a": [6, 0, 4],
+    "guard_b": [6, 0, -5],
+    "guard_c": [-1.6, 0, -1],
+    "target": [-2, 0, 7],
+    "ship": [-15, 0, 2],
+    "patrol": [[9, 0, 9], [9, 0, -9], [-9, 0, -9], [-9, 0, 9]],
+    "floater": [[6.0, 0, 7.25], [9.5, 0, 0], [6.0, 0, -7.25]],
+    "cargo": [[1.0, 0, -6.85], [-3.5, 0, -7.05]]
+  },
+  "props": [
+    {"kind": "crate", "at": [2.8, 0, -4.9], "yaw": 6, "stack": 2},
+    {"kind": "crate", "at": [4.0, 0, -5.4], "yaw": -10},
+    {"kind": "canister", "at": [-1.6, 0, -4.5]},
+    {"kind": "drum", "at": [-5.8, 0, 1.8], "yaw": 60, "lying": true},
+    {"kind": "crate", "at": [9.2, 0, 0.8], "yaw": 12},
+    {"kind": "canister", "at": [-2.4, 0, 4.6], "yaw": 30},
+    {"kind": "drum", "at": [-3.4, 0, -5.0]}
+  ]
+}

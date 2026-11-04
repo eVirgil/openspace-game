@@ -242,6 +242,11 @@ static func camp_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
 ## of the ground across it before levelling.
 const OUTPOST_PAD_MARGIN := 2.5
 const OUTPOST_PAD_BLEND := 12.0
+## On a ball with lava (the lava moon) an outpost's pad is a raised basalt mound:
+## at least LAVA_PAD_HALF metres either side of it (its ship, props and patrol
+## stand on it too) and at least LAVA_PAD_LIFT over the lava.
+const LAVA_PAD_HALF := 26.0
+const LAVA_PAD_LIFT := 1.5
 
 static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
 	var sites: Array = []                # the port's outposts, and the moon's (remnant_outpost_moon_*)
@@ -258,15 +263,21 @@ static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
 		if half <= 0.0:
 			continue
 		half += OUTPOST_PAD_MARGIN
+		var lava := sp is AsteroidSphere and (sp as AsteroidSphere).has_lava()
+		if lava:
+			half = maxf(half, LAVA_PAD_HALF)
 		var at := WorldGround._v3(lm.get("at", [0, 0, 0]))
 		var sum := 0.0
 		for i in 3:
 			for j in 3:
 				sum += sp.elevation(sp.map_dir(at.x + (i - 1) * half, at.z + (j - 1) * half))
-		var mid := sp.center + sp.map_dir(at.x, at.z) * (sp.radius + sum / 9.0)
+		var y := sum / 9.0
+		if lava:
+			y = maxf(y, (sp as AsteroidSphere).lava_level() + LAVA_PAD_LIFT)
+		var mid := sp.center + sp.map_dir(at.x, at.z) * (sp.radius + y)
 		sites.append({
 			"rect": Rect2(at.x - half, at.z - half, half * 2.0, half * 2.0),
-			"y": sum / 9.0,
+			"y": y,
 			"plane_c": mid,
 			"plane_u": sp.up_at(mid),
 			"blend": OUTPOST_PAD_BLEND,
