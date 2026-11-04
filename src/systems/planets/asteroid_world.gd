@@ -13,7 +13,16 @@ extends PlatformWorld
 ##     the pit's ramp, opening on the pit floor through a square energy shield
 ##   - the pit: the port's own round pit, its wall carried up above the rock as a
 ##     tall liner, an energy shield over the top that ships fly through
+##   - more domes (the station's "domes", a planet's own "domes"): each like the
+##     first, at the end of a tunnel of its own out of the pit (its own door in
+##     the liner, its own ramp, a shield at each end)
 ##   - blocky boulders strewn over the rock round the station
+##
+## Internally every dome is { c, r, g (unit, its middle toward its gate) } and
+## every tunnel { d (unit, from the pit's middle out toward its dome), s_end (its
+## shield on the pit floor), s_rim (the liner), s_far (the dome's gate), hw, h }:
+## distances in metres from the pit's middle along d. The first dome and hallway
+## come from the block's own keys (center, radius, hall), the others from "domes".
 ##
 ## Every number comes from the town's "station" block (TownGen, from the type's
 ## "station" in content/core/planets/types.json). Colliders are built in the
@@ -35,7 +44,9 @@ var hall: Dictionary = {}
 var pit_c := Vector3.ZERO
 var pit_r := 28.0
 var liner_h := 13.0
-var dome_tris := 0                     ## triangles in the dome's collider (traces, tests)
+var dome_tris := 0                     ## triangles in the domes' colliders (traces, tests)
+var domes: Array = []                  ## { id, c: Vector3, r, g: Vector2 } (the town's dome first)
+var halls: Array = []                  ## { id, d: Vector2, s_end, s_rim, s_far, hw, h } (the town's hallway first)
 var shields: Array = []                ## MeshInstance3D: every energy shield
 var boulders: Array = []               ## { xform: Transform3D, size: Vector3 }
 
@@ -65,15 +76,18 @@ func build_exterior(station: Dictionary, mats: LookMaterials) -> void:
 	var trim := mats.flat(Color("#899195"), 0.6, 0.7)
 	var dark := mats.flat(Color("#252a2d"), 0.88, 0.55)
 	var status := mats.glow(Color("#f0c77c"))
-	_mesh("RingWall", _cylinder(rc, rw, 0.0, wall_h, RING_SEG / 2, 1, _ring_gap), metal, true)
-	_panelled_wall("RingWallExteriorPanels", rc, rw, wall_h, RING_SEG / 2, 1, panel, trim, dark, status, 1)
-	var dome := _mesh("Dome", _dome_triangles(), _glass(), true)
-	dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_dome_ribs(metal)
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		_mesh(_nm("RingWall", i), _cylinder(dm.c, dm.r, 0.0, wall_h, RING_SEG / 2, 1, _ring_gap.bind(dm)), metal, true)
+		_panelled_wall(_nm("RingWallExteriorPanels", i), dm.c, dm.r, wall_h, RING_SEG / 2, [dm.g], panel, trim, dark, status, 1)
+		var dome := _mesh(_nm("Dome", i), _dome_triangles(dm), _glass(), true)
+		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_dome_ribs(dm, metal)
 	_mesh("Liner", _cylinder(pit_c, pit_r, 0.0, liner_h, LINER_SEG / 2, 1, _liner_gap), metal, true)
-	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, -1, panel, trim, dark, status, 1)
+	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, _liner_doors(), panel, trim, dark, status, 1)
 	_pit_shield()
-	_dress_hall(metal, _glass(), null, mats)
+	for i in halls.size():
+		_dress_hall(halls[i], i, metal, _glass(), null, mats)
 
 
 func _read_station(station: Dictionary) -> void:
@@ -88,6 +102,25 @@ func _read_station(station: Dictionary) -> void:
 	pit_c = _v(pit.get("center", [0, 0, 0]))
 	pit_r = float(pit.get("radius", 28.0))
 	liner_h = float(pit.get("liner_height", 13.0))
+	domes = []
+	halls = []
+	if st.is_empty():
+		return
+	domes.append({ "id": "town", "c": rc, "r": rw, "g": Vector2.RIGHT })
+	if not hall.is_empty():
+		halls.append({ "id": "", "d": Vector2.LEFT, "s_end": pit_c.x - float(hall.end), "s_rim": pit_c.x - float(hall.rim),
+			"s_far": pit_c.x - float(hall.x0), "hw": float(hall.half), "h": float(hall.height) })
+	for w in st.get("domes", []):
+		var hb: Dictionary = w.get("hall", {})
+		var g := Vector2(float(w.gate[0]), float(w.gate[1])).normalized()
+		domes.append({ "id": str(w.id), "c": _v(w.center), "r": float(w.radius), "g": g })
+		halls.append({ "id": str(w.id), "d": Vector2(float(hb.dir[0]), float(hb.dir[1])).normalized(), "s_end": float(hb.end),
+			"s_rim": float(hb.rim), "s_far": float(hb.far), "hw": float(hb.half), "h": float(hb.height) })
+
+
+## A node name for dome or tunnel `i`: the first keeps the old name, the others add theirs.
+func _nm(base: String, i: int) -> String:
+	return base if i == 0 else "%s_%d" % [base, i]
 
 
 func _ready() -> void:
@@ -102,15 +135,27 @@ func _ready() -> void:
 ## Issue #298: is `p` under cover: inside the dome's ring, the hallway or the
 ## landing pit (whose liner and shield close it)? Outside on the rock you can't
 ## breathe (HarmfulSurface).
+## Under the glass, the roof or the shield, not just inside their circle: on top of
+## a dome, a tunnel's roof or above the pit's shield there is no air.
 func sheltered(p: Vector3) -> bool:
 	if st.is_empty():
 		return true
-	if Vector2(p.x - rc.x, p.z - rc.z).length() <= rw + 0.5:
-		return true
-	if not hall.is_empty() and p.x >= rc.x + rw - 1.0 and p.x <= float(hall.end) + 1.0 \
-			and absf(p.z) <= float(hall.half) + 0.5:
-		return true
-	return Vector2(p.x - pit_c.x, p.z - pit_c.z).length() <= pit_r + 0.5
+	for dm in domes:
+		var off := Vector2(p.x - dm.c.x, p.z - dm.c.z).length()
+		if off <= float(dm.r) + 0.5 and p.y < dome_top(dm, off) - 0.3:
+			return true
+	var q := Vector2(p.x - pit_c.x, p.z - pit_c.z)
+	for hl in halls:
+		var s: float = q.dot(hl.d)
+		var t: float = q.dot(Vector2(-hl.d.y, hl.d.x))
+		if s >= float(hl.s_end) - 1.0 and s <= float(hl.s_far) + 1.0 and absf(t) <= float(hl.hw) + 0.5 and p.y < float(hl.h):
+			return true
+	return q.length() <= pit_r + 0.5 and p.y < liner_h - 0.1
+
+
+## The glass's height over a dome's floor `off` metres from its middle (the wall's top at its edge).
+func dome_top(dm: Dictionary, off: float) -> float:
+	return wall_h + sqrt(maxf(0.0, 1.0 - pow(minf(off / float(dm.r), 1.0), 2.0))) * dome_h * float(dm.r) / rw
 
 
 static func _v(a) -> Vector3:
@@ -119,14 +164,28 @@ static func _v(a) -> Vector3:
 
 # ------------------------------------------------------------------ shapes
 
-## Is the ring wall's quad at angle a, height y (its middle) the gate?
-func _ring_gap(a: float, y: float) -> bool:
-	return cos(a) > 0.0 and absf(sin(a) * rw) < gate_half and y < float(hall.get("height", 5.0)) + 0.3
+## Is dome `dm`'s ring wall quad at angle a, height y (its middle) its gate?
+func _ring_gap(a: float, y: float, dm: Dictionary) -> bool:
+	return _in_door(a, dm.g, float(dm.r), gate_half) and y < float(hall.get("height", 5.0)) + 0.3
 
 
-## The liner's door, where the hallway comes in (the side facing the town).
+## The liner's doors, one where each tunnel comes in.
 func _liner_gap(a: float, y: float) -> bool:
-	return cos(a) < 0.0 and absf(sin(a) * pit_r) < gate_half + 0.2 and y < float(hall.get("height", 5.0)) + 0.3
+	for hl in halls:
+		if _in_door(a, hl.d, pit_r, gate_half + 0.2) and y < float(hl.h) + 0.3:
+			return true
+	return false
+
+
+## Angle `a` round a circle of radius r is within `half` metres of the door facing `toward`.
+static func _in_door(a: float, toward: Vector2, r: float, half: float) -> bool:
+	var u := Vector2(cos(a), sin(a))
+	return u.dot(toward) > 0.0 and absf(u.cross(toward) * r) < half
+
+
+## Which way each of the liner's doors faces (from the pit's middle).
+func _liner_doors() -> Array:
+	return halls.map(func(hl): return hl.d)
 
 
 ## A wall round a circle, as triangles (both faces), leaving out what `gap` says.
@@ -148,67 +207,77 @@ static func _cylinder(c: Vector3, r: float, y0: float, y1: float, segs: int, row
 	return tris
 
 
-func _dome_point(i: int, j: int) -> Vector3:
+func _dome_point(dm: Dictionary, i: int, j: int) -> Vector3:
 	var el := (PI * 0.5) * float(i) / float(DOME_RINGS)
 	var az := TAU * float(j) / float(DOME_SEG)
-	return rc + Vector3(cos(az) * cos(el) * rw, wall_h + sin(el) * dome_h, sin(az) * cos(el) * rw)
+	var r: float = dm.r
+	return (dm.c as Vector3) + Vector3(cos(az) * cos(el) * r, wall_h + sin(el) * dome_h * r / rw, sin(az) * cos(el) * r)
 
 
-func _dome_triangles() -> PackedVector3Array:
+func _dome_triangles(dm: Dictionary) -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	for i in DOME_RINGS:
 		for j in DOME_SEG:
-			var a := _dome_point(i, j)
-			var b := _dome_point(i, j + 1)
-			var c := _dome_point(i + 1, j + 1)
-			var d := _dome_point(i + 1, j)
+			var a := _dome_point(dm, i, j)
+			var b := _dome_point(dm, i, j + 1)
+			var c := _dome_point(dm, i + 1, j + 1)
+			var d := _dome_point(dm, i + 1, j)
 			tris.append_array([a, b, c, a, c, d])
 	return tris
 
 
-## The hallway's solid parts as boxes: [centre, size] each (walls full height,
-## the roof, and the end wall round its square shield).
-func _hall_boxes() -> Array:
+## A point in tunnel `hl`'s frame: `s` metres out from the pit's middle along it,
+## `y` up, `t` across.
+func _hp(hl: Dictionary, s: float, y: float, t: float) -> Vector3:
+	var d: Vector2 = hl.d
+	return pit_c + Vector3(d.x * s - d.y * t, y, d.y * s + d.x * t)
+
+
+## A box `ls` long along tunnel `hl`, `lt` across: its size in the town's axes
+## (every tunnel runs along x or z).
+static func _hsize(hl: Dictionary, ls: float, ly: float, lt: float) -> Vector3:
+	return Vector3(ls, ly, lt) if absf((hl.d as Vector2).x) > 0.5 else Vector3(lt, ly, ls)
+
+
+## A tunnel's solid parts as boxes: [centre, size] each (walls full height, the
+## roof, and the end wall round its square shield). The last three are the end wall.
+func _hall_boxes(hl: Dictionary) -> Array:
 	var out: Array = []
-	if hall.is_empty():
-		return out
-	var x0 := float(hall.x0) - 0.6
-	var rim := float(hall.rim)
-	var x1 := float(hall.end)
-	var hw := float(hall.half)
-	var h := float(hall.height)
+	var a := float(hl.s_far) + 0.6          # a little into the dome's gate
+	var rim := float(hl.s_rim)
+	var e := float(hl.s_end)
+	var hw := float(hl.hw)
+	var h := float(hl.h)
 	var bottom := pit_c.y - 6.0
 	for sg in [-1.0, 1.0]:
 		# Level part, from the gate to the pit's rim; then down beside the ramp.
-		out.append([Vector3((x0 + rim) * 0.5, h * 0.5, sg * (hw + 0.15)), Vector3(rim - x0, h, 0.3)])
-		out.append([Vector3((rim + x1) * 0.5, (bottom + h) * 0.5, sg * (hw + 0.15)), Vector3(x1 - rim, h - bottom, 0.3)])
-	out.append([Vector3((x0 + x1) * 0.5, h + 0.15, 0.0), Vector3(x1 - x0, 0.3, hw * 2.0 + 0.6)])
+		out.append([_hp(hl, (a + rim) * 0.5, h * 0.5, sg * (hw + 0.15)), _hsize(hl, a - rim, h, 0.3)])
+		out.append([_hp(hl, (rim + e) * 0.5, (bottom + h) * 0.5, sg * (hw + 0.15)), _hsize(hl, rim - e, h - bottom, 0.3)])
+	out.append([_hp(hl, (a + e) * 0.5, h + 0.15, 0.0), _hsize(hl, a - e, 0.3, hw * 2.0 + 0.6)])
 	# The end wall: round the shield's square opening (sr either side, up to cy + sr).
 	var sr := 3.0
 	var cy := bottom + 3.2
-	out.append([Vector3(x1 + 0.15, (cy + sr + h) * 0.5, 0.0), Vector3(0.3, h - cy - sr, hw * 2.0)])
+	out.append([_hp(hl, e - 0.15, (cy + sr + h) * 0.5, 0.0), _hsize(hl, 0.3, h - cy - sr, hw * 2.0)])
 	for sg in [-1.0, 1.0]:
-		out.append([Vector3(x1 + 0.15, (bottom + cy + sr) * 0.5, sg * (sr + hw) * 0.5), Vector3(0.3, cy + sr - bottom, hw - sr)])
+		out.append([_hp(hl, e - 0.15, (bottom + cy + sr) * 0.5, sg * (sr + hw) * 0.5), _hsize(hl, 0.3, cy + sr - bottom, hw - sr)])
 	return out
 
 
-## The gate's frame, round the hallway's mouth into the dome. The ring wall's gate
-## is cut in whole panels, wider and taller than the hallway, so this fills the
-## rest: a jamb either side and a lintel over the roof, deep enough to bury the
-## wall's curve. What it leaves open is the hallway's own section, which the gate
-## shield fills edge to edge.
-func _gate_frame_boxes() -> Array:
+## The gate's frame, round a tunnel's mouth into its dome. The ring wall's gate is
+## cut in whole panels, wider and taller than the tunnel, so this fills the rest:
+## a jamb either side and a lintel over the roof, deep enough to bury the wall's
+## curve. What it leaves open is the tunnel's own section, which the gate shield
+## fills edge to edge.
+func _gate_frame_boxes(hl: Dictionary) -> Array:
 	var out: Array = []
-	if hall.is_empty():
-		return out
-	var hw := float(hall.half)
-	var h := float(hall.height)
+	var hw := float(hl.hw)
+	var h := float(hl.h)
 	var outer := gate_half + 2.2         # past the panels the wall leaves off round the gate
-	var x0 := rc.x + rw - 1.0
-	var x1 := rc.x + rw + 0.4
+	var s0 := float(hl.s_far) - 0.4
+	var s1 := float(hl.s_far) + 1.0
 	for sg in [-1.0, 1.0]:
-		out.append([Vector3((x0 + x1) * 0.5, h * 0.5, rc.z + sg * (hw + outer) * 0.5), Vector3(x1 - x0, h, outer - hw)])
-	out.append([Vector3((x0 + x1) * 0.5, (h + wall_h) * 0.5, rc.z), Vector3(x1 - x0, wall_h - h, outer * 2.0)])
+		out.append([_hp(hl, (s0 + s1) * 0.5, h * 0.5, sg * (hw + outer) * 0.5), _hsize(hl, s1 - s0, h, outer - hw)])
+	out.append([_hp(hl, (s0 + s1) * 0.5, (h + wall_h) * 0.5, 0.0), _hsize(hl, s1 - s0, wall_h - h, outer * 2.0)])
 	return out
 
 
@@ -216,18 +285,21 @@ func _build_colliders() -> void:
 	var body := StaticBody3D.new()
 	body.name = "Station"
 	add_child(body)
-	_add_trimesh(body, _cylinder(rc, rw, 0.0, wall_h, RING_SEG, 4, _ring_gap))
-	var dome := _dome_triangles()
-	dome_tris = dome.size() / 3
-	_add_trimesh(body, dome)
+	dome_tris = 0
+	for dm in domes:
+		_add_trimesh(body, _cylinder(dm.c, dm.r, 0.0, wall_h, RING_SEG, 4, _ring_gap.bind(dm)))
+		var dome := _dome_triangles(dm)
+		dome_tris += dome.size() / 3
+		_add_trimesh(body, dome)
 	_add_trimesh(body, _cylinder(pit_c, pit_r, 0.0, liner_h, LINER_SEG, 6, _liner_gap))
-	for b in _hall_boxes() + _gate_frame_boxes():
-		var cs := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = b[1]
-		cs.shape = shape
-		cs.position = b[0]
-		body.add_child(cs)
+	for hl in halls:
+		for b in _hall_boxes(hl) + _gate_frame_boxes(hl):
+			var cs := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = b[1]
+			cs.shape = shape
+			cs.position = b[0]
+			body.add_child(cs)
 	var rocks := StaticBody3D.new()
 	rocks.name = "Boulders"
 	add_child(rocks)
@@ -304,12 +376,15 @@ func _place_boulders() -> void:
 		boulders.append({ "xform": Transform3D(basis, g + up * size.y * 0.25), "size": size })
 
 
-## Ships: the dome is a glass column they bump into (the rock is the ball's own
+## Ships: each dome is a glass column they bump into (the rock is the ball's own
 ## ground, which WorldTerrain already asks).
 func add_to_ground(ground: WorldGround) -> void:
 	if st.is_empty():
 		return
-	ground.columns.append({ "id": "glass_dome", "kind": "glass", "center": rc, "radius": rw, "top": wall_h + dome_h })
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		ground.columns.append({ "id": _nm("glass_dome", i), "kind": "glass", "center": dm.c, "radius": dm.r,
+			"top": dome_top(dm, 0.0) })
 
 
 func ground_at(x: float, z: float) -> float:
@@ -366,23 +441,35 @@ func dress_outside(env: LookEnvironment, mats: LookMaterials) -> void:
 	status.emission_energy_multiplier = 1.8
 	var glass := _glass()
 	_dressing = { "env": env, "mats": mats, "panel": panel, "trim": trim, "dark": dark, "status": status }
-	_mesh("RingWall", _cylinder(rc, rw, 0.0, wall_h, RING_SEG, 4, _ring_gap), metal, true)
-	_mesh("RingCap", _cylinder(rc, rw + 0.01, wall_h - 0.25, wall_h + 0.15, RING_SEG, 1, Callable()), metal, true)
-	_panelled_wall("RingWallExteriorPanels", rc, rw, wall_h, RING_SEG / 2, 1, panel, trim, dark, status, 1)
-	var dome := _mesh("Dome", _dome_triangles(), glass if club_dim() >= 1.0 else _club_glass(), true)
-	# Issue #261: a club dome is smoked glass that keeps the sun off the dance floor.
-	dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if club_dim() >= 1.0 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	_dome_ribs(metal)
-	_shield("GateShield", Vector3(rc.x + rw, float(hall.get("height", 5.0)) * 0.5, rc.z), Vector3(0.08, float(hall.get("height", 5.0)), gate_half * 2.0))
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		_mesh(_nm("RingWall", i), _cylinder(dm.c, dm.r, 0.0, wall_h, RING_SEG, 4, _ring_gap.bind(dm)), metal, true)
+		_mesh(_nm("RingCap", i), _cylinder(dm.c, float(dm.r) + 0.01, wall_h - 0.25, wall_h + 0.15, RING_SEG, 1, Callable()), metal, true)
+		_panelled_wall(_nm("RingWallExteriorPanels", i), dm.c, dm.r, wall_h, RING_SEG / 2, [dm.g], panel, trim, dark, status, 1)
+		# Issue #261: a club dome is smoked glass that keeps the sun off the dance floor.
+		var club := i == 0 and club_dim() < 1.0
+		var dome := _mesh(_nm("Dome", i), _dome_triangles(dm), _club_glass() if club else glass, true)
+		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if club else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_dome_ribs(dm, metal)
+		var g: Vector2 = dm.g
+		var h := float(hall.get("height", 5.0))
+		_shield(_nm("GateShield", i), (dm.c as Vector3) + Vector3(g.x, 0.0, g.y) * float(dm.r) + Vector3(0, h * 0.5, 0),
+			Vector3(0.08, h, gate_half * 2.0), _turn_to(g))
 	_mesh("Liner", _cylinder(pit_c, pit_r, 0.0, liner_h, LINER_SEG, 6, _liner_gap), metal, true)
 	_mesh("LinerCap", _cylinder(pit_c, pit_r + 0.02, liner_h - 0.3, liner_h + 0.2, LINER_SEG, 1, Callable()), metal, true)
-	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, -1, panel, trim, dark, status, 1)
+	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, _liner_doors(), panel, trim, dark, status, 1)
 	_pit_shield()
-	_dress_hall(metal, glass, env, mats)
+	for i in halls.size():
+		_dress_hall(halls[i], i, metal, glass, env, mats)
 	# Issue #272: heat shimmer over a lava ball, near the ground.
 	var haze = surface.get("haze", {})
 	if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() and haze is Dictionary and not haze.is_empty():
 		add_child(LavaHaze.new().setup(sphere as AsteroidSphere, haze))
+
+
+## The basis that turns a thing facing +x to face along `v` (x, z).
+static func _turn_to(v: Vector2) -> Basis:
+	return Basis(Vector3.UP, -atan2(v.y, v.x))
 
 
 ## Inside the dome and the pit: floors, the walls' inner panels, the lamps and the
@@ -393,8 +480,10 @@ func dress_inside() -> void:
 	var d := _dressing
 	_dressing = {}
 	_floors(d.mats)
-	_panelled_wall("RingWallPanels", rc, rw, wall_h, RING_SEG / 2, 1, d.panel, d.trim, d.dark, d.status, -1)
-	_panelled_wall("LinerPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, -1, d.panel, d.trim, d.dark, d.status, -1)
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		_panelled_wall(_nm("RingWallPanels", i), dm.c, dm.r, wall_h, RING_SEG / 2, [dm.g], d.panel, d.trim, d.dark, d.status, -1)
+	_panelled_wall("LinerPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, _liner_doors(), d.panel, d.trim, d.dark, d.status, -1)
 	_station_lighting(d.env, d.status, d.trim)
 	_dress_boulders()
 	if d.env != null:
@@ -413,7 +502,7 @@ func club_dim() -> float:
 ## Repeated hull plates, seams, and service lights give the station walls the
 ## layered, manufactured surface already used on the town's metal structures.
 func _panelled_wall(node_name: String, center: Vector3, radius: float, height: float, count: int,
-		gate_direction: int, panel: Material, trim: Material, dark: Material,
+		doors: Array, panel: Material, trim: Material, dark: Material,
 		status: StandardMaterial3D, face_sign: int) -> void:
 	var root := Node3D.new()
 	root.name = node_name
@@ -427,8 +516,7 @@ func _panelled_wall(node_name: String, center: Vector3, radius: float, height: f
 	var status_xforms: Array[Transform3D] = []
 	for i in count:
 		var angle := TAU * (float(i) + 0.5) / float(count)
-		if gate_direction != 0 and cos(angle) * gate_direction > 0.0 \
-				and absf(sin(angle) * radius) < gate_half + 2.0:
+		if doors.any(func(dv): return _in_door(angle, dv, radius, gate_half + 2.0)):
 			continue
 		var basis := _radial_basis(angle)
 		if face_sign < 0:
@@ -485,21 +573,24 @@ func _station_lighting(env: LookEnvironment, status: StandardMaterial3D, cable: 
 	if env == null:
 		return
 	status.emission_energy_multiplier = 2.4
-	_add_wall_lamps(rc, rw, wall_h, 8, 1, status, 1.45 * club_dim(), 15.0)
-	_town_floods(status, cable)
-	_add_wall_lamps(pit_c, pit_r, liner_h, 8, -1, status, 1.6, 22.0)
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		var dim := club_dim() if i == 0 else 1.0
+		_add_wall_lamps(dm.c, dm.r, wall_h, 8, [dm.g], status, 1.45 * dim, 15.0, _nm("StationLamps_%d" % int(dm.r), i))
+		_town_floods(dm, dim, status, cable, _nm("TownFloods", i))
+	_add_wall_lamps(pit_c, pit_r, liner_h, 8, _liner_doors(), status, 1.6, 22.0, "StationLamps_%d" % int(pit_r))
 	_pit_floor_lights(status)
 
 
 func _add_wall_lamps(center: Vector3, radius: float, height: float,
-		count: int, gate_direction: int, status: StandardMaterial3D, energy: float,
-		range_m: float) -> void:
+		count: int, doors: Array, status: StandardMaterial3D, energy: float,
+		range_m: float, node_name: String) -> void:
 	var root := Node3D.new()
-	root.name = "StationLamps_%d" % int(radius)
+	root.name = node_name
 	add_child(root)
 	for i in count:
 		var angle := TAU * (float(i) + 0.5) / float(count)
-		if cos(angle) * gate_direction > 0.0 and absf(sin(angle) * radius) < gate_half + 2.0:
+		if doors.any(func(dv): return _in_door(angle, dv, radius, gate_half + 2.0)):
 			continue
 		var basis := _radial_basis(angle)
 		var at := center + Vector3(cos(angle) * (radius - 0.3), height - 0.85,
@@ -518,9 +609,9 @@ func _add_wall_lamps(center: Vector3, radius: float, height: float,
 ## the sun is low or gone half the day, and the wall lamps only reach the edge.
 ## Flood lamps hang from the dome on cables over a grid across the whole floor
 ## (none over a roof), so the streets, the square and the homes stay lit.
-func _town_floods(status: StandardMaterial3D, cable: Material) -> void:
+func _town_floods(dm: Dictionary, dim: float, status: StandardMaterial3D, cable: Material, node_name: String) -> void:
 	var root := Node3D.new()
-	root.name = "TownFloods"
+	root.name = node_name
 	add_child(root)
 	var roofs: Array = []
 	for b in demo.town.boxes():
@@ -529,26 +620,28 @@ func _town_floods(status: StandardMaterial3D, cable: Material) -> void:
 				float(b.max[2]) - float(b.min[2])).grow(1.5))
 	var step := 15.0
 	var lamp_y := wall_h + 3.0
-	var n := int(ceil(rw / step))
+	var r: float = dm.r
+	var c: Vector3 = dm.c
+	var n := int(ceil(r / step))
 	for i in range(-n, n + 1):
 		for k in range(-n, n + 1):
 			var off := Vector2(i * step, k * step)
-			if off.length() > rw - 6.0:
+			if off.length() > r - 6.0:
 				continue
-			var at := Vector3(rc.x + off.x, lamp_y, rc.z + off.y)
+			var at := Vector3(c.x + off.x, lamp_y, c.z + off.y)
 			var over_roof := false
-			for r in roofs:
-				if (r as Rect2).has_point(Vector2(at.x, at.z)):
+			for rr in roofs:
+				if (rr as Rect2).has_point(Vector2(at.x, at.z)):
 					over_roof = true
 					break
 			if over_roof:
 				continue
-			var top := wall_h + sqrt(maxf(0.0, 1.0 - pow(off.length() / rw, 2.0))) * dome_h
+			var top := dome_top(dm, off.length())
 			_box(root, Vector3(at.x, (lamp_y + top) * 0.5, at.z), Vector3(0.06, top - lamp_y, 0.06), cable)
 			_box(root, at, Vector3(1.4, 0.18, 1.4), status)
 			var lamp := OmniLight3D.new()
 			lamp.light_color = Color("#f2f4f7")
-			lamp.light_energy = 2.2 * club_dim()
+			lamp.light_energy = 2.2 * dim
 			lamp.omni_range = 21.0
 			lamp.omni_attenuation = 0.7
 			lamp.shadow_enabled = false
@@ -557,7 +650,7 @@ func _town_floods(status: StandardMaterial3D, cable: Material) -> void:
 
 
 ## The pit floor sits 6 m under the rock with the liner's lamps far above it:
-## a ring of flood lamps low on the bowl wall (clear of the two ramps) and one
+## a ring of flood lamps low on the bowl wall (clear of the ramps) and one
 ## big fill over the middle light the floor, the pads and the ships on them.
 func _pit_floor_lights(status: StandardMaterial3D) -> void:
 	var root := Node3D.new()
@@ -567,8 +660,8 @@ func _pit_floor_lights(status: StandardMaterial3D) -> void:
 	var count := 12
 	for i in count:
 		var angle := TAU * (float(i) + 0.5) / float(count)
-		if absf(sin(angle) * pit_r) < 5.0:
-			continue
+		if absf(sin(angle) * pit_r) < 5.0 or halls.any(func(hl): return _in_door(angle, hl.d, pit_r, 5.0)):
+			continue                   # clear of the ramps
 		var basis := _radial_basis(angle)
 		basis = Basis(-basis.x, basis.y, -basis.z)
 		var at := pit_c + Vector3(cos(angle) * (pit_r - 0.1), floor_y - pit_c.y + 3.2,
@@ -633,7 +726,7 @@ func _shield_mat(size: Vector3, disc := false) -> ShaderMaterial:
 	return LookMaterials.energy_shield(size, Vector3(r, 0, r) if disc else Vector3(0, r, r), Vector3.RIGHT if disc else Vector3.UP, disc)
 
 
-func _shield(n: String, at: Vector3, size: Vector3) -> MeshInstance3D:
+func _shield(n: String, at: Vector3, size: Vector3, basis := Basis.IDENTITY) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = n
 	var bm := BoxMesh.new()
@@ -641,6 +734,7 @@ func _shield(n: String, at: Vector3, size: Vector3) -> MeshInstance3D:
 	mi.mesh = bm
 	mi.material_override = _shield_mat(size)
 	mi.position = at
+	mi.basis = basis
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	shields.append(mi)
@@ -671,49 +765,56 @@ func _mesh(n: String, tris: PackedVector3Array, mat: Material, both: bool) -> Me
 	return mi
 
 
-## The floor inside the ring drawn round (the square paving under it hidden), and
-## the hallway's and the pit ring's decks in metal.
+## The floor inside each ring drawn round (the square paving under it hidden), and
+## the tunnels' and the pit ring's decks in metal.
 func _floors(mats: LookMaterials) -> void:
-	var sq := demo.get_node_or_null("Town/ground/Mesh") as MeshInstance3D
-	if sq != null:
-		sq.visible = false
-	var disc := MeshInstance3D.new()
-	disc.name = "StationFloor"
-	var cm := CylinderMesh.new()
-	cm.top_radius = rw
-	cm.bottom_radius = rw
-	cm.height = 0.5
-	cm.radial_segments = 96
-	disc.mesh = cm
-	disc.material_override = mats.paving(2.4)
-	disc.position = rc + Vector3(0, -0.25, 0)
-	add_child(disc)
+	var paving := mats.paving(2.4)
+	for i in domes.size():
+		var dm: Dictionary = domes[i]
+		var sq := demo.get_node_or_null("Town/%s/Mesh" % ("ground" if i == 0 else "dome_%s_ground" % dm.id)) as MeshInstance3D
+		if sq != null:
+			sq.visible = false
+		var disc := MeshInstance3D.new()
+		disc.name = _nm("StationFloor", i)
+		var cm := CylinderMesh.new()
+		cm.top_radius = dm.r
+		cm.bottom_radius = dm.r
+		cm.height = 0.5
+		cm.radial_segments = 96
+		disc.mesh = cm
+		disc.material_override = paving
+		disc.position = (dm.c as Vector3) + Vector3(0, -0.25, 0)
+		add_child(disc)
 	var deck := mats.hull(-50.0, 2.0)
-	for id in ["hall_floor", "bay_ground_n", "bay_ground_s", "bay_ground_w", "bay_ground_e"]:
+	var ids := ["hall_floor", "bay_ground_n", "bay_ground_s", "bay_ground_w", "bay_ground_e"]
+	for i in range(1, domes.size()):
+		ids.append("hall_%s_floor" % domes[i].id)
+	for id in ids:
 		var mi := demo.get_node_or_null("Town/%s/Mesh" % id) as MeshInstance3D
 		if mi != null:
 			mi.material_override = deck
 
 
-## Ribs over the dome: every eighth meridian and three rings.
-func _dome_ribs(metal: Material) -> void:
+## Ribs over a dome: every eighth meridian and three rings.
+func _dome_ribs(dm: Dictionary, metal: Material) -> void:
 	var stl := SurfaceTool.new()
 	stl.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var mid := (dm.c as Vector3) + Vector3(0, wall_h, 0)
 	for j in range(0, DOME_SEG, 8):
 		for i in DOME_RINGS:
-			_strip(stl, _dome_point(i, j), _dome_point(i + 1, j), 0.22)
+			_strip(stl, mid, _dome_point(dm, i, j), _dome_point(dm, i + 1, j), 0.22)
 	for i in [0, DOME_RINGS / 3, 2 * DOME_RINGS / 3]:
 		for j in DOME_SEG:
-			_strip(stl, _dome_point(i, j), _dome_point(i, j + 1), 0.18)
+			_strip(stl, mid, _dome_point(dm, i, j), _dome_point(dm, i, j + 1), 0.18)
 	var mi := MeshInstance3D.new()
-	mi.name = "DomeRibs"
+	mi.name = "DomeRibs" if dm.id == "town" else "DomeRibs_%s" % dm.id
 	mi.mesh = stl.commit()
 	mi.material_override = metal
 	add_child(mi)
 
 
-func _strip(stl: SurfaceTool, a: Vector3, b: Vector3, w: float) -> void:
-	var out := ((a + b) * 0.5 - (rc + Vector3(0, wall_h, 0))).normalized()
+func _strip(stl: SurfaceTool, mid: Vector3, a: Vector3, b: Vector3, w: float) -> void:
+	var out := ((a + b) * 0.5 - mid).normalized()
 	var side := (b - a).cross(out).normalized() * w
 	var o := out * 0.06
 	for v in [a - side + o, b - side + o, b + side + o, a - side + o, b + side + o, a + side + o]:
@@ -724,61 +825,62 @@ func _strip(stl: SurfaceTool, a: Vector3, b: Vector3, w: float) -> void:
 		stl.add_vertex(v)
 
 
-## The hallway: metal sills and headers with wide windows between, posts, a roof,
+## A tunnel: metal sills and headers with wide windows between, posts, a roof,
 ## strip lights down both sides of the ceiling and lamps along it, and the square
 ## shield it opens through onto the pit floor.
-func _dress_hall(metal: Material, glass: Material, _env: LookEnvironment, mats: LookMaterials) -> void:
-	if hall.is_empty():
-		return
+func _dress_hall(hl: Dictionary, i: int, metal: Material, glass: Material, _env: LookEnvironment, mats: LookMaterials) -> void:
 	var root := Node3D.new()
-	root.name = "Hallway"
+	root.name = _nm("Hallway", i)
 	add_child(root)
-	var x0 := float(hall.x0) - 0.6
-	var rim := float(hall.rim)
-	var x1 := float(hall.end)
-	var hw := float(hall.half)
-	var h := float(hall.height)
+	var a := float(hl.s_far) + 0.6
+	var rim := float(hl.s_rim)
+	var e := float(hl.s_end)
+	var hw := float(hl.hw)
+	var h := float(hl.h)
 	var bottom := pit_c.y - 6.0
 	for sg in [-1.0, 1.0]:
-		var z: float = sg * (hw + 0.15)
-		_box(root, Vector3((x0 + rim) * 0.5, 0.5, z), Vector3(rim - x0, 1.0, 0.3), metal)
-		_box(root, Vector3((rim + x1) * 0.5, (bottom + 1.0) * 0.5, z), Vector3(x1 - rim, 1.0 - bottom, 0.3), metal)
-		_box(root, Vector3((x0 + x1) * 0.5, h - 0.4, z), Vector3(x1 - x0, 0.8, 0.3), metal)
-		_box(root, Vector3((x0 + x1) * 0.5, (1.0 + h - 0.8) * 0.5, z), Vector3(x1 - x0, h - 1.8, 0.08), glass)
-		var x := x0 + 4.0
-		while x < x1:
-			_box(root, Vector3(x, (bottom if x > rim else 0.0) * 0.5 + h * 0.5, z), Vector3(0.25, h - (bottom if x > rim else 0.0), 0.35), metal)
-			x += 4.0
-	_box(root, Vector3((x0 + x1) * 0.5, h + 0.15, 0.0), Vector3(x1 - x0, 0.3, hw * 2.0 + 0.6), metal)
+		var t: float = sg * (hw + 0.15)
+		_box(root, _hp(hl, (a + rim) * 0.5, 0.5, t), _hsize(hl, a - rim, 1.0, 0.3), metal)
+		_box(root, _hp(hl, (rim + e) * 0.5, (bottom + 1.0) * 0.5, t), _hsize(hl, rim - e, 1.0 - bottom, 0.3), metal)
+		_box(root, _hp(hl, (a + e) * 0.5, h - 0.4, t), _hsize(hl, a - e, 0.8, 0.3), metal)
+		_box(root, _hp(hl, (a + e) * 0.5, (1.0 + h - 0.8) * 0.5, t), _hsize(hl, a - e, h - 1.8, 0.08), glass)
+		var s := a - 4.0
+		while s > e:
+			var low := bottom if s < rim else 0.0
+			_box(root, _hp(hl, s, low * 0.5 + h * 0.5, t), _hsize(hl, 0.25, h - low, 0.35), metal)
+			s -= 4.0
+	_box(root, _hp(hl, (a + e) * 0.5, h + 0.15, 0.0), _hsize(hl, a - e, 0.3, hw * 2.0 + 0.6), metal)
 	# The gate's frame, a trim reveal round the opening on both faces.
-	for b in _gate_frame_boxes():
+	for b in _gate_frame_boxes(hl):
 		_box(root, b[0], b[1], metal)
 	var trim := mats.flat(Color("#899195"), 0.6, 0.7)
-	for fx in [float(hall.x0) - 1.03, float(hall.x0) + 0.43]:
+	for fs in [float(hl.s_far) + 1.03, float(hl.s_far) - 0.43]:
 		for sg in [-1.0, 1.0]:
-			_box(root, Vector3(fx, (h + 0.24) * 0.5, rc.z + sg * (hw + 0.12)), Vector3(0.06, h + 0.24, 0.24), trim)
-		_box(root, Vector3(fx, h + 0.12, rc.z), Vector3(0.06, 0.24, hw * 2.0 + 0.48), trim)
+			_box(root, _hp(hl, fs, (h + 0.24) * 0.5, sg * (hw + 0.12)), _hsize(hl, 0.06, h + 0.24, 0.24), trim)
+		_box(root, _hp(hl, fs, h + 0.12, 0.0), _hsize(hl, 0.06, 0.24, hw * 2.0 + 0.48), trim)
 	# The end wall round its shield (the same boxes as the collider).
-	var boxes := _hall_boxes()
+	var boxes := _hall_boxes(hl)
 	for k in range(boxes.size() - 3, boxes.size()):
 		_box(root, boxes[k][0], boxes[k][1], metal)
 	# A square shield filling the end wall's whole opening (floor to the lintel).
 	var top: float = boxes[boxes.size() - 3][0].y - boxes[boxes.size() - 3][1].y * 0.5
-	var door_w: float = hw * 2.0 - boxes[boxes.size() - 1][1].z * 2.0
-	_shield("HallShield", Vector3(x1 + 0.15, (bottom + top) * 0.5, 0.0), Vector3(0.08, top - bottom, door_w))
+	var jamb: Vector3 = boxes[boxes.size() - 1][1]
+	var door_w: float = hw * 2.0 - (jamb.z if absf((hl.d as Vector2).x) > 0.5 else jamb.x) * 2.0
+	_shield(_nm("HallShield", i), _hp(hl, e - 0.15, (bottom + top) * 0.5, 0.0), Vector3(0.08, top - bottom, door_w),
+		_turn_to(hl.d))
 	# Lights: two glowing strips under the roof, and a lamp every 7 m, always on
 	# (see _station_lighting); past the rim the floor drops beside the ramp, so a
 	# second lamp hangs lower there.
 	var lamp_glow := mats.glow(Color("#bfefff"))
 	lamp_glow.emission_energy_multiplier = 3.2
 	for sg in [-1.0, 1.0]:
-		_box(root, Vector3((x0 + x1) * 0.5, h - 0.05, sg * (hw - 0.6)), Vector3(x1 - x0, 0.08, 0.25), lamp_glow)
-	var x := x0 + 3.5
-	while x < x1:
-		_hall_lamp(root, Vector3(x, h - 0.6, 0.0))
-		if x > rim:
-			_hall_lamp(root, Vector3(x, lerpf(0.0, bottom, clampf((x - rim) / maxf(x1 - rim, 0.1), 0.0, 1.0)) + 2.6, 0.0))
-		x += 7.0
+		_box(root, _hp(hl, (a + e) * 0.5, h - 0.05, sg * (hw - 0.6)), _hsize(hl, a - e, 0.08, 0.25), lamp_glow)
+	var s := a - 3.5
+	while s > e:
+		_hall_lamp(root, _hp(hl, s, h - 0.6, 0.0))
+		if s < rim:
+			_hall_lamp(root, _hp(hl, s, lerpf(0.0, bottom, clampf((rim - s) / maxf(rim - e, 0.1), 0.0, 1.0)) + 2.6, 0.0))
+		s -= 7.0
 
 
 func _hall_lamp(root: Node3D, at: Vector3) -> void:

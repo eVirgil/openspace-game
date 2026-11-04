@@ -2,6 +2,43 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — Hijacking: the vehicle's own game decides
+
+- **The one in the seat owns it, so their game says yes.** Each game keeps its
+  own player's ships (ShipPilot berths) and speeders; the others only draw them
+  (RemoteShip, RemoteSpeeder). The hijacker's hop ends with a word to the
+  owner's game (`NetLink.hijack_take`); if they are still at the controls it
+  throws them out and answers with what the vehicle was (ship id, look, where,
+  speed, throttle, hull; a speeder's data and paint), and the hijacker's game
+  builds that and seats them (`ShipPilot.seat_taken`, a SpeederNode). If they
+  got out first the answer is empty and the hijacker drops off. Alternative: the
+  hijacker's game takes it and tells the owner. Rejected: the owner's game is
+  the only one that knows whether they still sit in it, and two games deciding
+  is how a ship ends up flown twice.
+- **It stays theirs, lent.** In the owner's game the ship is stowed (hidden,
+  `hijacked_by`, not lost in the save); in the hijacker's it is a borrowed berth
+  (no key: a crash loses it, ejecting leaves it adrift, Skrugs will not buy it).
+  Getting out, ejecting or getting off sends it back where it is (on the ground
+  below), a crash sends it back wrecked, and a hijacker who leaves the game gives
+  it back where they took it. Alternative: it becomes the hijacker's for good.
+  Rejected: it is in the owner's save (their Fleet), and a LAN game should not
+  take a friend's ship out of their own save.
+- **The owner's "vehicle_gone" goes to everyone at once,** so nobody sees the
+  old ship hang there for `ship_stale_s` while the new one flies off.
+- **Speeders had to be sent first.** A rider was hidden from everyone (their
+  body is put away while they ride, and nothing else was sent), so there was
+  nothing to hijack. The speeder now goes with the ship packet
+  (`ride_state`: where it is and a key for its look); its data goes once to
+  whoever asks (`want_ride_look`), not 20 times a second. The copy is the game's
+  own SpeederNode, not rideable (it does not run HoverModel), its hull off.
+- **One hop for every kind.** Players and the AI interceptor go through the same
+  find, prompt and hop (`Hijack`); only the last step differs. The interceptor
+  is taken through its own pad hand-over (`_offer_berth`, `_hand_over`), so it is
+  stolen exactly as one taken off the pad is.
+- **E belongs to the hijack while there is something to take.** ShipPilot's
+  board and SpeederNode's mount and get-off ask `Hijack.claims_e()` first, so
+  standing between a parked ship and a flown one does not do both.
+
 ## 2026-11-04 — Space is one place: every planet in every sky
 
 - **The bug.** A planet's scene listed only its parent and its own children, so
@@ -1582,3 +1619,56 @@ Every significant technical choice, the alternative, and why. Newest on top.
   stands on it rides it with their normal movement. It goes on in its
   direction with you aboard, comes to the floor you stand on, and the shaft's
   doors open only where it has stopped.
+
+## The station's furniture is merged by material and built a little a tick (2026-11-04)
+
+- **Through the town's kit, then merged.** The homes, stalls, huts and machines
+  are `TownBuildings` parts like the port's buildings, so the stalls are the
+  port's `TownMarket` stalls and the huts its huts. Each floor is then merged
+  into one mesh a material (`StationFill._collect`) rather than the kit's
+  MultiMesh a mesh and material. Alternative: keep the MultiMeshes. Rejected:
+  every size of box and colour of ware is its own pair, so a market floor was
+  about 350 draw calls; merged it is about 80.
+- **Merged from our own numbers, never read back.** Reading a mesh from the
+  renderer waits on the GPU, about 8 ms a mesh. SurfaceTool's `append_from`
+  cost about 2 s for the station; `StationFill._flat` builds each box,
+  cylinder and sphere's triangles itself, and that costs about 35 ms. Only the
+  kit's ArrayMeshes (domes, arches) and the cloth stay MultiMeshes.
+- **Built a little each tick, shown near the camera.** Two milliseconds a
+  physics tick, one floor at a time, so the handoff into the giant's scene never
+  hitches; each floor is shown only within 30 m of its height and 120 m of its
+  glass, since the project has no occlusion culling. Alternative: enable
+  occlusion culling. Rejected: it is project wide, needs occluders everywhere
+  and costs CPU on every scene. The render rules are in
+  `docs/station/STATION_FILL.md`.
+- **Lower homes packed, upper homes grand.** The lower homes floor is open
+  (no rooms) and packed with shacks and booths of our own boxes, because a town
+  hut is 2,000 to 3,000 triangles and a shack about 120. The upper homes are 8
+  rooms of the hull (a floor's `"rooms"` can be a count), each a big suite in
+  the cantina's and the barge's dress. A room not in `"open_rooms"` gets a solid
+  shut door in the hull, so nothing behind it has to be drawn.
+
+## The gaps between the station's floors are shields, not glass (2026-11-04)
+
+- **The same shield as the tunnels' roof hatches.** No collider, only the look
+  (StationHull.tubes, drawn by SpaceStation), so you can leave the inside of the
+  station between floors and stand on a floor's roof. `StationHull.on_roof`
+  counts a floor's roof as outside but not fallen, as it already did a tunnel's
+  roof walk, so the fall guard leaves you there. The elevator shaft's own glass
+  stays solid: it is what keeps the car's riders in.
+
+## 2026-11-04 — A ship's hull is convex pieces fitted at load, not one box
+
+- **Grid cells, each wrapped.** `ShipHull.fit` cuts the model's mesh into a grid
+  (`hull_fit` in `content/look/ships.json`) and makes one convex hull per cell,
+  with cells overlapping a little so the pieces meet. A low-poly mesh (a
+  stand-in's box or cylinder, a bolted-on gun) is convex already and keeps its
+  own hull. About 50 ms a look, once, then shared by every ship wearing it.
+- **Not Godot's convex decomposition.** `Mesh.convex_decompose` and
+  `create_multiple_convex_collisions` need the V-HACD module, which this 4.7
+  build does not have at runtime (it hands back one piece). Not a trimesh
+  either: a concave shape is hollow, so a bolt or a player inside it is not
+  pushed out, and it costs far more per contact.
+- **The same three callers, one helper.** ShipPilot, AtmoFighter and RemoteShip
+  all call `fit`, and fall back to `fit_box` only when there are no meshes (the
+  greybox).

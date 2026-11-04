@@ -5,7 +5,9 @@ extends Node3D
 ## ground and the walkers' colliders (the "station" landmark put them there); this
 ## node adds what moves and what you see:
 ##   - the look: every part merged by finish, the cruiser's metal, glass, glow
-##   - the energy shield across the bay's mouth (ships and bolts through, not you)
+##   - the energy shield across the bay's mouth (ships and bolts through, not you),
+##     the shields in the tunnels' roofs and round the gaps between floors (you
+##     through, not the air)
 ##   - an elevator in each tower: a platform riding its shaft floor to floor, and the
 ##     shaft's doors, open only where it has stopped
 ##   - Z docking: the same calls the cruiser answers (can_dock, dock_path, dock_yaw,
@@ -20,7 +22,10 @@ extends Node3D
 ## landmark of the world it is in (town_demo._build_stations).
 
 const SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
-const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "rail": 8, "pad": 10, "beacon": 11 }
+const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "cargo": 6, "console": 7, "rail": 8,
+	"pad": 10, "beacon": 11, "screen": 12 }
+const StationFill := preload("res://src/systems/world/station_fill.gd")
+const TownBuildings := preload("res://src/systems/world/town_buildings.gd")
 
 var demo                               ## town_demo.gd
 var ground: WorldGround
@@ -34,6 +39,9 @@ var vessel_name := ""
 var cars: Array = []                   ## per tower: { tower, c, stops, body, at, i, dir, wait, moving, doors: [[floor, CollisionShape3D, Node3D]] }
 var falls := 0                         ## times you were pulled back aboard (traces, tests)
 var rides := 0                         ## elevator stops reached with you aboard the car (traces)
+var fill: StationFill                  ## issue #315: what is in the floors (with the look layer only)
+var fill_floors: Array = []            ## { tower, i, c, y, r, node, built }: one per dressed floor
+var fill_ms := 0.0                     ## the longest tick spent building the fill, ms (review)
 var open_air := false                  ## the planet's air is breathable: you may go outside (setup)
 
 var _root: Node3D
@@ -42,6 +50,7 @@ var _layer: CanvasLayer
 var _label: Label
 var _was_aboard := false
 var _shadow_capped := false
+var _fill_tick := 0
 
 static var _meshes: Dictionary = {}    ## "<station>/<finish>" -> ArrayMesh, built once a session
 
@@ -71,8 +80,10 @@ func _ready() -> void:
 	if demo != null and demo.use_look:
 		_build_look()
 		_lights()
+		_plan_fill()
 	_build_shield()
 	_build_hatches()
+	_build_tubes()
 	_build_elevators()
 	_build_label()
 
@@ -131,6 +142,7 @@ func _physics_process(dt: float) -> void:
 	var at := inv * p.global_position if p != null and is_instance_valid(p) else Vector3.INF
 	for car in cars:
 		_step_car(car, dt, at)
+	_step_fill()
 	if p == null or not is_instance_valid(p):
 		return
 	if _inside != null:
@@ -185,6 +197,69 @@ func _pull_back(p: Node3D, text: String) -> void:
 		p.call("align_to_ground", true)
 	falls += 1
 	_toast(text, 3.0)
+
+
+# ------------------------------------------------------------------ the floors' fill
+
+## Issue #315: every floor with a "use" in the config's "fill" block gets its
+## furniture (StationFill), built a couple of milliseconds a physics tick so the
+## scene does not hitch,
+## each under a node of its own that is only shown near the camera (_show_fill).
+func _plan_fill() -> void:
+	if (cfg.get("fill", {}) as Dictionary).is_empty():
+		return
+	var mats: LookMaterials = demo.decor.mats if demo.get("decor") != null and demo.decor.mats != null else LookMaterials.new()
+	var kit := TownBuildings.new(mats, demo.look)
+	fill = StationFill.new(kit, hull, _mat)
+	for t in hull.towers:
+		for i in (t.floors as Array).size():
+			var f: Dictionary = t.floors[i]
+			if fill.floor_cfg(str(f.id)).is_empty():
+				continue
+			var node := Node3D.new()
+			node.name = "Fill_%s_%s" % [str(t.id), str(f.id)]
+			node.visible = false
+			_root.add_child(node)
+			fill_floors.append({ "tower": t, "i": i, "c": t.c, "y": float(f.y), "r": float(f.r), "node": node, "built": false })
+
+
+func _step_fill() -> void:
+	if fill_floors.is_empty():
+		return
+	for ff in fill_floors:
+		if bool(ff.built):
+			continue
+		var t0 := Time.get_ticks_usec()
+		if not bool(ff.get("begun", false)):
+			ff.begun = true
+			ff.built = not fill.begin(ff.node, ff.tower, int(ff.i))
+		elif fill.step(float(cfg.get("fill", {}).get("budget_ms", 2.0))):
+			ff.built = true
+			ff.draws = fill.draws
+		fill_ms = maxf(fill_ms, (Time.get_ticks_usec() - t0) / 1000.0)
+		return                             # a little of one floor a tick
+	_fill_tick += 1
+	if _fill_tick % 6 == 0:
+		_show_fill()
+
+
+## A floor's fill is drawn only while the camera is within show_dy metres of its
+## height band and show_m of its glass: the floor you are on and the ones just
+## above and below it. Seen from further (another floor, outside, the flight in)
+## the rooms are empty glass, which nobody can tell apart at that range.
+func _show_fill() -> void:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return
+	var l := inv * cam.global_position
+	var fc: Dictionary = cfg.get("fill", {})
+	var max_dy := float(fc.get("show_dy", 30.0))
+	var max_dh := float(fc.get("show_m", 120.0))
+	for ff in fill_floors:
+		var y0 := float(ff.y)
+		var dy := maxf(0.0, maxf(y0 - l.y, l.y - (y0 + hull.floor_h)))
+		var dh := maxf(0.0, Vector2(l.x - (ff.c as Vector2).x, l.z - (ff.c as Vector2).y).length() - float(ff.r))
+		(ff.node as Node3D).visible = dy <= max_dy and dh <= max_dh
 
 
 # ------------------------------------------------------------------ the elevators
@@ -385,6 +460,34 @@ func _build_hatches() -> void:
 		mi.transform = hc.xf
 
 
+## The shields round the gaps between floors (StationHull.tubes): no collider (jump
+## the railing, jetpack up and step out through one onto the floor's roof), only
+## the look: an open cylinder, its rims where it meets the ceiling and the floor
+## above.
+func _build_tubes() -> void:
+	if demo == null or not demo.use_look:
+		return
+	for tb in hull.tubes:
+		var h := float(tb.y1) - float(tb.y0)
+		var r := float(tb.r)
+		var cm := CylinderMesh.new()
+		cm.top_radius = r
+		cm.bottom_radius = r
+		cm.height = h
+		cm.radial_segments = 48
+		cm.rings = 1
+		cm.cap_top = false
+		cm.cap_bottom = false
+		var mi := MeshInstance3D.new()
+		mi.name = "GapShield_%s_%d" % [str(tb.tower), int(tb.floor)]
+		mi.mesh = cm
+		mi.material_override = LookMaterials.energy_shield(Vector3(r * 2.0, h, r * 2.0), Vector3(0, 0.6, 0))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var c: Vector2 = tb.c
+		mi.position = Vector3(c.x, (float(tb.y0) + float(tb.y1)) * 0.5, c.y)
+		_root.add_child(mi)
+
+
 ## The shield's curve as a mesh in its own frame (StationHull.shield): the wall's arc
 ## across the mouth, full height, so the shader's rims sit on its top, bottom and ends.
 static func _curved_shield(sh: Dictionary) -> ArrayMesh:
@@ -432,7 +535,7 @@ func _build_look() -> void:
 		mi.name = "Station_" + str(f)
 		mi.mesh = _merged(hull.id + "/" + str(f), groups[f])
 		mi.material_override = _mat(str(f))
-		if f in ["glass", "glass_floor", "glow", "beacon"]:
+		if f in ["glass", "glass_floor", "glow", "beacon", "lock"]:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.extra_cull_margin = 50.0
 		_root.add_child(mi)
@@ -454,6 +557,8 @@ func _mat(finish: String) -> Material:
 			m = _glow(Color("#9fdcff"), 3.0)
 		"beacon":
 			m = _glow(Color("#ff5a3a"), 6.0)
+		"lock":
+			m = _glow(Color("#ffb04a"), 2.5)
 		_:
 			var sm := ShaderMaterial.new()
 			sm.shader = SHADER

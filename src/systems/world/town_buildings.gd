@@ -11,7 +11,8 @@ extends RefCounted
 ##
 ## Looks: hut_round, hut_block, hut_stepped, hut_long (market side), tower_block,
 ## tower_round, tower_wide (barracks side), shop, hall, upper, watchtower, bridge,
-## cistern. `face` ("+x", "-x", "+z", "-z") is the door side. `style: "garrison"`
+## cistern. `face` ("+x", "-x", "+z", "-z") is the door side. `style: "gray_garrison"`
+## is the moon's barracks: the gray homes' metal with the garrison's band. `style: "garrison"`
 ## paints a building in Remnant colours (issue #393: in the locals' once they hold the
 ## barracks; LookMaterials.repaint).
 ##
@@ -45,6 +46,7 @@ var crate_woods: Array = []   ## issue #355: plank crates in three woods (StallT
 var crate_band: Material      ## and the painted iron bands round them
 
 var solid := false            ## issue #55: while on, `put` parts also collide (see flush)
+var clutter := true           ## pots, jars and crates by the doors (off on the space station)
 var solids := 0               ## colliders the last flush made (tests, review)
 var _groups := {}             ## "mesh:mat" -> [mesh, mat, Array[Transform3D]]
 var _solids: Array = []        ## [Transform3D, Vector3 size] per solid box part
@@ -248,12 +250,10 @@ func door(at: Transform3D, s: float = 1.0, open: bool = false, locked: bool = fa
 func arch(r_in: float, r_out: float, depth: float) -> ArrayMesh:
 	var k := "a%.2f_%.2f_%.2f" % [r_in, r_out, depth]
 	if not _meshes.has(k):
-		var flat := LookMeshKit.ring_segment(r_in, r_out, -depth * 0.5, depth * 0.5, -PI * 0.5, PI * 0.5, 14)
-		# The ring lies in XZ around Y; turn it so Y runs along X and X points up.
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		st.append_from(flat, 0, Transform3D(AXIS_X, Vector3.ZERO))
-		_meshes[k] = st.commit()
+		# The ring lies in XZ around Y; turned as it is built so Y runs along X and X
+		# points up (not read back and turned: that waits on the GPU).
+		_meshes[k] = LookMeshKit.ring_segment(r_in, r_out, -depth * 0.5, depth * 0.5, -PI * 0.5, PI * 0.5, 14,
+			Transform3D(AXIS_X, Vector3.ZERO))
 	return _meshes[k]
 
 
@@ -342,9 +342,33 @@ func build(b: Dictionary) -> bool:
 	return true
 
 
+## Draw look `b.look` in frame `at` (y up, local +X its door side, its base on the
+## origin), `lx` deep along X, `lz` wide: a building that is not a town box (the
+## space station's market huts, which stand on round floors at any angle).
+func build_at(b: Dictionary, at: Transform3D, lx: float, lz: float, h: float) -> bool:
+	var kind := str(b.get("look", ""))
+	if not has_method("_look_" + kind):
+		return false
+	_xf = at
+	_rng.seed = hash(str(b.get("id", "")))
+	call("_look_" + kind, b, lx, lz, h)
+	built[kind] = int(built.get(kind, 0)) + 1
+	return true
+
+
+## A box collider of `size` centred on `at`, given out with the props at the next
+## flush (a part drawn some other way that still has to be solid).
+func add_collider(at: Transform3D, size: Vector3) -> void:
+	_solids.append([at, size])
+
+
 func _plaster(b: Dictionary, band_y: float) -> Material:
+	if b.get("wall_mat") is Material:              # a wall material of the caller's (the station's grey metal)
+		return b.wall_mat
 	if str(b.get("style", "")) == "garrison":       # issue #393: repainted with the barracks' owner
 		return mats.faction_plaster(0.0, band_y, "band", Color("#cbb594"))
+	if str(b.get("style", "")) == "gray_garrison":  # the moon's metal barracks: the gray homes' look, repainted too
+		return mats.faction_plaster(0.0, band_y, "band", Color("#84898b"))
 	if str(b.get("style", "")) == "gray":
 		return mats.plaster(0.0, band_y, Color("#84898b"), Color("#55595b"))
 	var i := absi(hash(str(b.id)))
@@ -618,6 +642,8 @@ func _look_cistern(b: Dictionary, lx: float, _lz: float, h: float) -> void:
 
 ## Barrels, crates and jars against the wall beside the door (huts only).
 func _door_clutter(wall_x: float, door_z: float, lz: float) -> void:
+	if not clutter:
+		return
 	if _rng.randf() < 0.35:
 		return
 	var z := door_z - 1.35 if door_z - 1.35 > -lz * 0.5 + 0.35 else door_z + 1.35

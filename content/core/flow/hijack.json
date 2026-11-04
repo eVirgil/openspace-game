@@ -1,0 +1,32 @@
+{
+  "note": "Hijacking (src/systems/vehicles/hijack.gd). On foot or on your own speeder, within reach of a ship or speeder someone else sits in, E hops you up onto it (hop_s seconds, an arc hop_arc_m above the line), then the one at the controls is thrown out and you take them. ship_reach_m / speeder_reach_m: how far from the vehicle's middle across the ground you may be; ship_rise_m / speeder_rise_m: how far above or below it (a jetpack gets you up to a ship hovering low). ship_top_m / speeder_top_m: where on the vehicle you land, above its middle. The thrown-out pilot lands on their feet on the ground beside it, victim_damage hurt, pushed away at victim_push m/s (fading by victim_push_fade). Over LAN the vehicle's own game decides: the hijacker waits at most wait_s on top for its answer, then drops off. The ship or speeder you take is theirs: when you get out (or eject) it is back in their game where you left it, on the ground below; crash it and it is wrecked in theirs too (their primary waits for T-89's patch-up). An AI pilot (the Remnant interceptor, while it flies low enough to reach) is thrown clear and the ship is stolen, as one taken off its pad. cooldown_s: after a hop ends, how long before another.",
+  "ship_reach_m": 7.0,
+  "ship_rise_m": 6.0,
+  "ship_top_m": 1.6,
+  "speeder_reach_m": 3.6,
+  "speeder_rise_m": 3.0,
+  "speeder_top_m": 1.1,
+  "hop_s": 1.0,
+  "hop_arc_m": 1.8,
+  "wait_s": 2.0,
+  "cooldown_s": 1.0,
+  "victim_damage": 6.0,
+  "victim_push": 6.0,
+  "victim_push_fade": 10.0,
+  "victim_kick": 3.0,
+  "labels": {
+    "prompt": "[E] Hijack  ·  %s",
+    "ship_of": "%s's ship",
+    "speeder_of": "%s's speeder",
+    "climbing": "%s is climbing onto your %s!",
+    "thrown_out": "%s threw you out and took your %s.",
+    "took": "You took %s.",
+    "slipped": "They got away.",
+    "given_back": "Your %s is back where %s left it.",
+    "wrecked": "%s wrecked your %s.",
+    "ai_thrown": "You threw the pilot out of the %s.",
+    "ship": "ship",
+    "speeder": "speeder",
+    "speeder_tag": "%s's speeder"
+  }
+}

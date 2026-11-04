@@ -18,6 +18,7 @@ extends Node3D
 const TownLayout := preload("res://src/systems/world/town_layout.gd")
 const Greybox := preload("res://src/systems/world/greybox.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
+const Hijack := preload("res://src/systems/vehicles/hijack.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const StairTower := preload("res://src/systems/world/stair_tower.gd")
 const PitBowl := preload("res://src/systems/world/pit_bowl.gd")
@@ -73,6 +74,7 @@ var bar: Node
 var gear: GearController              ## M13
 var pilot: ShipPilot                  ## M14
 var interceptor: AtmoFighter          ## issue #76: the Remnant's dark interceptor on the barracks pad
+var hijack: Node                      ## E by a ship or speeder someone else sits in: take it (Hijack)
 var characters: Dictionary = {}       ## marker id -> built character
 var terrain: DesertTerrain            ## null when with_desert is off
 var dust: DustWind                    ## issue #93: blowing sand round the camera (look only)
@@ -769,7 +771,7 @@ func _build_npc(m: Dictionary) -> void:
 	var barracks_post := ""
 	if _is_remnant_post(m) and not Story.town_garrison():
 		# Issue #187: the locals hold the barracks; their guard on this post, if any.
-		soldier = Territory.locals_post("barracks", str(m.id))
+		soldier = Territory.barracks_local(str(m.id), Territory.here())
 		key += "/locals"
 		if soldier == "":
 			return
@@ -777,9 +779,9 @@ func _build_npc(m: Dictionary) -> void:
 		# the town back when the last of them dies).
 		barracks_post = str(m.id)
 		var had = barracks_locals.get(barracks_post)
-		if (had != null and is_instance_valid(had)) or Territory.barracks_dead().has(barracks_post):
+		if (had != null and is_instance_valid(had)) or Territory.barracks_dead(Territory.here()).has(barracks_post):
 			return
-	elif _is_remnant_post(m) and Story.remnant_gone() and Territory.remnant_dead().has(str(m.id)):
+	elif _is_remnant_post(m) and Story.remnant_gone() and Territory.remnant_dead(Territory.here()).has(str(m.id)):
 		return                        # the fleet is beaten: a dead trooper stays dead
 	var here := town.marker_pos(str(m.id))
 	var face := town.marker_pos("gate") if m.role == "trooper_post" else town.marker_pos("cantina_door")
@@ -793,9 +795,9 @@ func _build_npc(m: Dictionary) -> void:
 	if barracks_post != "":
 		barracks_locals[barracks_post] = npc
 		npc.set_meta("barracks_locals", barracks_post)
-		npc.died.connect(Territory.barracks_guard_died.bind(barracks_post))
+		npc.died.connect(Territory.barracks_guard_died.bind(barracks_post, Territory.here()))
 	elif _is_remnant_post(m):
-		npc.died.connect(Territory.remnant_guard_died.bind(str(m.id), _remnant_posts()))
+		npc.died.connect(Territory.remnant_guard_died.bind(str(m.id), _remnant_posts(), Territory.here()))
 
 
 ## The town's Remnant trooper posts (the ones with a soldier): every one of them
@@ -807,13 +809,19 @@ func _remnant_posts() -> Array:
 ## Once every town NPC stands: the desert outposts and their guards.
 ## `now` false (issue #121, a staged handoff): the outpost_sites step builds them.
 func _build_outposts(now: bool = true) -> void:
-	# The Remnant's outposts are the port's desert's (issue #75: not on other planets).
-	if with_outposts and pilot != null and str(planet.get("id", "")) == PlanetGen.home_id():
+	# The Remnant's outposts are the port's desert's (issue #75: not on other planets),
+	# and the moon's own (Territory's "moon" front).
+	var pid := str(planet.get("id", ""))
+	var front := Territory.front_for_planet(pid)
+	var has_outposts := pid == PlanetGen.home_id() or (front != Territory.HOME and not Territory.outposts(front).is_empty())
+	if with_outposts and pilot != null and has_outposts:
 		outposts = RemnantOutposts.new()
 		outposts.setup(self, pilot.ground)
 		add_child(outposts)
 		if now:
 			outposts.build()
+		if pid != PlanetGen.home_id():
+			return                    # the ranch villages are the port's desert's
 		ranches = Ranches.new()
 		ranches.setup(self, pilot.ground)
 		add_child(ranches)
@@ -1034,9 +1042,10 @@ func _content() -> CoreContent:
 ## the town; they walk back to their post. A sentry up on a roof or the tower
 ## (profile combat.hold_ground) has no way up from there, so it comes back at its
 ## post on the same clock. Outpost troopers: at their post after a few minutes.
-## The bounty target and the general's barracks squad never come back. {} = stays dead.
+## The bounty target, the general's barracks squad and a heist's wave
+## (RemnantOutposts._send_wave) never come back. {} = stays dead.
 func respawn_rule(g: NpcBody) -> Dictionary:
-	if g.has_meta("bounty") or g.has_meta("cruiser") or g.has_meta("general_squad"):
+	if g.has_meta("bounty") or g.has_meta("cruiser") or g.has_meta("general_squad") or g.has_meta("heist_wave"):
 		return {}
 	var rc := Story.remnant_cfg()
 	var r := { "soldier": g.soldier_id, "post": g.post_id, "home": g.post_pos, "yaw": g.post_facing }
@@ -1125,7 +1134,7 @@ func _return_town_remnant() -> void:
 		droids.return_town_remnant()
 	WorldState.set_flag("gate_checkpoint_up", not town.markers_with_role("trooper_post").is_empty())
 	if gear != null and gear.hud != null:
-		gear.hud.toast(Territory.line("barracks_remnant"), 5.0)
+		gear.hud.toast(Territory.fline(Territory.here(), "barracks_remnant"), 5.0)
 
 
 ## Issue #187: the locals move into the barracks: their guards on the posts the
@@ -1143,7 +1152,7 @@ func _locals_take_barracks() -> void:
 			townsfolk.add_member(locals.back())
 			_locals_garrison_join(locals.back())
 	if gear != null and gear.hud != null:
-		gear.hud.toast(Territory.line("barracks"), 5.0)
+		gear.hud.toast(Territory.fline(Territory.here(), "barracks"), 5.0)
 
 
 ## Issue #393: the Remnant's red marks on the barracks, the gate, the wall and the
@@ -1444,6 +1453,9 @@ func _build_ship() -> void:
 	pilot = ShipPilot.new()
 	pilot.setup(self)
 	add_child(pilot)
+	hijack = Hijack.new()
+	hijack.setup(self)
+	add_child(hijack)
 	if gear != null:
 		gear.ground = pilot.ground      # issue #93: the fall guard, round the ball
 
