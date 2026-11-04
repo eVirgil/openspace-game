@@ -24,6 +24,7 @@ const RemotePlayer := preload("res://src/systems/net/remote_player.gd")
 const RemoteShip := preload("res://src/systems/net/remote_ship.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
 const NetFight := preload("res://src/systems/net/net_fight.gd")
+const NetJobs := preload("res://src/systems/net/net_jobs.gd")
 const BoltScene := preload("res://scenes/entities/bolt.tscn")
 
 ## State packet flags.
@@ -76,6 +77,9 @@ func _ready() -> void:
 	var fight := NetFight.new()
 	fight.name = "Fight"                           # one space fight: the host's, on everyone's screen
 	add_child(fight)
+	var jobs := NetJobs.new()
+	jobs.name = "Jobs"                             # one set of jobs: whoever takes one, everyone has it
+	add_child(jobs)
 
 
 func _mp() -> MultiplayerAPI:

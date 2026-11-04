@@ -114,8 +114,8 @@ static func stash_taken() -> bool:
 ## The stash lying at the hacked console, as a pickup entry, or {} (no heist,
 ## not hacked yet, or already picked up).
 static func stash_entry() -> Dictionary:
-	if not hacked() or WorldState.inventory.is_taken(stash_id()):
-		return {}
+	if not hacked() or WorldState.inventory.is_taken(stash_id()) or bool(WorldState.heist.get("taken", false)):
+		return {}                # "taken": in a LAN game, another player picked it up (NetJobs)
 	return { "id": stash_id(), "item": stash_item(), "count": stash_count(), "reach": 1.8, "job": true }
 
 
