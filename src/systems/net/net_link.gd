@@ -965,7 +965,7 @@ func _tick_lighting(dt: float) -> void:
 	var look = scene.get("look") if scene != null else null
 	if look == null or not is_instance_valid(look):
 		return
-	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour), Territory.owner(Territory.BARRACKS)]
+	var now := [GameFlow.current_planet_id(), str(scene.get("preset")), float(look.hour), Territory.owner(Territory.barracks_here())]
 	_light_left -= dt
 	if now != _light_sent or _light_left <= 0.0:
 		_light_sent = now

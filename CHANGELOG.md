@@ -24,6 +24,48 @@ Plain English, newest on top. One entry per milestone.
 - Numbers (reach, hop time, the pilot's knock) are in
   `content/core/flow/hijack.json`.
 
+## Take the lava moon: the same domes, barracks and outposts (2026-11-04)
+
+- **The lava moon gets the moon's expansion:** two more tunnels out of its
+  landing bay, to a barracks dome and a homes dome, and five Remnant outposts out
+  among the lava, 500 to 560 m from the station.
+- **Taken on its own,** on the moon's rules: kill the troopers at an outpost and
+  the locals move in; hold all five and the Remnant are driven off the lava
+  moon, barracks and all. The port and the moon are not touched by it, and the
+  other way round. F1 and the lava moon's map show it.
+- **The outposts stand on raised basalt pads,** 1.5 m over the lava and wide
+  enough for the ship and the patrol, so nobody is standing in it.
+- **No lava within 180 m of the port** (was 130), so the new domes and tunnels
+  sit on dry rock.
+- Fronts past the port's are a list in `territory.json` ("fronts"): the next
+  planet to take is a block of data.
+
+## Take the moon: two more domes, a barracks and five outposts (2026-11-04)
+
+- **Two more tunnels out of the moon's landing bay,** north and south, each down
+  its own ramp and through its own shields to a dome as big as the first.
+- **The barracks dome:** the Remnant's metal barracks (the gray homes' metal,
+  its band turns green for the locals), crates in the yard and five troopers.
+  It changes hands like the port's barracks: the locals take it when the fleet
+  is beaten or when the Remnant are driven off the moon; kill every local guard
+  there and the Remnant take it back; once the fleet is beaten, kill every
+  trooper there and it is the locals' again. Dead troopers come back behind the
+  hall until then.
+- **The homes dome:** eight of the station's gray homes either side of a street,
+  locals walking it.
+- **Five Remnant outposts out on the moon's rock.** Kill every trooper at one and
+  the locals move in, like the port's. No quest and no supply runs: they keep it
+  until their guards there are all dead. Hold all five at once and the Remnant
+  are driven off the moon, barracks and all. Once the cruiser has fallen the
+  moon's Remnant outposts run short and give up one at a time, like the port's.
+  F1 lists the moon's places too.
+- **The landing bay's rim is 3 m lower** (10 m, was 13).
+- **No more breathing on the roof.** Out of air now means outside the glass,
+  not just outside its circle: standing on a dome, on a tunnel's roof or above
+  the bay's shield hurts without armour.
+- **The moon's map** shows the station's shape (the domes, the bay and the
+  tunnels), a pin for the bay, the barracks (who holds it) and the homes, and
+  the five outposts, green when the locals hold them.
 ## Ranch villages: three walled outposts with houses and stands, far out (2026-11-04)
 
 - **Three ranch villages out in the desert,** each a Remnant outpost with a
