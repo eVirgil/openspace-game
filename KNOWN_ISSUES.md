@@ -2,6 +2,22 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the laser droid (2026-11-04)
+
+**Checked:** new test_laser_droid (2 tests: the rig is sold only by the moon's
+merchant and fits only floating droids; E on, E off, saved both ways, dark when
+knocked out, back on when it reboots), test_droid_upgrades_backpack (14),
+test_rave_droid (1), the layout test (the merchant's marker on the moon and not
+on the lava moon), test_smoke, a headless boot of the moon with the look on (the
+merchant's site is there), a stall still and a clip of the lasers going on and
+off (`docs/lookdev/moon_rave/`). No other suites, and it was not played.
+
+- **Other players do not see your lasers over LAN:** your droids go to them as
+  pictures (NetWorld) without the rig.
+- **The lasers do not keep time with the club's BPM** or change colour (could-
+  haves in the issue): the rig runs at 126 BPM wherever you are.
+- **The beams pass through walls and the floor,** like the stage droid's.
+
 ## After the moon rave's room (2026-11-04)
 
 **Checked:** new tests in test_planets (the room's layout: bar across from the

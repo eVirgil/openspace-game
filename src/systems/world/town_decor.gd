@@ -226,9 +226,10 @@ func _stall_trades(town, stalls: Array) -> Dictionary:
 	var cc := CoreContent.new()
 	if cc.load_from():
 		vendors = cc.vendors_in(location_id)
-	var droid_vendor: Dictionary = DroidRoster.config().get("vendor", {})
-	if not droid_vendor.is_empty():
-		vendors.append(droid_vendor)
+	for key in ["vendor", "club_vendor"]:          # issue #392: and the moon rave's
+		var droid_vendor: Dictionary = DroidRoster.config().get(key, {})
+		if not droid_vendor.is_empty():
+			vendors.append(droid_vendor)
 	var out := {}
 	for v in vendors:
 		var marker: Dictionary = town.get_marker(str(v.get("marker", "")))

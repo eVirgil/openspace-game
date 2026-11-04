@@ -493,22 +493,9 @@ func _rave_rig(fwd: Vector3, side: Vector3, face: Basis, floor_mid: Vector3) -> 
 	droid.floor_at = func(p: Vector3) -> float:
 		return deck.y if Vector2(p.x - deck.x, p.z - deck.z).length() < deck_r else 0.0
 	props.add_child(droid)
-	for i in 18:      # two tiers: one dipping to the floor, one flat over the heads
-		var a := lerpf(-0.75, 0.75, (i % 9) / 8.0)
-		var dir := (face * Vector3(sin(a), -0.32 if i < 9 else -0.13, cos(a))).normalized()
-		var beam := Node3D.new()
-		droid.lasers.add_child(beam)
-		beam.basis = Basis.looking_at(dir, Vector3.UP)
-		var col: Color = [Color("#3aff4a"), Color("#ff2a3a"), Color("#2bd9ff")][i % 3]
-		var core := props._cyl(beam, 0.01, 34.0, Vector3(0, 0, -17.0), ClubTextures.glow(col, 7.0), Vector3(90, 0, 0))
-		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var halo := props._cyl(beam, 0.04, 34.0, Vector3(0, 0, -17.0), ClubTextures.beam(col, 0.2), Vector3(90, 0, 0))
-		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		props.fades.append([halo.material_override, 0.05, 0.3, 0.5, i * 0.11])
-		props.sweeps.append([beam, beam.basis, Vector3.UP, 18.0, 3.2, i * 0.07])
-	var lens := ClubTextures.glow(Color("#3aff4a"), 6.0)
-	props._sphere(droid.lasers, 0.09, Vector3.ZERO, lens)
-	props.cycles.append([lens, 0.2, 0.0])
+	# Two tiers: one dipping to the floor, one flat over the heads (issue #392:
+	# the same fan your own laser droid carries, ClubProps.laser_fan).
+	props.laser_fan(droid.lasers, face)
 	_rave_hologram(back, side, face, span)
 
 
