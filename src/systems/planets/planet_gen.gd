@@ -38,7 +38,34 @@ static var layout_override: Dictionary = {}   ## issue #237: planet id -> town l
 static func types() -> Dictionary:
 	if _types.is_empty():
 		_types = TownGen._read(TYPES_PATH)
+		var all: Dictionary = _types.get("types", {})
+		for id in all.keys():
+			all[id] = _with_base(all, str(id), [])
 	return _types
+
+
+## Issue #272: a type may name a "base" type and give only what differs (the lava
+## moon is the asteroid with other rock, lava and sky). Dictionaries merge key by
+## key, all the way down; anything else (numbers, arrays) replaces.
+static func _with_base(all: Dictionary, id: String, seen: Array) -> Dictionary:
+	var t: Dictionary = all.get(id, {})
+	var base := str(t.get("base", ""))
+	if base == "" or seen.has(id) or not all.has(base):
+		return t
+	var merged := _deep_merge(_with_base(all, base, seen + [id]), t)
+	merged.erase("base")
+	merged["base_type"] = base
+	return merged
+
+
+static func _deep_merge(a: Dictionary, b: Dictionary) -> Dictionary:
+	var out := a.duplicate(true)
+	for k in b:
+		if out.get(k) is Dictionary and b[k] is Dictionary:
+			out[k] = _deep_merge(out[k], b[k])
+		else:
+			out[k] = b[k] if not (b[k] is Dictionary or b[k] is Array) else b[k].duplicate(true)
+	return out
 
 
 static func home_id() -> String:

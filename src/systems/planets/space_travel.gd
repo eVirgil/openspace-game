@@ -261,7 +261,7 @@ func _body(n: Dictionary) -> Node3D:
 	var r := float(n.radius)
 	var mi := MeshInstance3D.new()
 	mi.name = "Planet_" + str(n.id)
-	var rocky := str(n.type) == "asteroid"
+	var rocky := _rocky(n)
 	mi.mesh = body_mesh(n)
 	if bool(n.get("ball", false)) and str(n.type) == "sand":
 		# Issue #77: the home planet seen from space is the same sand you walk on:
@@ -385,7 +385,7 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 	sphere.height = r * 2.0
 	sphere.radial_segments = 64
 	sphere.rings = 32
-	var rocky := str(n.type) == "asteroid"
+	var rocky := _rocky(n)
 	if float(n.get("bands", 0.0)) > 0.0:
 		return sphere           # a gas ball is smooth
 	return LookMeshKit.rock(sphere, noise, 0.3 if rocky else 0.012, 0.0, 3.0, 0.85 if rocky else 1.0) if rocky or r < 20000.0 else sphere
@@ -428,7 +428,7 @@ func _ball_body(n: Dictionary) -> Node3D:
 	pt.use_sphere(sp)
 	pt.cache_key = "body/" + key
 	pt.keep_far = true
-	pt.rock_look = surf.get("look", {})
+	pt.use_surface(surf)                 # issue #272: and its lava, if any
 	pt.far_chunks = 3
 	pt.far_cells = 40
 	root.add_child(pt)
@@ -439,6 +439,11 @@ func _ball_body(n: Dictionary) -> Node3D:
 		root.add_child(ext)
 		ext.build_exterior(p.town.get("station", {}), pilot.demo._flat_mats())
 	return root
+
+
+## A small rocky ball (the asteroid, the lava moon: any "ball" type), not a planet.
+static func _rocky(n: Dictionary) -> bool:
+	return str(PlanetGen.types().get("types", {}).get(str(n.type), {}).get("ground", "")) == "ball"
 
 
 ## A town's footprint for seating a ball (town_demo.desert_site, from data).

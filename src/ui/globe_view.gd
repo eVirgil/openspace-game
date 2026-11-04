@@ -5,7 +5,8 @@ extends Control
 ## pointing the way the camera looks) and the waypoint, both pulsing. The
 ## waypoint flashes the pin it is at, or, out where no pin is (a drop in the
 ## desert, a marked spot), shows as its own marker. No people that move, but the
-## other LAN players on foot (`others`): a blue dot each, named; a click on one
+## other LAN players (`others`), on foot or in their ship (straight down on the
+## ground under it, even out in space): a blue dot each, named; a click on one
 ## makes them the waypoint.
 ##
 ## Drag turns it, the wheel or the + / - buttons in its top left zoom (zoomed in past the data's town_zoom the
@@ -47,7 +48,7 @@ var spot := Vector2.INF                 ## a marked spot's map position (drawn a
 var player := Vector2.INF               ## where you are (map x, z), INF = not on this planet
 var heading := Vector2.ZERO             ## the way you look, a map-space direction (ZERO = none)
 var goal_pin := ""                      ## the pin the F11 map's waypoint is on (it flashes), "" = none
-var others: Array = []                  ## LAN: the other players on foot, [{ id, map (x, z), name }]
+var others: Array = []                  ## LAN: the other players, on foot or in a ship, [{ id, map (x, z), name }]
 var goal := Vector2.INF                 ## where the pointer is otherwise (map x, z): the nearest pin
 										## showing within its arrive distance flashes, else its own marker
 var ground: GlobeTerrain = null         ## the ball's ground, drawn under the grid once baked
