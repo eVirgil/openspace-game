@@ -122,6 +122,7 @@ var barracks_locals: Dictionary = {}  ## issue #303: barracks post id -> the loc
 @export var with_natives := true      ## issue #96: native packs and wild animals (when the planet has any)
 @export var with_outposts := true     ## issue #64: the Remnant's three desert outposts (needs with_ship: they share the ship's ground)
 var outposts: RemnantOutposts
+var ranches: Ranches                  ## the ranch villages round three far outposts (their houses, stands and locals)
 @export var with_cruiser := true      ## issue #193: the Remnant's star cruiser in orbit (needs with_ship and the home ball)
 var cruiser: RemnantCruiser
 @export var with_stations := true     ## space stations in this planet's sky (its "station" landmarks: content/core/stations/)
@@ -280,7 +281,8 @@ func build_plan(staged_build: bool) -> Array:
 		add.call("outposts", LATER, func(): _build_outposts(not staged_build); return true)
 		if staged_build:
 			# One piece of an outpost a frame: its ground, nav, look, ship or a trooper.
-			add.call("outpost_sites", LATER, func(_left): return outposts == null or outposts.build_step(), true)
+			add.call("outpost_sites", LATER, func(_left): return (outposts == null or outposts.build_step()) \
+				and (ranches == null or ranches.build_step()), true)
 		add.call("npc_brains", LATER, func(): _npc_brains(); return true)
 		add.call("interceptor", LATER, func(): _build_interceptor(); return true)
 	add.call("speeders", LATER, func():
@@ -394,13 +396,21 @@ func _terrain_far(budget_left: float) -> bool:
 	return (terrain as PlanetTerrain).refine_far_step(budget_left) if terrain is PlanetTerrain else true
 
 
-## A gas ball's ring (the planet's body.ring) round its centre, as its neighbours
-## draw it (SpaceTravel.make_ring), so nothing changes at the handoff.
+## A gas ball's air and ring (the planet's body.haze and body.ring) round its
+## centre, as its neighbours draw them (SpaceTravel.make_haze, make_ring), so
+## nothing changes at the handoff. The haze is the fog over the cloud tops.
 func _dress_gas_ring() -> void:
 	var surf: Dictionary = planet.get("type_cfg", {}).get("surface", {})
 	var ring: Dictionary = planet.get("cfg", {}).get("body", {}).get("ring", {})
 	var r := float(planet.get("world", {}).get("terrain", {}).get("sphere_radius", 0.0))
-	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or ring.is_empty() or r <= 0.0:
+	if str(planet.get("ground", "")) != "ball" or str(surf.get("kind", "")) != "gas" or r <= 0.0:
+		return
+	var hz := SpaceTravel.make_haze(Vector3(0, -r, 0), r - float(surf.get("depth", 0.0)),
+		PlanetTerrain.gas_look_for(planet).get("haze", {}))
+	if hz != null:
+		add_child(hz)
+		look.track_material(hz.material_override as ShaderMaterial)
+	if ring.is_empty():
 		return
 	var rmi := SpaceTravel.make_ring(Vector3(0, -r, 0), r, ring)
 	add_child(rmi)
@@ -806,6 +816,13 @@ func _build_outposts(now: bool = true) -> void:
 		add_child(outposts)
 		if now:
 			outposts.build()
+		if pid != PlanetGen.home_id():
+			return                    # the ranch villages are the port's desert's
+		ranches = Ranches.new()
+		ranches.setup(self, pilot.ground)
+		add_child(ranches)
+		if now:
+			ranches.build()
 
 
 ## Then the brains that run them all.
@@ -842,6 +859,8 @@ func _npc_brains() -> void:
 			gear.closed_line = townsfolk.closed_line
 		for n in locals:
 			_locals_garrison_join(n)
+	if npc_brains and ranches != null:
+		ranches.start_brains()           # each ranch's locals, their own alarm; its stands' open rule
 	if npc_brains and outposts != null:
 		# Issue #187: the locals at each outpost they hold have their own alarm.
 		for o in outposts.outposts:

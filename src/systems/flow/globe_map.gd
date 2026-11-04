@@ -288,6 +288,117 @@ static func other_planet(id: String) -> Dictionary:
 	return out
 
 
+## How a planet's ground is tinted on its globe: content/look/map.json "terrain",
+## with its type's "terrain_types" entry laid over it (the type's base's when
+## it has none of its own: the lava moon's is its own, the asteroid's grey rock
+## otherwise). On the lava moon "rock" is the lava (GlobeTerrain).
+static func terrain_look(planet: Dictionary) -> Dictionary:
+	var out: Dictionary = look().get("terrain", {}).duplicate()
+	var by_type: Dictionary = look().get("terrain_types", {})
+	var t := str(planet.get("type", ""))
+	var base := str(PlanetGen.types().get("types", {}).get(t, {}).get("base", ""))
+	var over = by_type.get(t, by_type.get(base, {}))
+	if over is Dictionary:
+		out.merge(over, true)
+	return out
+
+
+# ------------------------------------------------------------------ the system
+
+static var _system: Array = []
+
+
+## Every planet you can get to, where it hangs in one frame for them all: the
+## home planet's scene (its port the origin; PlanetGen.neighbours: every
+## planet's scene is that space shifted to its own port, never turned). For the
+## Map page's system view (SystemView): [{ id, label, kind, centre, port, radius,
+## cloud_radius, color, dark, bands, ring, near }], centre and port in metres;
+## the home planet first, the rest by how far out they hang. Once a session.
+static func system() -> Array:
+	if not _system.is_empty():
+		return _system
+	var cc = PlanetGen._content()
+	var cfgs: Dictionary = cc.planets
+	var centres := {}
+	var out: Array = []
+	for id in cfgs:
+		var c = _centre(str(id), cfgs, cc, centres, 0)
+		if c == null:
+			continue
+		var cfg: Dictionary = cfgs[id]
+		var n := PlanetGen._neighbour(cfg, c, cc)
+		var built := PlanetGen.build(str(id), cc)
+		out.append({ "id": str(id), "label": planet_name(str(id)),
+			"kind": str(built.get("type_cfg", {}).get("label", "")),
+			"centre": c, "port": c + Vector3(0, float(n.radius), 0), "radius": float(n.radius),
+			"cloud_radius": float(n.cloud_radius), "color": n.color, "dark": n.dark,
+			"bands": float(n.bands), "ring": n.ring, "near": str(cfg.get("near", "")) })
+	var home := PlanetGen.home_id()
+	out.sort_custom(func(a, b):
+		if str(a.id) == home or str(b.id) == home:
+			return str(a.id) == home
+		return (a.centre as Vector3).length() < (b.centre as Vector3).length())
+	_system = out
+	return _system
+
+
+## One planet of system(), or {}.
+static func system_body(id: String) -> Dictionary:
+	for b in system():
+		if str(b.id) == id:
+			return b
+	return {}
+
+
+## Where planet `id`'s port is in planet `here`'s scene (INF when either is not
+## in the system): what SpaceTravel calls a neighbour's offset, for any two
+## planets, so a pointer on a moon can lead to its sister moon too.
+static func port_from(id: String, here: String) -> Vector3:
+	var a := system_body(id)
+	var b := system_body(here)
+	if a.is_empty() or b.is_empty():
+		return Vector3.INF
+	return (a.port as Vector3) - (b.port as Vector3)
+
+
+## A point in planet `here`'s scene, in the system frame (INF when it is not in it).
+static func to_system(p: Vector3, here: String) -> Vector3:
+	var b := system_body(here)
+	return (b.port as Vector3) + p if not b.is_empty() else Vector3.INF
+
+
+## The Remnant cruiser in the system frame, over the planet whose world has it
+## (its "cruiser" landmark: a map point and an altitude), or INF when none does.
+static func system_cruiser() -> Vector3:
+	for b in system():
+		for lm in PlanetGen.build(str(b.id)).get("world", {}).get("landmarks", []):
+			if str(lm.get("kind", "")) != "cruiser" or not lm.has("at"):
+				continue
+			var at: Array = lm.at
+			var r := float(b.radius)
+			return (b.centre as Vector3) + dir(Vector2(float(at[0]), float(at[2])), r) * (r + float(lm.get("altitude", 0.0)))
+	return Vector3.INF
+
+
+## A planet's centre in the system frame: the home planet's under its port, the
+## rest at their "at" from the port of the planet they are near. null when the
+## chain never reaches the home planet.
+static func _centre(id: String, cfgs: Dictionary, cc, memo: Dictionary, depth: int):
+	if memo.has(id):
+		return memo[id]
+	var cfg: Dictionary = cfgs.get(id, {})
+	var out = null
+	if id == PlanetGen.home_id():
+		out = Vector3(0, -PlanetGen.ball_radius(cfg, cc), 0)
+	elif depth < 8 and cfgs.has(str(cfg.get("near", ""))) and cfg.has("at"):
+		var near := str(cfg.near)
+		var pc = _centre(near, cfgs, cc, memo, depth + 1)
+		if pc != null:
+			out = (pc as Vector3) + Vector3(0, PlanetGen.ball_radius(cfgs[near], cc), 0) + GameFlow.vec(cfg.at)
+	memo[id] = out
+	return out
+
+
 ## A planet's name for the map's title and its lines.
 static func planet_name(id: String) -> String:
 	var n := PlanetGen.display_name(PlanetGen.build(id))

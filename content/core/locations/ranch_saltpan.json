@@ -1,0 +1,330 @@
+{
+  "id": "ranch_saltpan",
+  "kind": "ranch",
+  "label": "Saltpan village",
+  "note": "Ranch villages: a Remnant outpost (its own location, remnant_outpost_saltpan) with a few houses round it, one of them tall, four merchant stands and a walled yard with a gate toward the port. Set in the world as a landmark at the outpost's spot (content/core/worlds/port_desert.json), so ships and speeders collide with every building here ('visual': false); src/systems/world/ranches.gd dresses them (houses in the town's building kit by 'look' and 'face', the stands in the town's market kit), stands the armed locals at 'locals' round the fire, the keepers behind the stands, and adds the stands' vendors to the gear's (the port's own vendors, so the same stock and prices) and the droid stand to the droid merchants. Local frame: +x faces the port (the gate). 'pad_half' / 'pad_blend': the level ground under the yard (PlanetTerrain.outpost_flat_sites).",
+  "outpost": "remnant_outpost_saltpan",
+  "pad_half": 46.0,
+  "pad_blend": 30.0,
+  "buildings": [
+    {
+      "id": "wall_n",
+      "shape": "box",
+      "size": [
+        64.8,
+        3.2,
+        0.8
+      ],
+      "position": [
+        0,
+        0,
+        -32.0
+      ],
+      "visual": false,
+      "look": "wall"
+    },
+    {
+      "id": "wall_s",
+      "shape": "box",
+      "size": [
+        64.8,
+        3.2,
+        0.8
+      ],
+      "position": [
+        0,
+        0,
+        32.0
+      ],
+      "visual": false,
+      "look": "wall"
+    },
+    {
+      "id": "wall_w",
+      "shape": "box",
+      "size": [
+        0.8,
+        3.2,
+        64.0
+      ],
+      "position": [
+        -32.0,
+        0,
+        0
+      ],
+      "visual": false,
+      "look": "wall"
+    },
+    {
+      "id": "wall_e_n",
+      "shape": "box",
+      "size": [
+        0.8,
+        3.2,
+        25.4
+      ],
+      "position": [
+        32.0,
+        0,
+        -19.3
+      ],
+      "visual": false,
+      "look": "wall"
+    },
+    {
+      "id": "wall_e_s",
+      "shape": "box",
+      "size": [
+        0.8,
+        3.2,
+        25.4
+      ],
+      "position": [
+        32.0,
+        0,
+        19.3
+      ],
+      "visual": false,
+      "look": "wall"
+    },
+    {
+      "id": "gate_n",
+      "shape": "box",
+      "size": [
+        1.6,
+        5.5,
+        1.6
+      ],
+      "position": [
+        32.0,
+        0,
+        -7.0
+      ],
+      "visual": false,
+      "look": "gate"
+    },
+    {
+      "id": "gate_s",
+      "shape": "box",
+      "size": [
+        1.6,
+        5.5,
+        1.6
+      ],
+      "position": [
+        32.0,
+        0,
+        7.0
+      ],
+      "visual": false,
+      "look": "gate"
+    },
+    {
+      "id": "house_tall",
+      "shape": "box",
+      "size": [
+        6,
+        10.5,
+        6
+      ],
+      "position": [
+        -18,
+        0,
+        -22
+      ],
+      "visual": false,
+      "look": "tower_block",
+      "face": "+z"
+    },
+    {
+      "id": "house_a",
+      "shape": "box",
+      "size": [
+        7,
+        4.0,
+        6
+      ],
+      "position": [
+        -4,
+        0,
+        -22
+      ],
+      "visual": false,
+      "look": "hut_block",
+      "face": "+z"
+    },
+    {
+      "id": "house_b",
+      "shape": "box",
+      "size": [
+        6,
+        3.6,
+        6
+      ],
+      "position": [
+        9,
+        0,
+        -23
+      ],
+      "visual": false,
+      "look": "hut_round",
+      "face": "+z"
+    },
+    {
+      "id": "house_c",
+      "shape": "box",
+      "size": [
+        7,
+        4.2,
+        6
+      ],
+      "position": [
+        -6,
+        0,
+        22
+      ],
+      "visual": false,
+      "look": "hut_stepped",
+      "face": "-z"
+    },
+    {
+      "id": "house_d",
+      "shape": "box",
+      "size": [
+        9,
+        3.6,
+        5
+      ],
+      "position": [
+        -20,
+        0,
+        22.5
+      ],
+      "visual": false,
+      "look": "hut_long",
+      "face": "-z"
+    },
+    {
+      "id": "stall_gear",
+      "shape": "box",
+      "size": [
+        2.6,
+        1.0,
+        1.0
+      ],
+      "position": [
+        16,
+        0,
+        -10.5
+      ],
+      "visual": false,
+      "look": "stall",
+      "face": "+z"
+    },
+    {
+      "id": "stall_food",
+      "shape": "box",
+      "size": [
+        2.6,
+        1.0,
+        1.0
+      ],
+      "position": [
+        24,
+        0,
+        -10.5
+      ],
+      "visual": false,
+      "look": "stall",
+      "face": "+z"
+    },
+    {
+      "id": "stall_fence",
+      "shape": "box",
+      "size": [
+        2.6,
+        1.0,
+        1.0
+      ],
+      "position": [
+        16,
+        0,
+        10.5
+      ],
+      "visual": false,
+      "look": "stall",
+      "face": "-z"
+    },
+    {
+      "id": "stall_droid",
+      "shape": "box",
+      "size": [
+        2.6,
+        1.0,
+        1.0
+      ],
+      "position": [
+        24,
+        0,
+        10.5
+      ],
+      "visual": false,
+      "look": "stall",
+      "face": "-z"
+    }
+  ],
+  "stalls": {
+    "stall_gear": {
+      "vendor": "gear_trader",
+      "keeper": "local_merchant"
+    },
+    "stall_food": {
+      "vendor": "food_stall",
+      "keeper": "local_merchant"
+    },
+    "stall_fence": {
+      "vendor": "fence",
+      "keeper": "local_fence"
+    },
+    "stall_droid": {
+      "droid": true,
+      "label": "Droid merchant",
+      "keeper": "local_merchant"
+    }
+  },
+  "points": {
+    "fire": [
+      20,
+      0,
+      22.0
+    ],
+    "locals": [
+      [
+        17.0,
+        0,
+        20.8
+      ],
+      [
+        23.0,
+        0,
+        21.2
+      ],
+      [
+        20.5,
+        0,
+        24.6
+      ],
+      [
+        27.5,
+        0,
+        -4.5
+      ],
+      [
+        -11.5,
+        0,
+        -15.0
+      ]
+    ]
+  },
+  "local": "ranch_local"
+}

@@ -50,7 +50,8 @@ var _skip_to := ""
 var _anchors: Dictionary = {}          ## a name open_tab knows -> the section label it scrolls to
 var globe: GlobeView                   ## the Map page's globe
 var cruiser_view: CruiserMapView       ## the Map page's side view of the cruiser
-var _map_view := ""                    ## what the Map page shows: "" here, a planet id, or "cruiser"
+var system_view: SystemView            ## the Map page's chart of the star system
+var _map_view := ""                    ## what the Map page shows: "" here, a planet id, "cruiser" or "system"
 var _map_title: Label
 var _map_back: Button
 var _map_you: Button
@@ -314,11 +315,13 @@ func _hud_refresh() -> void:
 
 # ------------------------------------------------------------------ map
 
-## The globe (GlobeView) with the places that stay put, and beside it the places
-## off planet, a legend, and the waypoint's own buttons. Not a scroll page: the
-## wheel zooms the globe. Clicking a place off planet opens its own map in the same
-## spot (another planet's globe, or the cruiser's side view: CruiserMapView), with
-## a button back to this planet's; a waypoint set there stays on that planet.
+## The globe (GlobeView) with the places that stay put, and beside it the star
+## system and its planets, a legend, and the waypoint's own buttons. Not a scroll
+## page: the wheel zooms the globe. Clicking a planet opens its own map in the same
+## spot (another planet's globe, the system's chart: SystemView, or the cruiser's
+## side view: CruiserMapView), with a button back to the page's own view; a
+## waypoint set there stays on that planet. The page opens on the planet you are
+## on, or on the system's chart when you are out in space (_map_home_view).
 func _map_tab() -> Control:
 	var page := VBoxContainer.new()
 	page.name = "Map"
@@ -337,7 +340,7 @@ func _map_tab() -> Control:
 	_map_title.add_theme_font_size_override("font_size", 18)
 	head.add_child(_map_title)
 	_map_back = Button.new()
-	_map_back.pressed.connect(func(): open_map(""))
+	_map_back.pressed.connect(func(): open_map(_map_home_view()))
 	head.add_child(_map_back)
 	globe = GlobeView.new()
 	globe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -352,6 +355,13 @@ func _map_tab() -> Control:
 	cruiser_view.visible = false
 	cruiser_view.place_clicked.connect(map_pick)
 	left.add_child(cruiser_view)
+	system_view = SystemView.new()
+	system_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	system_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	system_view.visible = false
+	system_view.body_clicked.connect(func(id: String):
+		open_map("" if id == GameFlow.current_planet_id() else id))
+	left.add_child(system_view)
 	_no_globe = Label.new()
 	_no_globe.text = GlobeMap.line("no_globe")
 	_no_globe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -380,7 +390,7 @@ func _map_tab() -> Control:
 	side.add_child(_legend_row(GlobeMap.look().get("player", {}), GlobeMap.line("you"), Color(str(GlobeMap.look().get("player", {}).get("color", "#4dff88")))))
 	side.add_child(_legend_row(GlobeMap.look().get("goal", {}), GlobeMap.line("goal"), Color(str(GlobeMap.look().get("goal", {}).get("color", "#ffd84a")))))
 	var pins_look: Dictionary = GlobeMap.look().get("pins", {})
-	for kind in ["port", "remnant_outpost", "droid_merchant_outpost", "post", "camp", "wreck", "outpost", "spot"]:
+	for kind in ["port", "remnant_outpost", "village", "droid_merchant_outpost", "post", "camp", "wreck", "outpost", "spot"]:
 		var legend := str(GlobeMap.kind_cfg(kind).get("legend", GlobeMap.kind_cfg(kind).get("label", kind)))
 		side.add_child(_legend_row(pins_look.get(kind, {}), legend))
 	var owners: Dictionary = GlobeMap.look().get("owners", {})
@@ -393,12 +403,18 @@ func _map_tab() -> Control:
 	_map_you = Button.new()
 	_map_you.text = GlobeMap.line("centre_you")
 	_map_you.pressed.connect(func():
-		if globe.player != Vector2.INF:
+		if _map_view == "system":
+			if system_view.player != Vector3.INF:
+				system_view.focus(system_view.player)
+		elif globe.player != Vector2.INF:
 			globe.focus(globe.player))
 	side.add_child(_map_you)
 	_map_home = Button.new()
 	_map_home.text = GlobeMap.line("home")
 	_map_home.pressed.connect(func():
+		if _map_view == "system":
+			system_view.reset()
+			return
 		globe.zoom = 1.0
 		globe.focus(Vector2.ZERO))
 	side.add_child(_map_home)
@@ -440,19 +456,32 @@ func _pin_icon(look: Dictionary, r := 5.0) -> Control:
 	return icon
 
 
-## Show `view` on the Map page: "" where you are, a planet's id, or "cruiser".
+## Show `view` on the Map page: "" where you are, a planet's id, "cruiser", or
+## "system" (the star system's chart, as a whole).
 func open_map(view: String) -> void:
 	_map_view = view
 	globe.zoom = 1.0
 	_refresh_map()
-	if view != "":
+	if view == "system":
+		system_view.reset()
+	elif view != "":
 		globe.focus(Vector2.ZERO)
+
+
+## What the Map page opens on: the planet you are on, or the system's chart when
+## you are out in space (flying above this planet's space_altitude).
+func _map_home_view() -> String:
+	var pilot = demo.get("pilot") if demo != null else null
+	if pilot != null and bool(pilot.get("piloting")) and pilot.get("atmo") != null:
+		if pilot.atmo.altitude() >= pilot.atmo.space_altitude:
+			return "system"
+	return ""
 
 
 ## The planet a waypoint picked on the Map page now goes on: the one shown (the
 ## cruiser hangs over this one).
 func _map_planet() -> String:
-	return _map_view if _map_view != "" and _map_view != "cruiser" else GameFlow.current_planet_id()
+	return _map_view if not _map_view in ["", "cruiser", "system"] else GameFlow.current_planet_id()
 
 
 ## Rebuild the map's pins and off-planet list from the scene (the town's stops
@@ -462,29 +491,36 @@ func _map_planet() -> String:
 ## ground, its places, no town stops and no you.
 func _refresh_map(centre := false) -> void:
 	if centre:
-		_map_view = ""
+		_map_view = _map_home_view()
 	var here := GameFlow.current_planet_id()
 	var live := _map_view == ""
 	var on_cruiser := _map_view == "cruiser"
-	var other: Dictionary = {} if live or on_cruiser else GlobeMap.other_planet(_map_view)
+	var on_system := _map_view == "system"
+	var other: Dictionary = {} if live or on_cruiser or on_system else GlobeMap.other_planet(_map_view)
 	var sphere: PlanetSphere = PlanetSphere.current if live else other.get("sphere", null)
 	var world: Dictionary = (demo.world if demo != null else {}) if live else other.get("planet", {}).get("world", {})
 	var planet: Dictionary = (demo.planet if demo != null else {}) if live else other.get("planet", {})
 	var shown := _map_planet()
-	globe.visible = sphere != null and not on_cruiser
-	_no_globe.visible = sphere == null and not on_cruiser
+	globe.visible = sphere != null and not on_cruiser and not on_system
+	_no_globe.visible = sphere == null and not on_cruiser and not on_system
 	cruiser_view.visible = on_cruiser
-	_map_back.visible = not live
-	_map_back.text = GlobeMap.line("back") % GlobeMap.planet_name(here)
-	_map_you.visible = live
+	system_view.visible = on_system
+	var home_view := _map_home_view()
+	_map_back.visible = _map_view != home_view
+	_map_back.text = GlobeMap.line("back") % (GlobeMap.line("system") if home_view == "system" else GlobeMap.planet_name(here))
+	_map_you.visible = live or on_system
 	_map_home.visible = not on_cruiser
+	_map_home.text = GlobeMap.line("system_reset" if on_system else "home")
 	var w := WorldState.map_waypoint
 	var w_here := str(w.get("planet", "")) == shown
 	if on_cruiser:
 		_refresh_cruiser(w_here)
+	elif on_system:
+		_map_title.text = GlobeMap.line("system_title")
+		_refresh_system(centre)
 	else:
 		_map_title.text = GlobeMap.planet_name(shown)
-	if sphere != null and not on_cruiser:
+	if sphere != null and not on_cruiser and not on_system:
 		globe.radius_m = sphere.radius
 		globe.town_zoom = float(GlobeMap.cfg().get("town_zoom", 14.0)) if live else INF
 		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null and live else []
@@ -492,6 +528,7 @@ func _refresh_map(centre := false) -> void:
 		globe.shapes = GlobeMap.station_shapes(planet)
 		var mesas: Array = DesertLandforms.mesa_spots if DesertLandforms.mesa_planet == shown else []
 		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [shown, mesas.size()], sphere, mesas)
+		globe.terrain = GlobeMap.terrain_look(planet)
 	globe.selected = GlobeMap.waypoint_id() if w_here and not str(w.get("target", "")).begins_with("cruiser") else ""
 	var t := str(w.get("target", ""))
 	globe.spot = Vector2(float(t.get_slice(":", 1).get_slice(",", 0)), float(t.get_slice(",", 1))) \
@@ -500,8 +537,13 @@ func _refresh_map(centre := false) -> void:
 	if centre and globe.player != Vector2.INF:
 		globe.focus(globe.player)
 	globe.queue_redraw()
-	var travel = demo.pilot.travel if demo != null and demo.get("pilot") != null and demo.pilot.travel != null else null
-	_off_planet = GlobeMap.off_planet(travel.bodies if travel != null else [], demo.world if demo != null else {})
+	# The star system's chart, then every planet in it (this one too: its own
+	# map, where you are), then the cruiser when this world has one.
+	var bodies: Array = []
+	for b in GlobeMap.system():
+		bodies.append({ "id": b.id, "name": GlobeMap.line("system_here") % b.label if str(b.id) == here else b.label })
+	_off_planet = [{ "id": "system", "kind": "system", "label": GlobeMap.line("system"), "target": "system:" }] \
+		+ GlobeMap.off_planet(bodies, demo.world if demo != null else {})
 	for c in _off_box.get_children():
 		c.queue_free()
 	var pins_look: Dictionary = GlobeMap.look().get("pins", {})
@@ -513,7 +555,9 @@ func _refresh_map(centre := false) -> void:
 		b.toggle_mode = true
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var view := "cruiser" if str(o.kind) == "cruiser" else str(o.target).get_slice(":", 1)
+		var view := "cruiser" if str(o.kind) == "cruiser" else ("system" if str(o.kind) == "system" else str(o.target).get_slice(":", 1))
+		if view == here:
+			view = ""
 		b.set_pressed_no_signal(view == _map_view)
 		b.pressed.connect(func(): open_map(view))
 		row.add_child(b)
@@ -524,7 +568,45 @@ func _refresh_map(centre := false) -> void:
 		_off_box.add_child(l)
 	var now := Objective.current()
 	_map_note.text = (GlobeMap.line("waypoint") % str(now.text) if now.get("key", "") != "map" else str(now.text)) \
-		if not now.is_empty() else GlobeMap.line("none")
+		if not now.is_empty() else GlobeMap.line("system_hint" if on_system else "none")
+
+
+## The star system's chart: its planets, the cruiser, you and the other LAN
+## players wherever you are (this scene's points carried into the system's frame),
+## and the planet the pointer leads to. `centre`: the whole system, nothing moved.
+func _refresh_system(centre: bool) -> void:
+	var here := GameFlow.current_planet_id()
+	system_view.bodies = GlobeMap.system()
+	system_view.here = here
+	system_view.cruiser = GlobeMap.system_cruiser()
+	system_view.cruiser_label = str(GlobeMap.kind_cfg("cruiser").get("label", ""))
+	system_view.player = Vector3.INF
+	system_view.heading = Vector2.ZERO
+	system_view.others = []
+	var p = demo.get("_player") if demo != null else null
+	if p is Node3D and is_instance_valid(p):
+		var at: Vector3 = (p as Node3D).global_position
+		system_view.player = GlobeMap.to_system(at, here)
+		var cam := get_viewport().get_camera_3d()
+		var fwd: Vector3 = -cam.global_basis.z if cam != null else -(p as Node3D).global_basis.z
+		system_view.heading = Vector2(fwd.x, fwd.z)
+		for o in NetSession.others():
+			system_view.others.append({ "id": o.id, "pos": GlobeMap.to_system(o.pos, here), "name": o.name })
+	var goal := ""
+	var now := Objective.current()
+	var t := str(now.get("target", ""))
+	if t.begins_with("planet:"):
+		goal = t.get_slice(":", 1)
+	elif t.begins_with("cruiser"):
+		goal = "cruiser"
+	elif now.get("key", "") == "map":
+		goal = str(WorldState.map_waypoint.get("planet", ""))
+	elif not now.is_empty():
+		goal = here
+	system_view.goal = goal
+	if centre or system_view.pan == Vector2.ZERO:
+		system_view.reset()
+	system_view.queue_redraw()
 
 
 ## Where you are and which way you look, the other LAN players (on foot or in a

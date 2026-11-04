@@ -311,6 +311,13 @@ below).
   `gas_ring.gdshader`, not solid). Seen from another planet both fade into the
   daylight sky the way the painting did. The giant's own scene draws the same
   ring (`TownDemo._dress_gas_ring`).
+- **`body.relief`** (the home planet's): its dunes baked flat into a print, a
+  cubemap of the ground's normal and height (`assets/planets/port_desert_relief.png`,
+  written by `tools/planets/bake_relief.gd` from `PlanetSphere`'s own dunes).
+  Seen from the moon it is a smooth ball with that print in `sand.gdshader`
+  instead of a lumpy faceted rock. `relief_tilt` steepens the slopes so they
+  read from kilometres off; `relief_crest` lightens crests. Re-bake when the
+  dunes change.
 - **`replaces_sky_painting: true`** turns the painted giant off on the planet
   itself and on any planet whose sky it hangs in (`PlanetGen.sky_painting`).
   Grit Station keeps its painting.

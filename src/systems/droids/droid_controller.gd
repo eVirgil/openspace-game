@@ -128,6 +128,9 @@ func _ready() -> void:
 	if demo != null and "droid_merchant_outposts" in demo and demo.droid_merchant_outposts != null:
 		for site in demo.droid_merchant_outposts.sites:
 			vendor_sites.append(site)
+	if demo != null and "ranches" in demo and demo.ranches != null:
+		for site in demo.ranches.droid_sites:        # a ranch village's droid stand
+			vendor_sites.append(site)
 	net_copy = demo != null and "lan_shared" in demo and bool(demo.lan_shared)
 	if _on_ball() and not roster().wrecks_seeded:
 		var starting_count := int(cfg.get("wrecks", {}).get("ball_starting_count", 8))
@@ -241,6 +244,8 @@ func _vendor_site_open(site: int) -> bool:
 	if site >= 0 and site < vendor_sites.size() \
 			and str(vendor_sites[site].get("id", "")).begins_with("droid_post_"):
 		return true
+	if site >= 0 and site < vendor_sites.size() and vendor_sites[site].get("open") is Callable:
+		return bool((vendor_sites[site].open as Callable).call())   # a ranch's stand: its keeper's
 	return _vendor_open()
 
 
@@ -283,8 +288,7 @@ func interact() -> String:
 			if opts.is_empty():
 				_toast(_l("empty_hold"))
 				return ""
-			var d := roster().find(int(focus.uid))
-			_open_menu(_l("menu_hold") % [d.get("cargo", {}).size(), DroidRoster.cargo_slots(d)], opts, _on_hold.bind(int(focus.uid)))
+			_open_hold(int(focus.uid), opts)
 			return "menu"
 	return ""
 
@@ -302,8 +306,8 @@ func _select_vendor(site: int) -> void:
 	vendor_face = vendor_sites[site].face
 
 
-func _open_menu(title: String, opts: Array, pick: Callable) -> void:
-	menu.open(title, opts, pick)
+func _open_menu(title: String, opts: Array, pick: Callable, keep_cursor := false) -> void:
+	menu.open(title, opts, pick, "", keep_cursor)
 	if not player.locked:
 		player.locked = true
 		_was_locked = true
@@ -520,7 +524,16 @@ func _on_make_room(id: String, then: Callable, declined: Callable) -> void:
 		declined.call()
 
 
+## A cargo droid's hold menu. keep_cursor: reopened after a stash, so you can stash
+## one more without starting over.
+func _open_hold(uid: int, opts: Array, keep_cursor := false) -> void:
+	var d := roster().find(uid)
+	_open_menu(_l("menu_hold") % [d.get("cargo", {}).size(), DroidRoster.cargo_slots(d)], opts, _on_hold.bind(uid), keep_cursor)
+
+
 ## Stash what the hold has a slot for (or already holds some of), and unload.
+## Enter (or "Stash one") stashes one of a stack; Shift+Enter (or "Stash all") the
+## whole stack.
 func hold_options(uid: int) -> Array:
 	var out := []
 	var inv := WorldState.inventory
@@ -529,7 +542,15 @@ func hold_options(uid: int) -> Array:
 		if not DroidRoster.hold_has_room(d, str(id)):
 			continue
 		var it: Dictionary = WorldState._item(str(id))
-		out.append({ "id": "stash:" + str(id), "text": _l("stash") % [str(it.get("label", id)), inv.count(str(id))] })
+		var row := { "id": "stash:" + str(id), "text": _l("stash") % [str(it.get("label", id)), inv.count(str(id))] }
+		if inv.count(str(id)) > 1:
+			row["alt"] = "stash_all:" + str(id)
+			row["alt_hint"] = _l("stash_all_hint")
+			row["buttons"] = [{ "id": "stash:" + str(id), "text": _l("stash_one_button") },
+				{ "id": "stash_all:" + str(id), "text": _l("stash_all_button") }]
+		else:
+			row["buttons"] = [{ "id": "stash:" + str(id), "text": _l("stash_button") }]
+		out.append(row)
 	var held: Array = []
 	for id in d.get("cargo", {}):
 		held.append("%s x%d" % [str(WorldState._item(str(id)).get("label", id)), int(d.cargo[id])])
@@ -545,13 +566,19 @@ func _on_hold(id: String, uid: int) -> void:
 		for n in roster().find(uid).get("cargo", {}).values():
 			left += int(n)
 		_toast(_l("unloaded") % moved if left == 0 else _l("unload_partial") % left)
-	elif id.begins_with("stash:"):
-		var item := id.substr(6)
+	elif id.begins_with("stash:") or id.begins_with("stash_all:"):
+		var all := id.begins_with("stash_all:")
+		var item := id.substr(id.find(":") + 1)
 		var d := roster().find(uid)
-		if roster().stash(uid, WorldState.inventory, item, WorldState.inventory.count(item)):
-			_toast(_l("stashed") % str(WorldState._item(item).get("label", item)))
+		var n := WorldState.inventory.count(item) if all else 1
+		var label := str(WorldState._item(item).get("label", item))
+		if n > 0 and roster().stash(uid, WorldState.inventory, item, n):
+			_toast(_l("stashed_many") % [n, label] if n > 1 else _l("stashed") % label)
 			if gear != null:
 				gear.sync_gear()        # a stashed jetpack comes off your back
+			var opts := hold_options(uid)
+			if not opts.is_empty():
+				_open_hold(uid, opts, true)     # stay open: stash the next one
 		elif not DroidRoster.hold_has_room(d, item):
 			_toast(_l("hold_full") % [d.get("cargo", {}).size(), DroidRoster.cargo_slots(d)])
 	_beep(companions.get(uid))

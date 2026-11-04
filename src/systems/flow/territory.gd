@@ -210,6 +210,24 @@ static func remnant_short(id: String) -> bool:
 	return remnant_cut_off(f) and remnant_clocked(f).has(id) and hold_left(id) <= rn("warn_s", 2400.0)
 
 
+## The ranch villages' outposts (their location's "after_cruiser"): the Remnant
+## there answer to the cruiser, so killing them all hands nothing over until it
+## has fallen (Story.cruiser_taken); they come back like any outpost's. The same
+## rule as the barracks: the cruiser first, then its guards.
+static func locked(id: String) -> bool:
+	return not Story.cruiser_taken() and after_cruiser(id)
+
+
+static var _after_cruiser := {}
+
+static func after_cruiser(id: String) -> bool:
+	if not _after_cruiser.has(id):
+		var f := FileAccess.open("res://content/core/locations/%s.json" % id, FileAccess.READ)
+		var d = JSON.parse_string(f.get_as_text()) if f != null else null
+		_after_cruiser[id] = d is Dictionary and bool(d.get("after_cruiser", false))
+	return bool(_after_cruiser[id])
+
+
 ## The Remnant still give you work (the general's band: not hostile).
 static func remnant_friend() -> bool:
 	return int(WorldState.standing.get("imperial_remnant", 0)) >= int(rn("friend_from", -39.0))
@@ -287,7 +305,7 @@ static func tick(dt: float) -> void:
 		_tick_front(f, dt)
 	if WorldState.has_flag(DRIVEN_OFF):
 		return
-	# All seven already held with the barracks back too (the town retaken, then
+	# Every outpost already held with the barracks back too (the town retaken, then
 	# freed): no outpost is left to take, so the drive-off happens here.
 	if lost() == Story.OUTPOSTS.size() and not WorldState.has_flag(RETAKEN):
 		_drive_off()

@@ -94,7 +94,7 @@ func use_sphere(s: PlanetSphere) -> void:
 var rock_look := {}
 const ROCK_SHADER := preload("res://src/systems/look/shaders/moon_rock.gdshader")
 ## A gas ball's cloud tops (GasSphere): the ringed giant's banded look
-## (gas_giant.gdshader), { color_a, color_b, bands, ring_normal }.
+## (gas_giant.gdshader), { color_a, color_b, bands, ring_normal, haze }.
 var gas_look := {}
 const GAS_SHADER := preload("res://src/systems/look/shaders/gas_giant.gdshader")
 
@@ -116,7 +116,9 @@ func _ground_material(center: Vector3) -> ShaderMaterial:
 	if not gas_look.is_empty():
 		m.shader = GAS_SHADER              # a gas ball's cloud tops: the ringed giant's bands
 		for k in gas_look:
-			m.set_shader_parameter(k, gas_look[k])
+			if k != "haze":
+				m.set_shader_parameter(k, gas_look[k])
+		SpaceTravel.set_gas_fog(m, gas_look.get("haze", {}), sphere.radius + sphere.elevation(Vector3.UP))
 		return m
 	var lava_sphere: AsteroidSphere = sphere as AsteroidSphere if sphere is AsteroidSphere and (sphere as AsteroidSphere).has_lava() else null
 	m.shader = LAVA_SHADER if lava_sphere != null else (SAND_SHADER if rock_look.is_empty() else ROCK_SHADER)
@@ -152,6 +154,7 @@ static func gas_look_for(planet: Dictionary) -> Dictionary:
 		"color_b": Color(str(body.get("dark", "#8a6f68"))),
 		"bands": float(body.get("bands", 22.0)),
 		"ring_normal": GameFlow.vec(ring.get("normal", [0.25, 0.95, 0.2])).normalized(),
+		"haze": body.get("haze", {}),
 	}
 
 
@@ -249,23 +252,27 @@ const LAVA_PAD_HALF := 26.0
 const LAVA_PAD_LIFT := 1.5
 
 static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
-	var sites: Array = []                # the port's outposts, and the moon's (remnant_outpost_moon_*)
+	var sites: Array = []                # the port's outposts and ranches, and the moons' (remnant_outpost_moon_*, _lava_*)
 	for lm in planet.get("world", {}).get("landmarks", []):
 		var location_id := str(lm.get("location", ""))
-		if not location_id.begins_with("remnant_outpost_"):
+		if not (location_id.begins_with("remnant_outpost_") or location_id.begins_with("ranch_")):
 			continue
 		var loc = ItemKit._read_json("res://content/core/locations/%s.json" % location_id)
+		if not (loc is Dictionary) or not bool(loc.get("pad", true)):
+			continue             # a ranch village's outpost: the ranch's yard levels it
 		var half := 0.0
-		for b in (loc.get("buildings", []) if loc is Dictionary else []):
+		for b in loc.get("buildings", []):
 			var bs := WorldGround._v3(b.get("size", [0, 0, 0]))
 			var bp := WorldGround._v3(b.get("position", [0, 0, 0]))
 			half = maxf(half, Vector2(bp.x, bp.z).length() + Vector2(bs.x, bs.z).length() * 0.5)
 		if half <= 0.0:
 			continue
-		half += OUTPOST_PAD_MARGIN
+		# Ranch villages: their walled yard, a set size ("pad_half", "pad_blend").
+		half = float(loc.get("pad_half", half + OUTPOST_PAD_MARGIN))
+		var blend := float(loc.get("pad_blend", OUTPOST_PAD_BLEND))
 		var lava := sp is AsteroidSphere and (sp as AsteroidSphere).has_lava()
 		if lava:
-			half = maxf(half, LAVA_PAD_HALF)
+			half = maxf(half, LAVA_PAD_HALF)     # the lava moon's outposts: a raised basalt mound
 		var at := WorldGround._v3(lm.get("at", [0, 0, 0]))
 		var sum := 0.0
 		for i in 3:
@@ -280,7 +287,7 @@ static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
 			"y": y,
 			"plane_c": mid,
 			"plane_u": sp.up_at(mid),
-			"blend": OUTPOST_PAD_BLEND,
+			"blend": blend,
 		})
 	return sites
 
