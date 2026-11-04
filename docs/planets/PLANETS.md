@@ -345,7 +345,11 @@ below).
   sealed station with a pit can take the same block.
 - Five Remnant outposts on the rock (its `"landmarks"`, location files
   `remnant_outpost_moon_*`). Who holds them and the barracks is Territory's
-  `"moon"` front (`content/core/story/territory.json`): the port's rules, no quest.
+  `"fronts"` `"moon"` (`content/core/story/territory.json`): the port's rules, no quest.
+  The lava moon (`cinder_station.json`) has the same `"domes"` and five outposts
+  of its own (`remnant_outpost_lava_*`, front `"lava_moon"`). On a ball with lava an
+  outpost's pad is raised over it (`PlanetTerrain.outpost_flat_sites`). Another
+  planet to take is one more `"fronts"` block plus its landmarks.
 
 `scenes/planets_trace.gd` flies the whole trip in CI. It takes off and flies to
 the station, whose scene takes over in mid-flight with no fade. It drops under

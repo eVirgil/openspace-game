@@ -4,7 +4,7 @@
   "npcs": ["fixer", "cantina_owner"],
   "weapons": ["pistol_blaster", "rifle_blaster", "energy_blade", "sniper_rifle", "ship_cannon", "ship_missile"],
   "factions": ["imperial_remnant", "smuggler", "locals", "dune_nomads"],
-  "locations": ["outpost", "skrugs_post", "skrugs_post_round", "skrugs_ramp", "remnant_outpost_near", "remnant_outpost_mid", "remnant_outpost_far", "remnant_outpost_north", "remnant_outpost_south", "remnant_outpost_west", "remnant_outpost_southwest", "remnant_outpost_moon_crater", "remnant_outpost_moon_ridge", "remnant_outpost_moon_farside", "remnant_outpost_moon_rim", "remnant_outpost_moon_plain", "mechanic_yard", "droid_post_wash", "droid_post_ridge", "droid_post_basin"],
+  "locations": ["outpost", "skrugs_post", "skrugs_post_round", "skrugs_ramp", "remnant_outpost_near", "remnant_outpost_mid", "remnant_outpost_far", "remnant_outpost_north", "remnant_outpost_south", "remnant_outpost_west", "remnant_outpost_southwest", "remnant_outpost_moon_crater", "remnant_outpost_moon_ridge", "remnant_outpost_moon_farside", "remnant_outpost_moon_rim", "remnant_outpost_moon_plain", "remnant_outpost_lava_caldera", "remnant_outpost_lava_ridge", "remnant_outpost_lava_cinder", "remnant_outpost_lava_basalt", "remnant_outpost_lava_glow", "mechanic_yard", "droid_post_wash", "droid_post_ridge", "droid_post_basin"],
   "missions": ["crate_retrieval"],
   "ships": ["interceptor", "freighter", "courier", "gunship", "remnant_fighter", "remnant_heavy", "remnant_interceptor", "remnant_freighter"],
   "pilots": ["rookie", "veteran", "ace", "remnant_hunter", "remnant_patrol"],
