@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.6.1 (2026-11-04)
+
+- Share builds are now **OpenSpace V1.6.1**. Everything below, down to "New
+  version is 1.5", is in it.
+
 ## The ringed giant: a real gas planet with the station as its town (2026-11-03)
 
 - **The ringed giant in the port's sky is real now,** in the same spot and about
