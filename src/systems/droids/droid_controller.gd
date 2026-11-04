@@ -1415,7 +1415,7 @@ func _still_posted(u: DroidUnit) -> bool:
 		return true
 	if u.spec.has("outpost"):
 		return Territory.owner(str(u.spec.outpost)) == side
-	return Territory.owner(Territory.BARRACKS) == side
+	return Territory.owner(Territory.barracks_here()) == side
 
 
 ## A destroyed Remnant droid comes back: in town behind the barracks a minute

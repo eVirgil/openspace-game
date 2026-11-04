@@ -338,6 +338,14 @@ below).
   then it was Ilka Vell, on a card of her own).
 - She wears Oda's model re-tinted steel-blue with cyan goggles (archetype
   `cantina_owner_station` in `content/look/characters.json`).
+- Two more domes off the landing pit (`"domes"`: `[{ id, side, fill }]`, sides
+  `+z`, `-z` or `+x`), each as big as the first at the end of its own tunnel:
+  `fill: "barracks"` (the Remnant's metal barracks) and `fill: "homes"` (the gray
+  homes). What fills them is `content/core/planets/town_kit.json` `"domes"`. Any
+  sealed station with a pit can take the same block.
+- Five Remnant outposts on the rock (its `"landmarks"`, location files
+  `remnant_outpost_moon_*`). Who holds them and the barracks is Territory's
+  `"moon"` front (`content/core/story/territory.json`): the port's rules, no quest.
 
 `scenes/planets_trace.gd` flies the whole trip in CI. It takes off and flies to
 the station, whose scene takes over in mid-flight with no fade. It drops under

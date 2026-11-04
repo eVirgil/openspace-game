@@ -244,9 +244,7 @@ const OUTPOST_PAD_MARGIN := 2.5
 const OUTPOST_PAD_BLEND := 12.0
 
 static func outpost_flat_sites(planet: Dictionary, sp: PlanetSphere) -> Array:
-	if str(planet.get("id", "")) != PlanetGen.home_id():
-		return []
-	var sites: Array = []
+	var sites: Array = []                # the port's outposts, and the moon's (remnant_outpost_moon_*)
 	for lm in planet.get("world", {}).get("landmarks", []):
 		var location_id := str(lm.get("location", ""))
 		if not location_id.begins_with("remnant_outpost_"):

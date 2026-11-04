@@ -489,6 +489,7 @@ func _refresh_map(centre := false) -> void:
 		globe.town_zoom = float(GlobeMap.cfg().get("town_zoom", 14.0)) if live else INF
 		var town: Array = GlobeMap.town_pins(demo.town, WorldState.current_town_id(), sphere.world_to_map) if demo != null and live else []
 		globe.pins = GlobeMap.pins(world, planet, town)
+		globe.shapes = GlobeMap.station_shapes(planet)
 		var mesas: Array = DesertLandforms.mesa_spots if DesertLandforms.mesa_planet == shown else []
 		globe.ground = GlobeTerrain.for_sphere("%s/%d" % [shown, mesas.size()], sphere, mesas)
 	globe.selected = GlobeMap.waypoint_id() if w_here and not str(w.get("target", "")).begins_with("cruiser") else ""

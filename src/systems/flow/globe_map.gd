@@ -70,9 +70,11 @@ static func kind_cfg(kind: String) -> Dictionary:
 ## already laid out for its town), `planet` the planet (its native packs),
 ## `town` the port's own stops (town_pins).
 static func pins(world: Dictionary, planet: Dictionary, town: Array = []) -> Array:
+	var front := Territory.front_for_planet(str(planet.get("id", world.get("planet", ""))))
 	var port := _pin("port", "port", _kind_label("port"), Vector2.ZERO)
-	_stamp_owner(port, Territory.BARRACKS)
+	_stamp_owner(port, Territory.barracks_of(front))
 	var out: Array = [port]
+	out.append_array(station_pins(planet, front))
 	var skip: Array = cfg().get("skip", [])
 	for lm in world.get("landmarks", []):
 		var id := str(lm.get("id", ""))
@@ -89,7 +91,7 @@ static func pins(world: Dictionary, planet: Dictionary, town: Array = []) -> Arr
 		label = str(cfg().get("labels", {}).get(id, label if label != "" else _kind_label(kind)))
 		var at: Array = lm.at
 		var pin := _pin(id, kind, _cap(label), Vector2(float(at[0]), float(at[2])))
-		if Story.OUTPOSTS.has(id):
+		if Territory.outposts(front).has(id):
 			_stamp_owner(pin, id)
 		out.append(pin)
 	for pack in planet.get("natives", {}).get("packs", []):
@@ -103,6 +105,56 @@ static func pins(world: Dictionary, planet: Dictionary, town: Array = []) -> Arr
 		out.append(p)
 	for t in town:
 		out.append(t)
+	return out
+
+
+## A sealed station's places past its first dome (the moon's): the landing pit and
+## each dome off it ("Barracks", "Homes"), at their middles. The barracks' pin says
+## who holds it. Town coordinates are map coordinates on the station's plateau.
+static func station_pins(planet: Dictionary, front: String = Territory.HOME) -> Array:
+	var out: Array = []
+	var st: Dictionary = planet.get("town", {}).get("station", {})
+	if st.is_empty() or (st.get("domes", []) as Array).is_empty():
+		return out
+	var pc: Array = st.get("pit", {}).get("center", [0, 0, 0])
+	out.append(_pin("station_bay", "bay", _kind_label("bay"), Vector2(float(pc[0]), float(pc[2]))))
+	for d in st.get("domes", []):
+		var kind := str(d.get("fill", "dome"))
+		if kind_cfg(kind).is_empty():
+			kind = "dome"
+		var c: Array = d.get("center", [0, 0, 0])
+		var pin := _pin("station_" + str(d.id), kind, _kind_label(kind), Vector2(float(c[0]), float(c[2])))
+		if kind == "barracks":
+			_stamp_owner(pin, Territory.barracks_of(front))
+		out.append(pin)
+	return out
+
+
+## The station's outline for the globe to draw under its pins: each dome as a
+## circle and each tunnel as a band, in map metres:
+## [{ kind: "dome", map, r }, { kind: "tunnel", a, b, w }].
+static func station_shapes(planet: Dictionary) -> Array:
+	var out: Array = []
+	var st: Dictionary = planet.get("town", {}).get("station", {})
+	if st.is_empty():
+		return out
+	var rc: Array = st.get("center", [0, 0, 0])
+	var c0 := Vector2(float(rc[0]), float(rc[2]))
+	out.append({ "kind": "dome", "map": c0, "r": float(st.get("radius", 36.0)) })
+	var pc: Array = st.get("pit", {}).get("center", [0, 0, 0])
+	var pit := Vector2(float(pc[0]), float(pc[2]))
+	var pr := float(st.get("pit", {}).get("radius", 28.0))
+	out.append({ "kind": "pit", "map": pit, "r": pr })
+	var hall: Dictionary = st.get("hall", {})
+	if not hall.is_empty():
+		out.append({ "kind": "tunnel", "a": Vector2(float(hall.x0), c0.y), "b": Vector2(float(hall.rim), c0.y), "w": float(hall.half) * 2.0 })
+	for d in st.get("domes", []):
+		var c: Array = d.get("center", [0, 0, 0])
+		var dm := Vector2(float(c[0]), float(c[2]))
+		var hb: Dictionary = d.get("hall", {})
+		var dir := Vector2(float(hb.dir[0]), float(hb.dir[1]))
+		out.append({ "kind": "dome", "map": dm, "r": float(d.get("radius", 36.0)) })
+		out.append({ "kind": "tunnel", "a": pit + dir * float(hb.rim), "b": pit + dir * float(hb.far), "w": float(hb.half) * 2.0 })
 	return out
 
 
@@ -255,7 +307,7 @@ static func cruiser_pins() -> Array:
 
 # ------------------------------------------------------------------ helpers
 
-## Who holds `place` (an outpost id, or Territory.BARRACKS for the port): owner,
+## Who holds `place` (an outpost id, or a front's barracks for its port): owner,
 ## whether the locals' supplies there are short (shown only once you have taken
 ## Oda's supply run: Territory.supplier), and the hover line for it.
 static func _stamp_owner(pin: Dictionary, place: String) -> void:
@@ -270,7 +322,8 @@ static func _stamp_owner(pin: Dictionary, place: String) -> void:
 			var rleft := int(maxf(0.0, Territory.hold_left(place)))
 			pin["status"] = (line("short") if is_short else line("remnant_held_for")) % [rleft / 60, rleft % 60]
 		return
-	if place == Territory.BARRACKS or WorldState.has_flag(Territory.DRIVEN_OFF):
+	var f := Territory.front_of(place)
+	if place == Territory.barracks_of(f) or Territory.driven_off(f) or Territory.hold_frac(place) < 0.0:
 		pin["status"] = line("held")
 		return
 	var left := int(maxf(0.0, Territory.hold_left(place)))

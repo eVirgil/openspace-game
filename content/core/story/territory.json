@@ -23,6 +23,32 @@
       "trooper_yard_b": "local_guard"
     }
   },
+  "moon": {
+    "note": "The moon's own front (src/systems/flow/territory.gd, front 'moon'): its five Remnant outposts (landmarks in content/core/planets/grit_station.json, location files remnant_outpost_moon_*) and its barracks under their own dome off the landing pit (town_kit.json 'domes', 'barracks'). The same rules as the port's, with no quest for any of it and no supply runs: kill every trooper at a moon outpost and the locals move in (the 'outposts' posts above) and keep it, with no clock, until their guards there are all dead; hold all five at once and the Remnant are driven off the moon (flag driven_off) and the locals take its barracks too. The barracks also go to the locals when the fleet is beaten; when every local guard on its posts is dead the Remnant take it back (flag retaken); once the fleet is beaten, killing every trooper there frees it again. Once the cruiser has fallen the moon's Remnant outposts run short and give up one at a time on the 'remnant' clocks above. 'barracks' 'posts': which soldier the locals put on each trooper post in the moon's town (the club door's and the barracks dome's). 'lines' replace the port's lines of the same key here.",
+    "planet": "grit_station",
+    "outposts": ["remnant_outpost_moon_crater", "remnant_outpost_moon_ridge", "remnant_outpost_moon_farside",
+      "remnant_outpost_moon_rim", "remnant_outpost_moon_plain"],
+    "barracks_id": "moon_barracks",
+    "driven_off": "moon_remnant_driven_off",
+    "retaken": "moon_town_retaken",
+    "barracks": {
+      "posts": {
+        "trooper_door": "local_gate_guard",
+        "moon_trooper_gate_a": "local_guard",
+        "moon_trooper_gate_b": "local_guard",
+        "moon_trooper_yard_a": "local_sentry",
+        "moon_trooper_yard_b": "local_sentry",
+        "moon_trooper_door": "local_guard"
+      }
+    },
+    "lines": {
+      "driven_off": "The Remnant have pulled off the moon. The station is the locals' now.",
+      "barracks": "The locals hold the moon's barracks now.",
+      "barracks_remnant": "The Remnant hold the moon's barracks again.",
+      "town_retaken": "The last of the locals' guards at the moon's barracks is dead. The Remnant are taking the station back.",
+      "town_freed": "The last of the Remnant at the moon's barracks is dead. The locals are taking the station back."
+    }
+  },
   "standing": {
     "outpost_taken": 6,
     "supplied": 3,

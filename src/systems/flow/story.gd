@@ -424,9 +424,10 @@ static func remnant_hostile() -> bool:
 
 
 ## The Remnant hold the town's barracks (issue #187: until the story is done or
-## they are driven off; then the locals do, Territory.owner).
+## they are driven off; then the locals do, Territory.owner). On the moon, the
+## moon's barracks (Territory.barracks_here).
 static func town_garrison() -> bool:
-	return Territory.owner(Territory.BARRACKS) == Territory.REMNANT
+	return Territory.owner(Territory.barracks_here()) == Territory.REMNANT
 
 
 ## Issue #193: the cruiser's general is dead; nobody is left aboard.

@@ -36,6 +36,19 @@ extends RefCounted
 ## outpost (quests), rumors (the flags below), the objective pointer, the F1
 ## screen (summary) and the F11 map (GlobeMap).
 ##
+## The moon (territory.json "moon", a second front): its own outposts, its own
+## barracks under a dome and its own drive-off flag, on the same rules as the
+## port's: kill every trooper at a moon outpost and the locals move in (no hold
+## clock there and no supply runs: they keep it until their guards there are all
+## dead); hold all of them at once and the Remnant are driven off the moon, and the
+## locals take its barracks. The moon's barracks also go to the locals when the
+## fleet is beaten, the Remnant take them back when the locals' guards there are
+## all dead, and once the fleet is beaten killing every trooper there frees them.
+## Once the cruiser has fallen the moon's Remnant outposts run short and give up
+## one at a time too (no resupply quests there). Every function that takes a
+## `front` ("home" or "moon") defaults to the port's; one that takes a place id
+## works out its front from the id (front_of).
+##
 ## Numbers and lines: content/core/story/territory.json.
 
 const PATH := "res://content/core/story/territory.json"
@@ -46,6 +59,8 @@ const DRIVEN_OFF := "remnant_driven_off"
 const RETAKEN := "town_retaken"
 const SUPPLY_JOB := "j_supply"
 const SUPPLIER := "supply_job_taken"
+const HOME := "home"
+const MOON := "moon"
 
 static var _cfg: Dictionary = {}
 
@@ -67,28 +82,85 @@ static func line(key: String) -> String:
 
 
 static func places() -> Array:
-	return Story.OUTPOSTS + [BARRACKS]
+	return Story.OUTPOSTS + [BARRACKS] + outposts(MOON) + [barracks_of(MOON)]
+
+
+# ------------------------------------------------------------------ fronts
+
+## A front's block: { outposts, barracks, driven_off, retaken, dead, remnant_dead,
+## clock (locals hold on a clock), lines, posts (the barracks') }.
+static func front(f: String) -> Dictionary:
+	if f == MOON:
+		var m: Dictionary = cfg().get(MOON, {})
+		return { "outposts": m.get("outposts", []), "barracks": str(m.get("barracks_id", "moon_barracks")),
+			"driven_off": str(m.get("driven_off", "moon_remnant_driven_off")), "retaken": str(m.get("retaken", "moon_town_retaken")),
+			"dead": "moon_barracks_dead", "remnant_dead": "moon_remnant_dead", "clock": false,
+			"lines": m.get("lines", {}), "posts": m.get(BARRACKS, {}).get("posts", {}), "planet": str(m.get("planet", "")) }
+	return { "outposts": Story.OUTPOSTS, "barracks": BARRACKS, "driven_off": DRIVEN_OFF, "retaken": RETAKEN,
+		"dead": "barracks_dead", "remnant_dead": "remnant_dead", "clock": true, "lines": cfg().get("lines", {}),
+		"posts": cfg().get(BARRACKS, {}).get("posts", {}), "planet": "" }
+
+
+static func outposts(f: String = HOME) -> Array:
+	return front(f).outposts
+
+
+static func barracks_of(f: String = HOME) -> String:
+	return str(front(f).barracks)
+
+
+## The front place `id` (an outpost or a barracks) belongs to.
+static func front_of(id: String) -> String:
+	var m: Dictionary = cfg().get(MOON, {})
+	return MOON if (m.get("outposts", []) as Array).has(id) or id == str(m.get("barracks_id", "moon_barracks")) else HOME
+
+
+## The front of planet `planet_id` (the moon's planet is the moon's; any other the port's).
+static func front_for_planet(planet_id: String) -> String:
+	var m := str(cfg().get(MOON, {}).get("planet", ""))
+	return MOON if m != "" and planet_id == m else HOME
+
+
+## The front of the planet you are on.
+static func here() -> String:
+	return front_for_planet(GameFlow.current_planet_id())
+
+
+## The barracks of the planet you are on.
+static func barracks_here() -> String:
+	return barracks_of(here())
+
+
+## A front's line (the moon's own, else the port's).
+static func fline(f: String, key: String) -> String:
+	var l = front(f).lines.get(key, null)
+	return str(l) if l != null else line(key)
+
+
+static func driven_off(f: String = HOME) -> bool:
+	return WorldState.has_flag(str(front(f).driven_off))
 
 
 ## "remnant" or "locals".
 static func owner(id: String) -> String:
-	if id == BARRACKS:
-		if WorldState.has_flag(DRIVEN_OFF):
+	var fc := front(front_of(id))
+	if id == str(fc.barracks):
+		if WorldState.has_flag(fc.driven_off):
 			return LOCALS
-		return LOCALS if Story.remnant_gone() and not WorldState.has_flag(RETAKEN) else REMNANT
-	if WorldState.has_flag(DRIVEN_OFF):
+		return LOCALS if Story.remnant_gone() and not WorldState.has_flag(fc.retaken) else REMNANT
+	if WorldState.has_flag(fc.driven_off):
 		return LOCALS
 	var c = WorldState.control.get(id, {})
 	return str(c.get("owner", REMNANT)) if c is Dictionary else REMNANT
 
 
-static func held() -> Array:
-	return Story.OUTPOSTS.filter(func(id): return owner(str(id)) == LOCALS)
+static func held(f: String = HOME) -> Array:
+	return outposts(f).filter(func(id): return owner(str(id)) == LOCALS)
 
 
 ## Outposts the Remnant have lost.
-static func lost() -> int:
-	return held().size()
+static func lost(f: String = HOME) -> int:
+	return held(f).size()
 
 
 static func hold_left(id: String) -> float:
@@ -98,7 +170,7 @@ static func hold_left(id: String) -> float:
 
 ## The locals there are running short (a supply run would help).
 static func short(id: String) -> bool:
-	return owner(id) == LOCALS and not WorldState.has_flag(DRIVEN_OFF) and hold_left(id) <= n("supply_warn_s", 420.0)
+	return front_of(id) == HOME and owner(id) == LOCALS and not WorldState.has_flag(DRIVEN_OFF) and hold_left(id) <= n("supply_warn_s", 420.0)
 
 
 ## Issue #425: a number from territory.json "remnant" (the Remnant's clocks).
@@ -108,18 +180,19 @@ static func rn(key: String, fallback: float) -> float:
 
 ## The cruiser has fallen and the Remnant still hold some of the desert: their
 ## outposts run down.
-static func remnant_cut_off() -> bool:
-	return Story.cruiser_taken() and not WorldState.has_flag(DRIVEN_OFF)
+static func remnant_cut_off(f: String = HOME) -> bool:
+	return Story.cruiser_taken() and not driven_off(f)
 
 
 ## The Remnant's outposts on a clock (only once they are cut off).
-static func remnant_clocked() -> Array:
-	return Story.OUTPOSTS.filter(func(id): return owner(str(id)) == REMNANT and WorldState.control.get(id) is Dictionary)
+static func remnant_clocked(f: String = HOME) -> Array:
+	return outposts(f).filter(func(id): return owner(str(id)) == REMNANT and WorldState.control.get(id) is Dictionary)
 
 
 ## The Remnant at outpost `id` are running short.
 static func remnant_short(id: String) -> bool:
-	return remnant_cut_off() and remnant_clocked().has(id) and hold_left(id) <= rn("warn_s", 2400.0)
+	var f := front_of(id)
+	return remnant_cut_off(f) and remnant_clocked(f).has(id) and hold_left(id) <= rn("warn_s", 2400.0)
 
 
 ## The Remnant still give you work (the general's band: not hostile).
@@ -133,56 +206,69 @@ static func remnant_friend() -> bool:
 ## the Remnant there ran out of supplies and gave up (give_up), so nobody took
 ## it: no standing and no outposts_taken count.
 static func take(id: String, quiet := false) -> void:
-	if not Story.OUTPOSTS.has(id) or owner(id) == LOCALS:
+	var f := front_of(id)
+	if not outposts(f).has(id) or owner(id) == LOCALS:
 		return
 	WorldState.control[id] = { "owner": LOCALS, "hold": n("hold_s", 900.0) }
-	Quests.fail(remnant_quest_id(id))         # it fell before a load got there
+	if f == HOME:
+		Quests.fail(remnant_quest_id(id))     # it fell before a load got there
 	if quiet:
-		WorldState.log_event(line("remnant_gave_up") % Story.outpost_label(id))
+		WorldState.log_event(fline(f, "remnant_gave_up") % Story.outpost_label(id))
 	else:
 		WorldState.bump("outposts_taken")
 		WorldState.change_standing("locals", int(cfg().get("standing", {}).get("outpost_taken", 6)), "The locals took an outpost.")
-		WorldState.log_event(line("taken") % Story.outpost_label(id))
-	if lost() == Story.OUTPOSTS.size():
-		_drive_off()
+		WorldState.log_event(fline(f, "taken") % Story.outpost_label(id))
+	if lost(f) == outposts(f).size():
+		_drive_off(f)
 	_sync_flags()
 
 
-## Every outpost is the locals': the Remnant are driven off the planet.
-static func _drive_off() -> void:
-	WorldState.set_flag(DRIVEN_OFF)
-	WorldState.set_flag(RETAKEN, false)
-	WorldState.control.erase("remnant_dead")
+## Every outpost of a front is the locals': the Remnant are driven off the planet.
+static func _drive_off(f: String = HOME) -> void:
+	var fc := front(f)
+	WorldState.set_flag(str(fc.driven_off))
+	WorldState.set_flag(str(fc.retaken), false)
+	WorldState.control.erase(str(fc.remnant_dead))
+	WorldState.log_event(fline(f, "driven_off"))
+	if f != HOME:
+		return
 	_cancel_supply()
-	WorldState.log_event(line("driven_off"))
 	for o in Story.OUTPOSTS:
 		Quests.complete(quest_id(str(o)))     # nothing left to run short
 
 
 ## The Remnant have it again.
 static func retake(id: String) -> void:
-	if owner(id) != LOCALS or WorldState.has_flag(DRIVEN_OFF):
+	var f := front_of(id)
+	if owner(id) != LOCALS or driven_off(f):
 		return
 	WorldState.control.erase(id)
-	if remnant_cut_off():                     # issue #425: cut off, they cannot hold it for ever
+	if remnant_cut_off(f):                    # issue #425: cut off, they cannot hold it for ever
 		WorldState.control[id] = { "owner": REMNANT, "hold": rn("hold_s", 6000.0) }
 	if supply_out() == id:
 		_cancel_supply()
 	WorldState.bump("outposts_retaken")
 	WorldState.set_flag("outpost_retaken")
-	WorldState.log_event(line("retaken") % Story.outpost_label(id))
-	Quests.fail(quest_id(id))
+	WorldState.log_event(fline(f, "retaken") % Story.outpost_label(id))
+	if f == HOME:
+		Quests.fail(quest_id(id))
 	_sync_flags()
 
 
-## The locals' guards at an outpost are all dead: the Remnant take it on the next tick.
+## The locals' guards at an outpost are all dead: the Remnant take it on the next
+## tick (the moon's, with no clock, at once).
 static func guards_lost(id: String) -> void:
-	if owner(id) == LOCALS and WorldState.control.get(id) is Dictionary:
+	if owner(id) != LOCALS or not WorldState.control.get(id) is Dictionary:
+		return
+	if bool(front(front_of(id)).clock):
 		WorldState.control[id].hold = 0.0
+	else:
+		retake(id)
 
 
 ## Seconds of play (WorldState.tick). The locals' hold on each outpost runs down.
 static func tick(dt: float) -> void:
+	_tick_moon(dt)
 	if WorldState.has_flag(DRIVEN_OFF):
 		return
 	# All seven already held with the barracks back too (the town retaken, then
@@ -204,6 +290,28 @@ static func tick(dt: float) -> void:
 	if remnant_cut_off():
 		_tick_remnant(dt)
 	_sync_flags()
+
+
+## The moon's front: no locals' clock; held all at once (the barracks back too)
+## drives the Remnant off it; once the cruiser has fallen their outposts run down.
+static func _tick_moon(dt: float) -> void:
+	if outposts(MOON).is_empty() or driven_off(MOON):
+		return
+	if lost(MOON) == outposts(MOON).size() and not WorldState.has_flag(str(front(MOON).retaken)):
+		_drive_off(MOON)
+		return
+	if remnant_cut_off(MOON):
+		_start_remnant_clocks(MOON)
+		for id in remnant_clocked(MOON):
+			var c: Dictionary = WorldState.control[id]
+			var was := float(c.hold)
+			c.hold = was - dt
+			if was > rn("warn_s", 2400.0) and float(c.hold) <= rn("warn_s", 2400.0):
+				WorldState.log_event(fline(MOON, "remnant_warn") % Story.outpost_label(str(id)))
+			if float(c.hold) <= 0.0:
+				give_up(str(id))
+				if driven_off(MOON):
+					return
 
 
 ## Issue #425: the Remnant at outpost `id` have run out: the locals move in.
@@ -238,9 +346,9 @@ static func _tick_remnant(dt: float) -> void:
 ## Every Remnant outpost with no clock yet gets one (the tick after the cruiser
 ## falls, or the first after loading a save from before this): the first in
 ## Story.OUTPOSTS a full hold, each one after it stagger_s less.
-static func _start_remnant_clocks() -> void:
+static func _start_remnant_clocks(f: String = HOME) -> void:
 	var i := 0
-	for id in Story.OUTPOSTS:
+	for id in outposts(f):
 		if owner(str(id)) != REMNANT or WorldState.control.get(id) is Dictionary:
 			continue
 		WorldState.control[id] = { "owner": REMNANT, "hold": maxf(1.0, rn("hold_s", 6000.0) - i * rn("stagger_s", 540.0)) }
@@ -256,77 +364,86 @@ static func _sync_flags() -> void:
 
 # ------------------------------------------------------------------ the barracks change hands (issue #303)
 
-## The barracks posts the locals put a guard on (territory.json "barracks").
-static func barracks_posts() -> Array:
-	var posts: Dictionary = cfg().get(BARRACKS, {}).get("posts", {})
+## The barracks posts the locals put a guard on (territory.json "barracks", the
+## moon's "moon" "barracks").
+static func barracks_posts(f: String = HOME) -> Array:
+	var posts: Dictionary = front(f).posts
 	return posts.keys().filter(func(k): return str(posts[k]) != "")
 
 
+## The soldier profile the locals put on barracks post `post` of front `f`, or "".
+static func barracks_local(post: String, f: String = HOME) -> String:
+	return str(front(f).posts.get(post, ""))
+
+
 ## Posts whose local guard is dead (they do not come back).
-static func barracks_dead() -> Array:
-	var d = WorldState.control.get("barracks_dead", [])
+static func barracks_dead(f: String = HOME) -> Array:
+	var d = WorldState.control.get(str(front(f).dead), [])
 	return d if d is Array else []
 
 
 ## A local guard on a barracks post died. The last one hands the town to the Remnant.
-static func barracks_guard_died(post: String) -> void:
-	if owner(BARRACKS) != LOCALS or not barracks_posts().has(post):
+static func barracks_guard_died(post: String, f: String = HOME) -> void:
+	if owner(barracks_of(f)) != LOCALS or not barracks_posts(f).has(post):
 		return
-	var dead := barracks_dead()
+	var dead := barracks_dead(f)
 	if not dead.has(post):
 		dead.append(post)
-	WorldState.control["barracks_dead"] = dead
-	if barracks_posts().all(func(p): return dead.has(p)):
-		retake_town()
+	WorldState.control[str(front(f).dead)] = dead
+	if barracks_posts(f).all(func(p): return dead.has(p)):
+		retake_town(f)
 
 
 ## The Remnant hold the town's barracks again. Driven off, this is how they come
 ## back: the outposts the locals hold start running down again from a full hold.
-static func retake_town() -> void:
-	if owner(BARRACKS) != LOCALS:
+static func retake_town(f: String = HOME) -> void:
+	var fc := front(f)
+	if owner(str(fc.barracks)) != LOCALS:
 		return
-	if WorldState.has_flag(DRIVEN_OFF):
-		WorldState.set_flag(DRIVEN_OFF, false)
-		for id in held():
+	if WorldState.has_flag(fc.driven_off):
+		WorldState.set_flag(str(fc.driven_off), false)
+		for id in held(f):
 			WorldState.control[id].hold = n("hold_s", 900.0)
-	WorldState.set_flag(RETAKEN)
-	WorldState.control.erase("barracks_dead")
-	WorldState.control.erase("remnant_dead")
-	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("town_retaken", -20)), line("town_retaken"))
-	DarkPact.on_town_retaken()
+	WorldState.set_flag(str(fc.retaken))
+	WorldState.control.erase(str(fc.dead))
+	WorldState.control.erase(str(fc.remnant_dead))
+	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("town_retaken", -20)), fline(f, "town_retaken"))
+	if f == HOME:
+		DarkPact.on_town_retaken()
 	_sync_flags()
-	WorldState.checkpoint("town_retaken")
+	WorldState.checkpoint("town_retaken" if f == HOME else "moon_town_retaken")
 
 
 ## Remnant trooper posts at the barracks whose trooper is dead. Once the fleet is
 ## beaten they do not come back: the last one hands the town to the locals.
-static func remnant_dead() -> Array:
-	var d = WorldState.control.get("remnant_dead", [])
+static func remnant_dead(f: String = HOME) -> Array:
+	var d = WorldState.control.get(str(front(f).remnant_dead), [])
 	return d if d is Array else []
 
 
 ## A Remnant trooper on barracks post `post` died; `posts` are all the town's
 ## trooper posts. Before the fleet is beaten they respawn and nothing changes.
-static func remnant_guard_died(post: String, posts: Array) -> void:
-	if not Story.remnant_gone() or owner(BARRACKS) != REMNANT or not posts.has(post):
+static func remnant_guard_died(post: String, posts: Array, f: String = HOME) -> void:
+	if not Story.remnant_gone() or owner(barracks_of(f)) != REMNANT or not posts.has(post):
 		return
-	var dead := remnant_dead()
+	var dead := remnant_dead(f)
 	if not dead.has(post):
 		dead.append(post)
-	WorldState.control["remnant_dead"] = dead
+	WorldState.control[str(front(f).remnant_dead)] = dead
 	if posts.all(func(p): return dead.has(p)):
-		free_town()
+		free_town(f)
 
 
 ## The locals hold the town's barracks again (every Remnant trooper there dead).
-static func free_town() -> void:
-	if not WorldState.has_flag(RETAKEN) or WorldState.has_flag(DRIVEN_OFF):
+static func free_town(f: String = HOME) -> void:
+	var fc := front(f)
+	if not WorldState.has_flag(fc.retaken) or WorldState.has_flag(fc.driven_off):
 		return
-	WorldState.set_flag(RETAKEN, false)
-	WorldState.control.erase("remnant_dead")
-	WorldState.control.erase("barracks_dead")
-	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("town_freed", 10)), line("town_freed"))
-	WorldState.checkpoint("town_freed")
+	WorldState.set_flag(str(fc.retaken), false)
+	WorldState.control.erase(str(fc.remnant_dead))
+	WorldState.control.erase(str(fc.dead))
+	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("town_freed", 10)), fline(f, "town_freed"))
+	WorldState.checkpoint("town_freed" if f == HOME else "moon_town_freed")
 
 
 ## The Remnant hold the whole planet: the town's barracks, and not one outpost lost.
@@ -460,10 +577,13 @@ static func quests() -> Array:
 ## when there is no clock (the Remnant's before the cruiser falls, or the
 ## Remnant are gone).
 static func hold_frac(id: String) -> float:
-	if WorldState.has_flag(DRIVEN_OFF) or not Story.OUTPOSTS.has(id):
+	var f := front_of(id)
+	if driven_off(f) or not outposts(f).has(id):
 		return -1.0
 	if owner(id) == REMNANT:
-		return clampf(hold_left(id) / rn("hold_s", 6000.0), 0.0, 1.0) if remnant_clocked().has(id) else -1.0
+		return clampf(hold_left(id) / rn("hold_s", 6000.0), 0.0, 1.0) if remnant_clocked(f).has(id) else -1.0
+	if not bool(front(f).clock):
+		return -1.0                           # the moon's locals keep it with no clock
 	return clampf(hold_left(id) / n("hold_s", 900.0), 0.0, 1.0)
 
 
@@ -499,10 +619,11 @@ static func summary() -> Array:
 	var labels: Dictionary = cfg().get("labels", {})
 	var out: Array = []
 	for id in places():
-		var label := "Barracks" if id == BARRACKS else Story.outpost_label(str(id)).trim_prefix("the ")
+		var label := "Barracks" if id == BARRACKS else ("Moon barracks" if id == barracks_of(MOON) \
+			else Story.outpost_label(str(id)).trim_prefix("the "))
 		var who := owner(str(id))
 		var tag := str(labels.get(who, who.to_upper()))
-		if id != BARRACKS and hold_frac(str(id)) >= 0.0:
+		if hold_frac(str(id)) >= 0.0:
 			var left := maxf(0.0, hold_left(str(id)))
 			var low := short(str(id)) or remnant_short(str(id))
 			tag = "%s %d:%02d" % [str(labels.get("short" if who == LOCALS else "remnant_short", tag)) if low else tag, int(left) / 60, int(left) % 60]
