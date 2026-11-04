@@ -2,6 +2,19 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After every planet in every sky (2026-11-04)
+
+**Checked:** tests/test_planets.gut.gd (the moon's neighbours, the giant and
+the painting), test_smoke, a headless boot of the home planet, and a scratch
+probe (not in the repo): take off on the moon, fly at the giant, home's scene
+takes over at 9 s, the giant's at 27 s, still flying. The moon and giant scenes
+built every other planet's look headless. Not flown on screen.
+
+- **How the giant looks from the moon was not seen on screen** (headless only):
+  it is the same banded ball and ring home's sky draws, about 20 degrees wide.
+- **Only planets round the same parent are listed.** Every planet today is near
+  home; a moon of a moon would not see its grandparent's other children.
+
 ## After the LAN guest's cruiser crash fix (2026-11-04)
 
 **Checked:** a two-process loopback probe (host and guest towns, the guest flies

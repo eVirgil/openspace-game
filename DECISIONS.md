@@ -2,6 +2,27 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — Space is one place: every planet in every sky
+
+- **The bug.** A planet's scene listed only its parent and its own children, so
+  the moon's sky had home and nothing else: no ringed giant, only the painted
+  one on the sky, which never gets closer. You could not fly from the moon to
+  the giant because there was nothing there to fly to.
+- **Siblings are listed too** (`PlanetGen.neighbours`, last, with `"via"`: the
+  parent's id). The other planets round the same parent hang where the parent's
+  scene puts them, shifted by this port, so the moon's scene and home's agree
+  on every planet and the switch between them changes nothing in the sky. With
+  the real giant in the moon's sky its painting is off there too.
+- **Seen from here, flown to through the parent.** SpaceTravel draws and names a
+  sibling but never travels to it: climb out of the moon's space and home's
+  scene (which has the giant as a child) takes over, then the giant's. Two
+  seamless handoffs, no fade. Alternative: a scene of its own for open space.
+  Rejected: home's scene already is open space (it holds every planet as a
+  child), and a third kind of scene would need its own sky, fight and arrival.
+- **Distances stay.** The moon's own space ends 4.4 km from its centre and the
+  giant's starts 6.1 km from its; they are 20 km apart, so there is open space
+  between them and no two zones touch.
+
 ## 2026-11-03 — LAN: a job anyone takes is everyone's
 
 - **The bug.** A guest's job lived only in the guest's game. A bounty put the
