@@ -393,7 +393,9 @@ func _physics_process(dt: float) -> void:
 
 	_order_brains()
 	for g in alive:
-		_run_brain(g, dt, ppos)
+		var due: float = g.brain_step(dt)   # issue #541: thinner far off, none asleep (NpcRings)
+		if due >= 0.0:
+			_run_brain(g, due, ppos)
 	_tick_card(dt)
 	_tick_face(dt)
 	_hp_hud(false)

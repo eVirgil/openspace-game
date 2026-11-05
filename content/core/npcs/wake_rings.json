@@ -1,0 +1,7 @@
+{
+  "note": "Issue #541: how often the town's own people (the town garrison, the town's locals and the locals' guards on the barracks; src/systems/npc/npc_rings.gd) think, by distance to the nearest player (the host and every LAN guest). Within near_m: every tick. Between near_m and far_m: they walk every tick but sense and run their brain every think_every ticks (their animation already thins past 40 m, NpcBody.ANIM_NEAR). Past far_m (the person draw distance, content/look/world.json): asleep (PROCESS_MODE_DISABLED, as the outposts', ranches' and cruiser's do), standing where they were until you come back. Coming back in, a ring is left hysteresis_m inside its edge, so someone on a line does not flicker. Never thinning: anyone while their side's alarm is up, anyone hostile or who has noticed you, and the gate's and zones' guards while their checkpoint is dealing with you. Outposts, ranches and the cruiser keep their own sleep.",
+  "near_m": 60.0,
+  "far_m": 320.0,
+  "hysteresis_m": 20.0,
+  "think_every": 4
+}

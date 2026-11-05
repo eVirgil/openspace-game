@@ -182,7 +182,9 @@ func _physics_process(dt: float) -> void:
 			b.alarm_pos = alarm.last_known
 		else:
 			b.alarm_pos = Vector3.INF
-		_run_brain(g, dt, ppos)
+		var due: float = g.brain_step(dt)   # issue #541: thinner far off, none asleep (NpcRings)
+		if due >= 0.0:
+			_run_brain(g, due, ppos)
 	if not alarm.active():
 		_calm_talk(alive, ppos)
 		_club_chat(alive, ppos)
