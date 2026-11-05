@@ -664,10 +664,8 @@ func _floor(t: Dictionary, i: int) -> void:
 		# jetpack up through the ceiling's hole and out through the shield, and you
 		# are outside on this floor's roof (on_roof), as on a tunnel's roof walk.
 		var next_y := float(fl[i + 1].y) - plate
+		# No ribs round it: dark trim rings there read as black bands across the shield.
 		tubes.append({ "tower": str(t.id), "floor": i, "c": c, "r": gap_r, "y0": ceil_y, "y1": next_y })
-		for k in 3:
-			var ry := ceil_y + plate + (next_y - ceil_y - plate) * (k + 1) / 4.0
-			_ring(pre + "_tube_rib_%d" % k, c, gap_r + 0.15, gap_r + 0.45, ry - 0.2, ry + 0.2, "decor", "trim", [], 32)
 	# The outer wall: a band of hull, tall glass, a band of hull, with lintels over the
 	# tunnels' doors; mullions on the joints.
 	var ro := r - WALL * 0.5
