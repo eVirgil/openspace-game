@@ -258,10 +258,11 @@ func _you() -> Node:
 
 ## Bolts (and a ship cannon's splash) call this. Issue #402: in the host's game an
 ## NPC's bolt that lands on a guest's body is a hit on that guest, from the town,
-## and so is a Remnant (or locals') droid's.
+## and so is a Remnant (or locals') droid's. Issue #552: your ship's cannons and
+## your speeder's lasers are you (their bolts' shooter is the hull), sent from there.
 func apply_damage_from(amount: float, shooter: Node) -> void:
-	if shooter != null and is_instance_valid(shooter) and shooter == _you():
-		_send_hit(amount)
+	if NetSession.fired_by(shooter, _you()):
+		_send_hit(amount, shooter as Node3D)
 	elif (shooter is NpcBody or (shooter is DroidController.DroidUnit and shooter.faction != "")) \
 			and NetSession.is_host() and amount > 0.0:
 		NetSession.link.send_town_hit(peer_id, amount, (shooter as Node3D).global_position)
@@ -277,7 +278,10 @@ func apply_damage(_amount: float) -> void:
 	pass
 
 
-func _send_hit(amount: float) -> void:
+## `from`: where it came from (your body, or the hull that fired), else your body.
+func _send_hit(amount: float, from: Node3D = null) -> void:
 	var you = _you()
-	if friendly_fire() and NetSession.active() and amount > 0.0 and you is Node3D:
-		NetSession.link.send_hit(peer_id, amount, (you as Node3D).global_position)
+	if from == null:
+		from = you as Node3D
+	if friendly_fire() and NetSession.active() and amount > 0.0 and from != null:
+		NetSession.link.send_hit(peer_id, amount, from.global_position)

@@ -158,7 +158,9 @@ reasons are in `DECISIONS.md`.
 
 1. **One scene for every planet.** `town_demo.tscn` builds whatever
    `GameFlow.planet()` says; travel reloads it.
-2. **Space is the town's own sky.** No separate space scene for gameplay.
+2. **Space near a planet is that planet's own sky; between planets it is open
+   space** (issue #573): one place with no planet (ground `none`), still
+   `town_demo.tscn`. Fights stay inside a planet's bubble. No other space scene.
 3. **Planets are round and walkable all the way round**, with seamless
    handoffs.
 4. **The town data format.** Boxes, markers, routes and zones, read only by
@@ -176,6 +178,12 @@ reasons are in `DECISIONS.md`.
     (`tests/test_ip_neutral.gut.gd`).
 12. **The engine.** Godot 4.7.2, GDScript, no new autoloads or plugins
     without the user saying so.
+
+Anything drawn or ticked also follows the render rules in
+[`docs/RENDER_RULES.md`](../../../docs/RENDER_RULES.md) (batch, share materials,
+boxes before models, no new shaders, build over ticks, draw and tick by
+distance, measure). An issue that adds props, people or per-frame work names the
+ones it leans on.
 
 ## Issue format
 

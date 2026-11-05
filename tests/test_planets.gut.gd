@@ -115,7 +115,7 @@ func test_the_same_seed_is_the_same_town() -> void:
 
 func test_every_planet_type_builds() -> void:
 	var types: Dictionary = PlanetGen.types().types
-	assert_eq(types.size(), 9)
+	assert_eq(types.size(), 10)
 	for type in types:
 		var p := PlanetGen.make({ "id": "test_" + type, "type": type, "town_size": 12, "seed": 2 }, cc)
 		assert_eq(p.type, type)
@@ -123,9 +123,9 @@ func test_every_planet_type_builds() -> void:
 		var t := TownLayout.new()
 		t.load_from_dict(p.town)
 		assert_eq(t.validate().size(), 0, type)
-		assert_true(p.ground in ["terrain", "platform", "ball"], type)
+		assert_true(p.ground in ["terrain", "platform", "ball", "none"], type)
 		assert_gt(float(p.world.atmosphere.space_altitude), 0.0, type)
-		if p.ground != "terrain":
+		if p.ground != "terrain" and p.ground != "none":
 			assert_true((types[type] as Dictionary).has("surface"), type)
 		if p.ground == "platform":
 			assert_ne(str(types[type].fall_text), "", type + " says how you died")
@@ -269,27 +269,63 @@ func test_the_asteroid_station() -> void:
 	assert_false(p.town.boxes.filter(func(b): return b.id == "pit_bowl").is_empty(), "the port's pit, outside")
 	assert_eq(p.world.naming.town, "town_station", "a station's name, not a desert town's")
 	var n: Array = p.neighbours
-	assert_eq(n[0].id, "port_desert", "you can fly home")
-	assert_false(n[0].has("via"), "home is its parent, flown to from here")
-	var sibs: Array = n.slice(1)
-	assert_eq(sibs.map(func(x): return x.id), ["cinder_station", "ringed_giant"], "space is one place: the other planets round home hang in its sky too")
-	for s in sibs:
-		assert_eq(s.via, "port_desert", "seen from here, reached through home's scene")
-		assert_false(bool(s.child))
+	# Issue #573: one system frame. Every other planet is a neighbour, home first
+	# (manifest order), marked parent; open space is never one.
+	assert_eq(n.map(func(x): return x.id), ["port_desert", "cinder_station", "ringed_giant"], "space is one place: every other planet hangs in its sky")
+	assert_true(bool(n[0].parent), "home is the planet it is near")
+	for x in n:
+		assert_false(x.has("via"), "no planet is flown to through another's scene any more")
 	var home := PlanetGen.build("port_desert", cc)
 	assert_eq(home.neighbours.map(func(x): return x.id), ["grit_station", "cinder_station", "ringed_giant"], "and the port sees the station (and the lava moon, #272, and the ringed giant)")
-	assert_eq(home.neighbours[0].at, Vector3(9000, 5200, -6500))
+	assert_eq(home.neighbours[0].at, Vector3(10450, 6840, -7545))
+	assert_true(bool(home.neighbours[0].child))
 	# Issue #99: one map. The station's port is on top of its ball; from the station
 	# the port's ball is exactly where the shift between the two scenes puts it.
 	var off: Vector3 = home.neighbours[0].offset
-	assert_eq(off, Vector3(9000, 6700, -6500))
+	assert_eq(off, Vector3(10450, 8340, -7545))
+	assert_eq(PlanetGen.system_port("grit_station", cc), off, "home's scene is the system frame")
 	assert_eq(n[0].offset, -off, "the same shift, back the other way")
 	assert_eq(n[0].at, Vector3(0, -5000, 0) - off, "the home ball's centre, seen from the station")
-	# A sibling is where home's scene has it, shifted by the same offset.
-	for s in sibs:
+	# Every other planet is where home's scene has it, shifted by the same offset.
+	for s in n.slice(1):
 		var from_home: Dictionary = home.neighbours.filter(func(x): return x.id == s.id)[0]
 		assert_eq(s.at, (from_home.at as Vector3) - off, s.id + " where home's scene puts it")
 		assert_eq(s.offset, (from_home.offset as Vector3) - off, s.id + "'s port, the same shift")
+
+
+## Issue #573: open space is a place with no planet: no town but the ship's pad,
+## its frame the system frame, every planet in its sky.
+func test_open_space_is_a_place_with_no_planet() -> void:
+	var o := PlanetGen.build(PlanetGen.open_space_id(), cc)
+	assert_eq(o.ground, "none")
+	assert_false(PlanetGen.is_planet(PlanetGen.open_space_id(), cc))
+	assert_eq(PlanetGen.system_port(PlanetGen.open_space_id(), cc), Vector3.ZERO)
+	assert_eq(o.neighbours.size(), 4, "every planet")
+	assert_eq(o.natives, {})
+	for x in PlanetGen.build("port_desert", cc).neighbours:
+		assert_ne(x.id, PlanetGen.open_space_id(), "never a neighbour")
+	var t := TownLayout.new()
+	t.load_from_dict(o.town)
+	assert_eq(t.validate().size(), 0)
+	assert_false(t.get_box("ship").is_empty(), "the ship's pad")
+
+
+## Issue #573: every planet has a bubble, and no two come within the margin
+## (leaving radius, hysteresis included), so there is always open space between.
+func test_bubbles_never_touch() -> void:
+	var ids := PlanetGen.ids(cc).filter(func(i): return PlanetGen.is_planet(str(i), cc))
+	var margin := float(PlanetGen.space_cfg().get("bubble_margin", 1000.0))
+	for a in ids:
+		assert_gt(PlanetGen.bubble_radius(str(a), false, cc), 0.0, str(a) + " has a bubble")
+	for i in ids.size():
+		for j in range(i + 1, ids.size()):
+			var ca: Vector3 = PlanetGen.system_centre(str(ids[i]), cc)
+			var cb: Vector3 = PlanetGen.system_centre(str(ids[j]), cc)
+			var gap := ca.distance_to(cb) - PlanetGen.bubble_radius(str(ids[i]), true, cc) - PlanetGen.bubble_radius(str(ids[j]), true, cc)
+			assert_gt(gap, margin, "%s / %s: %.0f m of open space" % [ids[i], ids[j], gap])
+	# The cruisers sit inside their planet's bubble.
+	assert_lt(7000.0, PlanetGen.handoff_altitude("sand"), "the Remnant cruiser")
+	assert_lt(2350.0, PlanetGen.handoff_altitude("gas_ball"), "the belt cruiser")
 
 
 func test_asteroid_station_walls_have_panel_detail() -> void:

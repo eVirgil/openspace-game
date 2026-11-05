@@ -86,9 +86,12 @@ faked or outstanding is in `KNOWN_ISSUES.md`.
 
 ## IP-neutrality rule
 
-No franchise names in code, file names, class names, commit messages, or the data
-layer. Generic terms only: "energy blade", "blaster", "imperial remnant", "trooper",
-"smuggler". `tests/test_ip_neutral.gut.gd` fails the build if a banned term appears.
+No franchise names in code, file names, class names, docs, commit messages, or the
+data layer. Generic terms only: "energy blade", "blaster", "imperial remnant",
+"trooper", "smuggler". `tests/test_ip_neutral.gut.gd` reads every file in the repo
+(except `addons/`, build output and the list itself, `content/core/llm/ip_blocklist.json`)
+and every file name, and fails the build on a banned term;
+`scripts/check_commit_messages.sh` does the same for this branch's commit messages.
 
 ## Plan
 

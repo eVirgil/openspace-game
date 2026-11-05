@@ -37,6 +37,15 @@ The `build-share-files` skill (`.claude/skills/`) is the whole routine.
 
 `builds/` is git-ignored. Send the zip for the player's machine.
 
+What ships is only what the game loads. Anything under a `source/` folder
+(the raw Hyper3D exports the `tools/look/prep_*.gd` tools read) is tool input:
+each has a `.gdignore`, so Godot never imports it. The review stills in `docs/`
+are left out by both presets' `exclude_filter` (`docs/*`, with
+`assets/*/source/*` as a second guard). `tests/test_share_build.gut.gd` fails if
+a source folder loses its `.gdignore`, a preset loses either filter, or the game
+loads a path from either place. Leaving the docs stills out took the game pack
+from 742 MB to 566 MB (issue #533); the zips were about 750 MB each at V1.6.3.
+
 The Mac build is one universal app (Apple Silicon and Intel), signed ad hoc only:
 there is no Apple Developer ID, so it is not notarized and macOS warns about it
 the first time (below).

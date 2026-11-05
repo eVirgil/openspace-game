@@ -21,6 +21,8 @@ The station is drawn from anywhere in the giant's scene, and a floor of
 furniture is thousands of parts. These are the rules that keep it cheap. Follow
 them for anything else put in the station (and for any other interior built at
 runtime).
+The general version, for anything drawn or ticked anywhere in the game, is
+[`docs/RENDER_RULES.md`](../RENDER_RULES.md).
 
 1. **Batch everything.** Every part goes through the town's building kit
    (`TownBuildings.part`), never as its own node. At the end of a floor every
