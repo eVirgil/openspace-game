@@ -1360,6 +1360,7 @@ const KEYS := [
 		["Left mouse", "Fire or swing"],
 		["Right mouse", "Aim (blaster) or block (sword), toggles; with the sniper a second click zooms in twice as far"],
 		["R", "Reload"],
+		["F (hold)", "Aim a grenade: a dotted arc shows where it lands; let go to throw"],
 	]],
 	["Flying", [
 		["W / S", "Pitch (W pushes the nose down); the mouse steers too"],

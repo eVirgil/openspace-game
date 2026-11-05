@@ -859,6 +859,7 @@ func _on_guard_died(g: NpcBody) -> void:
 		WorldState.on_guard_reward(reward)
 		rewards_paid += reward
 		hud.toast("+%d cr" % reward, 2.0)
+	drop_loot(g)
 	if SilentKill.unaware_cut(g) and not SilentKill.witnessed(g, left):
 		silent_kills += 1                  # issue #307: cut down unseen; the body waits to be found
 		unfound.append(g)
@@ -866,6 +867,32 @@ func _on_guard_died(g: NpcBody) -> void:
 	if not left.is_empty():
 		_say(_nearest(left, g.global_position), "man_down")
 		_attacked = true      # a trooper dropping is a fight, whoever started it
+
+
+## Issue #372: a dead trooper may leave a grenade where he fell (the grenade's
+## "drop": which factions, the chance). Taken like any pickup; not saved while it lies.
+## Returns the pickup node, or null.
+func drop_loot(g: NpcBody, roll := -1.0) -> Node3D:
+	var d: Dictionary = _grenade_drop()
+	if d.is_empty() or not (d.get("factions", []) as Array).has(str(g.faction)):
+		return null
+	if (randf() if roll < 0.0 else roll) >= float(d.get("chance", 0.0)):
+		return null
+	var gear = demo.gear if demo != null and "gear" in demo else null
+	if gear == null:
+		return null
+	return gear.drop_item({ "id": "grenade_drop_%d" % g.get_instance_id(), "item": str(d.get("item", "grenade")),
+		"reach": float(d.get("reach", 2.2)), "loose": true }, g.global_position)
+
+
+static var _drop_cfg: Dictionary = {}
+
+static func _grenade_drop() -> Dictionary:
+	if _drop_cfg.is_empty():
+		var w := CharacterKit._read_json(Grenade.CFG_PATH)
+		_drop_cfg = (w.get("drop", {}) as Dictionary).duplicate()
+		_drop_cfg["item"] = str(w.get("item", "grenade"))
+	return _drop_cfg
 
 
 ## Issue #307: an unaware trooper was cut. Dead and unseen: nobody knows. Still

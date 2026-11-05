@@ -161,7 +161,8 @@ func pick_up(pickup: Dictionary) -> bool:
 	var pid := str(pickup.get("id", ""))
 	if pid == "" or is_taken(pid):
 		return false
-	taken[pid] = true
+	if not bool(pickup.get("loose", false)):    # issue #372: a trooper's drop is not remembered
+		taken[pid] = true
 	add(str(pickup.get("item", "")), maxi(1, int(pickup.get("count", 1))))
 	return true
 

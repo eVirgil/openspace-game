@@ -20,6 +20,8 @@ extends Node
 ##                 aimed zooms in further (hand_weapons ads "zoom_steps"), a third
 ##                 puts it down; its scope draws a digital reticle with the range.
 ##   R             reload
+##   F (throw)     issue #372: hold to aim a grenade (the zoomed view and a dotted
+##                 arc to where it lands), let go to throw it. Nothing with none left.
 ##
 ## The pure parts are proven headless: WeaponHolder (swap), SwordCombo (chain,
 ## active frames), Weapon (ammo/reload) and EnergyBlade (stamina, deflect window).
@@ -39,6 +41,7 @@ signal swung(name: String)
 signal deflected(bolt: Node)
 signal hit_something(target: Node, damage: float)
 signal bolt_fired(origin: Vector3, dir: Vector3, reach: float, bolt: Node)   ## issue #401: LAN shows it to the others
+signal threw(grenade: Node)         ## issue #372
 
 var player: CharacterBody3D
 var avatar: PlayerAvatar
@@ -54,6 +57,11 @@ var enabled := true                 ## false while talking at the bar
 var in_range_zone: Callable = Callable()   ## (pos) -> bool: on the sanctioned range?
 var off_record_zone: Callable = Callable() ## (pos) -> bool: nobody counts shots here (at the party barge)
 
+var grenade_cfg: Dictionary = {}    ## issue #372: content/core/weapons/grenade.json
+var throw_aiming := false           ## the throw key is held with a grenade to throw
+var grenades_thrown := 0
+var last_arc: Dictionary = {}       ## the preview's GrenadeArc.trace, while aiming
+
 var blade_extent := 0.0
 var aiming := false
 var shots := 0
@@ -62,6 +70,8 @@ var blocks := 0
 var sword_hits := 0
 
 var _wheel_view: Control
+var _arc_view: GrenadeArcView
+var _grenades: Label
 var _fire_held := false
 var _alt_on := false
 var _zoom_step := 0                 ## which of the gun's ads zoom_steps (the sniper's second click)
@@ -98,6 +108,7 @@ func setup(p: CharacterBody3D, a: PlayerAvatar, rig: Node3D, bolts_into: Node3D)
 		if id != "energy_blade":
 			guns[id] = Weapon.new(cfg[id])
 	combo = SwordCombo.new(cfg.get("energy_blade", {}))
+	grenade_cfg = CharacterKit._read_json(Grenade.CFG_PATH)
 	holder.can_draw = func(id): return WorldState.weapon_allowed(id)      # issue #200: a story save starts with the pistol only
 	_setup_wheel()
 	avatar.build_weapons(holder.slots)
@@ -129,6 +140,9 @@ func _ready() -> void:
 	name = "Weapons"
 	_build_sfx()
 	_build_hud()
+	_arc_view = GrenadeArcView.new()
+	_arc_view.name = "GrenadeArc"
+	add_child(_arc_view)
 
 
 # ------------------------------------------------------------------ input
@@ -167,6 +181,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_fire_held = false
 	if event.is_action_pressed("alt_fire"):
 		toggle_alt()
+	if InputMap.has_action("throw"):
+		if event.is_action_pressed("throw"):
+			press_throw()
+		elif event.is_action_released("throw"):
+			release_throw()
 
 
 ## Tab let go: a tap cycles as it always did; after a hold it draws what the wheel
@@ -221,6 +240,103 @@ func release_fire() -> void:
 	_fire_held = false
 
 
+## Issue #372: the throw key down: aim, if there is a grenade to throw.
+func press_throw() -> void:
+	if not enabled or wheel.is_open or sprinting or grenades() <= 0 or player.get("is_downed") == true:
+		return
+	throw_aiming = true
+	_fire_held = false
+
+
+## Let go: throw one along the arc shown. Returns the grenade, or null.
+func release_throw() -> Node:
+	if not throw_aiming:
+		return null
+	throw_aiming = false
+	if _arc_view != null:
+		_arc_view.hide_arc()
+	if not enabled or grenades() <= 0:
+		return null
+	return throw_grenade(throw_origin(), throw_velocity())
+
+
+## How many grenades the player carries.
+func grenades() -> int:
+	return WorldState.inventory.count(str(grenade_cfg.get("item", "grenade")))
+
+
+## Throw one from `at` at `v` (world): one comes out of the inventory.
+func throw_grenade(at: Vector3, v: Vector3) -> Node:
+	if not WorldState.inventory.remove(str(grenade_cfg.get("item", "grenade"))):
+		return null
+	var g := Grenade.new()
+	g.setup(grenade_cfg, at, v, player)
+	g.player = player
+	g.host = player.get_parent() if player != null else null
+	var into: Node = bolt_parent if bolt_parent != null else (player.get_parent() if player != null else null)
+	if into != null:
+		into.add_child(g)
+		g.global_position = at
+	grenades_thrown += 1
+	_play("blade_swing")
+	threw.emit(g)
+	return g
+
+
+## Where a throw leaves the hand: shoulder height, a little to the right and ahead.
+func throw_origin() -> Vector3:
+	var up := _up()
+	var view := _view()
+	var right := view.basis.x.normalized()
+	var fwd := -view.basis.z.normalized()
+	var flat := (fwd - up * fwd.dot(up)).normalized() if absf(fwd.dot(up)) < 0.99 else fwd
+	return avatar.global_position + up * 1.55 + right * 0.28 + flat * 0.35
+
+
+## The throw along the view, lifted (GrenadeArc.launch_velocity).
+func throw_velocity() -> Vector3:
+	return GrenadeArc.launch_velocity(-_view().basis.z, _up(), float(grenade_cfg.get("throw_speed", 17.0)),
+		float(grenade_cfg.get("lift_deg", 12.0)))
+
+
+## The preview: the arc from the hand to where it first touches (the same steps
+## and rays the grenade uses).
+func throw_arc() -> Dictionary:
+	var space := player.get_world_3d().direct_space_state if player != null and player.is_inside_tree() else null
+	var thrower := player
+	var hit := func(a: Vector3, b: Vector3) -> Dictionary:
+		return Grenade.ray(space, a, b, thrower) if space != null else {}
+	var up_at := func(p: Vector3) -> Vector3:
+		return PlanetSphere.current.up_at(p) if PlanetSphere.current != null else Vector3.UP
+	return GrenadeArc.trace(throw_origin(), throw_velocity(), float(grenade_cfg.get("gravity", 20.0)), up_at, hit,
+		float(grenade_cfg.get("preview_s", 4.0)), 1.0 / float(Engine.physics_ticks_per_second))
+
+
+func _up() -> Vector3:
+	var p: Vector3 = player.global_position if player != null else Vector3.ZERO
+	return PlanetSphere.current.up_at(p) if PlanetSphere.current != null else Vector3.UP
+
+
+func _view() -> Transform3D:
+	var cam: Camera3D = rig_node.camera() if rig_node != null else null
+	if cam != null and cam.is_inside_tree():
+		return rig_node.aim_transform() if rig_node.has_method("aim_transform") else cam.global_transform
+	return avatar.global_transform.rotated_local(Vector3.UP, PI) if avatar != null else Transform3D.IDENTITY
+
+
+func _tick_throw() -> void:
+	if throw_aiming and (not enabled or grenades() <= 0 or player.get("is_downed") == true or wheel.is_open):
+		throw_aiming = false
+	if not throw_aiming:
+		last_arc = {}
+		if _arc_view != null and _arc_view.visible:
+			_arc_view.hide_arc()
+		return
+	last_arc = throw_arc()
+	if _arc_view != null:
+		_arc_view.show_arc(last_arc, int(grenade_cfg.get("preview_every", 3)))
+
+
 func set_alt(on: bool) -> void:
 	_alt_on = on
 	if not on:
@@ -245,6 +361,9 @@ func set_enabled(on: bool) -> void:
 		_wheel_closed()
 		_fire_held = false
 		_alt_on = false
+		throw_aiming = false
+		if _arc_view != null:
+			_arc_view.hide_arc()
 		combo.set_block(false)
 		aiming = false
 		if rig_node != null:
@@ -281,6 +400,7 @@ func _physics_process(dt: float) -> void:
 			_hum.stop()
 
 	_tick_sprint(dt)
+	_tick_throw()
 
 	# Guns tick every frame (cooldowns, reloads) whether or not the trigger is down.
 	# Issue #87: in third person a resting gun comes up first, then fires.
@@ -290,7 +410,7 @@ func _physics_process(dt: float) -> void:
 	for id in guns:
 		var g: Weapon = guns[id]
 		var trigger: bool = enabled and id == cur and holder.is_ready() and _fire_held and avatar.gun_up() \
-			and not sprinting
+			and not sprinting and not throw_aiming
 		var r: int = g.start_firing(dt, trigger)
 		if r == Weapon.Result.SHOT:
 			_shoot(id)
@@ -299,7 +419,10 @@ func _physics_process(dt: float) -> void:
 		_zoom_step = 0
 	if rig_node != null:
 		# Each gun has its own magnification (issue #65): fov = base / mag.
-		rig_node.set_zoom(Ads.zoom(look, cur, _zoom_step) if aiming else 1.0)
+		if throw_aiming:
+			rig_node.set_zoom(1.0 / maxf(1.0, float(grenade_cfg.get("aim_mag", 1.25))))
+		else:
+			rig_node.set_zoom(Ads.zoom(look, cur, _zoom_step) if aiming else 1.0)
 		avatar.ads_camera = rig_node.camera()
 		var cam: Camera3D = rig_node.camera()
 		avatar.ads_relief_scale = Ads.relief_scale(look, cur, float(rig_node.get("base_fov") if rig_node.get("base_fov") != null else 75.0), cam.fov) \
@@ -674,6 +797,7 @@ func _build_hud() -> void:
 	_hud.add_child(_scope_hud)
 	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -114), 26)
 	_name = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -148), 18)
+	_grenades = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-220, -80), 18)
 	var view := WheelView.new()
 	view.wheel = wheel
 	view.info = _wheel_info
@@ -729,6 +853,10 @@ func _update_hud(dt: float) -> void:
 		_ammo.visible = false
 	_name_left = maxf(0.0, _name_left - dt)
 	_name.visible = _name_left > 0.0
+	var n := grenades()
+	_grenades.visible = n > 0
+	if n > 0:
+		_grenades.text = "%s  x%d" % [str(grenade_cfg.get("hud", "GRENADES")), n]
 
 
 ## The sniper's digital reticle (its scope spec "digital"), fully aimed in first

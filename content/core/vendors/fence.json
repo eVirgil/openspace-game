@@ -14,6 +14,8 @@
   "resells": false,
   "sell_rate": 1.6,
   "stock": [],
+  "prices": { "grenade": 40 },
+  "endless_stock": ["grenade"],
   "offers": [
     { "id": "quantonium_armour", "label": "Quantonium armour", "about": "triples your health; wear it like the jetpack", "price": 500, "item": "quantonium_armour", "endless": true, "requires": { "counters": { "bounties_paid": 1 } },
       "locked": "after your first bounty is paid" }

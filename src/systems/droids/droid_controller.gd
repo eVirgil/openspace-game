@@ -1066,6 +1066,18 @@ func _tick_knocked_out(dt: float) -> void:
 
 
 ## One of your droids took a hit from someone you are fighting.
+## Issue #372: a grenade burst on a droid. The Remnant's, the locals' and wrecks
+## take `wreck` (they go up); yours take `amount` even from your own grenade.
+func on_unit_blast(u: DroidUnit, amount: float, shooter: Node, wreck: float) -> void:
+	if u.dead:
+		return
+	if u.faction == "" and not u.broken and companions.get(u.uid) == u and not u.has_meta("net_id"):
+		_beep(u)
+		_hurt_companion(u, amount)
+		return
+	on_unit_hit(u, maxf(amount, wreck), shooter)
+
+
 func _hurt_companion(u: DroidUnit, amount: float) -> void:
 	u.hp -= amount
 	if u.hp > 0.0:
@@ -2211,6 +2223,12 @@ class DroidUnit extends StaticBody3D:
 
 	func apply_damage(amount: float) -> void:
 		apply_damage_from(amount, null)
+
+	## Issue #372: a blast (Blast.hit). Anyone's droid goes up (`wreck`); yours is
+	## knocked out like any hit that takes it to nothing (`amount`).
+	func apply_blast(amount: float, _from: Vector3, shooter: Node, wreck := 0.0, _reach := 0.0) -> void:
+		if ctl != null:
+			ctl.on_unit_blast(self, amount, shooter, wreck)
 
 	## The player's energy sword calls this instead: a killing cut bats it along `sweep`.
 	func apply_blade_hit(amount: float, sweep: Vector3) -> void:

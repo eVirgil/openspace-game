@@ -2,6 +2,23 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Grenades: hold F to aim, let go to throw (issue #372, 2026-11-04)
+
+- **Hold F to aim a grenade.** The view zooms in a little and a dotted arc runs
+  from your hand to where it will first land, with a ring on the spot. Look
+  around and the arc follows. Let go to throw it along the arc. With no
+  grenades, F does nothing.
+- **It bounces and bursts.** It falls under the planet's own gravity, bounces
+  off the ground and walls (slower each time) and goes off after about 3
+  seconds, or at once if it hits a person, a droid or a vehicle.
+- **A big blast.** Everyone within 6 m is killed (troopers, locals, natives,
+  beasts) and thrown away from the burst. Droids, speeders and the party barge
+  are destroyed. It hurts you and your droids too. Hurting locals raises the
+  town alarm, as any attack does.
+- **Where to get them.** Every gear trader and fence sells them, 40 cr each,
+  from day 1 in story and free play, and never runs out. Remnant troopers
+  sometimes drop one. The count shows on the HUD under the ammo and is saved.
+
 ## The station's bay: six pads, a frigate and T-99 (issue #316, 2026-11-04)
 
 - **A bigger bay.** It is now 104 m across (it was 76) with a wider mouth, and

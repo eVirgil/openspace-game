@@ -20,6 +20,10 @@
   "weapon_rest_seconds": 20.0,
   "blade_fling": 8.0,
   "blade_fling_up": 5.5,
+  "blast_fling": 5.0,
+  "blast_fling_close": 8.5,
+  "blast_fling_up": 0.55,
+  "blast_note": "Issue #372: a grenade kill throws the body away from the burst at blast_fling m/s at the edge of its radius, up to blast_fling_close m/s right on top of it, lifted by blast_fling_up times that speed (harder than any bolt kill, whose kick tops out at kick_max).",
   "droid_mass": 40.0,
   "droid_tumble": 7.0
 }

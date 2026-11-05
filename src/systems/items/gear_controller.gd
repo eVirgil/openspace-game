@@ -863,6 +863,8 @@ func _tips_for(id: String) -> void:
 		hud.toast_after(_l("new_equipment") % str(item.get("label", id)))
 	if str(item.get("kind", "")) == "weapon":
 		hud.toast_after(_l("weapon_tip"))
+	if item.has("tip") and inv().count(id) == 1:
+		hud.toast_after(str(item.tip))      # issue #372: how to throw your first grenade
 
 
 # ------------------------------------------------------------------ gear -> player
