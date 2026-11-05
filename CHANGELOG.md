@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## A whole floor of the station is the Remnant's (issue #314, 2026-11-04)
+
+- **The second tower's middle floor is a Remnant deck.** The cruiser's control
+  room with the planet map spinning over its holo table, two bunk rooms, two
+  armouries with rifle racks, the commander's office and a mess hall. Red
+  banners, a stripe and red lamps run down the walkway.
+- **A barricade at the tunnel from the favela.** Staggered barriers and a lit
+  checkpoint arch, with two troopers on it.
+- **About fifteen troopers hold it,** at their posts in the rooms and two
+  walking the walkway, and fight like an outpost's.
+- **Kill them all and the station is the locals'.** The red is painted over in
+  the locals' green, their guards move in, and it stays theirs: it is saved
+  with the world, and the locals think better of you for it.
+
 ## New version is 1.6.2 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.2**. Everything below, down to "New
