@@ -185,8 +185,8 @@ static func resume_from_save(path: String) -> bool:
 	resumed = true
 	var w: Dictionary = load("res://src/systems/save/save_system.gd").where_in(path)
 	var id := str(w.get("planet", ""))
-	if id == "" or PlanetGen.build(id).is_empty():
-		return false
+	if id == "" or not PlanetGen.is_planet(id) or PlanetGen.build(id).is_empty():
+		return false           # issue #573: open space is never where a save puts you
 	planet_id = "" if id == PlanetGen.home_id() else id
 	var p = w.get("pos", null)
 	resume_pos = Vector3(float(p[0]), float(p[1]), float(p[2])) if p is Array and (p as Array).size() == 3 else Vector3.INF

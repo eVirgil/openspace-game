@@ -280,12 +280,12 @@ static func town_for(town_id: String, lm: Dictionary, sp: PlanetSphere, world: D
 
 
 ## The centre of the ball planet `planet_id` is near, in its own scene's
-## coordinates (PlanetGen.neighbours: the one that is not a child), or null.
+## coordinates (PlanetGen.neighbours: the one marked parent), or null.
 static func _parent_center(planet_id: String):
 	if planet_id == "":
 		return null
 	for n in PlanetGen.neighbours(planet_id):
-		if not bool(n.get("child", true)) and not n.has("via"):
+		if bool(n.get("parent", false)):
 			return n.at
 	return null
 

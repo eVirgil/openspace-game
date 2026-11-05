@@ -13,6 +13,15 @@ extends Node3D
 ## and its parent's scene takes over the same way. A planet with no handoff is
 ## still flown into and faded to, as before (GameFlow.travel).
 ##
+## Issue #573: open space is its own place. Every planet with a handoff has a
+## bubble (its radius plus handoff); climb hysteresis metres past it and open
+## space's scene (PlanetGen.open_space_id, no planet loaded) takes over the same
+## way; from open space, cross a planet's bubble and its scene takes over. There
+## are no siblings or parents to fly through any more: every scene places the
+## other planets from one system frame (PlanetGen.neighbours). A ball planet with
+## a bubble is drawn as its real coarse ball only within real_ball_within metres
+## (types.json "space"); further off it is the cheap ball, swapped on the way in.
+##
 ## No input of its own: ShipPilot owns the ship. This only watches where it is.
 
 signal travel_started(to: String)
@@ -39,23 +48,39 @@ var handoffs := 0                    ## seamless switches started (traces, tests
 var staged := false                  ## issue #121: built during a staged handoff (balls refine over frames)
 var _prechecks: Array = []           ## issue #121: worker tasks checking the neighbours' towns
 var prewarmed: Array = []            ## planets whose handoff scene was prewarmed (PlanetTerrain.prewarm_far)
+var here_id := ""                    ## issue #573: the place this scene is (a planet, or open space)
+var open := false                    ## issue #573: this scene is open space
+var _open_body: Dictionary = {}      ## open space as a handoff target: its origin here (offset)
+var _with_looks := false
 
 
 func setup(ship_pilot, neighbours: Array, with_looks: bool) -> void:
 	pilot = ship_pilot
 	name = "SpaceTravel"
+	_with_looks = with_looks
 	var me: Dictionary = pilot.demo.planet if pilot != null and "planet" in pilot.demo else {}
 	if not me.is_empty():
-		self_radius = PlanetGen.ball_radius(me.get("cfg", {}), null) if not me.get("world", {}).get("terrain", {}).has("sphere_radius") \
-			else float(me.world.terrain.sphere_radius)
-		self_handoff = PlanetGen.handoff_altitude(str(me.get("type", "")))
+		here_id = str(me.get("id", ""))
+		open = str(me.get("ground", "")) == "none"
+		if not open:
+			self_radius = PlanetGen.ball_radius(me.get("cfg", {}), null) if not me.get("world", {}).get("terrain", {}).has("sphere_radius") \
+				else float(me.world.terrain.sphere_radius)
+			self_handoff = PlanetGen.handoff_altitude(str(me.get("type", "")))
+		var here := PlanetGen.system_port(here_id)
+		if here != Vector3.INF:
+			_open_body = { "id": PlanetGen.open_space_id(), "offset": -here, "name": "", "at": -here, "radius": 0.0 }
+	var eye := _eye()
+	var near_ok := float(PlanetGen.space_cfg().get("real_ball_within", 6000.0))
 	for n in neighbours:
 		var b := { "id": str(n.id), "at": n.at, "radius": float(n.radius), "type": str(n.type), "node": null,
 			"name": PlanetGen.display_name(PlanetGen.build(str(n.id))),
-			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)), "via": str(n.get("via", "")),
-			"handoff": PlanetGen.handoff_altitude(str(n.type)) }
+			"offset": n.get("offset", n.at), "child": bool(n.get("child", true)),
+			"handoff": PlanetGen.handoff_altitude(str(n.type)), "n": n, "real": false }
 		if with_looks:
-			b.node = _body(n)
+			# Issue #573: the real ball only when close; else the cheap one, upgraded on the way in.
+			var close := eye.distance_to(n.at) - float(n.radius) <= near_ok
+			b.node = _body(n, close)
+			b.real = close or not _wants_real(n)
 		bodies.append(b)
 
 
@@ -110,6 +135,8 @@ func distance_to(id: String) -> float:
 ## The real ringed giant fades into the daylight sky the way its painting did
 ## (LookEnvironment.planet_visibility, which AltitudeSky raises in space).
 func _process(_dt: float) -> void:
+	if traveling == "":
+		_build_step()
 	if _gas_mats.is_empty() or _look == null or _look.sky_mat == null:
 		return
 	var haze: Color = (_look.sky_mat.get_shader_parameter("horizon_color") as Color).lerp(
@@ -127,23 +154,26 @@ func _physics_process(_dt: float) -> void:
 	if not flying:
 		return
 	var pos: Vector3 = pilot.atmo.position()
+	_upgrade_near(pos)
+	if not open and self_handoff > 0.0 and not _open_body.is_empty():
+		# Issue #573: far enough off this ball: open space's scene, seamlessly.
+		var out := self_radius + self_handoff + PlanetGen.hysteresis() - pos.distance_to(Vector3(0, -self_radius, 0))
+		if out <= PREWARM:
+			_prewarm(str(_open_body.id))
+			if _with_looks:
+				_prebuild_self()
+		if out <= 0.0:
+			handoff(str(_open_body.id))
+			return
 	for b in bodies:
-		if str(b.via) != "":
-			continue          # a sibling: seen from here, flown to from the parent's scene
-		if b.child and float(b.handoff) > 0.0:
+		if float(b.handoff) > 0.0:
+			if not open:
+				continue          # issue #573: a bubble is entered from open space only (they never touch)
 			# Issue #99: close enough to its ball: its scene, seamlessly.
 			var gap := pos.distance_to(b.at) - float(b.radius) - float(b.handoff)
 			if gap <= PREWARM:
 				_prewarm(b.id)
 			if gap <= 0.0:
-				handoff(b.id)
-				return
-		elif not b.child and self_handoff > 0.0:
-			# Issue #99: far enough off this ball: the parent's scene, seamlessly.
-			var out := self_radius + self_handoff + HYSTERESIS - pos.distance_to(Vector3(0, -self_radius, 0))
-			if out <= PREWARM:
-				_prewarm(b.id)
-			if out <= 0.0:
 				handoff(b.id)
 				return
 		elif distance_to(b.id) <= 0.0:
@@ -154,7 +184,7 @@ func _physics_process(_dt: float) -> void:
 ## Issue #99: switch to planet `id`'s scene now, with no fade: the ship carries on
 ## from the same point (in that planet's coordinates), heading, speed and throttle.
 func handoff(id: String) -> void:
-	var b: Dictionary = {}
+	var b: Dictionary = _open_body if not _open_body.is_empty() and id == str(_open_body.id) else {}
 	for x in bodies:
 		if x.id == id:
 			b = x
@@ -177,8 +207,23 @@ func handoff(id: String) -> void:
 	if not change:
 		last_handoff = extra
 		return
+	_finish_own()
+	_pool_leaving()            # issue #573: the next scene draws what this one built
 	GameFlow.flown_key = pilot.berth_key()        # issue #368: which of your ships it is
 	GameFlow.travel(get_tree() if is_inside_tree() else null, id, pilot.ship_id, str(b.name), extra)
+
+
+## Leaving with this planet's own ball still part built: the rest now.
+func _finish_own() -> void:
+	for job in _builds.duplicate():
+		if not bool(job.own):
+			continue
+		while not (job.queue as Array).is_empty():
+			var more = ((job.queue as Array).pop_front() as Callable).call()
+			if more is Array:
+				job.queue = (more as Array) + (job.queue as Array)
+		_builds.erase(job)
+		_own = job.root
 
 
 var last_handoff: Dictionary = {}     ## what the last handoff carried (tests, with change = false)
@@ -234,30 +279,66 @@ func _update_labels(flying: bool) -> void:
 		l.visible = true
 
 
-## Moon handoff: a planet that hands off to its parent (the moon) draws its sky in
-## space the way its parent's scene does there (the parent's ball's up), so the
-## sky is the same on both sides of the switch.
+## Issue #573: one sky for the whole system. Up in space every scene but the home
+## planet's draws its sky the way the home scene does at that point (the home
+## ball's up there; LookEnvironment.space_frame), so the sky is the same on both
+## sides of any switch, open space included.
 func _share_parent_sky(look) -> void:
+	var home_id := PlanetGen.home_id()
+	if here_id == "" or here_id == home_id:
+		return
+	var home_port := PlanetGen.system_port(home_id) - PlanetGen.system_port(here_id)
+	if not home_port.is_finite():
+		return
+	var pt := PlanetTerrain.for_planet(PlanetGen.build(home_id))
+	if pt == null:
+		return
+	var home_ball: PlanetSphere = pt.sphere
+	pt.free()
+	look.space_frame = func(p: Vector3) -> Basis: return home_ball.tilt_at(p - home_port)
+
+
+## Where the eye starts in this scene: the ship carried in by a handoff, else the port.
+func _eye() -> Vector3:
+	var a: Dictionary = pilot.demo.get("_arrival") if pilot != null and pilot.get("demo") != null and pilot.demo.get("_arrival") is Dictionary else GameFlow.arrival
+	var h: Dictionary = a.get("handoff", {}) if str(a.get("mode", "")) == "handoff" else {}
+	return h.get("position", Vector3.ZERO)
+
+
+## A neighbour that is drawn as its real ball when close (a ball planet with a bubble).
+static func _wants_real(n: Dictionary) -> bool:
+	return float(n.get("bands", 0.0)) <= 0.0 and bool(n.get("ball", false)) and _real_ball(n)
+
+
+## Issue #573: a cheap ball within real_ball_within metres of the ship becomes its
+## real coarse ball, built a step a frame (or taken from the pool), well before
+## its bubble, so the switch changes only the detail.
+func _upgrade_near(pos: Vector3) -> void:
+	if not _with_looks:
+		return
+	var near_ok := float(PlanetGen.space_cfg().get("real_ball_within", 6000.0))
 	for b in bodies:
-		if b.child or str(b.via) != "" or float(self_handoff) <= 0.0:
+		if bool(b.real) or pos.distance_to(b.at) - float(b.radius) > near_ok:
 			continue
-		var pt := PlanetTerrain.for_planet(PlanetGen.build(str(b.id)))
-		if pt == null:
-			continue
-		var parent_ball: PlanetSphere = pt.sphere
-		pt.free()
-		var offset: Vector3 = b.offset
-		look.space_frame = func(p: Vector3) -> Basis: return parent_ball.tilt_at(p - offset)
+		b.real = true
+		var pooled := _take_pooled(b.n)
+		if pooled != null:
+			add_child(pooled)
+			if b.node != null:
+				b.node.queue_free()
+			b.node = pooled
+		else:
+			_start_build(b.n, false)
 		return
 
 
 ## A neighbour as seen from here: a rock for a small body, a planet for a big one.
 ## Issue #99: a ball type with a handoff (the asteroid) is its real ball and
 ## station, coarse, so arriving changes only the detail.
-func _body(n: Dictionary) -> Node3D:
+func _body(n: Dictionary, real_ok := true) -> Node3D:
 	if float(n.get("bands", 0.0)) > 0.0:
 		return _gas_body(n)          # the ringed giant: its banded ball and its ring
-	if bool(n.get("ball", false)) and _real_ball(n):
+	if real_ok and bool(n.get("ball", false)) and _real_ball(n):
 		var real := _ball_body(n)
 		if real != null:
 			return real
@@ -278,7 +359,7 @@ func _body(n: Dictionary) -> Node3D:
 		sand.set_shader_parameter("glitter", 0.0)
 		if str(n.get("relief", "")) != "":
 			# Its dunes as a flat print on a smooth ball (not a lumpy faceted rock).
-			sand.set_shader_parameter("relief_tex", load(str(n.relief)))
+			sand.set_shader_parameter("relief_tex", relief_tex(str(n.relief)))
 			sand.set_shader_parameter("relief", 1.0)
 			sand.set_shader_parameter("relief_tilt", float(n.get("relief_tilt", 1.0)))
 			sand.set_shader_parameter("relief_crest", float(n.get("relief_crest", 0.12)))
@@ -422,6 +503,20 @@ static var _body_meshes := {}          ## "id/radius" -> Mesh, or { task, out } 
 static var _ball_spheres := {}         ## "id/radius" -> AsteroidSphere
 
 
+## Issue #573: a ball's relief print (a cubemap from disk, ~30 ms), kept for the
+## session so a switch never loads it again; prewarm_bodies starts it on a thread.
+static var _reliefs := {}              ## path -> Texture
+
+
+static func relief_tex(path: String) -> Texture:
+	if not _reliefs.has(path):
+		if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			_reliefs[path] = ResourceLoader.load_threaded_get(path)
+		else:
+			_reliefs[path] = load(path)
+	return _reliefs[path]
+
+
 static func body_mesh(n: Dictionary) -> Mesh:
 	var key := "%s/%d" % [str(n.id), int(n.radius)]
 	var got = _body_meshes.get(key)
@@ -459,8 +554,9 @@ static func _make_body_mesh(n: Dictionary) -> Mesh:
 ## The ball meshes planet `id`'s scene will draw in its sky, made on worker threads.
 static func prewarm_bodies(id: String) -> void:
 	for n in PlanetGen.build(id).get("neighbours", []):
-		if bool(n.get("ball", false)) and _real_ball(n):
-			continue          # drawn as its real ball (_ball_body), not a mesh
+		var rp := str(n.get("relief", ""))
+		if rp != "" and not _reliefs.has(rp):
+			ResourceLoader.load_threaded_request(rp)
 		var key := "%s/%d" % [str(n.id), int(n.radius)]
 		if _body_meshes.has(key):
 			continue
@@ -473,44 +569,175 @@ static func prewarm_bodies(id: String) -> void:
 ## Issue #99: the neighbour's own ball (its AsteroidSphere, seated on its own
 ## station's footprint) at far detail, in its rock, and its station on top: the
 ## very shapes its own scene builds, placed at its port's offset here.
+## Issue #573: taken from the session's pool when another scene built it already.
 func _ball_body(n: Dictionary) -> Node3D:
+	var pooled := _take_pooled(n)
+	if pooled != null:
+		return pooled
+	var b := _ball_steps(n, staged)
+	if b.is_empty():
+		return null
+	var queue: Array = b.steps
+	while not queue.is_empty():
+		var more = (queue.pop_front() as Callable).call()
+		if more is Array:
+			queue = (more as Array) + queue
+	return b.root
+
+
+## The real ball as steps (issue #573): the terrain's coarse far mesh, then the
+## station's exterior a piece at a time (a step may return more steps). `coarse`:
+## the far mesh starts coarse and refines itself over the frames after.
+func _ball_steps(n: Dictionary, coarse: bool) -> Dictionary:
 	var p := PlanetGen.build(str(n.id))
 	var tcfg: Dictionary = p.get("type_cfg", {})
 	var surf: Dictionary = tcfg.get("surface", {})
 	if p.is_empty() or str(tcfg.get("ground", "")) != "ball":
-		return null
+		return {}
 	var root := Node3D.new()
 	root.name = "Planet_" + str(n.id)
 	root.position = n.get("offset", n.at)
-	var key := "%s/%d" % [str(n.id), int(n.radius)]
-	var sp: AsteroidSphere = _ball_spheres.get(key)
-	if sp == null:
-		sp = AsteroidSphere.new(float(n.radius), surf)
-		var site := site_of(p.town)
-		sp.configure_site(site.floor, site.walls, site.sunken, 0.0)
-		_ball_spheres[key] = sp
-	var pt := PlanetTerrain.new()
-	pt.use_sphere(sp)
-	pt.cache_key = "body/" + key
-	pt.keep_far = true
-	pt.use_surface(surf)                 # issue #272: and its lava, if any
-	pt.far_chunks = 3
-	pt.far_cells = 40
-	root.add_child(pt)
-	pt.build_far_only(n.at, staged)      # issue #121: coarse first on a handoff
-	_sand_bodies.append(pt.material)
+	var steps: Array = []
+	steps.append(func():
+		var key := "%s/%d" % [str(n.id), int(n.radius)]
+		var sp: AsteroidSphere = _ball_spheres.get(key)
+		if sp == null:
+			sp = AsteroidSphere.new(float(n.radius), surf)
+			var site := site_of(p.town)
+			sp.configure_site(site.floor, site.walls, site.sunken, 0.0)
+			_ball_spheres[key] = sp
+		var pt := PlanetTerrain.new()
+		pt.name = "Terrain"
+		pt.use_sphere(sp)
+		pt.cache_key = "body/" + key
+		pt.keep_far = true
+		pt.use_surface(surf)                 # issue #272: and its lava, if any
+		pt.far_chunks = 3
+		pt.far_cells = 40
+		root.add_child(pt)
+		pt.build_far_only(n.at, coarse)      # issue #121: coarse first on a handoff
+		_track(pt.material))
 	if pilot != null and pilot.demo != null and bool(tcfg.get("enclosed", false)):
-		var ext := AsteroidWorld.new()
-		root.add_child(ext)
-		ext.build_exterior(p.town.get("station", {}), pilot.demo._flat_mats())
+		var mats: LookMaterials = pilot.demo._flat_mats()
+		steps.append(func():
+			var ext := AsteroidWorld.new()
+			root.add_child(ext)
+			return ext.exterior_steps(p.town.get("station", {}), mats))
+	return { "root": root, "steps": steps }
+
+
+## The sun on a ball's ground material (now, or once this travel is ready).
+func _track(m: Material) -> void:
+	if m == null:
+		return
+	if _look != null:
+		_look.track_material(m)
+	else:
+		_sand_bodies.append(m)
+
+
+# ------------------------------------------------------------------ real balls across scenes (issue #573)
+
+## Real balls built by one scene and handed to the next (planet id -> its root,
+## out of the tree): leaving a moon, open space draws the moon its scene already
+## built, and nothing is built twice in a session.
+static var _pool := {}
+var _builds: Array = []              ## { id, n, root, queue, own }: real balls built a step a frame
+var _own: Node3D                     ## this planet's own real ball, built for the scene after it
+
+
+static func _pool_put(id: String, root: Node3D) -> void:
+	if root == null or not is_instance_valid(root):
+		return
+	var old: Node3D = _pool.get(id)
+	if old != null and is_instance_valid(old) and old != root:
+		old.queue_free()
+	if root.get_parent() != null:
+		root.get_parent().remove_child(root)
+	root.visible = true
+	_pool[id] = root
+
+
+## A pooled real ball for neighbour `n`, placed here, or null.
+func _take_pooled(n: Dictionary) -> Node3D:
+	var root: Node3D = _pool.get(str(n.id))
+	_pool.erase(str(n.id))
+	if root == null or not is_instance_valid(root):
+		return null
+	root.position = n.get("offset", n.at)
+	var pt := root.get_node_or_null("Terrain") as PlanetTerrain
+	if pt != null and pt.material != null:
+		pt.material.set_shader_parameter("planet_center", n.at)
+		_track(pt.material)
 	return root
 
 
-## A ball neighbour drawn as its own ball (_ball_body): a child or a sibling (the
-## moon seen from the giant) whose scene takes over in mid-flight, so the parent's
-## scene draws the same shapes and nothing changes but the detail.
+## Start building neighbour `id`'s real ball (or this planet's own: `own`) a step a frame.
+func _start_build(n: Dictionary, own: bool) -> void:
+	for x in _builds:
+		if str(x.id) == str(n.id):
+			return
+	var b := _ball_steps(n, true)
+	if b.is_empty():
+		return
+	(b.root as Node3D).visible = not own
+	_builds.append({ "id": str(n.id), "n": n, "root": b.root, "queue": b.steps, "own": own })
+
+
+## One build step a frame; a finished neighbour's ball takes the cheap one's place.
+func _build_step() -> void:
+	if _builds.is_empty():
+		return
+	var job: Dictionary = _builds[0]
+	var root: Node3D = job.root
+	if root.get_parent() == null:
+		add_child(root)
+	if not (job.queue as Array).is_empty():
+		var more = ((job.queue as Array).pop_front() as Callable).call()
+		if more is Array:
+			job.queue = (more as Array) + (job.queue as Array)
+		return
+	_builds.pop_front()
+	if bool(job.own):
+		_own = root
+		return
+	for b in bodies:
+		if str(b.id) == str(job.id):
+			if b.node != null and is_instance_valid(b.node):
+				b.node.queue_free()
+			b.node = root
+
+
+## This planet's own real ball as its neighbours draw it (at its port, here the
+## origin), started on the way out so open space has it ready.
+func _prebuild_self() -> void:
+	if _own != null or here_id == "" or open or _pool.has(here_id):
+		return
+	var cfg: Dictionary = PlanetGen.build(here_id).get("cfg", {})
+	var n := PlanetGen._neighbour(cfg, Vector3(0, -self_radius, 0), null)
+	n["offset"] = Vector3.ZERO
+	if not _wants_real(n):
+		return
+	_start_build(n, true)
+
+
+## Leaving: the real balls built here go to the pool for the scene after.
+func _pool_leaving() -> void:
+	if _own != null:
+		_pool_put(here_id, _own)
+		_own = null
+	for b in bodies:
+		if bool(b.real) and b.node != null and _wants_real(b.n):
+			_pool_put(str(b.id), b.node)
+			b.node = null
+
+
+## A ball neighbour drawn as its own ball (_ball_body): one whose scene takes over
+## in mid-flight, so the scene before draws the same shapes and nothing changes
+## but the detail. Issue #573: only a ball type (the moons); the home planet is a
+## sand ball seen from far off, never flown into from close to its edge.
 static func _real_ball(n: Dictionary) -> bool:
-	return (bool(n.get("child", false)) or str(n.get("via", "")) != "") and PlanetGen.handoff_altitude(str(n.type)) > 0.0
+	return _rocky(n) and PlanetGen.handoff_altitude(str(n.type)) > 0.0
 
 
 ## A small rocky ball (the asteroid, the lava moon: any "ball" type), not a planet.

@@ -1802,7 +1802,7 @@ func _update_hud(agl_now: float) -> void:
 	hud.show_values({
 		"speed": f.speed, "throttle": _throttle, "max_speed": live.max_speed(),
 		"boost": live.boost_left / maxf(live.boost_time(), 0.001),
-		"agl": agl_now, "altitude": atmo.altitude(), "climb": v.dot(up),
+		"agl": agl_now if is_finite(agl_now) else atmo.altitude(), "altitude": atmo.altitude(), "climb": v.dot(up),   # issue #573: no ground in open space
 		"state": atmo.state_label(),
 		"hull": d.hull_hp(), "hull_max": d.hull_max(), "shield": int(d.shield), "shield_max": d.shield_max,
 		"pitch": att.pitch, "roll": att.roll, "heading": att.heading,
