@@ -2,6 +2,20 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Share builds leave the docs stills out (2026-11-05, issue #533)
+
+- **The game pack is 176 MB smaller** (742 MB to 566 MB, about a quarter):
+  both export presets now leave out `docs/`, whose 376 review stills were being
+  imported as textures and packed. Nothing the game loads changed: the two
+  packs differ only by the docs files, and both boot headless with the same log.
+- **The raw Hyper3D models were never shipped.** Every `source/` folder has a
+  `.gdignore`, so they are not imported or exported; the presets now also
+  exclude `assets/*/source/*` in case one loses it.
+- **`tests/test_share_build.gut.gd`** fails if a source folder loses its
+  `.gdignore`, a preset loses either filter, or the game's code or data loads a
+  path from a source folder or `docs/` (the prep tools' `source` and
+  `emission` inputs are allowed).
+
 ## Builders' docs: one page of render rules, PLAN and KNOWN_ISSUES true (2026-11-05, issue #547)
 
 - **`docs/RENDER_RULES.md`:** the twelve rules for anything drawn or ticked
