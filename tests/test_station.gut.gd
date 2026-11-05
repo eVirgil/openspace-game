@@ -421,6 +421,65 @@ func test_the_bay_town_parks_the_frigate_and_has_t99() -> void:
 	assert_eq(TownCheck.errors(HOST, town), [], "the bay town validates")
 
 
+## The bay's frigate lifts off to 0.8 of the 22 m she once rose, well under the
+## bay's roof, and getting out puts you on the deck beside her, past her wingtip,
+## not inside her hull.
+func test_the_frigate_lifts_under_the_roof_and_you_step_out_beside_her() -> void:
+	var t = _host()
+	var s = await _station(t)
+	if s == null:
+		fail_test("no station")
+		return
+	var pilot: ShipPilot = t.pilot
+	var fi := -1
+	for i in pilot.berths.size():
+		if str(pilot.berths[i].get("ship_id", "")) == "frigate":
+			fi = i
+	if fi < 0:
+		# The greybox parks no models: set her on her pad as TownDecor._park does.
+		var box: Dictionary = t.town.get_box("ship_frigate")
+		assert_false(box.is_empty(), "the frigate's pad box")
+		if box.is_empty():
+			return
+		var v := ShipKit.new().build("frigate")
+		t.add_child(v)
+		var c := (WorldGround._v3(box.min) + WorldGround._v3(box.max)) * 0.5
+		v.position = Vector3(c.x, float(box.min[1]), c.z)
+		var a: AABB = Decor.visual_aabb(v)
+		v.position += Vector3(c.x - a.get_center().x, float(box.min[1]) - a.position.y, c.z - a.get_center().z)
+		fi = pilot.add_berth(v, "frigate", "ship_frigate")
+		pilot.berths[fi]["free"] = true
+		await wait_physics_frames(2)
+	assert_true(pilot.board_berth(fi), "into her seat")
+	assert_true(pilot.takeoff())
+	for i in 60 * 10:
+		if pilot.atmo.state == AtmoFlight.State.FLYING:
+			break
+		await wait_physics_frames(1)
+	assert_eq(pilot.atmo.state, AtmoFlight.State.FLYING, "airborne")
+	assert_almost_eq(pilot.atmo.agl(), 17.6, 0.5, "lifted 0.8 of 22 m")
+	var look: Dictionary = pilot.kit.looks.get("frigate", {})
+	var local: Vector3 = s.inv * pilot.atmo.position()
+	var top := local.y - pilot.atmo.clearance + float(look.get("height", 4.8))
+	assert_lt(top, float(_hull().bay.height) - 5.0, "her top well under the bay's roof")
+	assert_true(pilot.land())
+	for i in 60 * 20:
+		if pilot.atmo.state == AtmoFlight.State.PARKED:
+			break
+		await wait_physics_frames(1)
+	assert_eq(pilot.atmo.state, AtmoFlight.State.PARKED, "back down")
+	assert_true(pilot.exit_ship())
+	await wait_physics_frames(30)
+	var p = t._player
+	var d: Vector3 = p.global_position - pilot.atmo.position()
+	var across := absf(d.dot(pilot.atmo.flight.basis.x.normalized()))
+	var along := absf(d.dot(pilot.atmo.flight.basis.z.normalized()))
+	assert_true(across > float(look.get("span", 16.0)) * 0.5 or along > float(look.get("length", 18.0)) * 0.5,
+		"out past her wingtip (%.1f m across, %.1f m along)" % [across, along])
+	assert_true(s.aboard(p.global_position), "still in the bay")
+	assert_true(p.is_on_floor(), "standing on the deck")
+
+
 ## The frigate's look is the freighter twice the size, and stays that size flown
 ## (its root's transform set outright, as ShipPilot does).
 func test_the_frigate_look_is_the_freighter_twice_the_size() -> void:
