@@ -89,6 +89,7 @@ func build(look_id: String) -> Node3D:
 			_bolt_on(parts, p.parts)
 		throttle_flames(root, 0.0)
 		root.set_meta("source", "scene")
+		_scale_look(root, p)
 		return root
 	var body := Node3D.new()
 	body.name = "Body"
@@ -103,7 +104,21 @@ func build(look_id: String) -> Node3D:
 			_dart(body, engines, p)
 	throttle_flames(root, 0.0)
 	root.set_meta("source", "kit")
+	_scale_look(root, p)
 	return root
+
+
+## A look's "scale" (the station's frigate: the freighter's airframe, twice the
+## size): every part under the root is scaled about its middle, the root is not,
+## so a ship flown or parked (its root's transform set outright) keeps the size.
+## Its "length", "span" and "height" are already the scaled ones.
+static func _scale_look(root: Node3D, p: Dictionary) -> void:
+	var sc := float(p.get("scale", 1.0))
+	if is_equal_approx(sc, 1.0):
+		return
+	root.set_meta("look_scale", sc)
+	for c in root.get_children():
+		(c as Node3D).scale *= sc
 
 
 ## The look a ship wears for whoever holds the place it stands at: a look's "locals"
@@ -156,6 +171,7 @@ func dress(ship: Node3D, fits: Array) -> void:
 		return
 	var root := Node3D.new()
 	root.name = "Upgrades"
+	root.scale = Vector3.ONE * float(ship.get_meta("look_scale", 1.0))
 	ship.add_child(root)
 	_bolt_on(root, parts)
 

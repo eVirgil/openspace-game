@@ -1,0 +1,113 @@
+{
+  "id": "frigate",
+  "class": "frigate",
+  "label": "Marchbank Albatross Frigate",
+  "faction": "locals",
+  "look": "frigate",
+  "pilot": "ace",
+  "hull": 620,
+  "shield": {
+    "max": 300,
+    "regen": 10.0,
+    "delay": 4.0
+  },
+  "hit_radius": 8.8,
+  "convergence": 420.0,
+  "flight": {
+    "min_speed": 8.0,
+    "max_speed": 30.0,
+    "boost_speed": 44.0,
+    "accel": 12.0,
+    "pitch_rate": 0.8,
+    "yaw_rate": 0.6,
+    "roll_rate": 1.2,
+    "boost_time": 4.0,
+    "boost_recharge": 0.4,
+    "boost_turn_scale": 0.6,
+    "ability": {
+      "kind": "drift",
+      "turn_scale": 2.0
+    }
+  },
+  "hardpoints": [
+    {
+      "weapon": "ship_cannon",
+      "mount": [
+        -1.0,
+        2.0,
+        -2.0
+      ]
+    },
+    {
+      "weapon": "ship_cannon",
+      "mount": [
+        1.0,
+        2.0,
+        -2.0
+      ]
+    },
+    {
+      "weapon": "ship_cannon",
+      "mount": [
+        -1.0,
+        -2.0,
+        -2.0
+      ]
+    },
+    {
+      "weapon": "ship_cannon",
+      "mount": [
+        1.0,
+        -2.0,
+        -2.0
+      ]
+    },
+    {
+      "weapon": "ship_missile",
+      "mount": [
+        0.0,
+        -2.8,
+        -2.4
+      ]
+    },
+    {
+      "weapon": "ship_missile",
+      "mount": [
+        0.0,
+        -2.8,
+        -4.0
+      ]
+    }
+  ],
+  "atmosphere": {
+    "min_speed": 0.0,
+    "max_speed": 110.0,
+    "boost_speed": 180.0,
+    "accel": 22.0,
+    "boost_time": 8.0,
+    "boost_recharge": 1.0,
+    "boost_turn_scale": 0.7,
+    "edge_speed_mult": 2.8,
+    "speed_curve": 1.0,
+    "climb_drag": 0.3,
+    "overspeed_brake": 1.0,
+    "liftoff_height": 22.0,
+    "liftoff_speed": 7.0,
+    "land_max_agl": 150.0,
+    "land_descent": 10.0,
+    "land_slow": 4.0,
+    "land_brake": 45.0,
+    "touchdown_speed": 9.0,
+    "crash_speed": 34.0,
+    "body_radius": 7.6,
+    "clearance": 2.0
+  },
+  "note": "The station's frigate (issue #316): the freighter's airframe at twice the size (look 'frigate', content/look/ships.json 'scale'), built heavier and slower: more hull and shield, two seeker racks, and Shift still drifts. It stands on the ringed giant's station's bay pad 'frigate' (orbital_station.json pads) and flies like the port's other bay ships. 'sold': false keeps it off T-89's and T-99's lots (ShipSalesman.stock).",
+  "naming": {
+    "kind": "person_drift",
+    "callsign": true,
+    "vessel": "vessel"
+  },
+  "blaster_power": 0.8,
+  "sold": false
+}

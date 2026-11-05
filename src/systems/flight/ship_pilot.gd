@@ -287,7 +287,9 @@ func _gather_berths() -> void:
 		var v: Node3D = parked[i]
 		var id := ship_id if i == 0 else str(v.get_meta("ship_id", ship_id))
 		var box_id := str(pad.get("town_box", "ship")) if i == 0 else str(v.get_meta("box_id", ""))
-		add_berth(v, id, box_id, pit_key if i == 0 else "")
+		var bi := add_berth(v, id, box_id, pit_key if i == 0 else "")
+		if i > 0 and bool(demo.town.get_box(box_id).get("free", false)):
+			berths[bi]["free"] = true        # issue #316: the station's frigate, anyone's to fly
 
 
 ## A parked ship becomes one you can board: its data, model, hull and home bay.
@@ -360,7 +362,7 @@ func berth_flies(i: int) -> bool:
 ## the pit pad's, once T-89 rebuilt your wreck or when you flew in on it; one he
 ## sold you, "owned"). An outpost's ship is still there to steal once ships fly.
 static func berth_open(b: Dictionary, i: int) -> bool:
-	if bool(b.get("owned", false)):
+	if bool(b.get("owned", false)) or bool(b.get("free", false)):
 		return true
 	if not WorldState.story_mode() or b.has("outpost"):
 		return Story.ships_unlocked()

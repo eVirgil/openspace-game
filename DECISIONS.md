@@ -2,6 +2,31 @@
 
 Every significant technical choice, the alternative, and why. Newest on top.
 
+## 2026-11-04 — The station's bay: a scaled look, a free berth, one salesman for two droids (issue #316)
+
+- **The frigate is a look with a "scale",** not a new model: the freighter's model
+  at 2x (`ShipKit._scale_look`). Every child of the ship's root is scaled, never
+  the root itself, because ShipPilot sets a flown or parked ship's root transform
+  outright and would drop a scale there. Its "length", "span" and "height" are
+  the scaled numbers, so the chase camera, the hull box and the station's pad box
+  come out right from data. The cruiser's frigate (a 3x freighter scaled at its
+  root) only stands there, so it never needed this.
+- **Parked ships are town boxes,** the port's way (#43): `StationHull.town_for`
+  turns every pad that names a "ship" into a "ship" box with that ship, so
+  TownDecor parks it and ShipPilot makes it a berth, with no station code. A
+  pad's "free" marks the berth anyone's to fly (`ShipPilot.berth_open`), so the
+  frigate flies in a story save, where the port's bay ships do not.
+- **T-99 is ShipSalesman with another file.** The town's "salesman" (an npc id)
+  picks the config (`ShipSalesman.cfg_path`); the config names its own met flag
+  and AI card, and an empty "tutorial" drops the tutorial offer and menu row.
+  Everything else (prices, the hangar, Fleet's T89 key, the upgrades) is shared:
+  a second shop with its own stock and hangar would have meant a second save
+  slot for little gain.
+- **"sold": false** on a ship keeps it off every salesman's lot (the frigate).
+- **Only the frigate is parked.** The probe put a parked ship at 30 to 80 draw
+  calls; the frigate and T-99 together cost none we could measure, and at most
+  85k triangles.
+
 ## 2026-11-04 — Your laser droid (issue #392, part 2)
 
 - **The rig is an upgrade, like the others,** one level on the droid's "up", so it

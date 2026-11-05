@@ -118,17 +118,27 @@
   },
   "bay": {
     "from": "main",
-    "at": [-112, 0],
-    "radius": 38.0,
-    "mouth_deg": 70.0,
+    "at": [-126, 0],
+    "radius": 52.0,
+    "mouth_deg": 80.0,
     "height": 30.0,
     "apron": 12.0,
-    "note": "The covered landing bay: round, the port pit's size (76 m across), its deck level with y = 0, on the far side of 'from' tower's bay tunnel. Its curved wall is open at the back (the tunnel's door) and across mouth_deg of its far side (the mouth, facing away from the tower), closed by a curved energy shield along the wall's line that ships fly through and you cannot walk through. Pads: 'at' is [out toward the mouth, across] in metres from the bay's middle; every ship sits nose out to space."
+    "note": "The covered landing bay: round and 104 m across (bigger than the port pit, for its six pads), its deck level with y = 0, on the far side of 'from' tower's bay tunnel. Its curved wall is open at the back (the tunnel's door) and across mouth_deg of its far side (the mouth, facing away from the tower), closed by a curved energy shield along the wall's line that ships fly through and you cannot walk through. Pads: 'at' is [out toward the mouth, across] in metres from the bay's middle; every ship sits nose out to space. 'ship' parks that ship on the pad (a town 'ship' box, StationHull.town_for: a berth you board like the port's bay ships; 'free': anyone's to fly, story save or not); 'spare' is where a ship bought from T-99 lands (his 'pad'). A parked ship model is 30 to 80 draw calls (the frigate 28, the gunship 60), so only the frigate is parked; the rest are for ships that fly in."
   },
   "pads": [
-    { "id": "dock", "at": [4, 14], "radius": 12.0 },
-    { "id": "bay_b", "at": [4, -14], "radius": 12.0 }
+    { "id": "dock", "at": [18, 25], "radius": 10.0 },
+    { "id": "frigate", "at": [18, 0], "radius": 13.0, "ship": "frigate", "free": true },
+    { "id": "bay_b", "at": [18, -25], "radius": 10.0 },
+    { "id": "bay_c", "at": [-14, 25], "radius": 10.0 },
+    { "id": "bay_d", "at": [-14, 0], "radius": 10.0 },
+    { "id": "spare", "at": [-14, -25], "radius": 10.0 }
   ],
+  "salesman": {
+    "npc": "t99",
+    "at": [-36, -12],
+    "face": [-14, -25],
+    "note": "T-99, the station's ship salesman (content/core/npcs/t99.json): his marker on the bay's deck ('at', [out, across] from the bay's middle like a pad), facing 'face'. A ship bought from him lands on the 'spare' pad."
+  },
   "dock": {
     "pad": "dock",
     "radius": 2500.0,
