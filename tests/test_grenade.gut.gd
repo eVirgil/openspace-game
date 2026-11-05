@@ -164,6 +164,23 @@ func test_a_blast_kill_flings_harder_than_a_bolt() -> void:
 	assert_lt(edge.length(), fling.length(), "softer at the edge")
 
 
+# ---- the throw's pose -----------------------------------------------------------
+
+func test_the_arm_winds_back_then_swings_over_and_lets_go() -> void:
+	var sp := ThrowPose.spec(CharacterKit._read_json("res://content/look/hand_weapons.json"))
+	var wound := ThrowPose.right_hand(sp, -1.0)
+	assert_lt(wound.z, 0.0, "held, the hand is behind the shoulder")
+	assert_gt(wound.y, 0.18, "and above it")
+	var mid := ThrowPose.right_hand(sp, float(sp.swing_s) * 0.45)
+	assert_gt(mid.y, wound.y - 0.1, "it comes over the top")
+	var end := ThrowPose.right_hand(sp, float(sp.swing_s))
+	assert_gt(end.z, 0.2, "and finishes out in front")
+	assert_true(ThrowPose.in_hand(sp, 0.0), "the grenade is in the hand as the swing starts")
+	assert_false(ThrowPose.in_hand(sp, ThrowPose.release_delay(sp) + 0.01), "and gone at the release")
+	assert_eq(ThrowPose.weight(sp, 0.0, float(sp.swing_s) * 0.5), 1.0, "the swing owns the arm")
+	assert_almost_eq(ThrowPose.weight(sp, 0.0, float(sp.swing_s) + float(sp.blend_s) + 0.001), 0.0, 0.001, "and gives it back after")
+
+
 # ---- supply -------------------------------------------------------------------
 
 func test_one_grenade_throws_once() -> void:

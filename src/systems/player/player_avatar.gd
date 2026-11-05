@@ -56,6 +56,13 @@ var carry := WeaponCarry.new(1.0)
 var aim_wanted := false
 var aim_target := Vector3.INF      ## third person: where the crosshair points (weapons sets it; INF = along the pose)
 var face_aim := false             ## issue #401: a LAN player's copy whose player is in first person faces where they look
+## Issue #372: the overarm throw (ThrowPose). weapons sets throw_hold while the
+## throw key is held and calls start_throw_swing() on letting go.
+var throw_hold := false
+var throw_since := -1.0             ## seconds since the swing began (< 0: not swinging)
+var _throw_held_s := 0.0
+var _throw_w := 0.0                 ## how much the throw owns the arms
+var _hand_grenade: Node3D
 ## Issue #133: sprinting. The gun drops to rest (first person too), the body faces
 ## where it runs, and gun_up() stays false so nothing fires.
 var sprint_lowered := false
@@ -548,6 +555,8 @@ func animate(dt: float, inp: Dictionary) -> void:
 	if first_person and upper == BodyAnimator.UPPER_FREE:
 		_fpv_unarmed()
 	_fpv_grips(upper, dt)
+	_tick_throw(dt)
+	_apply_throw()
 	if skin != null:
 		skin.sync(body)
 
@@ -584,6 +593,7 @@ func _draw_sword(delta: float) -> void:
 		var tick_pose := sword_pose
 		sword_pose = SwordCombo.mix(_sword_prev, _sword_curr, Engine.get_physics_interpolation_fraction())
 		_place_weapon(_last_upper, _last_pitch)
+		_apply_throw()
 		sword_pose = tick_pose
 		if skin != null:
 			skin.sync(body)
@@ -877,6 +887,59 @@ func _fpv_grips(upper: String, dt: float) -> void:
 	var unarmed_fist := 0.8 if first_person and not armed and _sprint_carry > 0.3 else relaxed
 	_fpv.ease_grip("r", 1.0 if armed else unarmed_fist, dt)
 	_fpv.ease_grip("l", 0.85 if swapping else (1.0 if left else unarmed_fist), dt)
+
+
+# ------------------------------------------------------------------ the throw (issue #372)
+
+## Let go of the throw key: the swing starts (the grenade leaves the hand at
+## ThrowPose.release_delay).
+func start_throw_swing() -> void:
+	throw_since = 0.0
+	throw_hold = false
+
+
+func throwing() -> bool:
+	return throw_hold or throw_since >= 0.0
+
+
+func _tick_throw(dt: float) -> void:
+	var sp := ThrowPose.spec(look)
+	_throw_held_s = _throw_held_s + dt if throw_hold else 0.0
+	if throw_since >= 0.0:
+		throw_since += dt
+		if ThrowPose.done(sp, throw_since):
+			throw_since = -1.0
+	if throw_since >= 0.0:
+		_throw_w = ThrowPose.weight(sp, 0.0, throw_since)
+	elif throw_hold:
+		_throw_w = ThrowPose.weight(sp, _throw_held_s, -1.0)
+	else:
+		_throw_w = move_toward(_throw_w, 0.0, dt / maxf(0.01, float(sp.blend_s)))
+
+
+## The arms over whatever the weapon pose put them in: the right hand along the
+## throw, the left pointing ahead, the grenade in the right hand until it leaves.
+func _apply_throw() -> void:
+	var sp := ThrowPose.spec(look)
+	var held := throw_hold or (throw_since >= 0.0 and ThrowPose.in_hand(sp, throw_since))
+	if _throw_w <= 0.0 or kit == null or body == null:
+		if _hand_grenade != null:
+			_hand_grenade.visible = false
+		return
+	if _throw_w > 0.5 and current != "" and weapons.has(current):
+		(weapons[current] as Node3D).visible = false     # tucked away while the hand is busy
+	var r_now := kit.chest_space(body, joints.r_wrist).origin
+	var l_now := kit.chest_space(body, joints.l_wrist).origin
+	var w := _throw_w * _throw_w * (3.0 - 2.0 * _throw_w)
+	kit.reach(body, "r", r_now.lerp(ThrowPose.right_hand(sp, throw_since), w), POLE_R)
+	kit.reach(body, "l", l_now.lerp(ThrowPose.left_hand(sp), w), POLE_L)
+	if _hand_grenade == null and joints.has("r_wrist"):
+		_hand_grenade = ItemKit.new().build("grenade")
+		_hand_grenade.name = "HandGrenade"
+		_hand_grenade.position = Vector3(0, -0.1, 0.03)
+		(joints.r_wrist as Node3D).add_child(_hand_grenade)
+	if _hand_grenade != null:
+		_hand_grenade.visible = held
 
 
 ## True once the gun is up far enough to shoot (weapons holds the trigger until then).

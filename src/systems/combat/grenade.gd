@@ -87,6 +87,8 @@ func _bursts_on(c) -> bool:
 		return false
 	if is_target.is_valid():
 		return bool(is_target.call(c))
+	if "ctl" in c and str(c.get("faction")) == "":
+		return false                  # your own droids (and wrecks): it bounces off them
 	return Blast.target(c) != null
 
 
