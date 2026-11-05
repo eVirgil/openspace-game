@@ -71,7 +71,7 @@ func setup(p_demo, p_player: CharacterBody3D, p_gear: GearController) -> void:
 
 func _ready() -> void:
 	name = "ShipSalesman"
-	var f := FileAccess.open(CFG_PATH, FileAccess.READ)
+	var f := FileAccess.open(cfg_path(demo), FileAccess.READ)
 	var d = JSON.parse_string(f.get_as_text()) if f != null else null
 	cfg = d if d is Dictionary else {}
 	labels = cfg.get("labels", {})
@@ -93,6 +93,22 @@ func _ready() -> void:
 
 func npc_name() -> String:
 	return str(cfg.get("name", "T-89"))
+
+
+## Issue #316: which salesman this town has. A town's "salesman" (an npc id: the
+## space station's bay has T-99, content/core/npcs/t99.json) runs this same shop
+## from its own file; every other town has T-89. One hangar between them
+## (WorldState.hangar): the ship you bought stands on whichever spare pad it was
+## left at.
+static func cfg_path(p_demo) -> String:
+	var town = p_demo.town if p_demo != null and "town" in p_demo else null
+	var id := str(town.data.get("salesman", "")) if town != null else ""
+	return "res://content/core/npcs/%s.json" % id if id != "" else CFG_PATH
+
+
+## The saved flag for "he has met you": T-89's own, or his file's "met_flag".
+func met_flag() -> String:
+	return str(cfg.get("met_flag", MET_FLAG))
 
 
 func _l(key: String) -> String:
@@ -118,7 +134,7 @@ func _build_body() -> void:
 	pos = town.marker_pos(mk)
 	pit_rect = _pit_under(town, pos)
 	body = StaticBody3D.new()
-	body.name = "T89"
+	body.name = npc_name().replace("-", "")
 	var cs := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()
 	cyl.height = height()
@@ -264,10 +280,14 @@ func greet() -> void:
 	greeted = true
 	_greet_left = -1.0
 	_beep()
-	if WorldState.has_flag(MET_FLAG):
+	if WorldState.has_flag(met_flag()):
 		_say(returning_line())
 		return
-	WorldState.set_flag(MET_FLAG)
+	WorldState.set_flag(met_flag())
+	if (cfg.get("tutorial", []) as Array).is_empty():
+		# T-99 runs no tutorial (T-89 did, down in the pit): his hello and his shop.
+		_open(str(cfg.get("greeting", "")) + _repair_line() + _story_line(), top_options(), _on_top)
+		return
 	_open(str(cfg.get("greeting", "")) + _repair_line() + _story_line() + "\n\n" + str(cfg.get("offer_tutorial", "")),
 		[{ "id": "yes", "text": _l("yes_tutorial") }, { "id": "no", "text": _l("no_tutorial") }], _on_offer)
 
@@ -288,7 +308,7 @@ func _on_offer(id: String) -> void:
 ## keyword row), or his top menu with no conversation host. In the story he never
 ## calls out first, so the first [E] is his hello and the tutorial offer.
 func talk() -> void:
-	if not greeted and not WorldState.has_flag(MET_FLAG):
+	if not greeted and not WorldState.has_flag(met_flag()):
 		greet()
 		return
 	if spot != null and chat():
@@ -403,7 +423,7 @@ func stock() -> Array:
 	var out := []
 	for id in content.ships:
 		var s: Dictionary = content.ships[id]
-		if s.has("atmosphere") and str(s.get("look", "")) != "":
+		if s.has("atmosphere") and str(s.get("look", "")) != "" and bool(s.get("sold", true)):
 			out.append(str(id))
 	out.sort_custom(func(a, b): return price(a) < price(b) or (price(a) == price(b) and a < b))
 	return out
@@ -470,7 +490,8 @@ func top_options() -> Array:
 	out.append({ "id": "group:ships", "text": _l("menu_ships") })
 	if not ShipUpgrades.owned().is_empty():
 		out.append({ "id": "group:upgrades", "text": _l("menu_upgrades") })
-	out.append({ "id": "tutorial", "text": _l("tutorial") })
+	if not tutorial_pages().is_empty():
+		out.append({ "id": "tutorial", "text": _l("tutorial") })
 	return out
 
 
@@ -829,7 +850,7 @@ func chat() -> bool:
 ## His card, with what he sells filled in: each ship in stock with its price and
 ## its numbers from the ship file, so the model can compare them and recommend one.
 func persona_card() -> Dictionary:
-	var card := NpcBrain._read(CARD_PATH)
+	var card := NpcBrain._read(str(cfg.get("card", CARD_PATH)))
 	var notes: Dictionary = card.get("ship_notes", {})
 	var ships := []
 	for id in stock():

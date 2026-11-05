@@ -178,8 +178,11 @@ func frame_for(sp: PlanetSphere, lm: Dictionary, world: Dictionary = {}) -> Tran
 ## ship's pad box ("ship") on the dock pad, where you arrive, and "player_spawn"
 ## beside it on the bay's deck (where a save loaded here puts you), standing on
 ## a painted plate (kind "pad": the town validator wants a marker to stand on a
-## town box; the station's own deck is what you walk on). No wall, no deck, no
-## cantina: everything else is the station.
+## town box; the station's own deck is what you walk on). Issue #316: a "ship"
+## box on every other pad that names a ship (the frigate; TownDecor parks it,
+## ShipPilot makes it a berth, "free" if the pad says), the spare pad a bought
+## ship lands on, and the salesman's marker on its own plate. No wall, no deck,
+## no cantina: everything else is the station.
 static func town_for(town_id: String, lm: Dictionary, sp: PlanetSphere, world: Dictionary = {}) -> Dictionary:
 	var h := for_id(str(lm.get("station", "")))
 	if h == null:
@@ -202,10 +205,58 @@ static func town_for(town_id: String, lm: Dictionary, sp: PlanetSphere, world: D
 		{ "id": "spawn_plate", "zone": "landing_bay", "kind": "pad", "standable": true, "hidden": true,
 			"min": [sp_at.x - 1.0, deck_y, sp_at.z - 1.0], "max": [sp_at.x + 1.0, sp_at.y, sp_at.z + 1.0] },
 	]
+	var markers := [{ "id": "player_spawn", "pos": [sp_at.x, sp_at.y, sp_at.z], "role": "spawn" }]
+	# The other pads: a parked ship's box (its look's footprint, turned with it; a
+	# berth like the port's bay ships), and the salesman's spare pad, a flat plate.
+	var sizes: Dictionary = ShipKit._read_json(ShipKit.LOOKS_PATH).get("looks", {})
+	var ships: Dictionary = {}
+	for p in h.pads():
+		if str(p.ship) == "" or p.id == pad.id:
+			continue
+		var sd = JSON.parse_string(FileAccess.get_file_as_string("res://content/core/ships/%s.json" % str(p.ship)))
+		var lk: Dictionary = sizes.get(str(sd.get("look", "")) if sd is Dictionary else "", {})
+		ships[p.id] = [float(lk.get("span", 8.0)), float(lk.get("height", 2.4)), float(lk.get("length", 9.0))]
+	var sale: Dictionary = h.cfg.get("salesman", {})
+	var bx: Transform3D = xf * (h.bay.xf as Transform3D)
+	for p in h.pads():
+		var pc: Vector3 = xf * (p.at as Vector3)
+		var pyaw := rad_to_deg(float(p.yaw) + xf.basis.get_euler().y)
+		if ships.has(p.id):
+			var d: Array = ships[p.id]
+			var t := deg_to_rad(pyaw)
+			var ex := absf(cos(t)) * float(d[0]) * 0.5 + absf(sin(t)) * float(d[2]) * 0.5
+			var ez := absf(sin(t)) * float(d[0]) * 0.5 + absf(cos(t)) * float(d[2]) * 0.5
+			boxes.append({ "id": "ship_" + str(p.id), "zone": "landing_bay", "kind": "ship", "ship": str(p.ship),
+				"min": [pc.x - ex, deck_y, pc.z - ez], "max": [pc.x + ex, deck_y + float(d[1]), pc.z + ez], "parked_yaw_deg": pyaw,
+				"free": bool(p.free) })
+		elif not sale.is_empty() and p.id == "spare":
+			var pr := float(p.radius) * 0.6
+			boxes.append({ "id": "spare_pad", "zone": "landing_bay", "kind": "pad", "standable": true, "hidden": true, "shape": "round",
+				"min": [pc.x - pr, deck_y, pc.z - pr], "max": [pc.x + pr, deck_y + 0.03, pc.z + pr], "parked_yaw_deg": pyaw })
+	if not sale.is_empty():
+		var sa: Array = sale.get("at", [0, 0])
+		var fa: Array = sale.get("face", [0, 0])
+		var at: Vector3 = bx * Vector3(float(sa[0]), 0.0, float(sa[1]))
+		var face: Vector3 = bx * Vector3(float(fa[0]), 0.0, float(fa[1]))
+		var top := deck_y + 0.02          # on a plate, like the spawn (the validator's V7)
+		boxes.append({ "id": "salesman_plate", "zone": "landing_bay", "kind": "pad", "standable": true, "hidden": true,
+			"min": [at.x - 1.0, deck_y, at.z - 1.0], "max": [at.x + 1.0, top, at.z + 1.0] })
+		markers.append({ "id": str(sale.get("npc", "t99")), "pos": [at.x, top, at.z], "role": "interact",
+			"face": [face.x, top, face.z] })
 	var x0 := minf(c.x - hx, sp_at.x - 1.0) - 2.0
 	var x1 := maxf(c.x + hx, sp_at.x + 1.0) + 2.0
 	var z0 := minf(c.z - hz, sp_at.z - 1.0) - 2.0
 	var z1 := maxf(c.z + hz, sp_at.z + 1.0) + 2.0
+	for b in boxes:
+		x0 = minf(x0, float(b.min[0]) - 2.0)
+		x1 = maxf(x1, float(b.max[0]) + 2.0)
+		z0 = minf(z0, float(b.min[2]) - 2.0)
+		z1 = maxf(z1, float(b.max[2]) + 2.0)
+	for m in markers:
+		x0 = minf(x0, float(m.pos[0]) - 2.0)
+		x1 = maxf(x1, float(m.pos[0]) + 2.0)
+		z0 = minf(z0, float(m.pos[2]) - 2.0)
+		z1 = maxf(z1, float(m.pos[2]) + 2.0)
 	return {
 		"id": town_id,
 		"kind": "station",
@@ -217,13 +268,14 @@ static func town_for(town_id: String, lm: Dictionary, sp: PlanetSphere, world: D
 		"blocking_kinds": ["wall", "solid", "cover", "counter", "ship"],
 		"zones": [{ "id": "landing_bay", "min": [x0, z0], "max": [x1, z1] }],
 		"boxes": boxes,
-		"markers": [{ "id": "player_spawn", "pos": [sp_at.x, sp_at.y, sp_at.z], "role": "spawn" }],
+		"markers": markers,
 		"routes": [],
 		"garrison": {},
 		"locals": {},
-		"counts": { "guards": 0, "residents": 0, "roamers": 0, "stalls": 0, "merchants": 0, "bays": 1 },
+		"counts": { "guards": 0, "residents": 0, "roamers": 0, "stalls": 0, "merchants": 0, "bays": h.pads().size() },
 		"club": {},
 		"station_town": str(lm.get("id", "")),
+		"salesman": str(sale.get("npc", "")),
 	}
 
 
@@ -283,7 +335,7 @@ static func landmarks(world: Dictionary) -> Array:
 # ------------------------------------------------------------------ places
 
 ## The landing pads: { id, at: Vector3 (on the deck, station frame), yaw (nose out),
-## radius }.
+## radius, local (its [out, across] in the bay), ship (the ship parked on it, or "") }.
 func pads() -> Array:
 	var out: Array = []
 	if bay.is_empty():
@@ -293,7 +345,8 @@ func pads() -> Array:
 	for p in cfg.get("pads", []):
 		var a: Array = p.get("at", [0, 0])
 		out.append({ "id": str(p.get("id", "")), "at": bx * Vector3(float(a[0]), 0.0, float(a[1])), "yaw": yaw,
-			"radius": float(p.get("radius", 12.0)), "local": Vector2(float(a[0]), float(a[1])) })
+			"radius": float(p.get("radius", 12.0)), "local": Vector2(float(a[0]), float(a[1])),
+			"ship": str(p.get("ship", "")), "free": bool(p.get("free", false)) })
 	return out
 
 
@@ -862,11 +915,16 @@ func _bay() -> void:
 	_ring("bay_crown_glow", c, r * 0.62, r * 0.64, h + plate + 1.0, h + plate + 1.6, "decor", "glow", [], 32)
 	_ring("bay_lip", c, r - 0.4, r + 1.6, h - 1.0, h + plate + 0.6, "solid", "trim", [[out + PI, PI * r - r * half - 0.3]])
 	_ring("bay_lip_glow", c, r - 0.5, r - 0.4, h - 1.2, h - 0.9, "decor", "glow", [[out + PI, PI * r - r * half]])
+	var g0 := 0.0                       # the lane lights start past the front pads
+	for p in pads():
+		g0 = maxf(g0, (p.local as Vector2).x + float(p.radius) + 1.0)
+	var g1 := r * cos(half) + ap
 	for s: float in [-1.0, 1.0]:
 		var a := out + s * half
 		_radial("bay_post_%d" % int(s), c, a, r - 0.6, r + 1.8, -plate, h + plate + 0.6, 2.4, "solid", "trim")
-		box.call("guide_%d" % int(s), Vector3((r * cos(half) + ap) * 0.5, 0.04, s * (chord * 0.5 - 3.0)),
-			Vector3(r * cos(half) + ap, 0.06, 0.5), "decor", "glow")
+		if g1 > g0 + 1.0:
+			box.call("guide_%d" % int(s), Vector3((g0 + g1) * 0.5, 0.04, s * (chord * 0.5 - 3.0)),
+				Vector3(g1 - g0, 0.06, 0.5), "decor", "glow")
 	box.call("door_glow", Vector3(-r + 0.25, tunnel_h + 0.3, 0), Vector3(0.1, 0.3, tunnel_w + 0.2), "decor", "glow")
 	# Radial beams under the roof, and the pads.
 	for k in 8:

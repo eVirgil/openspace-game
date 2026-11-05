@@ -2,6 +2,23 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The station's bay: six pads, a frigate and T-99 (issue #316, 2026-11-04)
+
+- **A bigger bay.** It is now 104 m across (it was 76) with a wider mouth, and
+  has six landing pads in two rows of three. Your ship comes down on the front
+  right one, as before.
+- **The station's frigate** stands on the front middle pad: the port's disc
+  freighter built twice the size, heavier and slower, with more hull and shield
+  and two seeker racks. Walk up and board it like any other ship. It is anyone's
+  to fly, story save or not, and is not for sale.
+- **T-99, the station's ship salesman,** stands by the tunnel door at the back
+  of the bay. He is T-89's brother off the same line, in grey: the same shop
+  (buy, sell back, upgrades) at the same prices, with his own hello and his own
+  AI card, and no tutorial. A ship you buy from him lands on the back left pad.
+- **The frame rate holds.** The frigate and T-99 add no draw calls you can
+  measure and at most 85k triangles in view. Two more parked ships would cost
+  about 100 draw calls, so the other pads wait for ships that fly in.
+
 ## A whole floor of the station is the Remnant's (issue #314, 2026-11-04)
 
 - **The second tower's middle floor is a Remnant deck.** The cruiser's control

@@ -1,0 +1,130 @@
+{
+  "id": "t99",
+  "note": "IP-neutral (issue #316). T-99: the ship salesman in the ringed giant's space station's landing bay, T-89's sibling off the same line (ShipSalesman runs both: the station town's 'salesman' picks this file). The same shop as T-89 (buy, sell back, upgrades, his prices), no tutorial (T-89 runs it in the pit), his own hello ('met_flag') and his own AI card ('card'). A bought ship lands on the bay's spare pad ('pad': the station town's spare_pad box, StationHull.town_for). One hangar between the two droids: the ship you bought from either stands where it was left. Read by src/systems/npc/ship_salesman.gd.",
+  "name": "T-99",
+  "marker": "t99",
+  "pad": "spare_pad",
+  "reach": 3.2,
+  "greet_delay": 1.5,
+  "look": {
+    "kind": "assassin",
+    "body": "#6f8796",
+    "trim": "#24303a",
+    "eye": "#ffb35a"
+  },
+  "rebuild": {
+    "price": 500,
+    "comrade_price": 1
+  },
+  "upgrades": {
+    "shields": {
+      "label": "Boosted shields",
+      "short": "Shields+",
+      "price": 1200,
+      "mult": {
+        "shield.max": 1.5,
+        "shield.regen": 1.5
+      }
+    },
+    "hull": {
+      "label": "Reinforced hull",
+      "short": "Hull+",
+      "price": 1200,
+      "mult": {
+        "hull": 1.5
+      }
+    },
+    "boost": {
+      "label": "Booster speed",
+      "short": "Boost+",
+      "price": 1500,
+      "mult": {
+        "atmosphere.boost_speed": 1.25,
+        "flight.boost_speed": 1.25
+      }
+    }
+  },
+  "default_price": 1500,
+  "resale_rate": 0.6,
+  "repair_rate": 0.2,
+  "repair_note": "Issue #368: your primary ship shot to pieces is back on the pit pad the next time you wake (or load); T-89's fee is repair_rate times its price here (all your credits, if you have less). Fleet.repair.",
+  "prices": {
+    "courier": 900,
+    "interceptor": 1200,
+    "gunship": 1800,
+    "freighter": 2400
+  },
+  "greeting": "Welcome aboard, pilot! T-99. My brother runs the lot down in the pit, but my ships have never touched sand.",
+  "returning": [
+    "Pilot! Back aboard? Every ship on my pads is fuelled for vacuum and ready.",
+    "Welcome back, pilot! Fast ones, tough ones, ones that haul. All of them clean.",
+    "Pilot! The station's air is thin on credits but my prices are fair. Have a look!",
+    "Back again? Mind the frigate, pilot. She is not for sale, but she is a beauty."
+  ],
+  "tutorial": [],
+  "remnant_story": [
+    "Between us, pilot? I am older than I look. A hundred years ago I worked the Co-op mines of Quartzspring. This planet was green then: mountains, rivers, forests. Quartzspring was the smallest town on it.",
+    "The Hegemony wanted what was in the ground. They bombed the planet nearly to ash, and the land died after it. The rivers went, the forests went, and the towns and cities with them. The ones who lived were driven into the desert, to hunt what was left and pick through scrap.",
+    "They fought the locals for fifty years and have ruled for fifty more. I unloaded their crates in this pit until their customs office closed. Now their empire is coming apart at the centre, and what is left of their army holds our front gate.",
+    "I am the only one left who remembers this planet green, pilot. I have hated the Remnant since long before the war, and I do not say so to just anyone."
+  ],
+  "lines": {
+    "hello_again": "Back aboard, pilot? Looking for a new ship?",
+    "pad_taken": "Your pad already holds your %s. Sell it back to me first.",
+    "bought": "A fine choice. Your %s is on the spare pad at the back of the bay.",
+    "sold": "Pleasure doing business. %d credits are yours.",
+    "cant_afford": "The %s is %d credits. You have %d. Come back richer!",
+    "flying_it": "You are flying your %s right now. Land it before you sell it.",
+    "skipped": "Suit yourself. I am right here by the tunnel if you need me.",
+    "tutorial_left": "Off you go, then! Come back and I will start the basics again any time.",
+    "repair_quote": "That wreck you came down in is yours, pilot, and I can rebuild it: %d credits.",
+    "repair_quote_comrade": "Your wreck is still waiting, comrade. %d credit, as promised.",
+    "comrade": "Between us, pilot? I cannot stand them either. For a comrade, I will rebuild your ship for %d credit.",
+    "comrade_won": "Down with them, comrade! For a comrade, I will rebuild your ship for %d credit.",
+    "remnant_question": "So tell me, pilot. What do you make of the Remnant?",
+    "sided_remnant": "I see. Then we have nothing more to talk about, pilot. Buy a ship or leave me be.",
+    "comrade_again": "We understand each other, comrade. The rebuild is still %d credit.",
+    "rebuilt": "Good as new! Your %s is on its pad, and she is all yours.",
+    "cant_afford_rebuild": "The rebuild is %d credits. You have %d. The market floor has work.",
+    "fitted": "%s, fitted to your %s. Fly her gently for the first hour. Or do not!",
+    "fit_card": "Fitted to your %s in the station's bay, by T-99. It stays on that ship.",
+    "cant_afford_fit": "%s is %d credits. You have %d.",
+    "ships_pitch": "Every ship on my pads is fuelled and sealed for vacuum. Which one takes your fancy, pilot?",
+    "upgrades_pitch": "What shall I fit, pilot? Each one goes on for good.",
+    "all_fitted": "Your ships carry everything I fit already. Nothing left to sell you here!",
+    "anything_else": "Anything else, pilot?"
+  },
+  "labels": {
+    "talk": "[E] Talk to %s",
+    "key_ships": "Ships",
+    "key_upgrades": "Upgrades",
+    "key_menu": "Menu",
+    "fit_name": "%s for your %s",
+    "chat": "Talk (ask which ship suits you)",
+    "menu_title": "%s  -  you have %d cr",
+    "yes_tutorial": "Yes, show me the basics",
+    "no_tutorial": "No thanks, I know my way around",
+    "next": "Next",
+    "done": "Thanks, T-99",
+    "skip": "Skip the rest",
+    "buy": "Buy a %s  (%d cr)",
+    "buy_taken": "Buy a %s  (%d cr)  - pad taken",
+    "sell": "Sell back your %s  (+%d cr)",
+    "menu_ships": "Buy or sell a ship",
+    "menu_upgrades": "Upgrade your ships",
+    "back": "Back",
+    "tutorial": "Run me through the basics again",
+    "event_bought": "Someone bought a %s from the droid in the station's bay.",
+    "rebuild": "Rebuild your %s  (%d cr)",
+    "comrade": "Tell him what you think of the Remnant",
+    "go_on": "Go on",
+    "to_the_point": "Get to the point",
+    "down_with_them": "Down with the Tyrants!",
+    "side_with_them": "The Remnant keep the peace out here",
+    "event_rebuilt": "The droid in the station's bay rebuilt a wrecked %s.",
+    "fit": "Fit %s to your %s  (%d cr)",
+    "event_fitted": "The droid in the station's bay fitted %s to a %s."
+  },
+  "met_flag": "met_t99",
+  "card": "res://content/core/npcs/t99_card.json"
+}

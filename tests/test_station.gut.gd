@@ -8,6 +8,7 @@ extends GutTest
 
 const TownDemo := preload("res://scenes/town_demo.gd")
 const TownLayout := preload("res://src/systems/world/town_layout.gd")
+const Decor := preload("res://src/systems/world/town_decor.gd")
 const ID := "orbital_station"
 const HOST := "ringed_giant"       ## the planet that carries it
 
@@ -376,3 +377,94 @@ func test_outside_is_breathable_and_dropping_toward_the_clouds_puts_you_back_in_
 	await wait_physics_frames(3)
 	assert_eq(s.falls, 1)
 	assert_true(s.aboard(p.global_position), "back aboard")
+
+
+# ------------------------------------------------------------------ the bay's pads and T-99 (issue #316)
+
+## Six pads in two rows, every one inside the bay and clear of the others, and the
+## front row's ships fly straight out through the mouth without touching a post.
+func test_six_pads_fit_the_bay_and_the_front_row_flies_out_clear() -> void:
+	var h := _hull()
+	var pads := h.pads()
+	assert_eq(pads.size(), 6, "six pads")
+	var r := float(h.bay.r)
+	for i in pads.size():
+		var a: Dictionary = pads[i]
+		var la: Vector2 = a.local
+		assert_lt(la.length() + float(a.radius), r - 1.0, "%s sits inside the bay" % a.id)
+		for j in range(i + 1, pads.size()):
+			var b: Dictionary = pads[j]
+			assert_gt(la.distance_to(b.local as Vector2), float(a.radius) + float(b.radius), "%s clear of %s" % [a.id, b.id])
+	var lane := r * sin(float(h.bay.mouth)) - 1.2         # the mouth's half width, less a post
+	for p in pads:
+		if (p.local as Vector2).x > 0.0:
+			assert_lt(absf((p.local as Vector2).y) + 4.5, lane, "%s: a ship's half span still clears the mouth" % p.id)
+
+
+## The giant's town (the bay) parks a ship on each pad that names one, the
+## frigate free to fly, and has T-99 and his spare pad.
+func test_the_bay_town_parks_the_frigate_and_has_t99() -> void:
+	var town: Dictionary = PlanetGen.build(HOST).town
+	var by_id := {}
+	for b in town.boxes:
+		by_id[str(b.id)] = b
+	assert_true(by_id.has("ship_frigate"), "the frigate's box")
+	assert_eq(str(by_id.get("ship_frigate", {}).get("ship", "")), "frigate")
+	assert_true(bool(by_id.get("ship_frigate", {}).get("free", false)), "anyone's to fly")
+	var fb: Dictionary = by_id.get("ship_frigate", {})
+	if not fb.is_empty():
+		assert_gt(float(fb.max[0]) - float(fb.min[0]) + float(fb.max[2]) - float(fb.min[2]), 30.0, "a frigate's footprint, not a fighter's")
+	assert_true(by_id.has("spare_pad"), "T-99's spare pad")
+	assert_eq(str(town.get("salesman", "")), "t99")
+	var marks: Array = town.markers.filter(func(m): return str(m.id) == "t99")
+	assert_eq(marks.size(), 1, "T-99's marker")
+	assert_eq(TownCheck.errors(HOST, town), [], "the bay town validates")
+
+
+## The frigate's look is the freighter twice the size, and stays that size flown
+## (its root's transform set outright, as ShipPilot does).
+func test_the_frigate_look_is_the_freighter_twice_the_size() -> void:
+	var kit := ShipKit.new()
+	var f := kit.build("frigate")
+	var base := kit.build("freighter")
+	add_child_autofree(f)
+	add_child_autofree(base)
+	var a: AABB = Decor.visual_aabb(f)
+	var b: AABB = Decor.visual_aabb(base)
+	assert_almost_eq(a.size.x / maxf(b.size.x, 0.01), 2.0, 0.05, "twice the span")
+	f.global_transform = Transform3D(Basis.IDENTITY, Vector3(5, 0, 0))
+	assert_almost_eq((Decor.visual_aabb(f) as AABB).size.x, a.size.x, 0.05, "still twice the size once moved")
+	var cc = preload("res://src/systems/dataload/core_content.gd").new()
+	cc.load_from()
+	assert_false(cc.get_ship("frigate").is_empty(), "the frigate's ship data loads")
+	assert_false(bool(cc.get_ship("frigate").get("sold", true)), "and is not on a salesman's lot")
+
+
+## Aboard: T-99 stands in the bay and runs T-89's shop; a ship bought from him is
+## on the spare pad.
+func test_t99_sells_a_ship_onto_the_spare_pad() -> void:
+	var t = _host()
+	var s = await _station(t)
+	if s == null:
+		fail_test("no station")
+		return
+	for i in 120:
+		if t.salesman != null and t.salesman.body != null:
+			break
+		await wait_physics_frames(1)
+	var sm: ShipSalesman = t.salesman
+	assert_not_null(sm, "a salesman aboard")
+	if sm == null:
+		return
+	assert_eq(sm.npc_name(), "T-99")
+	assert_not_null(sm.body, "standing on his marker")
+	assert_true(s.aboard(sm.pos + Vector3(0, 1, 0)), "in the bay")
+	assert_false(sm.stock().has("frigate"), "the frigate is not for sale")
+	WorldState.credits = 100000
+	assert_eq(sm.buy("courier"), "bought")
+	assert_not_null(sm.bought_ship, "parked")
+	var box: Dictionary = t.town.get_box("spare_pad")
+	var c := (WorldGround._v3(box.min) + WorldGround._v3(box.max)) * 0.5
+	var at: Vector3 = sm.bought_ship.global_position
+	assert_lt(Vector2(at.x - c.x, at.z - c.z).length(), 3.0, "on the spare pad")
+	assert_gt(sm.sell(), 0, "and he buys it back")

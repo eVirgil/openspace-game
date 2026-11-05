@@ -2,6 +2,31 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the station's bay (2026-11-04)
+
+**Checked:** `test_station` (19, four new: the six pads fit and the front row
+flies out clear of the mouth's posts; the giant's town parks the frigate free to
+fly and validates; the frigate's look is the freighter at twice the size and
+keeps it when moved; T-99 stands in the bay, does not sell the frigate, and a
+ship bought from him is on the spare pad). A rendered probe of the bay from the
+back, the mouth, by the frigate and by T-99, with and without the new things.
+Nothing was played by hand: the frigate has not been flown.
+
+- **The frigate's flight numbers are a first guess** (the freighter's, slower and
+  heavier). Flown to the port it sets down on the pit's pad, whose box is half
+  its size, so it may overlap the pit's edge; not checked.
+- **One hangar for both salesmen.** A ship bought from either droid and never
+  flown stands on the spare pad of whichever one you visit (only one place is
+  loaded at a time, so there are never two of it). Once flown it stays where you
+  left it, as before.
+- **Four pads are empty** but for a bought ship. Parking a ship is one "ship" on
+  a pad in `orbital_station.json`, at 30 to 80 draw calls a model.
+- **T-99's card is a draft** copied from T-89's (his identity, backstory, people
+  and directions are new). He offers the Remnant talk only while a wreck waits
+  for a rebuild, which never happens at the station.
+- **Z only docks you on the dock pad.** A ship taking off from another pad flies
+  out by hand.
+
 ## After the station's Remnant deck (2026-11-04)
 
 **Checked:** headless on the giant: 15 troopers at their posts in a garrison;
