@@ -33,6 +33,15 @@ nothing new to load or compile, and each floor draws only a few more meshes.
 - **The markets.** Stone flags underfoot, dark tiles round the walkway, stock
   piled behind the stalls, lamp posts and planters along the walkway, and
   banners hung from the ceiling.
+- **The top floor.** The main tower's top floor, empty until now, is dressed.
+  Its bridge has the cruiser's control room inside the door, then four arcs of
+  crew desks facing the window and a railed command dais by the glass. Two
+  cantinas each have a long bar of lit bottles, velvet booths, round tables and
+  a stage with spotlights and a drum kit. Two barracks are rows of bunks. Two
+  observation lounges have sofas facing the window, bookcases, a telescope and a
+  grand piano. The garden has trees in raised beds, a pond with a fountain,
+  benches, and racks of crops under grow lights. Nobody works there yet: the
+  people come with the rest of issue #314.
 - **Fixed:** the suites' wall panelling and the bunk rooms' lockers used to run
   out through the window glass at the rooms' far corners.
 

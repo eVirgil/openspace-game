@@ -104,6 +104,8 @@ func begin(parent: Node3D, t: Dictionary, i: int) -> bool:
 			_suites(t, f, fc)
 		"remnant":
 			_remnant(t, f)
+		"top":
+			_top(t, f, fc)
 		_:
 			return false
 	_q.append(_collect)
@@ -1342,18 +1344,7 @@ func _remnant_room(r: Dictionary) -> void:
 			_pendant(Vector3(r0 + 6.0 + j * (r1 - r0 - 10.0) / 2.0, 4.6, 0.0), hull.floor_h, _m("trim"), 0.45)
 	match use:
 		"control":
-			var cr := StationRemnant.control_room(hull, r)
-			kit._xf = cr.frame
-			for p in OutpostRoom.inside(cr.b):
-				var id := str(p.id)
-				if id.begins_with("lining"):
-					continue
-				var c: Vector3 = p.center
-				if id == "floor":
-					c.y += 0.05
-				var m: Material = _glow(Color("#e8f6ff"), 3.0) if str(p.finish) == "glow" else _m(str(p.finish))
-				_p(kit.box((p.size as Vector3).x, (p.size as Vector3).y, (p.size as Vector3).z), m, c, bool(p.solid), p.basis)
-			kit._xf = r.frame
+			_cruiser_room(r)
 			_p(kit.box(0.08, 4.0, 1.6), _fm("mark"), Vector3(r1 - 0.4, 6.0, 0))
 			_control_more(r0, r1, half)
 		"bunks":
@@ -1364,6 +1355,23 @@ func _remnant_room(r: Dictionary) -> void:
 			_command(r0, r1, half)
 		"mess":
 			_mess(r0, r1, half)
+
+
+## The cruiser's control room (OutpostRoom's, as StationRemnant.control_room lays
+## it out) inside the door of room `r`: its consoles, holo table and great window.
+func _cruiser_room(r: Dictionary) -> void:
+	var cr := StationRemnant.control_room(hull, r)
+	kit._xf = cr.frame
+	for p in OutpostRoom.inside(cr.b):
+		var id := str(p.id)
+		if id.begins_with("lining"):
+			continue
+		var c: Vector3 = p.center
+		if id == "floor":
+			c.y += 0.05
+		var m: Material = _glow(Color("#e8f6ff"), 3.0) if str(p.finish) == "glow" else _m(str(p.finish))
+		_p(kit.box((p.size as Vector3).x, (p.size as Vector3).y, (p.size as Vector3).z), m, c, bool(p.solid), p.basis)
+	kit._xf = r.frame
 
 
 ## Round the control room: racks of computers along both walls, crates and drums
@@ -1387,25 +1395,17 @@ func _control_more(r0: float, r1: float, half: float) -> void:
 ## Two-high bunks down both sides (posts, frames, mattresses, pillows), a
 ## footlocker at each foot, a reading light over each, lockers along the window,
 ## a screen over them, card tables down the middle, a rifle rack by the door.
-func _bunks(r0: float, r1: float, half: float) -> void:
+func _bunks(r0: float, r1: float, half: float, band: Material = null) -> void:
 	var frame := mats.painted(Color("#3b3f45"), 0.5, 0.6)
 	var cloth := _t("cloth", Color("#59604c"))
 	var pillow := _t("cloth", Color("#c9c3b2"))
 	var steel := _t("locker", Color("#4c5259"))
+	if band == null:
+		band = _fm("band")
 	var x := r0 + 2.5
 	while x < r1 - 5.0:
 		for s: float in [-1.0, 1.0]:
-			var z := s * (_half_w(x, half) - 1.1)
-			for dx: float in [-0.95, 0.95]:
-				for dz: float in [-0.42, 0.42]:
-					_p(kit.box(0.06, 2.0, 0.06), frame, Vector3(x + dx, 1.0, z + dz))
-			for y: float in [0.38, 1.38]:
-				_p(kit.box(2.0, 0.08, 0.9), frame, Vector3(x, y, z))
-				_p(kit.box(1.9, 0.14, 0.82), cloth, Vector3(x, y + 0.11, z))
-				_p(kit.box(0.32, 0.1, 0.65), pillow, Vector3(x - 0.75, y + 0.23, z))
-			kit.add_collider(kit._xf * Transform3D(Basis.IDENTITY, Vector3(x, 1.0, z)), Vector3(2.0, 2.0, 0.9))
-			_p(kit.box(0.5, 0.45, 0.8), steel, Vector3(x + 1.3, 0.22, z), true)
-			_p(kit.box(0.3, 0.06, 0.12), kit.window_glow, Vector3(x - 0.7, 2.1, z + s * 0.4))
+			_bunk(Vector3(x, 0, s * (_half_w(x, half) - 1.1)), s, frame, cloth, pillow, steel)
 		x += 2.7
 	# Lockers round the window's arc, facing in, a screen over the middle ones.
 	var rho := _win_r - 0.4
@@ -1415,7 +1415,7 @@ func _bunks(r0: float, r1: float, half: float) -> void:
 		var a := -span + (k + 0.5) * 2.0 * span / n
 		var at := Vector3(cos(a), 0, sin(a)) * rho
 		_p(kit.box(0.6, 2.0, 0.6), steel, at + Vector3(0, 1.0, 0), true, Basis(UP, -a))
-		_p(kit.box(0.02, 0.05, 0.5), _fm("band"), at + Vector3(-0.31 * cos(a), 1.7, -0.31 * sin(a)), false, Basis(UP, -a))
+		_p(kit.box(0.02, 0.05, 0.5), band, at + Vector3(-0.31 * cos(a), 1.7, -0.31 * sin(a)), false, Basis(UP, -a))
 	_p(kit.box(0.08, 1.7, 3.0), _m("screen"), Vector3(rho - 0.2, 3.4, 0))
 	# Card tables down the middle, cups and cards on them.
 	var seat := _t("cloth", Color("#59604c"))
@@ -1430,6 +1430,21 @@ func _bunks(r0: float, r1: float, half: float) -> void:
 	_p(kit.box(0.35, 1.8, 2.4), _m("trim"), Vector3(rx, 0.9, rz), true)
 	for k in 6:
 		_p(kit.box(0.14, 1.15, 0.08), mats.painted(Color("#1d1f22"), 0.4, 0.7), Vector3(rx + 0.26, 1.0, rz - 1.0 + k * 0.4))
+
+
+## One two-high bunk at `c` (along x): posts, frames, mattresses, pillows, a
+## footlocker at its foot, a reading light on side `s`.
+func _bunk(c: Vector3, s: float, frame: Material, cloth: Material, pillow: Material, steel: Material) -> void:
+	for dx: float in [-0.95, 0.95]:
+		for dz: float in [-0.42, 0.42]:
+			_p(kit.box(0.06, 2.0, 0.06), frame, c + Vector3(dx, 1.0, dz))
+	for y: float in [0.38, 1.38]:
+		_p(kit.box(2.0, 0.08, 0.9), frame, c + Vector3(0, y, 0))
+		_p(kit.box(1.9, 0.14, 0.82), cloth, c + Vector3(0, y + 0.11, 0))
+		_p(kit.box(0.32, 0.1, 0.65), pillow, c + Vector3(-0.75, y + 0.23, 0))
+	kit.add_collider(kit._xf * Transform3D(Basis.IDENTITY, c + Vector3(0, 1.0, 0)), Vector3(2.0, 2.0, 0.9))
+	_p(kit.box(0.5, 0.45, 0.8), steel, c + Vector3(1.3, 0.22, 0), true)
+	_p(kit.box(0.3, 0.06, 0.12), kit.window_glow, c + Vector3(-0.7, 2.1, s * 0.4))
 
 
 ## Rifle racks down both sides, ammunition crates, a workbench with rifles in
@@ -2020,6 +2035,439 @@ func _pipes(t: Dictionary, f: Dictionary) -> void:
 			_p(kit.box(0.3, 0.3, w), _m("rail") if j == 0 else _m("hull"), Vector3(r - j * 0.5, hull.floor_h - 1.4 - j * 0.15, 0))
 		if k % 4 == 0:
 			_p(kit.box(0.9, 0.08, 0.12), _m("trim"), Vector3(r - 0.25, hull.floor_h - 1.15, 0))
+
+
+# ------------------------------------------------------------------ the top floor
+
+## Each top-floor room's floor by use.
+const TOP_FLOORS := { "bridge": ["plate", "#3e434a"], "cantina": ["woodfloor", "#6a4a32"], "barracks": ["rubber", "#5a5e55"],
+	"lounge": ["carpet", "#3a3f52"], "garden": ["pavers", "#9a8f7a"] }
+
+
+## The main tower's top floor: its open rooms by use in turn (the fill block's
+## "rooms": bridge, cantina, barracks, lounge, garden), a marble runner round the
+## walkway. The look only: issue #314 brings the people who work and drink here.
+func _top(t: Dictionary, f: Dictionary, fc: Dictionary) -> void:
+	var r0 := hull.gap_r + hull.walk + 0.4
+	var r1 := float(f.r) - StationHull.WALL
+	var uses: Array = fc.get("rooms", ["bridge", "cantina", "barracks", "lounge", "garden"])
+	var k := 0
+	for room in hull.rooms_of(str(t.id), str(f.id)):
+		if not bool(room.open):
+			continue
+		var at := radial(t, float(f.y), float(room.a))
+		var half := float(room.half)
+		var use := str(uses[k % uses.size()])
+		_q.append(_in.bind(at, _top_shell.bind(r0, r1, half, use)))
+		match use:
+			"bridge":
+				_q.append(_cruiser_room.bind({ "frame": at, "r0": r0, "r1": r1, "half": half }))
+				_q.append(_in.bind(at, _bridge.bind(r0, r1, half)))
+			"cantina":
+				_q.append(_in.bind(at, _cantina.bind(r0, r1, half)))
+				_q.append(_in.bind(at, _cantina_floor.bind(r0, r1, half)))
+			"barracks":
+				_q.append(_in.bind(at, _bunks.bind(r0, r1, half, _t("brass", Color("#d4af37")))))
+				_q.append(_in.bind(at, _barracks_more.bind(r0, r1, half)))
+			"lounge":
+				_q.append(_in.bind(at, _observation.bind(r0, r1, half)))
+			"garden":
+				_q.append(_in.bind(at, _garden.bind(r0, r1, half)))
+				_q.append(_in.bind(at, _garden_more.bind(r0, r1, half)))
+		_count(use)
+		k += 1
+	_q.append(_ring_floor.bind(t, float(f.y), hull.gap_r + 0.2, hull.gap_r + hull.walk - 0.25, _t("marble", Color("#cfc9bd")), _room_n * 12))
+
+
+## A frame on side `s`'s wall at `x` out, `off` metres off it: its x runs along
+## the wall, its z is into the room times -s.
+func _wall_xf(s: float, half: float, x: float, off := 0.0) -> Transform3D:
+	return Transform3D(_along(s, half), Vector3(x, 0, s * _wall_z(x, half, off)))
+
+
+## Every top-floor room: its floor by use, a skirting, a rail round the walls, a
+## band of light along both walls high up and a light strip down the ceiling.
+func _top_shell(r0: float, r1: float, half: float, use: String) -> void:
+	var fl: Array = TOP_FLOORS.get(use, ["plate", "#4a4e55"])
+	_cover(r0, r1, half, _t(str(fl[0]), Color(str(fl[1]))))
+	_skirt(r0, r1, half, _m("trim"))
+	_liner(r0, r1, half, hull.floor_h - 1.2, 0.1, 0.1, kit.window_glow, 0.05)
+	_p(kit.box(r1 - r0 - 6.0, 0.08, 0.5), kit.window_glow, Vector3((r0 + r1) * 0.5 - 1.0, hull.floor_h - 0.06, 0))
+
+
+## The bridge past the cruiser's control room: rows of crew desks in arcs facing
+## the window (a desk, a lit screen, a chair at each), a railed command dais by the
+## glass with a high chair and two side consoles, a carpet up the middle to it,
+## big screens on both walls, tall banners, plate up the walls.
+func _bridge(r0: float, r1: float, half: float) -> void:
+	var desk := _m("console")
+	var screen := _m("screen")
+	var seat := _t("cloth", Color("#2e3a5a"))
+	var lit := _glow(Color("#5fd0ff"), 2.0)
+	var plate := _t("plate", Color("#5a6068"))
+	_liner(r0 + 20.0, r1, half, 0.14, 1.6, 0.06, plate)
+	_liner(r0 + 20.0, r1, half, 1.74, 0.06, 0.1, _m("rail"))
+	var dx := r1 - 8.0
+	_p(kit.box(dx - 3.4 - (r0 + 19.5), 0.02, 2.4), _t("carpet", Color("#5a1e2a")), Vector3((r0 + 19.5 + dx - 3.4) * 0.5, 0.035, 0))
+	# Four rows of crew desks round the room's middle, an aisle up it.
+	for j in 4:
+		var rho := r0 + 22.5 + j * 4.5
+		var span := asin(clampf((_half_w(rho, half) - 1.5) / rho, 0.0, 1.0))
+		var n := floori(2.0 * span * rho / 1.7)
+		for q in n:
+			var a := -span + (q + 0.5) * 2.0 * span / n
+			if absf(rho * sin(a)) < 1.6:
+				continue
+			var was := kit._xf
+			kit._xf = was * Transform3D(Basis(UP, -a), Vector3(cos(a), 0, sin(a)) * rho)
+			_p(kit.box(0.7, 0.8, 1.4), desk, Vector3(0, 0.4, 0), true)
+			_p(kit.box(0.5, 0.02, 1.2), lit, Vector3(0, 0.81, 0))
+			_p(kit.box(0.05, 0.5, 1.2), screen, Vector3(0.28, 1.1, 0), false, Basis(Vector3.BACK, -0.25))
+			_p(kit.box(0.5, 0.08, 0.5), seat, Vector3(-0.85, 0.48, 0))
+			_p(kit.box(0.08, 0.6, 0.5), seat, Vector3(-1.1, 0.82, 0))
+			_p(kit.cyl(0.04, 0.04, 0.44, 6), _m("trim"), Vector3(-0.85, 0.22, 0))
+			kit._xf = was
+	# The command dais: a round platform with a rail round it, steps up, the chair
+	# and its two consoles, a brass ring at its foot.
+	_p(kit.cyl(3.2, 3.4, 0.4, 24), plate, Vector3(dx, 0.2, 0), true)
+	_ring_of(dx, 3.25, 0.42, 0.06, _t("brass", Color("#d4af37")), 24)
+	_ring_of(dx, 3.0, 0.4 + RAIL, 0.06, _m("rail"), 24)
+	_p(kit.box(0.9, 0.2, 2.0), plate, Vector3(dx - 3.6, 0.1, 0), true)
+	var cs := _t("velvet", VELVETS[1].lightened(0.1))
+	_p(kit.box(0.8, 0.5, 0.8), cs, Vector3(dx - 0.3, 0.65, 0), true)
+	_p(kit.box(0.2, 1.6, 0.8), cs, Vector3(dx - 0.75, 1.2, 0))
+	for e: float in [-1.0, 1.0]:
+		_p(kit.box(0.7, 0.3, 0.12), cs, Vector3(dx - 0.3, 1.0, e * 0.45))
+		_p(kit.box(0.9, 0.9, 1.2), desk, Vector3(dx + 0.6, 0.85, e * 1.6), true, Basis(UP, e * 0.5))
+		_p(kit.box(0.6, 0.02, 1.0), lit, Vector3(dx + 0.6, 1.31, e * 1.6), false, Basis(UP, e * 0.5))
+	# Big screens on both walls, framed; banners either side of them.
+	var navy := _t("cloth", Color("#2e3a5a"))
+	var gold := _t("brass", Color("#d4af37"))
+	for s: float in [-1.0, 1.0]:
+		var was := kit._xf
+		kit._xf = was * _wall_xf(s, half, r0 + 30.0, 0.1)
+		_p(kit.box(10.4, 4.9, 0.06), _m("trim"), Vector3(0, 6.5, 0))
+		_p(kit.box(10.0, 4.5, 0.04), screen, Vector3(0, 6.5, -s * 0.05))
+		for u: float in [-7.0, 7.0]:
+			_p(kit.box(1.6, 7.0, 0.05), navy, Vector3(u, 7.5, -s * 0.05))
+			_p(kit.box(1.7, 0.12, 0.08), gold, Vector3(u, 4.0, -s * 0.05))
+			_p(kit.box(1.7, 0.12, 0.08), gold, Vector3(u, 11.0, -s * 0.05))
+		kit._xf = was
+
+
+## The cantina: a long bar down one wall (marble top, brass foot rail, stools, a
+## back bar of lit bottles under a neon sign, taps and pendants over it), velvet
+## booths down the other, veneer up the walls with a brass rail, chandeliers.
+func _cantina(r0: float, r1: float, half: float) -> void:
+	var wood := _t("veneer", Color("#4a2e1e"))
+	var black := _t("marble", Color("#1b1a1f"))
+	var gold := _t("brass", Color("#d4af37"))
+	var red := _t("velvet", Color("#5a1e1a"))
+	_liner(r0, r1, half, 0.14, 1.26, 0.06, wood)
+	_liner(r0, r1, half, 1.4, 0.05, 0.08, gold)
+	# The bar along side -1, from 5 m in to 21 m.
+	var s := -1.0
+	var inn := -s
+	var bl := 16.0
+	var was := kit._xf
+	kit._xf = was * _wall_xf(s, half, r0 + 5.0 + bl * cos(half) * 0.5)
+	_p(kit.box(bl, 1.0, 0.6), wood, Vector3(0, 0.5, inn * 0.3), true)
+	_p(kit.box(bl, 1.8, 0.03), black, Vector3(0, 2.0, inn * 0.02))
+	var bottles := [_glow(Color("#ffb46a"), 3.0), _glow(NEONS[1], 3.0), _glow(NEONS[0], 3.0)]
+	for y: float in [1.4, 1.95, 2.5]:
+		_p(kit.box(bl, 0.04, 0.3), _m("rail"), Vector3(0, y, inn * 0.17))
+		var u := -bl * 0.5 + 0.2
+		var q := 0
+		while u < bl * 0.5 - 0.2:
+			_p(kit.cyl(0.04, 0.045, 0.3, 6), bottles[q % 3], Vector3(u, y + 0.17, inn * 0.17))
+			u += 0.22
+			q += 1
+	_p(kit.box(4.5, 0.14, 0.05), _glow(NEONS[0], 3.0), Vector3(0, 3.6, inn * 0.05))
+	_p(kit.box(3.2, 0.14, 0.05), _glow(NEONS[1], 3.0), Vector3(0, 3.15, inn * 0.05))
+	_p(kit.box(bl - 2.0, 1.05, 0.7), wood, Vector3(0, 0.525, inn * 2.2), true)
+	_p(kit.box(bl - 1.8, 0.06, 0.95), black, Vector3(0, 1.08, inn * 2.2))
+	_p(kit.cyl(0.03, 0.03, bl - 2.0, 6), gold, Vector3(0, 0.25, inn * 2.65), false, TownBuildings.AXIS_X)
+	for j in 4:
+		_p(kit.cyl(0.03, 0.03, 0.4, 6), gold, Vector3(-1.5 + j * 1.0, 1.31, inn * 2.0))
+	var u2 := -bl * 0.5 + 1.6
+	while u2 < bl * 0.5 - 1.4:
+		_p(kit.cyl(0.2, 0.22, 0.03, 10), _m("trim"), Vector3(u2, 0.015, inn * 3.0))
+		_p(kit.cyl(0.04, 0.04, 0.7, 6), _m("trim"), Vector3(u2, 0.37, inn * 3.0))
+		_p(kit.cyl(0.22, 0.22, 0.08, 10), red, Vector3(u2, 0.75, inn * 3.0))
+		u2 += 1.0
+	for j in 4:
+		_pendant(Vector3(-5.0 + j * 3.3, 3.0, inn * 2.2), hull.floor_h, gold, 0.3)
+	kit._xf = was
+	# Booths down side +1, from 6 m in to 12 m from the glass.
+	var x := r0 + 6.0
+	while x < r1 - 12.0:
+		kit._xf = was * _wall_xf(1.0, half, x)
+		for e: float in [-1.0, 1.0]:
+			_p(kit.box(0.6, 0.45, 1.8), red, Vector3(e * 0.9, 0.225, -1.1), true)
+			_p(kit.box(0.15, 1.3, 1.8), red, Vector3(e * 1.25, 0.65, -1.1))
+		_p(kit.box(0.9, 0.05, 1.3), black, Vector3(0, 0.76, -1.0))
+		_p(kit.cyl(0.05, 0.05, 0.74, 6), gold, Vector3(0, 0.37, -1.0))
+		_p(kit.box(0.4, 0.18, 0.08), kit.window_glow, Vector3(0, 2.0, -0.05))
+		_p(kit.box(2.7, 0.05, 0.06), gold, Vector3(0, 1.33, -1.1))
+		x += 3.4 * cos(half)
+	kit._xf = was
+	for cx: float in [r0 + 14.0, r0 + 28.0]:
+		_chandelier(cx, hull.floor_h, 8.0, gold, 1.4)
+
+
+## The cantina's floor: round tables with chairs and a candle between the bar and
+## the booths, and a stage by the window (a dance floor before it, a truss of
+## spotlights, speakers, a drum kit and mics, a pleated curtain behind it).
+func _cantina_floor(r0: float, r1: float, half: float) -> void:
+	var wood := _t("veneer", Color("#4a2e1e"))
+	var red := _t("velvet", Color("#5a1e1a"))
+	var candle := _glow(Color("#ffb46a"), 3.0)
+	var sx := r1 - 7.5
+	var x := r0 + 9.0
+	var row := 0
+	while x < r1 - 6.0:
+		var lo := -(_half_w(x, half) - (5.0 if x < r0 + 22.0 else 2.6))
+		var hi := _half_w(x, half) - 3.2
+		var z := lo + 1.0 + (row % 2) * 2.0
+		while z < hi - 1.0:
+			if not (x > sx - 9.5 and absf(z) < 7.5):
+				_p(kit.cyl(0.5, 0.5, 0.05, 12), wood, Vector3(x, 0.75, z))
+				_p(kit.cyl(0.05, 0.05, 0.72, 6), _m("trim"), Vector3(x, 0.37, z))
+				_p(kit.cyl(0.3, 0.3, 0.03, 10), _m("trim"), Vector3(x, 0.015, z))
+				_p(kit.cyl(0.04, 0.04, 0.08, 6), candle, Vector3(x, 0.82, z))
+				kit.add_collider(kit._xf * Transform3D(Basis.IDENTITY, Vector3(x, 0.4, z)), Vector3(1.0, 0.8, 1.0))
+				for j in 3:
+					var a := TAU * j / 3.0 + row * 0.7
+					var d := Vector3(cos(a), 0, sin(a))
+					var b := Basis(UP, -a)
+					_p(kit.box(0.42, 0.06, 0.42), red, Vector3(x, 0.46, z) + d * 0.85, false, b)
+					_p(kit.box(0.06, 0.5, 0.42), red, Vector3(x, 0.74, z) + d * 1.06, false, b)
+					_p(kit.cyl(0.03, 0.03, 0.43, 5), _m("trim"), Vector3(x, 0.215, z) + d * 0.85)
+			z += 4.0
+		x += 4.0
+		row += 1
+	# The stage, its front lit, steps up at both ends, a dance floor before it.
+	var stage := _t("woodfloor", Color("#6a4a32"))
+	_p(kit.box(5.0, 0.6, 12.0), stage, Vector3(sx, 0.3, 0), true)
+	_p(kit.box(0.05, 0.08, 12.0), _glow(NEONS[0], 3.0), Vector3(sx - 2.52, 0.5, 0))
+	for e: float in [-1.0, 1.0]:
+		_p(kit.box(0.8, 0.3, 2.0), stage, Vector3(sx - 2.9, 0.15, e * 4.5), true)
+	_p(kit.box(6.0, 0.02, 11.0), _t("marble", Color("#1b1a1f")), Vector3(sx - 6.5, 0.03, 0))
+	# The curtain behind it, in pleats.
+	for j in 14:
+		_p(kit.box(0.2, 8.0, 1.02), red, Vector3(sx + 2.8 + 0.12 * (j % 2), 4.0, -6.5 + j * 1.0))
+	_p(kit.box(0.3, 0.3, 14.4), _m("trim"), Vector3(sx + 2.7, 8.1, 0))
+	# The truss over it on two posts, spotlights hung from it.
+	_p(kit.box(0.3, 0.3, 13.0), _m("rail"), Vector3(sx - 2.0, 7.0, 0))
+	for e: float in [-1.0, 1.0]:
+		_p(kit.box(0.3, 6.4, 0.3), _m("rail"), Vector3(sx - 2.0, 3.8, e * 6.3))
+		_p(kit.box(0.9, 1.8, 0.9), _t("marble", Color("#1b1a1f")), Vector3(sx - 1.5, 1.5, e * 5.2), true)
+		_p(kit.cyl(0.3, 0.3, 0.05, 12), _m("trim"), Vector3(sx - 1.08, 1.8, e * 5.2), false, TownBuildings.AXIS_X)
+	for j in 6:
+		var z := -5.0 + j * 2.0
+		_p(kit.cyl(0.15, 0.2, 0.35, 8), _m("trim"), Vector3(sx - 2.0, 6.65, z))
+		_p(kit.ball(0.12, 0.16, false, 8), _glow(NEONS[j % 2], 3.0), Vector3(sx - 2.0, 6.45, z))
+	# A drum kit and two mics.
+	var gold := _t("brass", Color("#d4af37"))
+	_p(kit.cyl(0.35, 0.35, 0.4, 14), red, Vector3(sx + 0.9, 0.95, 0), false, TownBuildings.AXIS_Z)
+	for e: float in [-1.0, 1.0]:
+		_p(kit.cyl(0.18, 0.18, 0.22, 10), red, Vector3(sx + 0.6, 1.4, e * 0.4))
+		_p(kit.cyl(0.015, 0.015, 1.0, 4), _m("trim"), Vector3(sx + 1.2, 1.1, e * 0.9))
+		_p(kit.cyl(0.32, 0.32, 0.01, 12), gold, Vector3(sx + 1.2, 1.6, e * 0.9))
+		_p(kit.cyl(0.015, 0.015, 1.4, 4), _m("trim"), Vector3(sx - 1.6, 1.3, e * 1.8))
+		_p(kit.ball(0.05, 0.1, false, 6), _m("trim"), Vector3(sx - 1.6, 2.02, e * 1.8))
+	_p(kit.box(0.5, 0.45, 0.5), red, Vector3(sx + 1.6, 0.82, 0))
+
+
+## The barracks' middle, past the card tables: rows of bunks back to back with an
+## aisle up the middle, lockers at the ends of the rows, a flag on each wall.
+func _barracks_more(r0: float, r1: float, half: float) -> void:
+	var frame := mats.painted(Color("#3b3f45"), 0.5, 0.6)
+	var cloth := _t("cloth", Color("#59604c"))
+	var pillow := _t("cloth", Color("#c9c3b2"))
+	var steel := _t("locker", Color("#4c5259"))
+	var x := r0 + 22.0
+	while x < r1 - 9.0:
+		var hw := _half_w(x, half) - 3.7
+		var z := 2.5
+		while z < hw:
+			for s: float in [-1.0, 1.0]:
+				_bunk(Vector3(x, 0, s * z), s, frame, cloth, pillow, steel)
+			z += 3.0
+		x += 3.0
+	for s: float in [-1.0, 1.0]:
+		var was := kit._xf
+		kit._xf = was * _wall_xf(s, half, r0 + 22.0, 0.1)
+		_p(kit.box(3.0, 5.0, 0.05), _t("cloth", Color("#2e3a5a")), Vector3(0, 7.0, -s * 0.03))
+		_p(kit.box(3.1, 0.12, 0.08), _t("brass", Color("#d4af37")), Vector3(0, 9.5, -s * 0.05))
+		kit._xf = was
+	for j in 3:
+		_pendant(Vector3(r0 + 24.0 + j * 10.0, 4.6, 0.0), hull.floor_h, _m("trim"), 0.45)
+
+
+## The observation lounge: veneer panelling under a brass rail, bookcases down
+## both walls by the door and pictures past them, velvet sofa groups on rugs facing
+## the window in a grid, window seats round the glass, a telescope at its middle,
+## a grand piano in one corner, plants, chandeliers.
+func _observation(r0: float, r1: float, half: float) -> void:
+	var wood := _t("veneer", Color("#4a2e1e"))
+	var gold := _t("brass", Color("#d4af37"))
+	var black := _t("marble", Color("#1b1a1f"))
+	var vel := [_t("velvet", VELVETS[1].lightened(0.1)), _t("velvet", VELVETS[2].lightened(0.1))]
+	_liner(r0, r1, half, 0.14, 2.06, 0.08, wood)
+	_liner(r0, r1, half, 2.2, 0.05, 0.1, gold)
+	# Bookcases by the door, pictures past them.
+	for s: float in [-1.0, 1.0]:
+		for j in 4:
+			var cx := r0 + 3.0 + j * 2.7
+			var was := kit._xf
+			kit._xf = was * _wall_xf(s, half, cx, 0.25)
+			_p(kit.box(2.5, 3.2, 0.5), wood, Vector3(0, 1.6, 0), true)
+			_p(kit.box(2.3, 2.8, 0.04), _t("books", Color("#2a1c14")), Vector3(0, 1.6, -s * 0.26))
+			kit._xf = was
+		var ax := r0 + 18.0
+		var q := 0
+		while ax < r1 - 8.0:
+			_art(ax, half, s, 4.2, 2.4, 1.6, PAINTS[posmod(q + int(s), 3)])
+			ax += 6.0
+			q += 1
+	# Sofa groups in a grid, each on a rug, opening to the window.
+	var x := r0 + 10.0
+	var q2 := 0
+	while x < r1 - 10.0:
+		var hw := _half_w(x, half) - 4.0
+		var n := maxi(1, floori(2.0 * hw / 7.0))
+		for j in n:
+			var z := (j - (n - 1) * 0.5) * 7.0
+			var was := kit._xf
+			kit._xf = was * Transform3D(Basis(UP, PI), Vector3(x, 0, z))
+			_p(kit.box(4.2, 0.02, 4.6), _t("rug", Color("#6a4a3a")), Vector3(0.3, 0.035, 0))
+			_lounge(-0.6, vel[(q2 + j) % 2], gold, black)
+			kit._xf = was
+			_plant(Vector3(x - 2.4, 0, z + 2.6), gold, 0.8)
+		x += 7.5
+		q2 += 1
+	# Window seats round the glass, either side of the telescope.
+	var rho := _win_r - 0.6
+	var span := half - asin(1.0 / rho)
+	var m := floori(2.0 * span * rho / 2.8)
+	for k in m:
+		var a := -span + (k + 0.5) * 2.0 * span / m
+		if absf(rho * sin(a)) < 2.5:
+			continue
+		var b := Basis(UP, -a)
+		var at := Vector3(cos(a), 0, sin(a)) * rho
+		_p(kit.box(0.7, 0.45, 2.4), vel[k % 2], at + Vector3(0, 0.225, 0), true, b)
+		_p(kit.box(0.6, 0.12, 2.2), _t("cloth", Color("#c9c3b2")), at + Vector3(0, 0.5, 0), false, b)
+	# The telescope on its tripod, aimed out and up.
+	var tx := _win_r - 3.0
+	for j in 3:
+		var a := TAU * j / 3.0
+		_p(kit.cyl(0.03, 0.03, 1.5, 5), gold, Vector3(tx + cos(a) * 0.35, 0.72, sin(a) * 0.35), false, Basis(Vector3(-sin(a), 0, cos(a)), 0.25))
+	_p(kit.cyl(0.12, 0.16, 1.8, 12), gold, Vector3(tx + 0.3, 1.75, 0), false, Basis(Vector3.BACK, -PI / 3.0))
+	_p(kit.cyl(0.2, 0.2, 0.06, 10), black, Vector3(tx, 1.42, 0))
+	# A grand piano and its stool in the door-side corner of side -1.
+	var pc := _corner(half, -1.0, 7.0, 4.0)
+	_p(kit.box(1.5, 0.35, 2.2), black, pc + Vector3(0, 0.85, 0), true)
+	_p(kit.box(1.5, 0.03, 2.2), black, pc + Vector3(0.35, 1.4, 0), false, Basis(Vector3.BACK, 0.6))
+	_p(kit.box(0.3, 0.06, 1.3), _t("marble", Color("#cfc9bd")), pc + Vector3(-0.7, 0.9, 0))
+	for j in 3:
+		_p(kit.cyl(0.05, 0.05, 0.7, 6), black, pc + Vector3(-0.5 + (j % 2) * 1.0, 0.35, -0.8 + j * 0.8))
+	_p(kit.box(0.4, 0.5, 0.8), black, pc + Vector3(-1.3, 0.25, 0))
+	for s: float in [-1.0, 1.0]:
+		_plant(_corner(half, s, 2.0, 1.5), gold, 1.3)
+	for cx: float in [r0 + 12.0, r0 + 26.0, r0 + 40.0]:
+		_chandelier(cx, hull.floor_h, 8.5, gold, 1.5)
+
+
+## The garden: raised beds down both walls with trees in them, a pale path up the
+## middle split round a pond with a fountain, benches and lamp posts along it.
+func _garden(r0: float, r1: float, half: float) -> void:
+	var bed := _t("pavers", Color("#6a6258"))
+	var leaf := _t("foliage", Color("#4f7a3c"))
+	var leaf2 := _t("foliage", Color("#5d8a44"))
+	var bark := _t("veneer", Color("#4a2e1e"))
+	var stone := _t("marble", Color("#cfc9bd"))
+	_liner(r0 + 2.0, r1, half, 0.0, 0.6, 1.8, bed, 0.0, true)
+	_liner(r0 + 2.0, r1, half, 0.6, 0.12, 1.6, leaf, 0.1)
+	for s: float in [-1.0, 1.0]:
+		var x := r0 + 4.0
+		var q := 0
+		while x < _win_r - 6.0:
+			var was := kit._xf
+			kit._xf = was * _wall_xf(s, half, x)
+			_tree(Vector3(0, 0.6, -s * 1.6), 0.85 + 0.1 * (q % 3), bark, leaf if q % 2 == 0 else leaf2)
+			kit._xf = was
+			x += 4.5
+			q += 1
+	# The path, cut round the pond.
+	var px := r0 + 24.0
+	var path := _t("pavers", Color("#c9bfa8"))
+	_p(kit.box(px - 5.2 - r0, 0.02, 3.0), path, Vector3((r0 + px - 5.2) * 0.5, 0.035, 0))
+	_p(kit.box(r1 - 8.0 - (px + 5.2), 0.02, 3.0), path, Vector3((px + 5.2 + r1 - 8.0) * 0.5, 0.035, 0))
+	_p(kit.cyl(6.0, 6.0, 0.02, 28), path, Vector3(px, 0.035, 0))
+	# The pond and its fountain.
+	_p(kit.cyl(4.8, 4.8, 0.5, 28), stone, Vector3(px, 0.25, 0), true)
+	_p(kit.cyl(4.5, 4.5, 0.05, 28), _t("water", Color("#3f7f9a")), Vector3(px, 0.46, 0))
+	_p(kit.cyl(0.4, 0.6, 1.4, 12), stone, Vector3(px, 0.7, 0))
+	_p(kit.cyl(1.3, 0.5, 0.3, 14), stone, Vector3(px, 1.5, 0))
+	_p(kit.cyl(1.2, 1.2, 0.03, 14), _t("water", Color("#3f7f9a")), Vector3(px, 1.64, 0))
+	_p(kit.cyl(0.08, 0.1, 1.0, 8), _t("water", Color("#3f7f9a")), Vector3(px, 2.15, 0))
+	_p(kit.ball(0.2, 0.3, false, 8), _t("water", Color("#3f7f9a")), Vector3(px, 2.7, 0))
+	# Benches facing the path, lamp posts along it.
+	var x2 := r0 + 8.0
+	var q2 := 0
+	while x2 < r1 - 9.0:
+		if absf(x2 - px) > 6.5:
+			for s: float in [-1.0, 1.0]:
+				var z := s * 2.4
+				if q2 % 2 == 0:
+					_p(kit.box(1.8, 0.06, 0.5), bark, Vector3(x2, 0.45, z + s * 0.2))
+					_p(kit.box(1.8, 0.5, 0.06), bark, Vector3(x2, 0.75, z + s * 0.47))
+					for e: float in [-0.75, 0.75]:
+						_p(kit.box(0.06, 0.42, 0.45), _m("trim"), Vector3(x2 + e, 0.21, z + s * 0.2))
+					kit.add_collider(kit._xf * Transform3D(Basis.IDENTITY, Vector3(x2, 0.45, z + s * 0.25)), Vector3(1.8, 0.9, 0.55))
+				else:
+					_lamp(Vector3(x2, 0, z), kit.window_glow)
+		x2 += 3.5
+		q2 += 1
+
+
+## A tree at `at` (its foot): a trunk, two balls of leaves, `size` its scale.
+func _tree(at: Vector3, size: float, bark: Material, leaf: Material) -> void:
+	_p(kit.cyl(0.14 * size, 0.22 * size, 3.0 * size, 8), bark, at + Vector3(0, 1.5 * size, 0))
+	_p(kit.ball(1.5 * size, 2.4 * size, false, 10), leaf, at + Vector3(0, 3.6 * size, 0))
+	_p(kit.ball(1.0 * size, 1.6 * size, false, 8), _t("foliage", Color("#5d8a44")), at + Vector3(0.4 * size, 4.6 * size, 0.2 * size))
+
+
+## The garden's far half: island beds with a tree each either side of the path,
+## hedges along it, and racks of crops under grow lights by the window.
+func _garden_more(r0: float, r1: float, half: float) -> void:
+	var bed := _t("pavers", Color("#6a6258"))
+	var leaf := _t("foliage", Color("#4f7a3c"))
+	var bark := _t("veneer", Color("#4a2e1e"))
+	for ix: float in [r0 + 11.0, r0 + 34.0]:
+		for s: float in [-1.0, 1.0]:
+			var z := s * maxf(5.5, _half_w(ix, half) * 0.5)
+			_p(kit.cyl(2.2, 2.2, 0.6, 16), bed, Vector3(ix, 0.3, z), true)
+			_p(kit.cyl(2.0, 2.0, 0.1, 16), leaf, Vector3(ix, 0.62, z))
+			_tree(Vector3(ix, 0.6, z), 1.2, bark, leaf)
+	for s: float in [-1.0, 1.0]:
+		for hx: float in [r0 + 31.0, r0 + 38.0]:
+			_p(kit.box(4.5, 0.8, 0.6), leaf, Vector3(hx, 0.4, s * 3.6))
+	# Hydroponic racks across the room by the window, grow lights over them.
+	var crops := [leaf, _t("foliage", Color("#5d8a44"))]
+	var grow := _glow(Color("#c58aff"), 2.5)
+	var rx := r1 - 7.5
+	var hw := _half_w(rx, half) - 3.5
+	var z := -hw + 2.0
+	var k := 0
+	while z < hw - 2.0:
+		if absf(z) > 2.5:
+			_rack(Vector3(rx, 0, z), Basis.IDENTITY, 3.6, 0.9, 2.2, 4, _m("rail"), crops, 7 + k)
+			_p(kit.box(0.6, 0.04, 3.4), grow, Vector3(rx, 2.05, z))
+		z += 4.4
+		k += 1
 
 
 # ------------------------------------------------------------------ batching
