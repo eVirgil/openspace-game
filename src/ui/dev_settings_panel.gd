@@ -1477,6 +1477,21 @@ func _graphics_page(v: VBoxContainer) -> void:
 	note.add_theme_font_size_override("font_size", 12)
 	v.add_child(note)
 	_refreshers.append(func(): s.set_value_no_signal(roundf(LookEnvironment.indirect_level() * 100.0)))
+	# Issue #534: the temporal upscaler is the anti-aliasing; off falls back to FXAA
+	# at full size, for a machine where it smears fast things.
+	var taa := CheckBox.new()
+	taa.set_pressed_no_signal(LookEnvironment.taa())
+	taa.toggled.connect(func(on):
+		if demo != null and demo.look != null:
+			demo.look.set_taa(on)
+		else:
+			LookEnvironment.save_taa(on))
+	_row(v, "Temporal anti-aliasing", taa)
+	var taa_note := Label.new()
+	taa_note.text = "Smooth edges and a faster frame. Turn off if bolts or the sword leave trails."
+	taa_note.add_theme_font_size_override("font_size", 12)
+	v.add_child(taa_note)
+	_refreshers.append(func(): taa.set_pressed_no_signal(LookEnvironment.taa()))
 	# For slower PCs (LookEnvironment.low_graphics): what it turns off is in time_of_day.json.
 	# Its pieces have a checkbox each below it, to try one at a time.
 	var low := CheckBox.new()
