@@ -16,6 +16,38 @@ Plain English, newest on top. One entry per milestone.
   path from a source folder or `docs/` (the prep tools' `source` and
   `emission` inputs are allowed).
 
+## Builders' docs: one page of render rules, PLAN and KNOWN_ISSUES true (2026-11-05, issue #547)
+
+- **`docs/RENDER_RULES.md`:** the twelve rules for anything drawn or ticked
+  (batch, share materials, boxes before models, no new shaders, never read a
+  mesh back, draw by distance, one shadow caster, build over ticks, few
+  colliders, tick by distance, numbers in data, measure), lifted from the
+  station's rules, the draw distance decision, the art direction budget and the
+  trace notes. AGENTS.md and the write-issue skill link it beside "What can not
+  change".
+- **PLAN.md is true:** one M15 row, M14 and S1 marked done, and a line saying
+  the table stops at P1 and CHANGELOG has the rest.
+- **KNOWN_ISSUES.md holds only current notes.** The nine replaced sections (M0
+  to M8, M11 + M12, M13, the first seamless desert) moved to
+  `docs/KNOWN_ISSUES_ARCHIVE.md`, and a doubled M15 heading is gone.
+- **`tests/test_docs.gut.gd`** fails if PLAN.md lists an id twice, if
+  KNOWN_ISSUES.md marks a section as replaced, or if the render rules page
+  loses its links.
+
+## The IP scan reads the whole repo (2026-11-05, issue #548)
+
+- **Every file is scanned, and every file name.** The franchise-name check used
+  to read only `.gd .json .txt .tscn .cfg` under five folders. It now reads
+  every text file in the repo (docs, the root markdown, the skills, tools,
+  shaders, `project.godot`, the export presets) and every file name, models
+  and sounds included. Only `addons/`, build and test output, and the two files
+  that quote the list on purpose are left out.
+- **Commit messages are checked.** `scripts/check_commit_messages.sh` reads
+  every commit a branch adds over `origin/main` against the same list, and
+  `ci.sh` runs it first.
+- **Two old hits reworded:** a changelog line that named the three ship names
+  it added to the list, and the outside review page quoting the list.
+
 ## The cruiser outside: flush bay, better guns, step out into space (2026-11-04)
 
 - **The bay sits flush in the hull.** The bay's port wall and ceiling used to
@@ -3275,7 +3307,7 @@ Fixed along the way:
 - **The IP-neutrality scan skipped every top-level file** in the folders it scans
   (`scenes/*.gd`, `content/core/manifest.json`, `scripts/*`, `tests/*`): it joined
   the folder and file names without a slash. Fixed; the guard file itself is the one
-  exclusion. Added "x-wing", "tie fighter" and "millennium falcon" to the list.
+  exclusion. Added three franchise ship names to the list.
 - **CI on a fresh checkout ran no tests but still passed.** Without an import step GUT
   could not load, printed an error, and `ci.sh` exited 0. `ci.sh` now imports first.
 

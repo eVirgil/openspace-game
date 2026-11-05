@@ -1,7 +1,14 @@
 {
   "id": "types",
-  "note": "IP-neutral. What each kind of planet is (issue #45). Read by src/systems/planets/planet_gen.gd. ground: 'terrain' = the town sits on the seamless dune terrain (DesertTerrain), recoloured by 'sand' and 'rock'; 'platform' = the town floats on a deck closed underneath, inside a glass enclosure rising from its walls, with an energy shield across the open gate, over 'surface' (water, lava or gas), and falling off the deck kills you (you wake by the bay); 'ball' (issue #99, the asteroid) = the planet is a real ball of surface.radius like the home planet (src/systems/planets/asteroid_sphere.gd): cratered rock all the way round, gravity toward its centre, flown round and walked round; with 'enclosed' the station is sealed under a dome (src/systems/planets/asteroid_world.gd, 'station'). landing_bay 'pit': the port's round landing pit outside the gate instead of bays inside the walls. space.handoff: how close to this ball (metres above its surface) its own scene takes over from its parent's, with no fade. sky: values laid over every time-of-day preset in content/look/time_of_day.json (only the keys given change). atmosphere: where the sky darkens and space begins, in metres. body: how the planet looks from space (a neighbour's sky), radius in metres. arrival: where a ship coming in from space appears (above the landing bay, metres). default_style: the town style when the planet's own config gives none (content/look/town_styles.json). natives (issue #96, terrain planets only): the people template (content/core/species/) each planet of the type turns into a people of its own, how many packs of what size, how many hostile, with children or adults only, how far out their routes run, and the wild animals (content/core/fauna/); a planet's own 'natives' block replaces this (false = none). See src/systems/natives/natives_data.gd. base (issue #272): a type may name another and give only what differs (dictionaries merge key by key, anything else replaces; PlanetGen._with_base).",
+  "note": "IP-neutral. What each kind of planet is (issue #45). Read by src/systems/planets/planet_gen.gd. ground: 'terrain' = the town sits on the seamless dune terrain (DesertTerrain), recoloured by 'sand' and 'rock'; 'platform' = the town floats on a deck closed underneath, inside a glass enclosure rising from its walls, with an energy shield across the open gate, over 'surface' (water, lava or gas), and falling off the deck kills you (you wake by the bay); 'ball' (issue #99, the asteroid) = the planet is a real ball of surface.radius like the home planet (src/systems/planets/asteroid_sphere.gd): cratered rock all the way round, gravity toward its centre, flown round and walked round; with 'enclosed' the station is sealed under a dome (src/systems/planets/asteroid_world.gd, 'station'). landing_bay 'pit': the port's round landing pit outside the gate instead of bays inside the walls. space.handoff (issue #573): this planet's bubble, how close to its ball (metres above its surface) its own scene takes over from open space, with no fade; climb space.hysteresis metres past it and you are back in open space (the open_space type: ground 'none', no planet loaded, the ship, the sky and the planets ahead). A type with no handoff is faded to from open space, as before. sky: values laid over every time-of-day preset in content/look/time_of_day.json (only the keys given change). atmosphere: where the sky darkens and space begins, in metres. body: how the planet looks from space (a neighbour's sky), radius in metres. arrival: where a ship coming in from space appears (above the landing bay, metres). default_style: the town style when the planet's own config gives none (content/look/town_styles.json). natives (issue #96, terrain planets only): the people template (content/core/species/) each planet of the type turns into a people of its own, how many packs of what size, how many hostile, with children or adults only, how far out their routes run, and the wild animals (content/core/fauna/); a planet's own 'natives' block replaces this (false = none). See src/systems/natives/natives_data.gd. base (issue #272): a type may name another and give only what differs (dictionaries merge key by key, anything else replaces; PlanetGen._with_base).",
   "home": "port_desert",
+  "space": {
+    "open_space": "open_space",
+    "hysteresis": 300.0,
+    "bubble_margin": 1000.0,
+    "real_ball_within": 6000.0,
+    "note": "Issue #573: space between the planets is its own place (open_space, a planet file with the open_space type) with no planet loaded. hysteresis: metres past a bubble (a type's space.handoff) before leaving it, so flying along the edge does not flip-flop. bubble_margin: the least open space between any two planets' bubbles, hysteresis included (tests/test_planets.gut.gd checks the data). real_ball_within: a ball planet with a bubble is drawn as its real coarse ball (terrain and station outside, SpaceTravel._ball_body) only within this many metres of its surface; further off it is the cheap ball, swapped for the real one on the way in."
+  },
   "detail": {
     "hysteresis": 40.0,
     "motion": {
@@ -30,6 +37,7 @@
       "rock": {},
       "sky": {},
       "atmosphere": { "upper_start": 300.0, "cloud_deck": 1250.0, "sky_black_at": 3500.0, "space_altitude": 4000.0 },
+      "space": { "handoff": 8000.0, "note": "Issue #573: the home planet's bubble: within 8 km of the sand its scene flies you (the Remnant cruiser holds orbit at 7 km, inside it); further out is open space." },
       "body": { "radius": 7000.0, "color": "#c9a175", "dark": "#8a6a4c" },
       "arrival": { "altitude": 2600.0, "distance": 3250.0 },
       "fall_text": ""
@@ -112,7 +120,7 @@
       "sky": { "sky": { "zenith": "#7a6aa8", "horizon": "#f0c8d8", "ground": "#b088b8", "cloud_color": "#f8dce8", "cloud_cover": 0.6 },
                "fog": { "color": "#e0b8d0", "density": 0.00008 }, "volumetric": { "albedo": "#f0d0e0" } },
       "atmosphere": { "upper_start": 200.0, "cloud_deck": 800.0, "sky_black_at": 1800.0, "space_altitude": 2000.0 },
-      "space": { "handoff": 2600.0, "note": "As the asteroid's: within handoff metres of the cloud tops its own scene flies you, with no fade." },
+      "space": { "handoff": 2600.0, "note": "As the asteroid's: within handoff metres of the cloud tops its own scene flies you, with no fade. The belt cruiser (2,350 m) must be inside it." },
       "body": { "radius": 3500.0, "color": "#d9c4b0", "dark": "#8a6f68",
                 "haze": { "day": "#ecdccf", "night": "#463a56", "top": 3000.0,
                           "low_density": 0.0035, "low_height": 130.0, "high_density": 0.00015, "high_height": 520.0, "fog_near": 1600.0,
@@ -139,7 +147,7 @@
                "sky": { "zenith": "#26282c", "horizon": "#6a6d72", "ground": "#3a3c40", "cloud_cover": 0.0, "planet_visibility": 1.0, "energy": 0.8 },
                "fog": { "color": "#5a5d62", "density": 0.00004, "sky_affect": 0.1 }, "volumetric": { "enabled": false } },
       "atmosphere": { "upper_start": 0.0, "cloud_deck": 200.0, "sky_black_at": 900.0, "space_altitude": 700.0 },
-      "space": { "handoff": 2600.0, "note": "Issue #99: no fade between planets. Within handoff metres of this ball's surface its own scene flies you (switched in mid-flight, the ship where it was, the same sun and stars); further out you are in its parent's (near) sky." },
+      "space": { "handoff": 1200.0, "note": "Issue #99: no fade between planets. Within handoff metres of this ball's surface its own scene flies you (switched in mid-flight, the ship where it was, the same sun and stars). Issue #573: further out is open space, and the bubble is only as big as it needs to be (above the 700 m edge of space)." },
       "body": { "radius": 1500.0, "color": "#7a7a7e", "dark": "#2e2e32" },
       "arrival": { "altitude": 520.0, "distance": 900.0 },
       "fall_text": "",
@@ -160,6 +168,15 @@
                "fog": { "color": "#3a1a12" } },
       "body": { "radius": 1500.0, "color": "#2a1410", "dark": "#ff5a14" },
       "fall_text": "You walked into the lava."
+    },
+    "open_space": {
+      "label": "open space",
+      "ground": "none",
+      "note": "Issue #573: the space between the planets, its own place with no planet loaded (content/core/planets/open_space.json). ground 'none': town_demo builds only the flight shell (the sky, the ship, its pilot and HUD, the altitude detail), no town, no ground to hit or land on (WorldGround: up is away from the nearest planet). It is still town_demo.tscn. Its frame is the system frame (PlanetGen.system_port: the home planet's port is the origin). Never saved as where you are.",
+      "sky": { "sky": { "cloud_cover": 0.0, "planet_visibility": 1.0 }, "volumetric": { "enabled": false } },
+      "atmosphere": { "upper_start": 0.0, "cloud_deck": 0.0, "sky_black_at": 1.0, "space_altitude": 1.0 },
+      "body": {},
+      "fall_text": ""
     }
   }
 }

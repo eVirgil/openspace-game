@@ -1,6 +1,6 @@
 {
   "id": "grit_station",
-  "note": "Issue #45's test planet: an asteroid station a short hop from the port, with a size-1 town (a cantina with a stage, a guard at its door, a merchant in front, locals in the street) in metal (issue #75). Issue #99: a real ball (the asteroid type), the station sealed under a dome with a hallway to the port's landing pit, and flown to with no fade: 'at' is the centre of its ball in metres from the port, and its own port is on top of it. Its cantina owner is a new Oda, generated for this planet (no card: see src/systems/planets/planet_owner.gd). Two more domes off the landing pit, each down its own tunnel: the Remnant's barracks and the locals' homes ('domes'), and five Remnant outposts out on the rock ('landmarks'); the moon is taken like the port (content/core/story/territory.json 'moon'). Everything else comes from the planet generator. See docs/planets/PLANETS.md.",
+  "note": "Issue #45's test planet: an asteroid station a short hop from the port, with a size-1 town (a cantina with a stage, a guard at its door, a merchant in front, locals in the street) in metal (issue #75). Issue #99: a real ball (the asteroid type), the station sealed under a dome with a hallway to the port's landing pit, and flown to with no fade: 'at' is the centre of its ball in metres from the port, and its own port is on top of it (issue #573: moved out along its bearing, 17.5 km from home's centre, so its bubble clears home's). Its cantina owner is a new Oda, generated for this planet (no card: see src/systems/planets/planet_owner.gd). Two more domes off the landing pit, each down its own tunnel: the Remnant's barracks and the locals' homes ('domes'), and five Remnant outposts out on the rock ('landmarks'); the moon is taken like the port (content/core/story/territory.json 'moon'). Everything else comes from the planet generator. See docs/planets/PLANETS.md.",
   "name": "",
   "type": "asteroid",
   "town_size": 1,
@@ -21,7 +21,7 @@
     { "id": "remnant_outpost_moon_plain", "kind": "location", "location": "remnant_outpost_moon_plain", "at": [600, 0, -120], "yaw_deg": 191, "clear": 45 }
   ],
   "near": "port_desert",
-  "at": [9000, 5200, -6500],
+  "at": [10450, 6840, -7545],
   "cantina_owner": { "look": "cantina_owner_station" },
   "encounter": ""
 }

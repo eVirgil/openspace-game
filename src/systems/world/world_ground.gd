@@ -36,6 +36,12 @@ var lethal_below := -INF     ## a gas ball (world "lethal_below"): this far belo
 var boulders: Array = []
 const RAMP_MAX := 3.0
 const RAMP_SPREAD := 1.6
+## Issue #573: open space (world "ground": "none"): nothing to hit or land on,
+## altitude is the height over the nearest planet's ball, and up is away from the
+## planets, the nearest by far the most, so it matches the planet's own up at its
+## bubble and never jumps. void_bodies: [centre, radius] of each planet here.
+var void_space := false
+var void_bodies: Array = []
 
 
 func add_boulders(list: Array) -> void:
@@ -61,6 +67,10 @@ func setup(world_cfg: Dictionary, town = null, content = null,
 	lethal_below = float(world_cfg.get("lethal_below", -INF))
 	boxes = []
 	columns = []
+	void_space = str(world_cfg.get("ground", "")) == "none"
+	void_bodies = world_cfg.get("void_bodies", [])
+	if void_space:
+		return
 	if town != null:
 		for b in town.boxes():
 			if str(b.kind) == "ring":
@@ -93,6 +103,8 @@ func sphere() -> PlanetSphere:
 
 ## "Up" at p: the ground's on the home planet's ball, straight up elsewhere.
 func up_at(p: Vector3) -> Vector3:
+	if void_space:
+		return _void_up(p)
 	var sp := sphere()
 	return sp.up_at(p) if sp != null else Vector3.UP
 
@@ -121,6 +133,8 @@ static func box_xf(b: Dictionary) -> Transform3D:
 ## skipped too. A cell is skipped when no item in it can reach the line (its
 ## items' axes are within `spread` of the cell's).
 func height_above(p: Vector3) -> float:
+	if void_space:
+		return INF
 	var sp := sphere()
 	if sp == null:
 		return p.y - ground_at(p.x, p.z, p.y)
@@ -618,6 +632,8 @@ func _add_landforms_on_ball(data: Dictionary, clear: Rect2) -> void:
 ## Somewhere a ship may set down: inside the desert (beyond it there is sand to
 ## see but nothing to walk on).
 func landable(x: float, z: float) -> bool:
+	if void_space:
+		return false
 	if terrain == null or terrain.in_desert(x, z):
 		return true
 	# Issue #45: a platform town (no desert): only on its own floors and roofs.
@@ -648,7 +664,35 @@ func space_altitude() -> float:
 
 
 func altitude(p: Vector3) -> float:
+	if void_space:
+		return _void_altitude(p)
 	return terrain.altitude(p) if terrain != null else p.y
+
+
+## Open space: metres over the nearest planet's ball (always far above any edge of space).
+func _void_altitude(p: Vector3) -> float:
+	var best := INF
+	for vb in void_bodies:
+		best = minf(best, p.distance_to(vb[0]) - float(vb[1]))
+	return best if is_finite(best) else 1.0e6
+
+
+## Open space: each planet's own up (PlanetSphere.up_at: straight up over its port,
+## easing to the radial), weighted by 1 / (metres to its bubble's edge)^4, so at
+## any bubble's edge it is that planet's up (bubbles never touch).
+func _void_up(p: Vector3) -> Vector3:
+	var sum := Vector3.ZERO
+	for vb in void_bodies:
+		var rel: Vector3 = p - (vb[0] as Vector3)
+		var r := float(vb[1])
+		var radial := rel.normalized()
+		var flat := float(vb[2]) if vb.size() > 3 else 0.0
+		var blend := float(vb[3]) if vb.size() > 3 else 1.0
+		var t := smoothstep(flat, flat + blend, atan2(Vector2(radial.x, radial.z).length(), radial.y) * r)
+		var u := Vector3.UP.slerp(radial, t).normalized() if t < 1.0 else radial
+		var d := maxf(1.0, rel.length() - (float(vb[4]) if vb.size() > 4 else r))
+		sum += u / (d * d * d * d) * 1.0e12
+	return sum.normalized() if sum.length_squared() > 0.0 else Vector3.UP
 
 
 ## Distance down a gravity ray to a wreck plate. A steeply leaning deck must be
@@ -695,6 +739,8 @@ static func box_top(b: Dictionary, x: float, z: float) -> float:
 ## The highest surface under (x, z) whose top is at or below `below` (+0.5 m of
 ## step-up). Terrain, box tops and column tops all count.
 func ground_at(x: float, z: float, below: float = INF) -> float:
+	if void_space:
+		return -INF
 	var g := terrain.height_at(x, z) if terrain != null else 0.0
 	var limit := below + 0.5
 	for b in boxes:
@@ -739,6 +785,8 @@ func ground_at(x: float, z: float, below: float = INF) -> float:
 ## ground, not obstacles (ground_at handles them), and so are surfaces the sphere's
 ## bottom is resting on from above.
 func hit(p: Vector3, r: float) -> String:
+	if void_space:
+		return ""
 	for b in boxes:
 		if FLOOR_KINDS.has(b.kind) or str(b.get("rise", "")) != "":
 			continue

@@ -20,3 +20,5 @@ way they are) and `KNOWN_ISSUES.md`.
 - **Reuse before building.** The parts list and the things that can not change
   are in the `write-issue` skill; they apply to building as much as to writing
   issues.
+- **Render rules.** Anything drawn or ticked follows
+  [`docs/RENDER_RULES.md`](docs/RENDER_RULES.md), next to "What can not change".

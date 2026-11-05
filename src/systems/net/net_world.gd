@@ -539,12 +539,9 @@ func _id_for(n: NpcBody) -> int:
 func _yours(shooter: Node) -> bool:
 	var scene := get_tree().current_scene
 	var p = scene.get("_player") if scene != null else null
-	if shooter == null or p == null or not is_instance_valid(shooter):
+	if p == null:
 		return false
-	if shooter == p or DroidController.by_player(shooter, p):
-		return true                     # you, or one of your droids
-	var v = p.get("vehicle")
-	return v != null and is_instance_valid(v) and v.has_method("hull_body") and shooter == v.hull_body()
+	return NetSession.fired_by(shooter, p) or DroidController.by_player(shooter, p)   # you (or your ship), or one of your droids
 
 
 func _guest_tick() -> void:

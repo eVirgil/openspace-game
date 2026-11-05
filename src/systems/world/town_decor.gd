@@ -68,6 +68,15 @@ func dress(town, look_env: LookEnvironment) -> void:
 	_park_ships(town)
 
 
+## Issue #573: open space: no town to dress, only the ship you fly on its (hidden) pad.
+func park_only(town, look_env: LookEnvironment) -> void:
+	name = "TownDecor"
+	look = look_env
+	mats = LookMaterials.new()
+	mats.style = style
+	_park_ships(town)
+
+
 # ---------------------------------------------------------------- materials
 
 func _box_mesh(id: String) -> MeshInstance3D:

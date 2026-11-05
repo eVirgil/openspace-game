@@ -647,10 +647,11 @@ func hit(amount: float, from: Vector3) -> void:
 	var down_was := bool(p.is_downed)
 	var shooter = bodies.get(id, null)
 	if shooter != null and is_instance_valid(shooter):
-		p.apply_damage_from(dmg, shooter)
-	else:
-		p.last_hit_from = from
-		p.apply_damage(dmg)
+		p.last_shooter = shooter
+	# Issue #552: from where it was fired, which is their ship or speeder (not the
+	# body put away in it) when its guns did it.
+	p.last_hit_from = from
+	p.apply_damage(dmg)
 	hit_back.rpc_id(id, int(p.health.hp) < hp_was, bool(p.is_downed) and not down_was)
 
 
@@ -662,12 +663,27 @@ func hit_back(took: bool, downed: bool) -> void:
 	if not roster.has(_mp().get_remote_sender_id()):
 		return
 	hits_answered += 1
+	if took:
+		var fb = _your_feedback()
+		if fb != null:
+			fb.confirm(downed)
+
+
+## Where your hit markers show: the ship's HUD or the speeder's while you are in
+## one (issue #552: their guns hit friends too), else your weapons'.
+func _your_feedback() -> HitFeedback:
 	var scene := get_tree().current_scene
+	var you = scene.get("_player") if scene != null else null
+	var v = you.get("vehicle") if you != null and is_instance_valid(you) else null
+	if v != null and is_instance_valid(v):
+		var hud = v.get("hud")
+		var vfb = hud.get("feedback") if hud != null and is_instance_valid(hud) and hud is FlightHud else v.get("feedback")
+		if vfb != null and is_instance_valid(vfb) and vfb is HitFeedback:
+			return vfb
 	var kit = scene.get("player_kit") if scene != null else null
 	var w = kit.weapons if kit != null and is_instance_valid(kit) else null
 	var fb = w.feedback if w != null else null
-	if took and fb != null and is_instance_valid(fb):
-		fb.confirm(downed)
+	return fb if fb != null and is_instance_valid(fb) else null
 
 
 ## Issue #402 (host): one of the town's people shot player `id`'s body here.
