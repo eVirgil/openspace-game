@@ -1,0 +1,30 @@
+{
+  "id": "grenade",
+  "class": "grenade",
+  "label": "Thermal compact",
+  "item": "grenade",
+  "throw_speed": 17.0,
+  "lift_deg": 12.0,
+  "gravity": 20.0,
+  "fuse_s": 3.0,
+  "bounce": 0.38,
+  "slide": 0.62,
+  "rest_speed": 0.6,
+  "radius_m": 0.09,
+  "blast_radius": 6.0,
+  "blast_damage": 400,
+  "vehicle_damage": 5000,
+  "player_damage": 60,
+  "blast_size": 0.7,
+  "noise_radius": 90.0,
+  "aim_mag": 1.25,
+  "hud": "GRENADES",
+  "preview_s": 4.0,
+  "preview_every": 3,
+  "drop": {
+    "factions": ["imperial_remnant"],
+    "chance": 0.25,
+    "reach": 2.2
+  },
+  "note": "IP-neutral. Issue #372: the thrown grenade. Hold the throw key (F) to aim (the view zooms in to aim_mag, as a pistol's does) and see the dotted arc; let go to throw one (it takes one 'item' from the inventory). It leaves the hand at throw_speed m/s along the view, lifted lift_deg, falls at gravity m/s^2 (the game's 20) along the planet's up, bounces off what it touches (bounce: the part into the surface that comes back, slide: what is left of the part along it) and rests once slower than rest_speed. It bursts when it touches a person, droid or vehicle, or when fuse_s runs out. The blast: everyone within blast_radius m takes blast_damage (the same at any distance), droids, speeders and the party barge are destroyed (vehicle_damage; the barge through its own explode), and the player and the player's droids are hurt too (the player takes player_damage). blast_size is the fireball (ExplosionFx.big, 1 = a ship); guards hear it out to noise_radius. The preview is preview_s seconds of the same steps, a dot every preview_every steps. hud: the word by the count on the HUD. drop: a trooper of one of these factions killed drops one with this chance (taken in reach m)."
+}

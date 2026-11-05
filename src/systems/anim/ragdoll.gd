@@ -140,6 +140,21 @@ static func kick_for(at: Vector3, from: Vector3, damage: float, config: Dictiona
 	return (away.normalized() + Vector3(0, float(config.get("kick_up", 0.35)), 0)).normalized() * speed
 
 
+## Issue #372: a blast's kill throws the whole body away from where it burst
+## (along the ground, lifted along `up`), blast_fling m/s at the edge of `reach`
+## up to blast_fling_close m/s right on top of it.
+static func blast_fling(at: Vector3, from: Vector3, reach: float, up: Vector3, config: Dictionary) -> Vector3:
+	if from == Vector3.INF:
+		return Vector3.ZERO
+	var u := up.normalized() if up.length() > 0.01 else Vector3.UP
+	var off := at - from
+	var away := off - u * off.dot(u)
+	away = away.normalized() if away.length() > 0.01 else Vector3.ZERO
+	var close := 1.0 - clampf(off.length() / maxf(0.1, reach), 0.0, 1.0)
+	var speed := lerpf(float(config.get("blast_fling", 7.0)), float(config.get("blast_fling_close", 13.0)), close)
+	return away * speed + u * speed * float(config.get("blast_fling_up", 0.7))
+
+
 func _num(key: String, def: float) -> float:
 	return float(cfg.get(key, def))
 

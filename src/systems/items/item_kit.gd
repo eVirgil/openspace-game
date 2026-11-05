@@ -103,6 +103,8 @@ func build(look_id: String) -> Node3D:
 			_case(body, p)
 		"saber":
 			_saber(body, p)
+		"grenade":
+			_grenade(body, p)
 		_:
 			_twin_tank(body, flames, p)
 	root.set_meta("source", "kit")
@@ -238,6 +240,25 @@ func _case(body: Node3D, p: Dictionary) -> void:
 	_mi(body, _box(Vector3(size.x * 0.6, 0.025, 0.01)), _glow(_c(p, "glow", "#59d6ff"), 2.5),
 		Vector3(0, size.y * 0.62, size.z * 0.5 + 0.006), Vector3.ZERO, "Status")
 	_mi(body, _box(Vector3(size.x * 0.4, 0.03, 0.06)), trim, Vector3(0, size.y + 0.015, 0), Vector3.ZERO, "Handle")
+
+
+## "grenade" (issue #372): a palm-sized canister standing on its end, a glowing
+## band round its waist and a trigger cap on top. `radius` and `height` in metres.
+func _grenade(body: Node3D, p: Dictionary) -> void:
+	var r := float(p.get("radius", 0.045))
+	var h := float(p.get("height", 0.12))
+	var shell := StandardMaterial3D.new()
+	shell.albedo_color = _c(p, "shell", "#5a5f58")
+	shell.roughness = 0.45
+	shell.metallic = 0.55
+	var trim := StandardMaterial3D.new()
+	trim.albedo_color = _c(p, "trim", "#2a2c2a")
+	trim.metallic = 0.7
+	trim.roughness = 0.35
+	_mi(body, _cyl(r, r, h), shell, Vector3(0, h * 0.5, 0), Vector3.ZERO, "Shell")
+	_mi(body, _cyl(r * 1.06, r * 1.06, h * 0.16), _glow(_c(p, "glow", "#ff8a2a"), 3.0), Vector3(0, h * 0.5, 0), Vector3.ZERO, "Band")
+	_mi(body, _cyl(r * 0.55, r * 0.7, h * 0.18), trim, Vector3(0, h + h * 0.09, 0), Vector3.ZERO, "Cap")
+	_mi(body, _cyl(r * 1.02, r * 1.02, h * 0.08), trim, Vector3(0, h * 0.04, 0), Vector3.ZERO, "Foot")
 
 
 ## "saber" (issue #148): a hilt with its blade lit, lying flat (along +X) so it

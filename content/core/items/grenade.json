@@ -1,0 +1,9 @@
+{
+  "id": "grenade",
+  "label": "Thermal compact",
+  "kind": "gear",
+  "value": 40,
+  "look": "grenade",
+  "tip": "Hold F to aim a grenade, let go to throw it",
+  "note": "IP-neutral. Issue #372: a counted stack of grenades (one backpack slot however many). Hold F to aim and let go to throw one (content/core/weapons/grenade.json). Every gear trader and fence sells them at 40 cr and never runs out (their 'endless_stock' and 'prices'); Remnant troopers sometimes drop one."
+}

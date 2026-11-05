@@ -15,8 +15,8 @@
   "sell_rate": 1.6,
   "stock": ["quantonium_armour"],
   "endless": true,
-  "endless_stock": ["jetpack"],
-  "prices": { "quantonium_armour": 500, "jetpack": 120 },
+  "endless_stock": ["jetpack", "grenade"],
+  "prices": { "grenade": 40, "quantonium_armour": 500, "jetpack": 120 },
   "pitch": "The %s pays well for things with no serial numbers",
   "note": "The merchant in front of the station cantina. Buys Oda's rock drops at twice their value and asks no questions. It buys anything else you carry too ('*' in 'buys') at 'any_rate' of its value, the gear trader's rate, so nothing bought in town sells here at a profit. 'resells': false = what it buys is not sold on (it pays more than it would ask). Bounties stay at the port's fence: the Remnant officers are out in the home planet's desert. It sells quantonium armour from day 1, in a story save and in free play ('stock', 'endless': he never runs out, at the port fence's price, 'prices'): the moon's rock has no air, and the armour is what lets you walk it to the outposts. Issue #392: his stall in the rave stands on the way from the hallway to the bar, and he sells the gear trader's gear too ('endless_stock': the jetpack, at the gear trader's price, 'prices'), so his counter shows gear (content/look/items.json 'stalls')."
 }

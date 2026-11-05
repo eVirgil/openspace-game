@@ -1,6 +1,15 @@
 {
   "note": "Item looks, keyed by the 'look' id in content/core/items/*.json. Shapes for the stand-ins live in src/systems/items/item_kit.gd; colours and sizes live here. To use a real model, set 'scene' to a .tscn/.glb path (wearer's back is -Z in the model, 1 unit = 1 metre); the stand-in is then skipped. 'on_back' places the worn item on the chest joint (metres, degrees). See docs/ADDING_ITEMS.md. Issue #25: the cargo cases share one Hyper3D model (assets/gear/cargo_case.glb, a 1 m cube stretched to width x height x depth), tinted toward 'shell' by 'tint'.",
   "looks": {
+    "grenade": {
+      "frame": "grenade",
+      "radius": 0.045,
+      "height": 0.12,
+      "shell": "#5a5f58",
+      "trim": "#2a2c2a",
+      "glow": "#ff8a2a",
+      "note": "Issue #372: the thermal compact, built from primitives (ItemKit._grenade): a canister, a glowing band, a trigger cap. The same look is the thrown grenade."
+    },
     "jetpack": {
       "frame": "twin_tank",
       "scene": "res://assets/gear/jetpack.glb",

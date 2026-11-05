@@ -10,8 +10,10 @@
   "buy_rate": 0.5,
   "sell_rate": 1.0,
   "stock": [],
+  "prices": { "grenade": 40 },
   "endless_stock": [
-    "jetpack"
+    "jetpack",
+    "grenade"
   ],
   "offers": [
     { "id": "pistol_recoil", "label": "Pistol: steady grip", "about": "half the recoil, tighter shots", "price": 150, "target": "pistol_blaster", "mult": { "recoil": 0.35, "spread_deg": 0.4 } },

@@ -156,6 +156,8 @@ var _flinch := 0.0
 var _fall_t := 0.0
 var _last_damage := 0.0
 var _blade_sweep := Vector3.ZERO   ## set only while a sword hit lands: which way to fling the body
+var _blast_from := Vector3.INF     ## issue #372: set only while a blast lands: where it burst
+var _blast_reach := 0.0            ## ... and how far it reached (closer flings harder)
 ## Issue #25: the body falls as a ragdoll (null in the greybox, which still tips over).
 var ragdoll: Ragdoll
 var dropped_weapon: RigidBody3D
@@ -875,6 +877,18 @@ func apply_damage(amount: float) -> void:
 		play_sfx("hurt")
 
 
+## Issue #372: a blast (Blast.hit). Taken like a bolt from `shooter` (friendly
+## fire, the town alarm and standing as for a shot); a kill flings the body away
+## from `from`, harder the closer it stood.
+func apply_blast(amount: float, from: Vector3, shooter: Node, _wreck := 0.0, reach := 6.0) -> void:
+	if dead:
+		return
+	_blast_from = from
+	_blast_reach = reach
+	apply_damage_from(amount, shooter)
+	_blast_from = Vector3.INF
+
+
 ## The player's energy sword calls this instead of apply_damage. `sweep` is the way
 ## the blade was moving (flat); a killing cut flings the body that way.
 func apply_blade_hit(amount: float, sweep: Vector3) -> void:
@@ -924,6 +938,8 @@ func _go_limp(was_moving: Vector3) -> void:
 		# Cut down by the sword: the whole body goes flying sideways along the blade.
 		was_moving += _blade_sweep * float(cfg.get("blade_fling", 8.0)) \
 			+ Vector3.UP * float(cfg.get("blade_fling_up", 5.5))
+	if _blast_from != Vector3.INF:
+		was_moving += Ragdoll.blast_fling(global_position, _blast_from, _blast_reach, tilt.y, cfg)
 	ragdoll = Ragdoll.new(joints, cfg)
 	ragdoll.start(was_moving, kick, get_world_3d().direct_space_state, [get_rid()])
 	if look_body.has_meta("weapon"):
