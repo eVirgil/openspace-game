@@ -235,11 +235,22 @@ func build_plan(staged_build: bool) -> Array:
 	add.call("platform", SHELL, func(): _build_platform(ground_kind); return true)
 	if use_look:
 		add.call("look", SHELL, func(): _build_look(); return true)
+		# Issue #574: the ship on the pad on the first frame (a ship flying in is
+		# it); the town round it one piece a frame after, hidden until it is dressed.
 		add.call("decor", SHELL, func(): _build_decor(); return true)
+		var dressing: Array = decor_steps()
+		for i in dressing.size():
+			var fn: Callable = dressing[i]
+			add.call("decor:%d" % i, LATER, func(): fn.call(); return true)
+		add.call("decor_done", LATER, func(): _decor_done(); return true)
 		add.call("club_look", LATER, func(): _build_club_look(); return true)    # issue #261: the club's room and instruments
 		add.call("dress_desert", SHELL, func():
 			if terrain != null:
 				_dress_desert()
+			return true)
+		add.call("landforms", LATER, func():
+			if terrain != null:
+				_build_landforms()
 			return true)
 		add.call("gas_ring", SHELL, func(): _dress_gas_ring(); return true)
 		add.call("dress_platform", SHELL, func():
@@ -515,7 +526,31 @@ func _build_decor() -> void:
 	decor.style = style
 	decor.location_id = str(planet.get("town_id", "port_town"))
 	add_child(decor)
-	decor.dress(town, look)
+	decor.park_pit(town, look)
+	if staging:
+		var root := get_node_or_null("Town") as Node3D
+		if root != null:
+			root.visible = false          # issue #574: greybox until the decor's materials are on (decor_done)
+
+
+## Issue #574: the rest of the town's decor, one piece a build step. Called
+## while the plan is made: the pieces run later, after _build_decor().
+func decor_steps() -> Array:
+	var out: Array = []
+	for i in TownDecor.TOWN_STEPS:
+		out.append(func():
+			var steps: Array = decor.town_steps(town) if decor != null else []
+			if i < steps.size():
+				steps[i].call())
+	return out
+
+
+func _decor_done() -> void:
+	var root := get_node_or_null("Town") as Node3D
+	if root != null:
+		root.visible = true
+	if pilot != null:
+		pilot.town_built_late()           # the bays' ships, built just now, are berths too
 
 
 ## Issue #261: the cantina dressed as its club (the town's "club" block), and the
@@ -1764,6 +1799,12 @@ func _dress_desert() -> void:
 		add_child(dust)
 		var wd = terrain.material.get_shader_parameter("wind_dir")
 		dust.set_wind(wd if wd is Vector2 else Vector2(0.8, 0.6))   # unset: the shader's default
+
+
+## The mesas, hoodoos and boulders round the town (issue #574: its own build step).
+func _build_landforms() -> void:
+	if terrain is PlanetTerrain and not ((terrain as PlanetTerrain).rock_look.is_empty() and (terrain as PlanetTerrain).gas_look.is_empty()):
+		return
 	if with_landforms:
 		landforms = DesertLandforms.new()
 		landforms.clear_circles = _landmark_clearings()
@@ -1773,6 +1814,8 @@ func _dress_desert() -> void:
 			for m in landforms.rock_materials():
 				look.track_material(m)       # the sun, for the dusk side (issue #77)
 		_tint_rock(landforms, planet.get("type_cfg", {}).get("rock", {}))
+		if pilot != null:
+			pilot.town_built_late()       # solid to the ship too
 
 
 ## Issue #45: a snow world's white drifts, a red desert's red sand. Shader values

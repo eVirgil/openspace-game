@@ -202,6 +202,7 @@ func _ready() -> void:
 		ground.setup(world, demo.town, content, desert.height_at, desert.extent)
 		# The mesas and hoodoos on screen are solid to the ship too.
 		if demo.landforms != null:
+			_late_landforms = true
 			ground.add_landforms(demo.landforms.data, demo.desert_site().floor)
 			ground.add_boulders(demo.landforms.boulders)      # issue #93: solid rocks, speeder ramps
 		scenery = WorldScenery.new()
@@ -276,6 +277,8 @@ func _ready() -> void:
 ## it). Each berth's greybox box stops being solid: the ship carries its own hull, and
 ## the static box would stay behind as an invisible wall when the ship leaves.
 func _gather_berths() -> void:
+	if not berths.is_empty() and (demo.decor == null or demo.decor.parked_ships.is_empty()):
+		return
 	var parked: Array = demo.decor.parked_ships if demo.decor != null else []
 	var c: Vector3 = pad.get("center", Vector3.ZERO)
 	if parked.is_empty():
@@ -287,11 +290,24 @@ func _gather_berths() -> void:
 		parked = [v]
 	for i in parked.size():
 		var v: Node3D = parked[i]
+		if berths.any(func(b): return b.visual == v):
+			continue                         # issue #574: a handoff parks the bays' ships after the pad's: gathered again then
 		var id := ship_id if i == 0 else str(v.get_meta("ship_id", ship_id))
 		var box_id := str(pad.get("town_box", "ship")) if i == 0 else str(v.get_meta("box_id", ""))
 		var bi := add_berth(v, id, box_id, pit_key if i == 0 else "")
 		if i > 0 and bool(demo.town.get_box(box_id).get("free", false)):
 			berths[bi]["free"] = true        # issue #316: the station's frigate, anyone's to fly
+
+
+## Issue #574: a handoff builds the bays' ships and the landforms after its
+## first frame; they join the ground and the berths here.
+func town_built_late() -> void:
+	_gather_berths()
+	if demo.landforms != null and not _late_landforms:
+		_late_landforms = true
+		ground.add_landforms(demo.landforms.data, demo.desert_site().floor)
+		ground.add_boulders(demo.landforms.boulders)
+var _late_landforms := false
 
 
 ## A parked ship becomes one you can board: its data, model, hull and home bay.
