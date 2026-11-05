@@ -77,7 +77,7 @@
     }
   },
   "standing": {
-    "outpost_taken": 6,
+    "outpost_taken": 6, "station_taken": 10,
     "supplied": 3,
     "town_retaken": -20,
     "town_freed": 10
@@ -106,7 +106,7 @@
   },
   "fence_per_held": 0.08,
   "lines": {
-    "taken": "The locals move into %s.",
+    "taken": "The locals move into %s.", "station_taken": "The Remnant on %s are dead. The locals take the station.",
     "locked": "The Remnant at %s answer to the cruiser. More will come until it falls.",
     "retaken": "The Remnant have taken %s back.",
     "supplied": "Supplies delivered to %s. +%d cr",

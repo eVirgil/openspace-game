@@ -2,6 +2,26 @@
 
 Honest list of what is broken or faked. Updated every milestone.
 
+## After the station's Remnant deck (2026-11-04)
+
+**Checked:** headless on the giant: 15 troopers at their posts in a garrison;
+the last one dead hands the station to the locals (saved), and 8 locals' guards
+move in. A rendered probe of every room before and after (the red repaints to
+green); `test_smoke`, `test_station`, `test_ip_neutral`, headless boots of the
+port and the giant. Nothing was played by hand: no fight was played through.
+
+- **The locals hold it for good.** No retake and no supply runs (#314 asked for
+  the outposts' rules); `Territory.take_station` would be the place to add a
+  clock.
+- **The rooms are big and sparse** (about 26 m deep). A textures and props pass
+  would help.
+- **Troopers and guards walk straight** (no navmesh aboard), so a chase can
+  snag on the barricade or a bunk.
+- **The dead stay where they fell** until you leave the giant, about 200 more
+  draw calls on the deck after the fight.
+- **The cantina, the barracks and the bridge on the main tower's top floor**
+  are not here; that floor is still empty but for the crowd.
+
 ## After the station's crowd (2026-11-04)
 
 **Checked:** headless runs on the giant (stand-ins and the look on): 80 aboard,

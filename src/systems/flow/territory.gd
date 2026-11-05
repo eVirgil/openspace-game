@@ -158,6 +158,9 @@ static func driven_off(f: String = HOME) -> bool:
 
 ## "remnant" or "locals".
 static func owner(id: String) -> String:
+	if is_station(id):
+		var sc = WorldState.control.get(id, {})
+		return str(sc.get("owner", REMNANT)) if sc is Dictionary else REMNANT
 	var fc := front(front_of(id))
 	if id == str(fc.barracks):
 		if WorldState.has_flag(fc.driven_off):
@@ -167,6 +170,27 @@ static func owner(id: String) -> String:
 		return LOCALS
 	var c = WorldState.control.get(id, {})
 	return str(c.get("owner", REMNANT)) if c is Dictionary else REMNANT
+
+
+## Issue #314: a space station's Remnant deck is a place of its own, "station_<its
+## landmark id>": the Remnant's until every trooper there is dead, then the locals'
+## for good (no clock, no retake). Its own, not any front's: driving the Remnant off
+## a planet's ground leaves its station's deck to be taken.
+const STATION := "station_"
+
+
+static func is_station(id: String) -> bool:
+	return id.begins_with(STATION)
+
+
+## The last trooper on a station's Remnant deck is dead: the locals have it.
+static func take_station(id: String, label: String) -> void:
+	if not is_station(id) or owner(id) == LOCALS:
+		return
+	WorldState.control[id] = { "owner": LOCALS }
+	WorldState.bump("stations_taken")
+	WorldState.change_standing("locals", int(cfg().get("standing", {}).get("station_taken", 10)), "The locals took the station.")
+	WorldState.log_event(line("station_taken") % label)
 
 
 static func held(f: String = HOME) -> Array:
