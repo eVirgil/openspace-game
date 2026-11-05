@@ -39,6 +39,7 @@ const F_SPRINT_LOW := 64           ## sprinting: the gun at rest
 const F_FIRST_PERSON := 128        ## looking out of their eyes: the body faces the look
 const F_CUTTING := 256             ## the blade's swing is cutting: its trail shows
 const F_DOWNED := 512              ## downed: the others' copy falls as a ragdoll until they wake
+const F_THROW_HOLD := 1024         ## issue #372: holding a grenade back to throw
 
 var my_name := ""
 var my_outfit: Dictionary = {}
@@ -72,6 +73,8 @@ var hits_answered := 0             ## your hits on the others their games answer
 var _light_left := 0.0             ## host: seconds to the next word on the lighting
 var _light_sent := []              ## host: the lighting last sent [planet, preset, hour, barracks holder]
 var shots_seen := 0                ## the others' bolts shown here (tests)
+var grenades_seen := 0             ## issue #372: the others' grenades shown here (tests)
+var _pictures: Dictionary = {}     ## "peer:grenade id" -> Grenade (a picture of theirs)
 
 
 func _ready() -> void:
@@ -408,6 +411,8 @@ func town_state() -> Array:
 			flags |= F_FIRST_PERSON
 		if av.sword_trail_on:
 			flags |= F_CUTTING
+		if av.get("throw_hold") == true:
+			flags |= F_THROW_HOLD
 		var w = kit.weapons
 		if weapon == "energy_blade" and w != null and w.combo != null:
 			sword = w.combo.pose(false)        # the others see you from outside, even in first person
@@ -517,6 +522,8 @@ func _hook_shots() -> void:
 	if w == null or w == _hooked:
 		return
 	_hooked = w
+	if w.has_signal("threw"):
+		w.threw.connect(_send_grenade)
 	w.bolt_fired.connect(func(origin: Vector3, dir: Vector3, reach: float, b: Node):
 		if _connected() and (_mp().is_server() or welcomed_in):
 			shot.rpc([GameFlow.current_planet_id(), origin, dir, float(b.speed), b.color, reach, float(b.streak_length)]))
@@ -554,6 +561,66 @@ func shot(pkt: Array) -> void:
 	b.collision_mask = 0
 	b.remove_from_group("bolts")       # your blade does not deflect it either
 	shots_seen += 1
+
+
+# ------------------------------------------------------------------ grenades (issue #372)
+
+## Your grenade left your hand: the others see it fly and, when it goes off in your
+## game, where. What it hurt is your game's to say, as for a bolt (a guard: the
+## host's game through net_hit; another player: `hit`).
+func _send_grenade(g: Node) -> void:
+	if not _connected() or not (_mp().is_server() or welcomed_in) or g == null:
+		return
+	var gid := g.get_instance_id()
+	grenade.rpc([GameFlow.current_planet_id(), gid, (g as Node3D).global_position, g.velocity, float(g.fuse_left)])
+	g.burst.connect(func(at: Vector3, _hurt: Array):
+		if _connected():
+			grenade_burst.rpc([GameFlow.current_planet_id(), gid, at]))
+
+
+## Every player -> every other: a grenade I threw, [planet, id, from, velocity, fuse].
+## Shown here as a picture that flies and bounces and never goes off by itself; their
+## arm swings it.
+@rpc("any_peer", "call_remote", "reliable")
+func grenade(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	var scene := get_tree().current_scene
+	if pkt.size() < 5 or not roster.has(id) or scene == null or scene.get("_player") == null \
+			or str(pkt[0]) != GameFlow.current_planet_id():
+		return
+	var g := Grenade.new()
+	g.setup(CharacterKit._read_json(Grenade.CFG_PATH), pkt[2] as Vector3, pkt[3] as Vector3, bodies.get(id, null))
+	g.fuse_left = float(pkt[4])
+	g.picture = true
+	g.host = scene
+	scene.add_child(g)
+	g.global_position = pkt[2] as Vector3
+	_pictures["%d:%d" % [id, int(pkt[1])]] = g
+	var b = bodies.get(id, null)
+	if b != null and is_instance_valid(b) and b.avatar != null and b.avatar.has_method("start_throw_swing"):
+		b.avatar.start_throw_swing()
+	grenades_seen += 1
+
+
+## Every player -> every other: my grenade went off at `at` ([planet, id, at]): the
+## fireball and the boom here, and (in the host's game) the bang the guards hear.
+@rpc("any_peer", "call_remote", "reliable")
+func grenade_burst(pkt: Array) -> void:
+	var id := _mp().get_remote_sender_id()
+	var scene := get_tree().current_scene
+	if pkt.size() < 3 or not roster.has(id) or scene == null or str(pkt[0]) != GameFlow.current_planet_id():
+		return
+	var key := "%d:%d" % [id, int(pkt[1])]
+	var at := pkt[2] as Vector3
+	var g = _pictures.get(key, null)
+	_pictures.erase(key)
+	if g != null and is_instance_valid(g):
+		g.picture_burst(at)
+	elif scene.get("_player") != null:
+		ExplosionFx.big(scene, at, float(CharacterKit._read_json(Grenade.CFG_PATH).get("blast_size", 0.7)))
+		Sound.play("vehicle_boom", at)
+	if _mp().is_server():
+		NoiseEvents.emit(at, float(CharacterKit._read_json(Grenade.CFG_PATH).get("noise_radius", 90.0)), "explosion")
 
 
 ## Your bolt or blade landed on player `id`'s body here: tell their game.
