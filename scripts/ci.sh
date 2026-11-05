@@ -6,6 +6,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Issue #548: commit messages are under the IP rule too (the GUT scan covers files).
+./scripts/check_commit_messages.sh
+
 GODOT_BIN="${GODOT_BIN:-godot}"
 if ! command -v "$GODOT_BIN" >/dev/null 2>&1; then
   if [ -x /opt/homebrew/bin/godot ]; then GODOT_BIN=/opt/homebrew/bin/godot; fi
