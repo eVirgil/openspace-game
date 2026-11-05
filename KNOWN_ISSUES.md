@@ -181,6 +181,34 @@ built every other planet's look headless. Not flown on screen.
   home; a moon of a moon would not see its grandparent's other children.
   (Fixed by issue #573: every scene reads one system frame, to any depth.)
 
+## After the descent fixes (issue #574, 2026-11-05)
+
+**Checked:** `test_smoke`; the new rendered trace `scenes/descent_trace.tscn`
+(open space → home's bubble → 30 m over the dunes for 60 s with boost → climb
+out, and the same over the moon), twice clean, 0 script errors, 0 crashes.
+
+**Fixed, with the trace's numbers (this Mac, Vulkan):**
+- Low pass over home: ~172 ms every frame → p50 15 ms, worst 32. The 1 m
+  walkable ground (`prefetch`) was being built under a 300 m/s ship (~9 ms a
+  physics tick, so ticks overran and frames spiralled). Now only when slow or
+  landing (`prefetch_speed`, flow data). The mid ring keeps its finished
+  meshes and drops to fast quality by speed at any height.
+- Home arrival: ~3.98 s → ~377 ms. The wreck field read ~2,500 plate meshes
+  back from the GPU; now CPU arrays, merged meshes kept for the session.
+- Leaving a planet: ~190-300 ms → ~65-72 ms. A fresh cockpit-dash SubViewport
+  cost ~240 ms entering the tree; one now lives under the root all session.
+- SceneReaper no longer blocks a frame on a terrain's running worker jobs.
+
+**Not done, honestly (still over the issue's budget):**
+- **Arriving is still long:** home ~377 ms (decor ~170, ship ~114: berths and
+  ground, boxes ~24, landforms ~36), the moon ~210. Moving the town's decor,
+  boxes, landforms and parked ships out of the shell is the next step.
+- **The staged build on the way down still has 0.4-0.6 s frames** around
+  5.8-6.5 km (npc_brains, interceptor, speeders, droids, barge, cruiser), more
+  than the steps' own times; likely first-draw pipeline compiles. Building
+  people and outposts by altitude, one body a step, is not done.
+- The descent trace has no GUT test reading it; its budgets are constants in it.
+
 ## After open space (issue #573, 2026-11-05)
 
 **Checked:** `test_smoke`; the touched `test_planets` tests one by one (the

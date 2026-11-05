@@ -90,6 +90,8 @@
   "eject_push_max": 60.0,
   "eject_push_fade": 14.0,
   "eject_note": "Issue #275: hold B (flight_eject) for eject_hold seconds in the air, below space and outside a fight, to eject (ShipPilot.eject). You come out eject_clear_up metres over the ship's back and eject_clear_back behind her, rising at her climb plus eject_kick m/s, with her speed across the ground (at most eject_push_max m/s) carrying you on and fading by eject_push_fade m/s every second. Then you fall: falls hurt (content/core/flow/falls.json). A ship of yours flies home to her pad (_fly_home) and Call brings her back; the empty ship of a stolen one (or a pad's own, nobody's) goes ADRIFT (issue #276, AtmoFlight): her adrift_gravity, adrift_drag and adrift_nose_rate come from the ship's atmosphere block, with defaults in code.",
+  "prefetch_speed": 45.0,
+  "prefetch_note": "Issue #574: the 1 m walkable ground (PlanetTerrain's near layer and collider) is built under a flying ship only while she is landing or slower than prefetch_speed m/s, low down: faster, she outruns it every time, and building it cost about 9 ms a physics tick, enough to stall low flight. Ships and crashes ride the planet's height function, not this collider, so nothing gets less solid.",
   "call_speed": 140.0,
   "call_climb": 40.0,
   "call_cruise_agl": 120.0,

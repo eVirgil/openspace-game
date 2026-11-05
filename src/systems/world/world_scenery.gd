@@ -153,13 +153,7 @@ func _build_landmark_visuals() -> void:
 ## from every kilometre the field can be seen.
 func _add_wreck_plate(b: Dictionary) -> void:
 	var size := (b.max as Vector3) - (b.min as Vector3)
-	var mesh: Mesh
-	if bool(b.get("wreck_shard", false)):
-		mesh = StarcruiserWreck.shard_mesh(size)
-	else:
-		var box := BoxMesh.new()
-		box.size = size
-		mesh = box
+	var mesh := _plate_arrays(bool(b.get("wreck_shard", false)), size)
 	var finish := str(b.wreck_finish)
 	var frame: Transform3D = b.wreck_frame
 	var key := str(b.id).get_slice("/", 0) + "/" + finish
@@ -188,10 +182,64 @@ func _add_wreck_plate(b: Dictionary) -> void:
 	batch.ids.append(str(b.id))
 
 
+## Issue #574: a plate's surface arrays, made on the CPU (a BoxMesh's own arrays,
+## the shard's SurfaceTool arrays) and kept by shape and size. Reading them back
+## from a built mesh (surface_get_arrays) waited on the GPU for every one of the
+## field's ~2,500 plates: over 3 s on the home planet's first frame.
+static var _plate_cache := {}
+
+
+static func _plate_arrays(shard: bool, size: Vector3) -> Array:
+	var key := "%s/%s" % [shard, size]
+	if _plate_cache.has(key):
+		return _plate_cache[key]
+	var arrays: Array
+	if shard:
+		var points := StarcruiserWreck.shard_vertices(size)
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for face in [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4],
+				[1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]:
+			for i in [0, 1, 2, 0, 2, 3]:
+				st.add_vertex(points[face[i]])
+		st.generate_normals()
+		arrays = st.commit_to_arrays()
+	else:
+		var box := BoxMesh.new()
+		box.size = size
+		arrays = box.get_mesh_arrays()
+	_plate_cache[key] = arrays
+	return arrays
+
+
+## Issue #574: the merged wreck meshes, kept for the session by world: a second
+## arrival on the home planet puts the same meshes in, with nothing to merge.
+static var _merged := {}               ## world key -> [{ name, mesh, material, small, origin, ids }]
+
+
 ## One mesh per wreck, material and size class. Each vertex keeps its plate's own
 ## position and normal (CUSTOM0, CUSTOM1) for wreck_metal's plate-space patterns
 ## (panel seams, ramp cleats, pad paint), so the merge looks the same as the plates.
 func _merge_wreck_plates(root: Node3D) -> void:
+	var wkey := "%s/%d" % [str(ground.world.get("id", "")), _wreck_batches.size()]
+	if not _merged.has(wkey) and not _wreck_batches.is_empty():
+		_merged[wkey] = _merge_batches()
+	for m in _merged.get(wkey, []):
+		var mi := MeshInstance3D.new()
+		mi.name = str(m.name)
+		mi.mesh = m.mesh
+		mi.material_override = m.material
+		if bool(m.small):
+			mi.visibility_range_end = SMALL_PART_RANGE
+		mi.transform = Transform3D(Basis.IDENTITY, m.origin)
+		root.add_child(mi)
+		for id in m.ids:
+			wreck_parts[id] = mi
+	_wreck_batches.clear()
+
+
+func _merge_batches() -> Array:
+	var out: Array = []
 	var fmt := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) \
 		| (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT)
 	for batch_key in _wreck_batches:
@@ -203,7 +251,7 @@ func _merge_wreck_plates(root: Node3D) -> void:
 		var local_normal := PackedFloat32Array()
 		var index := PackedInt32Array()
 		for plate in batch.plates:
-			var arrays: Array = (plate[0] as Mesh).surface_get_arrays(0)
+			var arrays: Array = plate[0]
 			var xf: Transform3D = Transform3D(Basis.IDENTITY, -origin) * (plate[1] as Transform3D)
 			var nb := xf.basis.inverse().transposed()
 			var pv: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -230,17 +278,9 @@ func _merge_wreck_plates(root: Node3D) -> void:
 		arr[Mesh.ARRAY_INDEX] = index
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, fmt)
-		var mi := MeshInstance3D.new()
-		mi.name = str(batch_key).replace("/", "_")
-		mi.mesh = mesh
-		mi.material_override = batch.material
-		if bool(batch.small):
-			mi.visibility_range_end = SMALL_PART_RANGE
-		mi.transform = Transform3D(Basis.IDENTITY, origin)
-		root.add_child(mi)
-		for id in batch.ids:
-			wreck_parts[id] = mi
-	_wreck_batches.clear()
+		out.append({ "name": str(batch_key).replace("/", "_"), "mesh": mesh, "material": batch.material,
+			"small": bool(batch.small), "origin": origin, "ids": batch.ids })
+	return out
 
 
 ## The merged mesh that draws wreck plate `id` ("<wreck>/<plate>"), or null.

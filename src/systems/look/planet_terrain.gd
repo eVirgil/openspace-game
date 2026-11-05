@@ -559,6 +559,19 @@ func _notification(what: int) -> void:
 		finish_jobs()
 
 
+## Issue #574: a worker job is still running on this terrain (SceneReaper waits for
+## it to finish on its own instead of blocking a frame on it).
+func jobs_busy() -> bool:
+	if _far_group >= 0 and not WorkerThreadPool.is_group_task_completed(_far_group):
+		return true
+	if _town_task >= 0 and not WorkerThreadPool.is_task_completed(_town_task):
+		return true
+	for task in _live_tasks:
+		if not WorkerThreadPool.is_task_completed(task):
+			return true
+	return false
+
+
 ## Wait for every worker job still running on this terrain (before freeing it:
 ## a node a worker is calling into cannot be freed).
 func finish_jobs() -> void:
@@ -844,12 +857,14 @@ func _finish_jobs() -> void:
 			WorkerThreadPool.wait_for_task_completion(job.task)
 			_live_tasks.erase(job.task)
 			_jobs.erase(layer)
+			# Issue #574: always put a finished mesh in (a newer one replaces an unsent
+			# older one). Thrown away while a newer request waited, a ship that outran
+			# the mid ring never got any.
+			_ready_meshes[layer] = job.result
 			if _pending_jobs.has(layer):
 				var pending: Dictionary = _pending_jobs[layer]
 				_pending_jobs.erase(layer)
 				_start(layer, pending.center, int(pending.cells), float(pending.step))
-			else:
-				_ready_meshes[layer] = job.result   # a newer one replaces an unsent older one
 	upload_ready_meshes(mesh_upload_budget_ms)
 
 
