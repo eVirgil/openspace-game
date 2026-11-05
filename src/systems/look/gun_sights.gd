@@ -127,16 +127,22 @@ static func cut_mesh(m: ArrayMesh, xf: Transform3D, box: AABB) -> ArrayMesh:
 ## `barrel_from` (metres from the eye, hand_weapons scope "barrel_from"): the gun
 ## past it stays, so the barrel runs out under the scope and it does not float.
 ## That needs the gun's weapon_dark material (its near_clip); others just hide.
+## Issue #539: only when `on` or `barrel_from` changes; the parts come from parts().
 static func scope_view(weapon: Node3D, on: bool, barrel_from := 0.0) -> void:
-	var scope := weapon.find_child("Scope", true, false) as Node3D
+	var pt := parts(weapon)
+	var scope: Node3D = pt.scope
 	if scope == null:
 		return
+	var state := Vector2(1.0 if on else 0.0, barrel_from)
+	if pt.get("view") == state:
+		return
+	pt.view = state
 	(scope.get_node("Hardware") as Node3D).visible = not on
 	# The reticle draws over everything (no depth test), so from the hip it showed
 	# through the tube's side: it is only there aimed in.
 	(scope.get_node("Reticle") as Node3D).visible = on
-	for mi in weapon.find_children("*", "GeometryInstance3D", true, false):
-		if scope.is_ancestor_of(mi) or mi.name == "Flash":
+	for mi in pt.gun:
+		if not is_instance_valid(mi):
 			continue
 		var g := mi as GeometryInstance3D
 		var sm := g.material_override as ShaderMaterial
@@ -155,15 +161,18 @@ static func scope_view(weapon: Node3D, on: bool, barrel_from := 0.0) -> void:
 ## A pinned barrel casts no shadow (its vertices are in the camera's space, not
 ## the light's). Off (or no scope): drawn the usual way again, shadow back.
 static func pin(weapon: Node3D, cam_from_weapon: Transform3D, on: bool) -> void:
-	var scope := weapon.find_child("Scope", true, false) as Node3D
-	if scope == null:
+	var pt := parts(weapon)
+	if pt.scope == null:
 		return
-	for mi in weapon.find_children("*", "GeometryInstance3D", true, false):
+	if not on and not pt.pinned_now:
+		return                       # issue #539: already drawn the usual way
+	pt.pinned_now = on
+	for mi in pt.pinned:
+		if not is_instance_valid(mi):
+			continue
 		var g := mi as GeometryInstance3D
 		var sm := g.material_override as ShaderMaterial
 		var barrel := sm != null and sm.shader == DARK
-		if not scope.is_ancestor_of(g) and not barrel:
-			continue
 		if not on:
 			g.set_instance_shader_parameter("pin_on", 0.0)
 			if g.has_meta("pin_shadow"):
@@ -185,6 +194,34 @@ static func pin(weapon: Node3D, cam_from_weapon: Transform3D, on: bool) -> void:
 		if barrel and not g.has_meta("pin_shadow"):
 			g.set_meta("pin_shadow", g.cast_shadow)
 			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Issue #539: a gun's Scope node and its meshes, found once and kept on the weapon
+## (scope_view and pin ran find_child and find_children over the whole model every
+## frame while aiming, and every physics tick from _place_weapon):
+##   scope   the Scope node, or null (the gun has none: both return at once)
+##   gun     every mesh but the scope's own and the muzzle flash (scope_view)
+##   pinned  the scope's meshes and the barrel's weapon_dark ones (pin)
+## `scans` counts the lookups, for tests.
+static var scans := 0
+
+
+static func parts(weapon: Node3D) -> Dictionary:
+	if weapon.has_meta("gun_sights_parts"):
+		return weapon.get_meta("gun_sights_parts")
+	scans += 1
+	var scope := weapon.find_child("Scope", true, false) as Node3D
+	var out := { "scope": scope, "gun": [], "pinned": [], "view": null, "pinned_now": false }
+	if scope != null:
+		for mi in weapon.find_children("*", "GeometryInstance3D", true, false):
+			var sm := (mi as GeometryInstance3D).material_override as ShaderMaterial
+			var mine := scope.is_ancestor_of(mi)
+			if mine or (sm != null and sm.shader == DARK):
+				out.pinned.append(mi)
+			if not mine and mi.name != "Flash":
+				out.gun.append(mi)
+	weapon.set_meta("gun_sights_parts", out)
+	return out
 
 
 static func _scope_mat(c: Color, rough: float, knurl := 0.0, groove := 0.0, weave := 0.0) -> ShaderMaterial:

@@ -285,6 +285,26 @@ func test_a_stolen_ship_scrambles_it_and_it_hunts() -> void:
 	assert_true(t.pilot.hud.target.has("lead"), "with a lead to aim at")
 
 
+## Issue #539: the fighter counts its own seekers in the air; the same count a scan
+## of every bolt in the world gives.
+func test_its_seekers_in_the_air_are_counted_without_a_group_scan() -> void:
+	var t = _town()
+	await wait_physics_frames(2)
+	_steal(t)
+	assert_true(t.pilot.takeoff())
+	_fly(t, 1.0)
+	var f: AtmoFighter = t.interceptor
+	assert_eq(int(f.seekers_on_player().missiles), 0)
+	var from: Vector3 = t.pilot.atmo.position() + Vector3(0, 0, 600)
+	f._launch_seeker({ "origin": from, "velocity": Vector3(0, 0, -120), "damage": 10.0, "range": 2000.0, "turn_rate": 1.0 })
+	var scan := 0
+	for b in get_tree().get_nodes_in_group("bolts"):
+		if is_instance_valid(b) and "seek" in b and b.seek == t.pilot.hull:
+			scan += 1
+	assert_eq(scan, 1, "one seeker after her")
+	assert_eq(int(f.seekers_on_player().missiles), scan, "the fighter's own count agrees")
+
+
 func test_shot_down_it_comes_back_on_its_pad() -> void:
 	var t = _town()
 	await wait_physics_frames(2)

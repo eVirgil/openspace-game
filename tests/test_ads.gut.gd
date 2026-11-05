@@ -193,3 +193,13 @@ func test_rifle_shows_one_optic() -> void:
 	GunSights.scope_view(a.weapon_node("rifle_blaster"), false)
 	assert_true((scope.get_node("Hardware") as Node3D).visible)
 	assert_false((scope.get_node("Reticle") as Node3D).visible, "no crosshair through the tube's side from the hip")
+	# Issue #539: the scope and its meshes are found once per gun, not every frame.
+	var w := a.weapon_node("rifle_blaster")
+	var scans := GunSights.scans
+	for i in 60:
+		GunSights.scope_view(w, true)
+		GunSights.pin(w, Transform3D(), true)
+	GunSights.scope_view(w, false)
+	GunSights.pin(w, Transform3D(), false)
+	assert_eq(GunSights.scans, scans, "no tree scans over 60 frames of aiming")
+	assert_true((scope.get_node("Hardware") as Node3D).visible, "and still back from the hip")

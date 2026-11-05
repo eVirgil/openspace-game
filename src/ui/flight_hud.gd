@@ -109,11 +109,15 @@ func show_values(v: Dictionary) -> void:
 	values = v
 	values["seeker_lamp"] = seeker_lamp
 	boost = float(v.get("boost", 0.0))
+	# Issue #539: every view gets the values; only the ones on screen repaint
+	# (a view shown again repaints itself then).
 	for view in [sim, cockpit]:
 		view.values = v
 		view.vessel_name = vessel_name
-		view.queue_redraw()
-	gauge.queue_redraw()
+		if view.is_visible_in_tree():
+			view.queue_redraw()
+	if gauge.is_visible_in_tree():
+		gauge.queue_redraw()
 
 
 ## Issue #181: the cockpit view (its dash and instruments) or the chase view (the
