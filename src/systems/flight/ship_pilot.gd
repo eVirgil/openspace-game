@@ -1131,6 +1131,11 @@ func _look_length() -> float:
 	return float(kit.looks.get(str(ship_cfg.get("look", "")), {}).get("length", 9.0)) if kit != null else 9.0
 
 
+## Wingtip to wingtip, from the ship's look (content/look/ships.json "span").
+func _look_span() -> float:
+	return float(kit.looks.get(str(ship_cfg.get("look", "")), {}).get("span", 8.0)) if kit != null else 8.0
+
+
 func reenter() -> void:
 	_seat_arriving()
 	var c: Vector3 = pad.get("center", Vector3.ZERO)
@@ -2743,12 +2748,15 @@ func _drop_hijacked(wrecked: bool) -> void:
 # ------------------------------------------------------------------ helpers
 
 ## Beside the ship (left, then right, then behind), on whatever ground is there.
+## Clear of her wings: 5.5 m out, or half her look's span and a bit more for a big
+## one (the station's frigate is 16 m across, so 5.5 m put you inside her hull).
 func _exit_spot() -> Vector3:
 	var b: Basis = atmo.flight.basis
 	var s := atmo.position()
 	var u := atmo.up()
-	var side := 5.5
-	for off in [-b.x * side, b.x * side, b.z * (side + 3.0), -b.z * (side + 3.0)]:
+	var side := maxf(5.5, _look_span() * 0.5 + 1.5)
+	var back := maxf(side + 3.0, _look_length() * 0.5 + 1.5)
+	for off in [-b.x * side, b.x * side, b.z * back, -b.z * back]:
 		var flat: Vector3 = off - u * off.dot(u)
 		var at := ground.surface_below(s + flat) + u * 0.05
 		if ground.hit(at + u, 0.6) == "":

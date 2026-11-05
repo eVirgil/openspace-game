@@ -91,7 +91,7 @@
     "speed_curve": 1.0,
     "climb_drag": 0.3,
     "overspeed_brake": 1.0,
-    "liftoff_height": 22.0,
+    "liftoff_height": 17.6,
     "liftoff_speed": 7.0,
     "land_max_agl": 150.0,
     "land_descent": 10.0,
@@ -102,7 +102,7 @@
     "body_radius": 7.6,
     "clearance": 2.0
   },
-  "note": "The station's frigate (issue #316): the freighter's airframe at twice the size (look 'frigate', content/look/ships.json 'scale'), built heavier and slower: more hull and shield, two seeker racks, and Shift still drifts. It stands on the ringed giant's station's bay pad 'frigate' (orbital_station.json pads) and flies like the port's other bay ships. 'sold': false keeps it off T-89's and T-99's lots (ShipSalesman.stock).",
+  "note": "The station's frigate (issue #316): the freighter's airframe at twice the size (look 'frigate', content/look/ships.json 'scale'), built heavier and slower: more hull and shield, two seeker racks, and Shift still drifts. It stands on the ringed giant's station's bay pad 'frigate' (orbital_station.json pads) and flies like the port's other bay ships. 'sold': false keeps it off T-89's and T-99's lots (ShipSalesman.stock). Her liftoff_height is 0.8 of the 22 m she first had, so lifting off her pad she hovers well under the bay's 30 m roof.",
   "naming": {
     "kind": "person_drift",
     "callsign": true,
