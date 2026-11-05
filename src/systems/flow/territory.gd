@@ -91,7 +91,28 @@ static func places() -> Array:
 
 ## A front's block: { outposts, barracks, driven_off, retaken, dead, remnant_dead,
 ## clock (locals hold on a clock), lines, posts (the barracks') }.
+## Issue #540: a front's table is built once from territory.json and kept (tick
+## asked for each one many times a tick); read-only, as cfg() itself is.
+static var _fronts_of: Dictionary = {}
+static var _fronts_from: Dictionary = {}      ## the cfg() they were built from
+static var _fronts_list: Array = []
+
+
+static func _fresh() -> void:
+	if not is_same(_fronts_from, cfg()):
+		_fronts_from = cfg()
+		_fronts_of = {}
+		_fronts_list = []
+
+
 static func front(f: String) -> Dictionary:
+	_fresh()
+	if not _fronts_of.has(f):
+		_fronts_of[f] = _front_of(f)
+	return _fronts_of[f]
+
+
+static func _front_of(f: String) -> Dictionary:
 	var got = cfg().get("fronts", {}).get(f, {})
 	var m: Dictionary = got if got is Dictionary else {}
 	if f != HOME and not m.is_empty():
@@ -107,8 +128,11 @@ static func front(f: String) -> Dictionary:
 
 ## The fronts past the port's (territory.json "fronts" keys: "moon", "lava_moon").
 static func fronts() -> Array:
-	var all: Dictionary = cfg().get("fronts", {})
-	return all.keys().filter(func(k): return all[k] is Dictionary)
+	_fresh()
+	if _fronts_list.is_empty():
+		var all: Dictionary = cfg().get("fronts", {})
+		_fronts_list = all.keys().filter(func(k): return all[k] is Dictionary)
+	return _fronts_list
 
 
 static func outposts(f: String = HOME) -> Array:

@@ -30,8 +30,14 @@ static func emit(pos: Vector3, radius: float, kind: String = "shot") -> int:
 	return id
 
 
-## Every event newer than `after_id`, oldest first.
+## Every event newer than `after_id`, oldest first. Issue #540: when there is none
+## (nearly every tick, for every guard) the same empty, read-only array comes back.
+const _NONE: Array = []
+
+
 static func after(after_id: int) -> Array:
+	if _next_id - 1 <= after_id:
+		return _NONE
 	var out: Array = []
 	for e in _events:
 		if int(e.id) > after_id:

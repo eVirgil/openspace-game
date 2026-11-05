@@ -196,8 +196,18 @@ static func zone_out(spec: Dictionary, p: Vector3) -> float:
 
 
 ## The gate and every zone: [{ checkpoint, guards }, ...], the gate first.
+## Issue #540: built once and again only when the gate, its guards or the zones
+## change (it was a new array and dictionary every call, several a tick).
+var _posts_cache: Array = []
+var _posts_zones := -1
+
+
 func _posts() -> Array:
-	return [{ "checkpoint": checkpoint, "guards": guards }] + zones
+	if _posts_cache.is_empty() or _posts_zones != zones.size() \
+			or _posts_cache[0].checkpoint != checkpoint or not is_same(_posts_cache[0].guards, guards):
+		_posts_cache = [{ "checkpoint": checkpoint, "guards": guards }] + zones
+		_posts_zones = zones.size()
+	return _posts_cache
 
 
 ## A brain for one trooper: its patrol (its marker's route, else its post), its
@@ -299,6 +309,9 @@ func _build_klaxon(gcfg: Dictionary) -> void:
 		klaxon.position = klaxon_at + Vector3(0, 4.0, 0)
 
 
+var _alarm_in := {}                  ## what TownAlarm.update reads each tick (it keeps nothing)
+
+
 func _physics_process(dt: float) -> void:
 	if checkpoint == null or player == null:
 		return
@@ -334,7 +347,10 @@ func _physics_process(dt: float) -> void:
 	var vehicle := _hostile_vehicle()
 
 	# The gate. Issue #187: edgier for every outpost the Remnant have lost.
-	var gate_alive := alive.filter(func(g): return guards.has(g))
+	var gate_alive := 0
+	for g in alive:
+		if guards.has(g):
+			gate_alive += 1
 	checkpoint.strict = Territory.gate_strict() if remnant() else 0
 	checkpoint.bribe_mult = Territory.bribe_mult() if remnant() else 1.0
 	checkpoint.update(dt, {
@@ -345,7 +361,7 @@ func _physics_process(dt: float) -> void:
 		"armed": player_armed.call() if player_armed.is_valid() else false,
 		# Hurting a trooper is the garrison's alarm (below), not a gate matter.
 		"recent_shot": recent_shot, "attacked": false,
-		"guards_alive": gate_alive.size(), "contraband": contraband(),
+		"guards_alive": gate_alive, "contraband": contraband(),
 	})
 	_handle(checkpoint.drain())
 	_tick_zones(dt, alive, ppos, night, recent_shot, vehicle)
@@ -365,8 +381,11 @@ func _physics_process(dt: float) -> void:
 		_raise("attacked")
 	_attacked = false
 
-	alarm.update(dt, { "seen": seen and _ko_left <= 0.0, "player_pos": seen_at if seen_at != Vector3.INF else ppos,
-		"nearest_dist": nearest, "alive": alive.size() })
+	_alarm_in["seen"] = seen and _ko_left <= 0.0       # issue #540: one dictionary, filled each tick
+	_alarm_in["player_pos"] = seen_at if seen_at != Vector3.INF else ppos
+	_alarm_in["nearest_dist"] = nearest
+	_alarm_in["alive"] = alive.size()
+	alarm.update(dt, _alarm_in)
 	_handle(alarm.drain())
 	if alarm.active():
 		for post in _posts():
@@ -388,10 +407,12 @@ func _tick_zones(dt: float, alive: Array, ppos: Vector3, night: bool, recent_sho
 	var asks: bool = _ko_left <= 0.0 and vehicle == null and player.get("piloting") != true \
 		and not _shoot_on_sight()
 	for z in zones:
-		var mine := alive.filter(func(g): return z.guards.has(g))
+		var mine := 0
 		var noticed := false
-		for g in mine:
-			noticed = noticed or (g.perception.noticed and g.guest_target() == null)
+		for g in alive:
+			if z.guards.has(g):
+				mine += 1
+				noticed = noticed or (g.perception.noticed and g.guest_target() == null)
 		var cp: Checkpoint = z.checkpoint
 		cp.strict = Territory.gate_strict() if remnant() else 0
 		cp.bribe_mult = Territory.bribe_mult() if remnant() else 1.0
@@ -401,7 +422,7 @@ func _tick_zones(dt: float, alive: Array, ppos: Vector3, night: bool, recent_sho
 			"noticed": noticed and asks,
 			"armed": player_armed.call() if player_armed.is_valid() else false,
 			"recent_shot": recent_shot, "attacked": false,
-			"guards_alive": mine.size(), "contraband": contraband(),
+			"guards_alive": mine, "contraband": contraband(),
 		})
 		_handle(cp.drain(), z)
 
@@ -471,7 +492,9 @@ func _shoot_on_sight() -> bool:
 
 func _order_brains() -> void:
 	var posts := _posts()
-	var leads := posts.map(func(post): return _lead(post.guards))
+	var leads: Array = []
+	for post in posts:
+		leads.append(_lead(post.guards))
 	for g in brains:
 		if g.dead:
 			continue
@@ -625,9 +648,27 @@ func _check_spots() -> void:
 # ------------------------------------------------------------------ contraband
 
 ## What the player carries that the Remnant would confiscate: [{ id, label, count, value }].
+## Issue #540: worked out again only when the inventory changed (the gate and every
+## zone asked for it each tick, a dictionary per item each time). Read-only: the
+## checkpoint copies it when it searches you.
+var _contraband: Array = []
+var _contraband_inv: Inventory
+var _contraband_key := 0
+
+
 func contraband() -> Array:
-	var out: Array = []
 	var inv: Inventory = WorldState.inventory
+	var key := inv.owned.hash()
+	if inv == _contraband_inv and key == _contraband_key:
+		return _contraband
+	_contraband_inv = inv
+	_contraband_key = key
+	_contraband = _contraband_of(inv)
+	return _contraband
+
+
+func _contraband_of(inv: Inventory) -> Array:
+	var out: Array = []
 	for id in inv.item_ids():
 		var it: Dictionary = content.get_item(str(id))
 		if bool(it.get("contraband", false)):

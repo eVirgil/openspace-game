@@ -68,6 +68,13 @@ var states_seen := {}          ## for tests/traces: every state name entered
 ##   perform:     issue #261: a performer's set ("dj", "drum", "bass"; ClubMoves), at `bpm`
 ## Returns { joints: {name: Vector3 deg}, pelvis_y: float, pelvis_x: float, state: String,
 ##   hands / reach: a performer's hands on their instrument (ClubMoves) }
+## Issue #540: with `share_out` step returns the same dictionary every call and its
+## `joints` is the animator's own (no copy of every joint per step): for a caller
+## that reads them at once and changes nothing (NpcBody). Else new ones, as before.
+var share_out := false
+var _out := {}
+
+
 func step(dt: float, inp: Dictionary) -> Dictionary:
 	time += dt
 	var dancing := bool(inp.get("dance", false))
@@ -115,12 +122,15 @@ func step(dt: float, inp: Dictionary) -> Dictionary:
 		_cur[j] = (_cur.get(j, v) as Vector3).lerp(v, k)
 	pelvis_y = lerpf(pelvis_y, target.pelvis_y, k)
 	pelvis_x = lerpf(pelvis_x, target.pelvis_x, k)
-	return {
-		"joints": _cur.duplicate(), "pelvis_y": pelvis_y, "pelvis_x": pelvis_x,
-		"state": "DANCE" if dancing else ("PERFORM" if performing != "" else state_name()),
-		"dance_yaw": float(target.get("yaw", 0.0)),
-		"hands": target.get("hands", {}), "reach": target.get("reach", {}),
-	}
+	var out := _out if share_out else {}
+	out["joints"] = _cur if share_out else _cur.duplicate()
+	out["pelvis_y"] = pelvis_y
+	out["pelvis_x"] = pelvis_x
+	out["state"] = "DANCE" if dancing else ("PERFORM" if performing != "" else state_name())
+	out["dance_yaw"] = float(target.get("yaw", 0.0))
+	out["hands"] = target.get("hands", {})
+	out["reach"] = target.get("reach", {})
+	return out
 
 
 ## Issue #133: stride length (one full cycle, metres) for a ground speed.
