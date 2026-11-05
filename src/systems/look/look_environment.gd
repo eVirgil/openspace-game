@@ -297,7 +297,13 @@ var space_frame: Callable = Callable()   ## world point -> Basis, or none (this 
 
 func _process(dt: float) -> void:
 	_step_fades(dt)
-	if sky_mat == null or PlanetSphere.current == null or not is_inside_tree():
+	if sky_mat == null or not is_inside_tree():
+		return
+	if PlanetSphere.current == null:
+		# Issue #573: open space has no ball of its own: the system's sky (space_frame).
+		var c := get_viewport().get_camera_3d()
+		if c != null and space_frame.is_valid():
+			sky_mat.set_shader_parameter("sky_frame", space_frame.call(c.global_position) as Basis)
 		return
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:

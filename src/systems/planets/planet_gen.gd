@@ -13,7 +13,8 @@ extends RefCounted
 ##                a platform, sky colours, atmosphere, how it looks from space
 ##   style     -- the town style (TownStyle spec: a preset or words)
 ##   sky       -- values laid over every time-of-day preset
-##   neighbours-- other planets in its sky you can fly to: { id, at, radius, color... }
+##   neighbours-- other planets in its sky you can fly to: { id, at, offset, radius, color... },
+##                all placed from one system frame (issue #573: system_centre)
 ##   cantina   -- who runs the cantina { card, look }
 ##   natives   -- issue #96: its native packs and wild animals (NativesData.resolve)
 ##   beast     -- its beast, if it has one: the "beast" block of its file ({} if none;
@@ -120,6 +121,8 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		push_warning("PlanetGen: unknown planet type %s (%s); using sand" % [type, id])
 		type = "sand"
 		tcfg = types().types.sand
+	if str(tcfg.get("ground", "")) == "none":
+		return _make_open_space(id, cfg, type, tcfg, cc)
 	var size := clampi(int(cfg.get("town_size", 50)), 1, 100)
 	var town_id := str(cfg.get("town", ""))
 	var town: Dictionary = {}
@@ -185,7 +188,7 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 	if not bd.is_empty():
 		trect = Rect2(float(bd.min[0]), float(bd.min[1]), float(bd.max[0]) - float(bd.min[0]), float(bd.max[1]) - float(bd.min[1]))
 	var natives := NativesData.resolve(id, cfg, tcfg, int(cfg.get("seed", NameEngine.fnv(id) % 100000)), trect)
-	var near := neighbours(id, cc)
+	var near := neighbours(id, cc, cfg)
 	return {
 		"id": id,
 		"cfg": cfg,
@@ -211,6 +214,140 @@ static func make(cfg: Dictionary, cc = null) -> Dictionary:
 		"barge": cfg.get("barge", {}),
 		"harmful_surface": cfg.get("harmful_surface", tcfg.get("harmful_surface", {})),
 	}
+
+
+## Issue #573: open space, a place with no planet (ground "none"). Its town is
+## only the ship's pad and a spot to stand (hidden: the flight never leaves the
+## seat out here), so the ship, pilot and HUD build as anywhere else; no natives,
+## no people. Its world has no terrain and its atmosphere is all space.
+static func _make_open_space(id: String, cfg: Dictionary, type: String, tcfg: Dictionary, cc) -> Dictionary:
+	var town_id := id + "_town"
+	var town := {
+		"id": town_id,
+		"boxes": [
+			{ "id": "spawn_plate", "kind": "floor", "zone": "ground", "min": [-2.0, -0.2, -2.0], "max": [2.0, 0.0, 2.0], "hidden": true },
+			{ "id": "ship", "kind": "ship", "zone": "ground", "min": [6.0, 0.0, -9.0], "max": [24.0, 5.0, 9.0], "hidden": true },
+		],
+		"markers": [ { "id": "player_spawn", "role": "spawn", "pos": [0.0, 0.0, 0.0] } ],
+		"zones": [],
+	}
+	var world := {
+		"id": id,
+		"label": str(tcfg.get("label", id)),
+		"town": town_id,
+		"naming": { "town": "town", "planet": "planet" },
+		"terrain": {},
+		"landmarks": [],
+		"atmosphere": tcfg.get("atmosphere", {}),
+		"detail": types().get("detail", {}),
+		"ground": "none",
+		"planet": id,
+	}
+	var near := neighbours(id, cc)
+	# WorldGround: altitude and up out here ([centre, radius, flat_radius, up_blend,
+	# bubble], as each ball's own up; bubble: where its scene lets go, from its centre).
+	world["void_bodies"] = near.map(func(n):
+		var surf: Dictionary = types().get("types", {}).get(str(n.type), {}).get("surface", {})
+		var ball := str(types().get("types", {}).get(str(n.type), {}).get("ground", "")) == "ball"
+		var bubble := bubble_radius(str(n.id), true, cc)
+		return [n.at, float(n.radius), float(surf.get("flat_radius", 130.0 if ball else 350.0)),
+			float(surf.get("up_blend", 160.0 if ball else 450.0)), bubble if bubble > 0.0 else float(n.radius)])
+	return {
+		"id": id, "cfg": cfg, "type": type, "type_cfg": tcfg, "ground": "none", "deck": false,
+		"size": 1, "town_id": town_id, "town": town, "world": world, "style": str(tcfg.get("default_style", "metallic")),
+		"sky": tcfg.get("sky", {}), "features": [], "cantina": {}, "encounter": null,
+		"name": str(cfg.get("name", "")), "town_name": "", "neighbours": near, "sky_painting": sky_painting(cfg, near),
+		"natives": {}, "beast": {}, "barge": {}, "harmful_surface": {},
+	}
+
+
+# ------------------------------------------------------------------ the system frame (issue #573)
+
+## Issue #573: the type data's "space" block (open space's id, hysteresis, margins).
+static func space_cfg() -> Dictionary:
+	return types().get("space", {})
+
+
+## Open space's planet id.
+static func open_space_id() -> String:
+	return str(space_cfg().get("open_space", "open_space"))
+
+
+static func is_open_space(id: String) -> bool:
+	return id != "" and id == open_space_id()
+
+
+## True for a place you can fly to and be on: not open space (ground "none").
+static func is_planet(id: String, cc = null) -> bool:
+	if cc == null:
+		cc = _content()
+	var cfg: Dictionary = cc.planets.get(id, {})
+	return not cfg.is_empty() and str(types().get("types", {}).get(str(cfg.get("type", "")), {}).get("ground", "")) != "none"
+
+
+## Metres past a bubble before leaving it (so the edge does not flip-flop).
+static func hysteresis() -> float:
+	return float(space_cfg().get("hysteresis", 300.0))
+
+
+## A planet's bubble (from its centre, metres): its radius plus its handoff; 0
+## for a planet with none. `leaving` adds the hysteresis.
+static func bubble_radius(id: String, leaving := false, cc = null) -> float:
+	if cc == null:
+		cc = _content()
+	var cfg: Dictionary = cc.planets.get(id, {})
+	var h := handoff_altitude(str(cfg.get("type", "")))
+	if cfg.is_empty() or h <= 0.0:
+		return 0.0
+	return ball_radius(cfg, cc) + h + (hysteresis() if leaving else 0.0)
+
+
+## A planet's ball centre in the system frame, or null when it is not in it. The
+## system frame is the home planet's scene: its port is the origin, so its centre
+## is straight under it; every other planet's centre is its "at" from the port of
+## the planet it is "near", to any depth. Every scene is this frame shifted to its
+## own port (never turned), so the sun and stars agree in all of them.
+static func system_centre(id: String, cc = null, depth := 0):
+	if cc == null:
+		cc = _content()
+	var cfgs: Dictionary = cc.planets
+	var cfg: Dictionary = cfgs.get(id, {})
+	if cfg.is_empty() or not is_planet(id, cc):
+		return null
+	if id == home_id():
+		return Vector3(0, -ball_radius(cfg, cc), 0)
+	var near := str(cfg.get("near", ""))
+	if depth >= 8 or not cfgs.has(near) or not cfg.has("at"):
+		return null
+	var pc = system_centre(near, cc, depth + 1)
+	if pc == null:
+		return null
+	return (pc as Vector3) + Vector3(0, ball_radius(cfgs[near], cc), 0) + GameFlow.vec(cfg.at)
+
+
+## Where a place's own origin (a planet's port, on top of its ball) is in the
+## system frame: open space's is the system frame's own origin. INF when the
+## place is not in the system.
+static func system_port(id: String, cc = null) -> Vector3:
+	if is_open_space(id):
+		return Vector3.ZERO
+	if cc == null:
+		cc = _content()
+	var c = system_centre(id, cc)
+	if c == null:
+		return Vector3.INF
+	return (c as Vector3) + Vector3(0, ball_radius(cc.planets.get(id, {}), cc), 0)
+
+
+## The system-frame port of a planet config that is not in the manifest (a test,
+## a contributor trying one out): its "at" from the planet it is near.
+static func _cfg_port(cfg: Dictionary, cc) -> Vector3:
+	var near := str(cfg.get("near", ""))
+	var pc = system_centre(near, cc)
+	if pc == null or not cfg.has("at"):
+		return Vector3.INF
+	var r := ball_radius(cfg, cc)
+	return (pc as Vector3) + Vector3(0, ball_radius(cc.planets[near], cc), 0) + GameFlow.vec(cfg.at) + Vector3(0, r, 0)
 
 
 ## A world dict for a generated planet: the same shape as content/core/worlds.
@@ -251,60 +388,39 @@ static func _world_for(id: String, town_id: String, tcfg: Dictionary) -> Diction
 	}
 
 
-## The planets you can fly to from `id`: the ones that name it as "near" (where
-## they hang in its sky is their "at": the centre of their ball, in metres from
-## this planet's port), and the one it is near itself.
+## The planets you can fly to from place `id`: every other planet, where it hangs
+## in this place's sky: "at" is the centre of its ball and "offset" its port, in
+## metres from this place's own origin (its port; open space's is the system
+## frame's origin).
 ##
-## Issue #99: one map. Every planet's scene is the same space, only shifted so its
-## own port is the origin (no turn, so the sun and the stars are the same in all
-## of them). A planet's port sits on top of its ball, so a neighbour's port is at
-## `offset` = its centre + (0, its radius, 0) here; a point p here is p - offset
-## in its scene. Seen from a child, its parent's centre is (0, -parent radius, 0)
-## minus the child's own offset, exactly: nothing is mirrored or scaled any more.
-## A sibling (another child of the same parent) is listed last, with "via": the
-## parent's id; it is only seen from here, the parent's scene flies you to it.
-static func neighbours(id: String, cc = null) -> Array:
+## Issue #99: one map. Every place's scene is the same space, only shifted so its
+## own origin is the origin (no turn, so the sun and the stars are the same in all
+## of them): a point p here is p - offset in that planet's scene. Issue #573: all
+## of it read from one system frame (system_centre, system_port), so a moon sees its
+## sister moon and its grandparent the same way it sees its parent; "child" is a
+## planet that is near this one, "parent" the one this one is near. Open space is
+## never a neighbour.
+static func neighbours(id: String, cc = null, own_cfg: Dictionary = {}) -> Array:
 	if cc == null:
 		cc = _content()
 	var out: Array = []
 	var all: Dictionary = cc.planets
-	var mine: Dictionary = all.get(id, {})
+	var mine: Dictionary = all.get(id, own_cfg)
+	var here := system_port(id, cc) if all.has(id) or is_open_space(id) else _cfg_port(mine, cc)
+	if here == Vector3.INF:
+		return out
 	for other in all:
 		if other == id:
 			continue
+		var c = system_centre(str(other), cc)
+		if c == null:
+			continue
 		var o: Dictionary = all[other]
-		if str(o.get("near", "")) == id and o.has("at"):
-			var at := GameFlow.vec(o.at)
-			var n := _neighbour(o, at, cc)
-			n["offset"] = at + Vector3(0, float(n.radius), 0)
-			n["child"] = true
-			out.append(n)
-	if str(mine.get("near", "")) != "" and all.has(str(mine.near)):
-		var home: Dictionary = all[str(mine.near)]
-		var my_offset := GameFlow.vec(mine.get("at", [0, 0, -20000])) + Vector3(0, ball_radius(mine, cc), 0)
-		var n := _neighbour(home, Vector3.ZERO, cc)
-		n["at"] = Vector3(0, -float(n.radius), 0) - my_offset
-		n["offset"] = -my_offset
-		n["child"] = false
+		var n := _neighbour(o, (c as Vector3) - here, cc)
+		n["offset"] = system_port(str(other), cc) - here
+		n["child"] = str(o.get("near", "")) == id
+		n["parent"] = str(mine.get("near", "")) == str(other)
 		out.append(n)
-		# Space is one place: the other planets round the same parent (the ringed
-		# giant from the moon) hang in this sky too, where the parent's scene puts
-		# them, shifted by this port. They are seen and named here, not flown into
-		# from here: leave this planet's own space first and the parent's scene
-		# (which has them as children) takes you on. "via" is that parent.
-		var parent_offset := my_offset
-		for other in all:
-			if other == id or other == str(mine.near):
-				continue
-			var o: Dictionary = all[other]
-			if str(o.get("near", "")) != str(mine.near) or not o.has("at"):
-				continue
-			var at := GameFlow.vec(o.at)
-			var s := _neighbour(o, at - parent_offset, cc)
-			s["offset"] = at + Vector3(0, float(s.radius), 0) - parent_offset
-			s["child"] = false
-			s["via"] = str(mine.near)
-			out.append(s)
 	return out
 
 

@@ -1,0 +1,6 @@
+{
+  "id": "open_space",
+  "note": "Issue #573: open space, the place between the planets. Leave any planet's bubble (its type's space.handoff, plus space.hysteresis) and its scene is gone: this one flies you on, the ship where it was, until you cross the next planet's bubble. No town, people or ground; the other planets hang where the system frame puts them (PlanetGen.system_port). Not a planet you travel to or are saved on.",
+  "name": "",
+  "type": "open_space"
+}

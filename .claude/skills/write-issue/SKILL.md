@@ -158,7 +158,9 @@ reasons are in `DECISIONS.md`.
 
 1. **One scene for every planet.** `town_demo.tscn` builds whatever
    `GameFlow.planet()` says; travel reloads it.
-2. **Space is the town's own sky.** No separate space scene for gameplay.
+2. **Space near a planet is that planet's own sky; between planets it is open
+   space** (issue #573): one place with no planet (ground `none`), still
+   `town_demo.tscn`. Fights stay inside a planet's bubble. No other space scene.
 3. **Planets are round and walkable all the way round**, with seamless
    handoffs.
 4. **The town data format.** Boxes, markers, routes and zones, read only by
