@@ -20,6 +20,7 @@ const Greybox := preload("res://src/systems/world/greybox.gd")
 const NetWorld := preload("res://src/systems/net/net_world.gd")
 const Hijack := preload("res://src/systems/vehicles/hijack.gd")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
+const NpcRingsT := preload("res://src/systems/npc/npc_rings.gd")   ## issue #541
 const StairTower := preload("res://src/systems/world/stair_tower.gd")
 const PitBowl := preload("res://src/systems/world/pit_bowl.gd")
 const RingWall := preload("res://src/systems/world/ring_wall.gd")
@@ -88,6 +89,7 @@ var club_look: ClubDressing           ## issue #261: the club's room and the ban
 var garrison: Garrison                ## M15: runs every trooper in town (null with npc_brains off)
 var locals: Array = []                ## NpcBody, one per marker whose profile is in the "locals" faction
 var townsfolk: Townsfolk              ## runs every local (null with npc_brains off)
+var npc_rings                         ## issue #541: NpcRings, how often the town's people think by distance (null with npc_brains off)
 var locals_garrison: Garrison         ## the locals' guards on the barracks posts (gate, yard, tower) while they hold it, else null
 var town_name := ""                   ## issue #15: this town's generated name ("" when its world names none)
 var planet_name := ""                 ## and the planet it is on
@@ -875,6 +877,12 @@ func _npc_brains() -> void:
 			var mine: Array = outposts.held_by.filter(func(g): return str(g.get_meta("outpost", "")) == str(o.id))
 			if not mine.is_empty():
 				outposts.folks[str(o.id)] = make_locals_outpost_garrison(o, mine)
+	if npc_brains:
+		# Issue #541: the town's own people think less far off and sleep past the
+		# draw distance (content/core/npcs/wake_rings.json).
+		npc_rings = NpcRingsT.new()
+		npc_rings.setup(self)
+		add_child(npc_rings)
 
 
 ## The locals hold the barracks: their guards on its posts (Townsfolk.on_barracks)

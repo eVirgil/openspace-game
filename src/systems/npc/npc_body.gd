@@ -543,11 +543,46 @@ func speaking() -> String:
 
 # ------------------------------------------------------------------ per frame
 
+## Issue #541: how often this body senses and thinks (NpcRings sets it by distance
+## to the nearest player): 1 every tick, n every n-th tick with the time between
+## added up, 0 asleep (the directors skip its brain; its process is off too).
+## Walking, turning and the physics run every tick whatever it is.
+var think_stride := 1
+var brain_dt := 0.0                  ## time a director has not yet given this body's brain
+var _sense_dt := 0.0
+var _think_tick := -1                ## staggered per body on its first tick, so a ring's bodies do not all think on the same one
+
+
+## A director's question each tick: run this body's brain now, and for how long?
+## Returns the seconds to run it for, or -1.0 to skip it this tick.
+func brain_step(dt: float) -> float:
+	if think_stride <= 0:
+		return -1.0
+	if think_stride == 1:
+		var out := dt + brain_dt
+		brain_dt = 0.0
+		return out
+	brain_dt += dt
+	if _think_tick % think_stride != 0:
+		return -1.0
+	var due := brain_dt
+	brain_dt = 0.0
+	return due
+
+
 func _physics_process(delta: float) -> void:
 	if dead:
 		_fall(delta)
 		return
-	_sense(delta)
+	_think_tick = (_think_tick + 1) if _think_tick >= 0 else int(get_instance_id() % 7919)
+	if think_stride <= 1:
+		_sense(delta + _sense_dt)
+		_sense_dt = 0.0
+	else:
+		_sense_dt += delta
+		if _think_tick % think_stride == 0:
+			_sense(_sense_dt)
+			_sense_dt = 0.0
 	if _speech_left > 0.0:
 		_speech_left -= delta
 		if _speech_left <= 0.0:
