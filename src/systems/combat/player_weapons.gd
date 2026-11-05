@@ -6,7 +6,8 @@ extends Node
 ## shows in the RetroHud footer.
 ##
 ## Controls (project.godot actions):
-##   1 / 2 / 3 / 4 blaster / rifle / energy sword / sniper rifle (same key again holsters)
+##   1 / 2 / 3 / 8 blaster / rifle / sniper rifle / energy sword (same key again holsters;
+##                 4 to 7 are free for guns to come)
 ##   Q             last weapon        mouse wheel   cycle        H   holster
 ##   Tab           tap: next weapon, and hands free after the last one
 ##                 hold: the weapon wheel (issue #410), see WeaponWheel. Point with
@@ -47,7 +48,8 @@ var player: CharacterBody3D
 var avatar: PlayerAvatar
 var rig_node: Node3D                ## camera_rig_node.gd
 var bolt_parent: Node3D
-var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "energy_blade", "sniper_rifle"])
+## Slot n is number key n and wheel slot n. 4 to 7 are left free for guns to come.
+var holder := WeaponHolder.new(["pistol_blaster", "rifle_blaster", "sniper_rifle", "", "", "", "", "energy_blade"])
 var guns: Dictionary = {}           ## id -> Weapon (ammo + timing)
 var combo: SwordCombo
 var wheel := WeaponWheel.new()      ## hold Tab (issue #410)
@@ -106,7 +108,7 @@ func setup(p: CharacterBody3D, a: PlayerAvatar, rig: Node3D, bolts_into: Node3D)
 	rig_node = rig
 	bolt_parent = bolts_into
 	look = CharacterKit._read_json(LOOK_PATH)
-	for id in holder.slots:
+	for id in holder.weapon_ids():
 		cfg[id] = GearUpgrades.apply(CharacterKit._read_json("res://content/core/weapons/%s.json" % id), id)
 		if id != "energy_blade":
 			guns[id] = Weapon.new(cfg[id])
@@ -114,7 +116,7 @@ func setup(p: CharacterBody3D, a: PlayerAvatar, rig: Node3D, bolts_into: Node3D)
 	grenade_cfg = CharacterKit._read_json(Grenade.CFG_PATH)
 	holder.can_draw = func(id): return WorldState.weapon_allowed(id)      # issue #200: a story save starts with the pistol only
 	_setup_wheel()
-	avatar.build_weapons(holder.slots)
+	avatar.build_weapons(holder.weapon_ids())
 	avatar.set_blade_extent(0.0)
 
 
@@ -309,8 +311,8 @@ func throw_origin() -> Vector3:
 
 ## The throw along the view, lifted (GrenadeArc.launch_velocity).
 func throw_velocity() -> Vector3:
-	return GrenadeArc.launch_velocity(-_view().basis.z, _up(), float(grenade_cfg.get("throw_speed", 17.0)),
-		float(grenade_cfg.get("lift_deg", 12.0)))
+	return GrenadeArc.launch_velocity(-_view().basis.z, _up(), float(grenade_cfg.get("throw_speed", 30.0)),
+		float(grenade_cfg.get("lift_deg", 18.0)))
 
 
 ## The preview: the arc from the hand to where it first touches (the same steps
@@ -555,14 +557,22 @@ func aim_range(reach := 1000.0) -> float:
 	return view.origin.distance_to(hit.position) if not hit.is_empty() else -1.0
 
 
+## Degrees a shot may wander: a touch of spread, less when aiming. A gun with
+## "hip_spread_deg" (the sniper) uses that instead when not aimed in.
+static func shot_spread_deg(c: Dictionary, aimed: bool) -> float:
+	var deg := float(c.get("spread_deg", 1.2))
+	if aimed:
+		return deg * 0.35
+	return float(c.get("hip_spread_deg", deg))
+
+
 func _shoot(id: String) -> void:
 	var c: Dictionary = cfg[id]
 	var origin := avatar.muzzle_position()
 	var target := aim_point()
 	var dir := (target - origin).normalized()
-	# A touch of spread, less when aiming.
-	var spread := deg_to_rad(float(c.get("spread_deg", 1.2)) * (0.35 if aiming else 1.0))
-	if spread > 0.0:        # none (the sniper): dead on the crosshair
+	var spread := deg_to_rad(shot_spread_deg(c, aiming))
+	if spread > 0.0:        # none (the sniper, scoped in): dead on the crosshair
 		dir = dir.rotated(dir.cross(Vector3.UP).normalized(), randf_range(-spread, spread)).rotated(Vector3.UP, randf_range(-spread, spread))
 	var b = BoltScene.instantiate()
 	b.direction = dir

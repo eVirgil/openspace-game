@@ -1354,7 +1354,7 @@ const KEYS := [
 		["I", "What you carry, the job log, and Call (your ship flies to you)"],
 	]],
 	["Weapons", [
-		["1 / 2 / 3 / 4", "Blaster / rifle / energy sword / sniper rifle (same key again holsters)"],
+		["1 / 2 / 3 / 8", "Blaster / rifle / sniper rifle / energy sword (same key again holsters)"],
 		["Q / H", "Last weapon / holster"],
 		["Tab or wheel", "Next weapon"],
 		["Left mouse", "Fire or swing"],
