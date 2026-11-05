@@ -309,8 +309,8 @@ func throw_origin() -> Vector3:
 
 ## The throw along the view, lifted (GrenadeArc.launch_velocity).
 func throw_velocity() -> Vector3:
-	return GrenadeArc.launch_velocity(-_view().basis.z, _up(), float(grenade_cfg.get("throw_speed", 17.0)),
-		float(grenade_cfg.get("lift_deg", 12.0)))
+	return GrenadeArc.launch_velocity(-_view().basis.z, _up(), float(grenade_cfg.get("throw_speed", 30.0)),
+		float(grenade_cfg.get("lift_deg", 18.0)))
 
 
 ## The preview: the arc from the hand to where it first touches (the same steps

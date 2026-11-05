@@ -2,6 +2,15 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Grenades throw about 3x farther (2026-11-04)
+
+- **A longer throw.** A grenade now leaves your hand faster and a little
+  higher, so it lands about three times as far as before at any aim: around
+  23 m looking straight ahead (was 10) and around 45 m looking well up (was
+  16). The dotted arc follows the new throw. Since it is in the air longer, a
+  long throw goes off sooner after it lands (the fuse is still about 3
+  seconds).
+
 ## New version is 1.6.3 (2026-11-04)
 
 - Share builds are now **OpenSpace V1.6.3**. Everything below, down to "New
