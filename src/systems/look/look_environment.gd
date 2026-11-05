@@ -90,6 +90,44 @@ static func cut_features() -> Array:
 	return out
 
 
+## Issue #534: the player's "Temporal anti-aliasing" setting (F11 > Options). On
+## (the default), full graphics draws the 3D world at full_graphics.render_scale
+## and a temporal upscaler (MetalFX on a Mac that offers it, else FSR 2) brings it
+## up to the window: that is the anti-aliasing and the resolution saving in one.
+## Off, the world is drawn at full size with FXAA, for a machine where the
+## upscaler smears fast things (bolts, the sword). Saved per machine.
+static var _taa := -1                ## 1 on, 0 off, -1 not loaded yet
+static var _full_cfg: Dictionary = {}
+
+
+static func taa() -> bool:
+	if _taa < 0:
+		var f := ConfigFile.new()
+		_taa = 1 if f.load(SETTINGS_PATH) != OK or bool(f.get_value("quality", "taa", true)) else 0
+	return _taa == 1
+
+
+static func save_taa(on: bool) -> void:
+	_taa = 1 if on else 0
+	_save_setting("quality", "taa", on)
+
+
+## time_of_day.json "full_graphics": what the full look asks for that Low does not.
+static func full_cfg() -> Dictionary:
+	if _full_cfg.is_empty():
+		_full_cfg = load_presets().get("full_graphics", {})
+	return _full_cfg
+
+
+## The temporal upscaler this machine has: MetalFX when the renderer offers it
+## (Metal on Apple Silicon), else FSR 2.
+static func temporal_mode() -> Viewport.Scaling3DMode:
+	var rd := RenderingServer.get_rendering_device()
+	if rd != null and rd.has_feature(RenderingDevice.SUPPORTS_METALFX_TEMPORAL):
+		return Viewport.SCALING_3D_MODE_METALFX_TEMPORAL
+	return Viewport.SCALING_3D_MODE_FSR2
+
+
 static func _save_setting(section: String, key: String, value: Variant) -> void:
 	DirAccess.make_dir_recursive_absolute(SETTINGS_PATH.get_base_dir())
 	var f := ConfigFile.new()
@@ -315,15 +353,35 @@ func _enter_tree() -> void:
 	_apply_render_scale()
 
 
-## Low graphics draws the 3D world in this viewport at render_scale and scales it
-## up with FSR; 2D (the HUD, menus) is drawn at full size either way.
+## Set (and save) the Temporal anti-aliasing setting, and show it at once.
+func set_taa(on: bool) -> void:
+	save_taa(on)
+	_apply_render_scale()
+
+
+## How this viewport draws the 3D world (issue #534). 2D (the HUD, menus) is drawn
+## at full size whichever it is.
+##   Low graphics' "resolution" piece: low_graphics.render_scale, FSR 1, plus FXAA.
+##   Full graphics: full_graphics.render_scale through the temporal upscaler, which
+##     is the anti-aliasing (no FXAA on top: it would only blur).
+##   Temporal anti-aliasing off: full size, FXAA.
 func _apply_render_scale() -> void:
 	if not is_inside_tree():
 		return
 	var vp := get_viewport()
-	var low := cut("resolution")
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if low else Viewport.SCALING_3D_MODE_BILINEAR
-	vp.scaling_3d_scale = clampf(float(low_cfg().get("render_scale", 1.0)), 0.25, 1.0) if low else 1.0
+	if cut("resolution"):
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+		vp.scaling_3d_scale = clampf(float(low_cfg().get("render_scale", 1.0)), 0.25, 1.0)
+		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+	elif taa():
+		vp.scaling_3d_mode = temporal_mode()
+		vp.scaling_3d_scale = clampf(float(full_cfg().get("render_scale", 1.0)), 0.5, 1.0)
+		vp.fsr_sharpness = clampf(float(full_cfg().get("fsr_sharpness", 0.2)), 0.0, 2.0)
+		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	else:
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+		vp.scaling_3d_scale = 1.0
+		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
 
 
 func apply(preset_id: String = "") -> void:

@@ -57,7 +57,7 @@ func test_low_graphics_turns_the_expensive_features_off_and_back_on() -> void:
 	assert_gt(look.sun.directional_shadow_max_distance, float(cfg["shadow_m"]))
 	assert_almost_eq(look.env.ambient_light_energy, ambient, 0.001)
 	assert_almost_eq(look.env.ambient_light_sky_contribution, 1.0, 0.001)
-	assert_almost_eq(look.get_viewport().scaling_3d_scale, 1.0, 0.001)
+	assert_ne(look.get_viewport().scaling_3d_mode, Viewport.SCALING_3D_MODE_FSR)
 
 	for id in was:
 		LookEnvironment.save_cut(id, was[id])
@@ -84,13 +84,14 @@ func test_one_piece_cut_on_its_own() -> void:
 	look.set_cut("bloom", false)
 	look.apply("golden")
 	var shadow_m := look.sun.directional_shadow_max_distance
+	var scale := look.get_viewport().scaling_3d_scale
 
 	look.set_cut("fog", true)
 	assert_false(look.env.volumetric_fog_enabled, "no fog volumes")
 	assert_true(look.env.ssao_enabled, "corner shadows kept")
 	assert_true(look.env.sdfgi_enabled or LookEnvironment.indirect_level() == 0.0, "bounce light kept")
 	assert_eq(look.sun.directional_shadow_max_distance, shadow_m, "sun shadows kept")
-	assert_almost_eq(look.get_viewport().scaling_3d_scale, 1.0, 0.001, "full resolution kept")
+	assert_almost_eq(look.get_viewport().scaling_3d_scale, scale, 0.001, "full resolution kept")
 	assert_false(LookEnvironment.low_graphics(), "one piece is not Low graphics")
 	look.apply("noon")
 	assert_false(look.env.volumetric_fog_enabled, "a new preset keeps the piece cut")
@@ -106,6 +107,52 @@ func test_one_piece_cut_on_its_own() -> void:
 
 	for id in was:
 		LookEnvironment.save_cut(id, was[id])
+	if had:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(saved)
+		f.close()
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## Issue #534: full graphics draws the world through the temporal upscaler (MetalFX
+## where the renderer has it, FSR 2 otherwise) at full_graphics.render_scale; Low
+## graphics' resolution piece is FSR 1 with FXAA; Temporal anti-aliasing off is full
+## size with FXAA. The settings file is put back after.
+func test_render_scale_and_anti_aliasing_follow_the_settings() -> void:
+	var path := LookEnvironment.SETTINGS_PATH
+	var had := FileAccess.file_exists(path)
+	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
+	var was_res := LookEnvironment.cut("resolution")
+	var was_taa := LookEnvironment.taa()
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	var vp := look.get_viewport()
+	var full := LookEnvironment.full_cfg()
+	assert_almost_eq(float(full.get("render_scale", 0.0)), 0.77, 0.001, "time_of_day.json full_graphics.render_scale")
+
+	look.set_cut("resolution", false)
+	look.set_taa(true)
+	assert_true(vp.scaling_3d_mode == Viewport.SCALING_3D_MODE_FSR2
+		or vp.scaling_3d_mode == Viewport.SCALING_3D_MODE_METALFX_TEMPORAL, "a temporal upscaler")
+	assert_eq(vp.scaling_3d_mode, LookEnvironment.temporal_mode())
+	assert_almost_eq(vp.scaling_3d_scale, float(full["render_scale"]), 0.001)
+	assert_eq(vp.screen_space_aa, Viewport.SCREEN_SPACE_AA_DISABLED, "the upscaler is the anti-aliasing")
+
+	look.set_cut("resolution", true)
+	assert_eq(vp.scaling_3d_mode, Viewport.SCALING_3D_MODE_FSR, "Low keeps FSR 1")
+	assert_almost_eq(vp.scaling_3d_scale, float(LookEnvironment.low_cfg()["render_scale"]), 0.001)
+	assert_eq(vp.screen_space_aa, Viewport.SCREEN_SPACE_AA_FXAA, "and adds FXAA")
+
+	look.set_cut("resolution", false)
+	look.set_taa(false)
+	assert_false(LookEnvironment.taa())
+	assert_eq(vp.scaling_3d_mode, Viewport.SCALING_3D_MODE_BILINEAR, "anti-aliasing off: no upscaler")
+	assert_almost_eq(vp.scaling_3d_scale, 1.0, 0.001, "at full size")
+	assert_eq(vp.screen_space_aa, Viewport.SCREEN_SPACE_AA_FXAA, "with FXAA")
+
+	LookEnvironment.save_cut("resolution", was_res)
+	LookEnvironment.save_taa(was_taa)
 	if had:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		f.store_buffer(saved)
