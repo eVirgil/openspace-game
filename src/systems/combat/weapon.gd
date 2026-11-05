@@ -49,7 +49,12 @@ func start_firing(dt: float, start: bool) -> int:
 
 	if start and can_fire():
 		ammo -= 1
-		_fire_cd_left = fire_cooldown()
+		# Issue #546: carry the part of the tick that ran past the cooldown, so a
+		# held trigger fires at the data's rate instead of rounding up to whole
+		# ticks (the pistol's 0.12 s was 0.133 s at 60 Hz). Carry at most one
+		# cooldown, so a long pause or a hitch banks one shot, never a burst.
+		var cd := fire_cooldown()
+		_fire_cd_left = cd + maxf(_fire_cd_left, -cd)
 		return Result.SHOT
 
 	# Trigger held: attempt a reload whenever we are not on the fire cooldown and
