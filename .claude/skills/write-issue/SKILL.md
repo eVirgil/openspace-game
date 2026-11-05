@@ -177,6 +177,12 @@ reasons are in `DECISIONS.md`.
 12. **The engine.** Godot 4.7.2, GDScript, no new autoloads or plugins
     without the user saying so.
 
+Anything drawn or ticked also follows the render rules in
+[`docs/RENDER_RULES.md`](../../../docs/RENDER_RULES.md) (batch, share materials,
+boxes before models, no new shaders, build over ticks, draw and tick by
+distance, measure). An issue that adds props, people or per-frame work names the
+ones it leans on.
+
 ## Issue format
 
 Match the issues already in the repo (#272, #276, #291 are good ones). Plain
