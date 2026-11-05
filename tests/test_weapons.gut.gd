@@ -102,3 +102,18 @@ func test_held_trigger_fires_at_the_data_rate() -> void:
 				shots += 1
 		var want: float = 10.0 / float(cfg["rate"])
 		assert_almost_eq(float(shots), want, 1.0, "%s: %d shots in 10 s, data says %.1f" % [id, shots, want])
+
+
+func test_the_sniper_is_dead_on_scoped_and_wild_from_the_hip() -> void:
+	var content = load("res://src/systems/dataload/core_content.gd").new()
+	content.load_from()
+	var sniper: Dictionary = content.get_weapon("sniper_rifle")
+	assert_eq(PlayerWeapons.shot_spread_deg(sniper, true), 0.0, "scoped in: on the crosshair")
+	assert_gt(PlayerWeapons.shot_spread_deg(sniper, false), PlayerWeapons.shot_spread_deg(rifle.config, false),
+			"not scoped in: wilder than the rifle blaster")
+	assert_gt(float(sniper.rate), float(rifle.config.rate), "and slower to fire than the rifle blaster")
+
+
+func test_a_gun_without_hip_spread_keeps_its_own() -> void:
+	assert_almost_eq(PlayerWeapons.shot_spread_deg(rifle.config, false), float(rifle.config.spread_deg), 0.0001)
+	assert_almost_eq(PlayerWeapons.shot_spread_deg(rifle.config, true), float(rifle.config.spread_deg) * 0.35, 0.0001)

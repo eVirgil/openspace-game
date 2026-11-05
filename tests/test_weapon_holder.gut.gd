@@ -115,3 +115,61 @@ func test_tab_cycle_mid_swap_follows_where_it_is_going() -> void:
 	h.cycle_to_empty()     # pressed again while the pistol is still coming up
 	_run(h, 0.6)
 	assert_eq(h.current, "energy_blade")
+
+
+# ---- the game's layout: 1 pistol, 2 rifle, 3 sniper, 4-7 empty, 8 sword ---------
+
+func _gaps() -> WeaponHolder:
+	return WeaponHolder.new(["pistol_blaster", "rifle_blaster", "sniper_rifle", "", "", "", "", "energy_blade"])
+
+
+func test_key_3_is_the_sniper_and_key_8_the_sword() -> void:
+	var h := _gaps()
+	h.request_slot(3)
+	_run(h, 0.3)
+	assert_eq(h.current, "sniper_rifle")
+	h.request_slot(8)
+	_run(h, 0.5)
+	assert_eq(h.current, "energy_blade")
+
+
+func test_an_empty_slot_does_nothing() -> void:
+	var h := _gaps()
+	h.request_slot(1)
+	_run(h, 0.3)
+	h.request_slot(5)
+	assert_false(h.is_swapping(), "an empty key neither holsters nor draws")
+	assert_eq(h.current, "pistol_blaster")
+
+
+func test_weapon_ids_leave_out_the_empty_slots() -> void:
+	assert_eq(_gaps().weapon_ids(), ["pistol_blaster", "rifle_blaster", "sniper_rifle", "energy_blade"])
+
+
+func test_cycling_steps_over_the_empty_slots() -> void:
+	var h := _gaps()
+	h.cycle(1)
+	assert_eq(h.pending, "pistol_blaster", "hands free: the wheel starts at the first, not after a gap")
+	h.request("sniper_rifle")
+	_run(h, 0.5)
+	h.cycle(1)
+	assert_eq(h.pending, "energy_blade")
+	_run(h, 0.5)
+	h.cycle(1)
+	assert_eq(h.pending, "pistol_blaster", "round the end")
+	_run(h, 0.5)
+	h.cycle(-1)
+	assert_eq(h.pending, "energy_blade", "and back")
+
+
+func test_tab_from_empty_hands_draws_the_first_not_the_last() -> void:
+	var h := _gaps()
+	h.cycle_to_empty()
+	assert_eq(h.pending, "pistol_blaster")
+	h.request("sniper_rifle")
+	_run(h, 0.5)
+	h.cycle_to_empty()
+	assert_eq(h.pending, "energy_blade", "past the empty slots")
+	_run(h, 0.5)
+	h.cycle_to_empty()
+	assert_eq(h.pending, "", "then hands free")

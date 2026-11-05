@@ -185,16 +185,19 @@ func test_the_wheel_slots_are_the_number_keys() -> void:
 	var pw: PlayerWeapons = _kit()[0]
 	assert_eq(pw.wheel.id_at(0), "pistol_blaster")
 	assert_eq(pw.wheel.id_at(1), "rifle_blaster")
-	assert_eq(pw.wheel.id_at(2), "energy_blade")
+	assert_eq(pw.wheel.id_at(2), "sniper_rifle")
+	for i in [3, 4, 5, 6]:
+		assert_eq(pw.wheel.id_at(i), "", "4 to 7 are free for guns to come")
+	assert_eq(pw.wheel.id_at(7), "energy_blade", "the sword is key 8, the last slot")
 	assert_almost_eq(pw.wheel.hold_time, 0.2, 0.0001, "read from hand_weapons.json")
 
 
-func test_hold_tab_point_right_let_go_draws_the_sword() -> void:
+func test_hold_tab_point_up_left_let_go_draws_the_sword() -> void:
 	var pw: PlayerWeapons = _kit()[0]
 	_tab(pw, true)
 	_frames(pw, 0.3)
 	assert_true(pw.wheel.is_open)
-	_point(pw, Vector2(1, 0))
+	_point(pw, Vector2(-1, -1).normalized())
 	_tab(pw, false)
 	_frames(pw, 0.6)
 	assert_false(pw.wheel.is_open)
