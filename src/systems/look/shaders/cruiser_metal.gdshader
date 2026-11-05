@@ -21,6 +21,8 @@ shader_type spatial;
 //  11 beacon   a red light that blinks
 //  12 screen   a live display, one of four per screen: scrolling readouts, a
 //              bar chart, a radar sweep, a trace (a face of the box is the screen)
+//  13 turret   the dorsal gun houses: riveted gunmetal panels, grimed low, a
+//              red accent line under the roof
 
 uniform int finish = 0;
 uniform vec4 hull_color : source_color = vec4(0.55, 0.58, 0.62, 1.0);
@@ -34,6 +36,9 @@ uniform vec4 paint : source_color = vec4(0.95, 0.78, 0.22, 1.0);
 uniform vec3 plate_half = vec3(10.0, 0.05, 10.0);
 uniform float window_energy = 2.2;
 uniform float screen_energy = 1.6;
+// The gun houses (13): the deck's height under them and the accent line's above it.
+uniform float turret_foot = 43.8;
+uniform float turret_band = 2.35;
 uniform sampler2D noise_tex : repeat_enable, filter_linear_mipmap;
 
 #include "res://src/systems/look/shaders/pad_metal.gdshaderinc"
@@ -312,6 +317,24 @@ void fragment() {
 		float ang = atan(p.y, p.x);
 		float dots = step(0.9, fract(ang / 6.2831 * 12.0)) * step(abs(r - edge * 0.93), 0.35);
 		emit = strip_light.rgb * dots * 3.0;
+	} else if (finish == 13) {
+		// A gun house: gunmetal armour in small riveted panels, each its own tone,
+		// grimed toward its foot, a thin accent line round it under the roof.
+		vec2 size = vec2(1.6, 0.9);
+		vec2 cell = floor(uv / size);
+		float tone = hash2(cell + 17.0);
+		col = mix(trim_color.rgb, hull_color.rgb, 0.55) * (0.88 + tone * 0.16) * (0.9 + n * 0.18);
+		col *= 1.0 - 0.5 * seam(uv, size, 0.035);
+		vec2 rf = fract(uv / size);
+		float rivet = 1.0 - smoothstep(0.03, 0.06, min(length((rf - vec2(0.08, 0.15)) * size), length((rf - vec2(0.92, 0.15)) * size)));
+		col *= 1.0 - 0.3 * rivet;
+		float h = lpos.y - turret_foot;
+		col *= mix(0.72, 1.0, smoothstep(0.0, 1.4, h));
+		if (abs(lnorm.y) < 0.6) {
+			col = mix(col, accent.rgb * 0.9, step(abs(h - turret_band), 0.09));
+		}
+		rough = 0.42 + tone * 0.12;
+		metal = 0.68;
 	} else if (finish == 11) {
 		col = accent.rgb;
 		emit = vec3(1.0, 0.12, 0.08) * step(0.82, fract(TIME * 0.6)) * 8.0 + vec3(0.4, 0.04, 0.03);

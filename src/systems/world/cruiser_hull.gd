@@ -47,7 +47,11 @@ const DECK_Y := -14.0              ## the bay, corridor and shaft floors (their 
 const BAY_X := Vector2(-48.0, 54.0)
 const BAY_Z := Vector2(-146.0, 26.0)
 const BAY_TOP := 34.0
-const APRON_X := 62.0              ## the bay floor runs out past the flank as a landing apron
+## Inside the hull's cross-section: a bulkhead or ceiling runs to BAY_TOP only
+## within SHOULDER_X of the keel line; out past it the shoulders slope down to the
+## flank's top (FLANK_TOP), and anything taller pokes out through the armour.
+const FLANK_TOP := 14.0
+const SHOULDER_X := 29.0
 ## The corridor aft from the bay to the ramp shaft.
 const HALL_HALF := 5.0
 const HALL_TOP := -4.0
@@ -76,8 +80,11 @@ const TOWER_TOP := 76.0
 ## main bell runs (an aux bell half that) back to its mouth, out past its housing.
 const HOUSING_Z := Vector2(333.0, 347.0)
 const BELL_LENGTH := 20.0
-## Where the cruiser's own gravity holds (its frame): the hull and a margin round it.
-const GRAVITY_BOX := AABB(Vector3(-80, -60, -380), Vector3(160, 160, 760))
+## Where the cruiser's own gravity holds (its frame): the hull and about 110 m of
+## space round it, so out through the bay's shield on a jetpack up stays the decks'
+## up (RemnantCruiser floats you there, in low gravity) and the hull is a place to
+## land on. Drift out of it and you are pulled back aboard.
+const GRAVITY_BOX := AABB(Vector3(-170, -140, -480), Vector3(340, 340, 960))
 
 static var _parts: Array = []
 static var _data: Dictionary = {}
@@ -282,7 +289,7 @@ static func dock_path(local: Vector3) -> Array:
 		else:
 			out.append(Vector3(off, local.y, local.z))     # fore or aft of the bay, alongside
 	out.append(Vector3(off, hold, pz))
-	out.append(Vector3(APRON_X + 10.0, hold, pz))
+	out.append(Vector3(BAY_X.y + 18.0, hold, pz))
 	out.append(Vector3(px, hold, pz))
 	return out
 
@@ -321,6 +328,9 @@ static func _hull(out: Array) -> void:
 				continue
 			if facet == "top" and float(a[0]) >= TOWER_Z.x - 5.0:
 				continue
+			if facet == "lower_s" and float(a[0]) >= BAY_Z.x - 5.0 and float(b[0]) <= BAY_Z.y + 5.0:
+				_bay_sill(out, s, _corner(f, a), _corner(0, a), _corner(f, b), _corner(0, b))
+				continue
 			var p0 := _corner(f, a)
 			var q0 := _corner((f + 1) % HULL.size(), a)
 			var p1 := _corner(f, b)
@@ -358,6 +368,27 @@ static func _stern_cap(out: Array, z: float) -> void:
 		var depth := Vector3(p.x, p.y, 0).dot(n)        # from the facet in to the middle line
 		_box(out, "stern_bulkhead_%s" % FACETS[f], Vector3((q - p).length() + 0.8, depth, PLATE * 2.0),
 			(p + q) * 0.5 - n * depth * 0.5, "hull", _plate_basis(q - p, Vector3(0, 0, 1)))
+
+
+## Under the bay's mouth the lower slope stops short of the flank's foot, so its
+## plates (2 m thick) do not stand up through the deck as a kerb: the last few
+## metres up to the mouth are a thin trim edge, its inner face level with the
+## deck, and the deck's lip closes it. Walk off the edge and you are outside.
+static func _bay_sill(out: Array, s: int, p0: Vector3, q0: Vector3, p1: Vector3, q1: Vector3) -> void:
+	var dir := (q0 - p0).normalized()
+	var cut := 3.3
+	_plate(out, "hull_%d_lower_s" % s, p0, q0 - dir * cut, p1, q1 - dir * cut, "hull")
+	# The edge, from where the plate's own overlap stops to just short of the corner.
+	var a0 := q0 - dir * (cut - 0.4)
+	var b0 := q0 - dir * 0.35
+	var n := _normal(p0, q0)
+	var thick := 0.3
+	var basis := _plate_basis(b0 - a0, Vector3(0, 0, 1))
+	if basis.y.dot(n) < 0.0:
+		basis = Basis(basis.x, -basis.y, -basis.z)
+	var mid := (a0 + b0) * 0.5
+	_box(out, "bay_sill_%d" % s, Vector3((b0 - a0).length(), thick, absf(q1.z - q0.z) + 0.6),
+		Vector3(mid.x, mid.y, (q0.z + q1.z) * 0.5) - n * thick * 0.5, "trim", basis)
 
 
 ## A hull corner `i` at station `st` ([z, sx, sy]).
@@ -400,16 +431,21 @@ static func _plate(out: Array, id: String, p0: Vector3, q0: Vector3, p1: Vector3
 static func _bay(out: Array) -> void:
 	var length := BAY_Z.y - BAY_Z.x
 	var mid_z := (BAY_Z.x + BAY_Z.y) * 0.5
-	_slab(out, "bay_deck", Vector2(BAY_X.x, APRON_X), BAY_Z, DECK_Y, "deck", 3.0)
-	_box(out, "bay_ceiling", Vector3(30.0 - BAY_X.x, 2, length), Vector3((BAY_X.x + 30.0) * 0.5, BAY_TOP + 1.0, mid_z), "wall")
-	_wall(out, "bay_port_wall", Vector3(BAY_X.x - 1.0, DECK_Y, BAY_Z.x), Vector3(BAY_X.x - 1.0, BAY_TOP, BAY_Z.y), 2.0)
-	_wall(out, "bay_bow_wall", Vector3(BAY_X.x, DECK_Y, BAY_Z.x - 1.0), Vector3(BAY_X.y, BAY_TOP, BAY_Z.x - 1.0), 2.0)
+	# The deck stops flush with the flank: thick inside the hull, a thin lip over
+	# the lower slope's edge at the mouth (_bay_sill), nothing past it.
+	_slab(out, "bay_deck", Vector2(BAY_X.x, BAY_X.y - 4.0), BAY_Z, DECK_Y, "deck", 3.0)
+	_slab(out, "bay_deck_lip", Vector2(BAY_X.y - 4.0, BAY_X.y), BAY_Z, DECK_Y, "deck", 0.3)
+	# The ceiling and the port wall stop where the shoulders slope over them: the
+	# hull's own plates close the bay above, so nothing pokes out through the armour.
+	_box(out, "bay_ceiling", Vector3(SHOULDER_X * 2.0, 2, length), Vector3(0, BAY_TOP + 1.0, mid_z), "wall")
+	_wall(out, "bay_port_wall", Vector3(BAY_X.x - 1.0, DECK_Y, BAY_Z.x), Vector3(BAY_X.x - 1.0, FLANK_TOP + 2.6, BAY_Z.y), 2.0)
+	_section_wall(out, "bay_bow_wall", Vector2(BAY_X.x, BAY_X.y), DECK_Y, BAY_TOP, BAY_Z.x - 1.0)
 	# The stern wall, with the corridor's door in it.
-	_wall(out, "bay_stern_wall_p", Vector3(BAY_X.x, DECK_Y, BAY_Z.y + 1.0), Vector3(-HALL_HALF - 1.0, BAY_TOP, BAY_Z.y + 1.0), 2.0)
-	_wall(out, "bay_stern_wall_s", Vector3(HALL_HALF + 1.0, DECK_Y, BAY_Z.y + 1.0), Vector3(BAY_X.y, BAY_TOP, BAY_Z.y + 1.0), 2.0)
+	_section_wall(out, "bay_stern_wall_p", Vector2(BAY_X.x, -HALL_HALF - 1.0), DECK_Y, BAY_TOP, BAY_Z.y + 1.0)
+	_section_wall(out, "bay_stern_wall_s", Vector2(HALL_HALF + 1.0, BAY_X.y), DECK_Y, BAY_TOP, BAY_Z.y + 1.0)
 	_wall(out, "bay_stern_lintel", Vector3(-HALL_HALF - 1.0, HALL_TOP, BAY_Z.y + 1.0), Vector3(HALL_HALF + 1.0, BAY_TOP, BAY_Z.y + 1.0), 2.0)
-	# The lip of the flank above the opening, and the deck's edge below it.
-	_box(out, "bay_lintel", Vector3(3, 4, length + 4.0), Vector3(BAY_X.y, 14.0, mid_z), "trim")
+	# The lip of the flank above the opening: a slim frame, near flush with the plates.
+	_box(out, "bay_lintel", Vector3(1.6, 2.4, length + 4.0), Vector3(BAY_X.y - 0.2, FLANK_TOP - 1.0, mid_z), "trim")
 	# The port gantry: a deck along the wall at mid height and a ramp up to it.
 	var g_y := DECK_Y + 16.0
 	_slab(out, "bay_gantry", Vector2(BAY_X.x, BAY_X.x + 8.0), Vector2(BAY_Z.x + 6.0, -16.0), g_y, "grate", 0.6)
@@ -722,8 +758,8 @@ static func _tower(out: Array) -> void:
 
 ## Turrets along the dorsal deck, a long armoured spine, the superstructure
 ## stepping up toward the tower, a keel fin, the sensor globes' mounts and the
-## engines (_engine_block). The bells and the globes themselves are drawn by
-## RemnantCruiser.
+## engines (_engine_block). The bells, the globes and the turrets themselves are
+## drawn by RemnantCruiser; here a turret is only what you stand on and bump into.
 static func _dorsal(out: Array) -> void:
 	var top: float = (HULL[2] as Vector2).y
 	_box(out, "spine", Vector3(12, 5, TOWER_Z.x + 120.0), Vector3(0, top + 2.5, (TOWER_Z.x - 120.0) * 0.5 - 10.0), "trim")
@@ -737,16 +773,36 @@ static func _dorsal(out: Array) -> void:
 	# Mounts for the sensor globes on the tower's roof.
 	for g in globes():
 		_box(out, "globe_mount_%d" % int(g.i), Vector3(4, 6, 4), (g.at as Vector3) - Vector3(0, float(g.radius) + 2.0, 0), "trim")
+	for t in turrets():
+		var c: Vector3 = t.at
+		var k := TURRET_SCALE
+		_box(out, "turret_%s_base" % t.id, Vector3(8.4, TURRET_BARBETTE, 8.4) * k, c + Vector3(0, TURRET_BARBETTE * 0.5, 0) * k, "hidden")
+		_box(out, "turret_%s_head" % t.id, Vector3(6.6, TURRET_HOUSE, 7.8) * k,
+			c + Vector3(0, TURRET_BARBETTE + TURRET_HOUSE * 0.5, 0) * k, "hidden", Basis(Vector3.UP, float(t.yaw)))
+	_engine_block(out)
+
+
+## The barbette's and the gun house's heights before TURRET_SCALE (RemnantCruiser
+## draws them to these, all of a turret scaled by it).
+const TURRET_BARBETTE := 1.8
+const TURRET_HOUSE := 2.8
+const TURRET_SCALE := 1.3
+
+
+## The gun turrets on the dorsal deck: two rows of five either side of the spine,
+## { id, at (on the deck), yaw (radians about up: 0 = the barrels to the bow),
+## elev (the barrels' rise, radians) }. Each trained a little outboard, no two alike.
+static func turrets() -> Array:
+	var out: Array = []
+	var top: float = (HULL[2] as Vector2).y
 	for i in 5:
 		var z := -120.0 + i * 40.0
 		for side: float in [-1.0, 1.0]:
-			var c := Vector3(side * 16.0, top, z)
-			_box(out, "turret_%d_%s_base" % [i, "s" if side > 0 else "p"], Vector3(8, 3, 8), c + Vector3(0, 1.5, 0), "trim")
-			_box(out, "turret_%d_%s_head" % [i, "s" if side > 0 else "p"], Vector3(6, 3, 7), c + Vector3(0, 4.5, 0), "hull")
-			for bx: float in [-1.4, 1.4]:
-				_box(out, "turret_%d_%s_gun_%d" % [i, "s" if side > 0 else "p", int(bx * 10)], Vector3(0.7, 0.7, 9),
-					c + Vector3(bx, 4.8, -7.5), "trim")
-	_engine_block(out)
+			var k := i * 2 + (0 if side < 0 else 1)
+			out.append({ "id": "%d_%s" % [i, "s" if side > 0 else "p"], "at": Vector3(side * 16.0, top, z),
+				"yaw": -side * deg_to_rad(6.0 + float((k * 7) % 5) * 5.0),
+				"elev": deg_to_rad(4.0 + float((k * 3) % 4) * 3.0) })
+	return out
 
 
 ## The engines' housings on the stern: an armoured block round each bell, a frame
@@ -833,6 +889,39 @@ static func _wall(out: Array, id: String, a: Vector3, b: Vector3, thick: float) 
 	if size.z < 0.01:
 		size.z = thick
 	_box(out, id, size, (a + b) * 0.5, "wall", Basis.IDENTITY, true)
+
+
+## A bulkhead across the hull at z, from xs.x to xs.y, from y0 up to y1 but never
+## out through the hull: within SHOULDER_X of the keel line it runs to y1; out
+## past that only to the flank's top, with a slab laid along the shoulder's
+## underside filling the wedge between (1.6 m through to the wall's 2, so the two
+## never share a face).
+static func _section_wall(out: Array, id: String, xs: Vector2, y0: float, y1: float, z: float) -> void:
+	var mid := Vector2(maxf(xs.x, -SHOULDER_X), minf(xs.y, SHOULDER_X))
+	if mid.y > mid.x:
+		_wall(out, id, Vector3(mid.x, y0, z), Vector3(mid.y, y1, z), 2.0)
+	var edge := absf((HULL[0] as Vector2).x)
+	for side: float in [-1.0, 1.0]:
+		var lo := maxf(xs.x, SHOULDER_X if side > 0 else -edge)
+		var hi := minf(xs.y, edge if side > 0 else -SHOULDER_X)
+		if hi - lo < 0.01:
+			continue
+		var tag := "s" if side > 0 else "p"
+		_wall(out, "%s_%s" % [id, tag], Vector3(lo, y0, z), Vector3(hi, minf(y1, FLANK_TOP), z), 2.0)
+		if y1 <= FLANK_TOP:
+			continue
+		# The wedge: from the flank's top corner up the shoulder to SHOULDER_X, its
+		# outer face a metre inside the shoulder's (the line |x| + y = 68).
+		var outer := edge + FLANK_TOP - 1.0
+		var top := Vector2(side * (SHOULDER_X + 1.0), outer - SHOULDER_X - 1.0)
+		var foot := Vector2(side * (outer - FLANK_TOP), FLANK_TOP)
+		var along := Vector3(foot.x - top.x, foot.y - top.y, 0)
+		var ax := along.normalized()
+		var n := Vector3(side, 1, 0).normalized()
+		var deep := 16.0
+		var c := Vector3((top.x + foot.x) * 0.5, (top.y + foot.y) * 0.5, z) - n * deep * 0.5
+		_box(out, "%s_%s_shoulder" % [id, tag], Vector3(along.length(), deep, 1.6), c, "wall",
+			Basis(ax, n, ax.cross(n)), true)
 
 
 ## A straight ramp whose top runs from a to b, `width` wide, its top surface through

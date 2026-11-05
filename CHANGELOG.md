@@ -2,6 +2,26 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The cruiser outside: flush bay, better guns, step out into space (2026-11-04)
+
+- **The bay sits flush in the hull.** The bay's port wall and ceiling used to
+  stand 15 m out of the port shoulder along the whole bay, its fore and aft
+  walls poked up through the shoulders on both sides, and the deck ran 8 m out
+  past the flank as a ledge. Now the bay's walls stop under the hull's own
+  plates and the deck ends at the flank, so both sides of the ship are clean.
+- **New gun turrets on top.** The ten dorsal guns were two boxes and two sticks
+  each. Now each is a round barbette with a faceted gun house on it (riveted
+  gunmetal with a red line under the roof), a sensor pod and whip, cooling fins
+  aft, a mantlet, and three long barrels with sleeves and muzzle brakes, raised
+  a little, their bores glowing. Each is trained a little outboard. You can
+  stand on them.
+- **Walk out through the bay's shield.** The shield still lets ships and bolts
+  through and still holds the crew in, but you can now walk or jump out of it.
+  Outside the hull, within about 110 m of it, gravity is light (4 instead of
+  20) and the jetpack refuels in the air, so you can fly round the ship and
+  land on its hull. Drift further and you are pulled back aboard by the dock
+  pad.
+
 ## Sniper rifle balance, and the weapon keys move (2026-11-04)
 
 - **The sniper rifle fires half as fast.** 0.24 s between shots instead of

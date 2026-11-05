@@ -9,8 +9,8 @@ extends Node3D
 ## node adds, in the town scene:
 ##   - the look: the hull, decks and bridge merged into a few meshes on one shader
 ##     (cruiser_metal), glass, light strips, a beacon on every mast, the engines'
-##     glow, the bay's energy shield (solid to people, open to ships) and the
-##     lights inside,
+##     glow, the bay's energy shield (open to ships and to you, solid to the crew)
+##     and the lights inside,
 ##   - the ships on the bay's pads: two interceptors (flyable: taking one sounds the
 ##     alarm), a frigate, and the empty pad Z sets you down on (ShipPilot.dock),
 ##   - the crew: troopers and sentries in the bay, the corridor and its rooms and the
@@ -22,8 +22,9 @@ extends Node3D
 ##     locals' purse, the port's love, and the end of Oda's story. From then on
 ##     nobody is aboard; anyone left alive is gone the next time you come back
 ##     (issue #303: but the dark master, DarkMasterPost, waits in the bay),
-##   - the label naming it in the sky while you fly, and a pull back aboard if you
-##     fall out of it.
+##   - the label naming it in the sky while you fly; out through the bay's shield
+##     on foot you float round the hull in low gravity, the jetpack refuelling as
+##     you go (the data's "outside"), and drift too far and you are pulled back aboard.
 ## Everything else is data: content/core/cruiser/remnant_cruiser.json.
 ##
 ## Issue #327: there can be more than one. Each "cruiser" landmark names its config
@@ -36,7 +37,7 @@ extends Node3D
 const SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
 const TownDecor := preload("res://src/systems/world/town_decor.gd")
 const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "ramp": 5, "cargo": 6,
-	"console": 7, "rail": 8, "bridge": 9, "pad": 10, "beacon": 11, "screen": 12 }
+	"console": 7, "rail": 8, "bridge": 9, "pad": 10, "beacon": 11, "screen": 12, "turret": 13 }
 const NAV_BOUNDS := AABB(Vector3(-52, -20, -152), Vector3(118, 100, 484))
 
 var demo                               ## town_demo.gd
@@ -63,6 +64,9 @@ var _inside: Node3D                    ## its interior lights (off from far away
 var _layer: CanvasLayer
 var _label: Label
 var _was_aboard := false
+var _shield: StaticBody3D             ## the bay's shield: the crew's wall, not yours
+var _shield_skips: Node                ## the player it lets through
+var _floating := false                 ## we set the player's space gravity (to clear it)
 var _stairs_reached := false           ## the fleet chapter's "infiltrate" step was reported
 var _last_aboard := Vector3.INF
 var _mats: Dictionary = {}
@@ -219,6 +223,7 @@ func _physics_process(_dt: float) -> void:
 	if not bool(demo.get("lan_shared")):
 		_tick_crew(_players(at))
 	_fall_guard(p)
+	_float(p)
 	_steps(p)
 	if demo.look != null:
 		demo.look.set_shadow_cap(float(cfg.get("aboard_shadow_distance", 0.0)) if aboard(at) else 0.0)
@@ -265,6 +270,11 @@ func _tick_crew(spots: Array) -> void:
 func _exit_tree() -> void:
 	if demo != null and demo.look != null:
 		demo.look.set_shadow_cap(0.0)
+	var p: Node = demo._player if demo != null else null
+	if _floating and p != null and is_instance_valid(p):
+		p.set("space_gravity", -1.0)
+		p.set("space_recharge", -1.0)
+	_floating = false
 
 
 ## The fleet chapter's steps (Story "steps"): on foot aboard is "landed", once; in
@@ -279,8 +289,8 @@ func _steps(p: Node3D) -> void:
 			Story.event("cruiser_infiltrated")
 
 
-## Fallen out of the cruiser (through the bay's mouth, off the hull): back aboard
-## by the dock pad.
+## Drifted off from the cruiser (out of its gravity, round the hull and a margin):
+## back aboard by the dock pad. Out on the hull or floating near it is fine.
 func _fall_guard(p: Node3D) -> void:
 	if p.get("piloting") == true:
 		_was_aboard = false
@@ -300,16 +310,40 @@ func _fall_guard(p: Node3D) -> void:
 	if distance(p.global_position) > 1000.0:
 		_was_aboard = false            # moved away (woken in the pit, towed home), not fallen
 		return
-	var local := inv * p.global_position
-	if local.y > CruiserHull.DECK_Y - 12.0 and CruiserHull.GRAVITY_BOX.has_point(local):
+	if CruiserHull.GRAVITY_BOX.has_point(inv * p.global_position):
 		return
 	var pd := CruiserHull.dock_pad()
 	var back := frame * ((pd.get("at", Vector3.ZERO) as Vector3) + Vector3(-16, 0.1, 0))
 	p.global_position = back
 	if p.has_method("align_to_ground"):
 		p.call("align_to_ground", true)
+	if p is CharacterBody3D:
+		(p as CharacterBody3D).velocity = Vector3.ZERO
 	falls += 1
 	_toast(line("fell"), 3.0)
+
+
+## Out through the bay's shield on foot (not aboard, still in the cruiser's
+## gravity): the data's "outside" gravity, light enough to jetpack round the hull,
+## and the jetpack refuels in the air. Back aboard, as before. The shield lets
+## this player through (the crew it still holds in).
+func _float(p: Node3D) -> void:
+	if _shield != null and p is PhysicsBody3D and _shield_skips != p:
+		(p as PhysicsBody3D).add_collision_exception_with(_shield)
+		_shield_skips = p
+	if not ("space_gravity" in p):
+		return
+	var out: Dictionary = cfg.get("outside", {})
+	var local := inv * p.global_position
+	var floating: bool = not out.is_empty() and p.get("piloting") != true and not CruiserHull.aboard(local) \
+		and CruiserHull.GRAVITY_BOX.has_point(local)
+	if floating:
+		p.set("space_gravity", float(out.get("gravity", 4.0)))
+		p.set("space_recharge", float(out.get("jet_recharge", 0.9)))
+	elif _floating:
+		p.set("space_gravity", -1.0)
+		p.set("space_recharge", -1.0)
+	_floating = floating
 
 
 # ------------------------------------------------------------------ the crew
@@ -494,8 +528,9 @@ func _solid_ship(root: Node3D, ship: Node3D, a: AABB, s: float, pad_id: String) 
 
 # ------------------------------------------------------------------ the bay's shield
 
-## Across the bay's mouth: you cannot walk out into space, a ship flies straight
-## through, and so do bolts both ways (your ship's guns into the bay, theirs out).
+## Across the bay's mouth: a ship flies straight through, and so do bolts both
+## ways (your ship's guns into the bay, theirs out), and so do you on foot (_float
+## lets the player through: out to jetpack round the hull). The crew it holds in.
 func _build_shield() -> void:
 	var z := CruiserHull.BAY_Z
 	var size := Vector3(0.4, 28.0, z.y - z.x)
@@ -510,6 +545,7 @@ func _build_shield() -> void:
 	body.add_child(cs)
 	_hull.add_child(body)
 	body.position = at
+	_shield = body
 	if not demo.use_look:
 		return
 	var mi := MeshInstance3D.new()
@@ -560,6 +596,7 @@ func _build_look() -> void:
 		_hull.add_child(mi)
 	_engines()
 	_globes()
+	_turrets()
 	_lights()
 
 
@@ -686,6 +723,72 @@ static func _ring(r: float, tube: float) -> TorusMesh:
 	t.rings = 48
 	t.ring_segments = 8
 	return t
+
+
+## The gun turrets on the dorsal deck (CruiserHull.turrets; their colliders are
+## hull parts): a round barbette, a faceted gun house on it with a roof plate, a
+## sensor pod and cooling fins aft, a mantlet, and three long barrels with
+## sleeves and muzzle brakes, raised a little, their bores glowing. All ten are
+## three meshes (house, dark metal, glow), made once a session.
+func _turrets() -> void:
+	if not _meshes.has("turret_house"):
+		var house := SurfaceTool.new()
+		var metal := SurfaceTool.new()
+		var glow := SurfaceTool.new()
+		for st: SurfaceTool in [house, metal, glow]:
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var fwd := Basis(Vector3.RIGHT, -PI * 0.5)        # a cylinder's +y to the bow (-z)
+		var oct := Basis(Vector3.UP, PI / 8.0)            # a flat face of the octagon forward
+		var stretch := Basis.from_scale(Vector3(1.0, 1.0, 1.22))
+		var b_h := CruiserHull.TURRET_BARBETTE
+		var h_h := CruiserHull.TURRET_HOUSE
+		var pivot_y := b_h + h_h * 0.48
+		var grow := Basis.from_scale(Vector3.ONE * CruiserHull.TURRET_SCALE)
+		for t in CruiserHull.turrets():
+			var base := Transform3D(grow, t.at)
+			var turn := Transform3D(Basis(Vector3.UP, float(t.yaw)) * grow, t.at)
+			metal.append_from(_cyl(4.0, 4.3, b_h, 32), 0, base * Transform3D(Basis.IDENTITY, Vector3(0, b_h * 0.5, 0)))
+			metal.append_from(_ring(4.05, 0.12), 0, base * Transform3D(Basis.IDENTITY, Vector3(0, b_h * 0.75, 0)))
+			house.append_from(_cyl(2.7, 3.3, h_h, 8), 0, turn * Transform3D(stretch * oct, Vector3(0, b_h + h_h * 0.5, 0)))
+			house.append_from(_cyl(2.1, 2.6, 0.45, 8), 0, turn * Transform3D(stretch * oct, Vector3(0, b_h + h_h + 0.22, 0)))
+			# The sensor pod on the roof's aft end, and its whip.
+			house.append_from(_box_mesh(Vector3(1.3, 0.8, 1.7)), 0, turn * Transform3D(Basis.IDENTITY, Vector3(-1.0, b_h + h_h + 0.85, 1.6)))
+			metal.append_from(_cyl(0.05, 0.07, 2.4, 6), 0, turn * Transform3D(Basis.IDENTITY, Vector3(-1.0, b_h + h_h + 2.4, 2.2)))
+			# Cooling fins down the back.
+			for k in 4:
+				metal.append_from(_box_mesh(Vector3(0.18, h_h * 0.7, 1.2)), 0,
+					turn * Transform3D(Basis.IDENTITY, Vector3(-1.2 + k * 0.8, b_h + h_h * 0.5, 3.9)))
+			# The mantlet across the house's face, and the barrels through it.
+			var e := float(t.elev)
+			var gun := Basis(Vector3.RIGHT, e)
+			var face := turn * Transform3D(gun, Vector3(0, pivot_y, -3.3))
+			metal.append_from(_box_mesh(Vector3(4.4, 1.9, 1.2)), 0, face)
+			for bx: float in [-1.25, 0.0, 1.25]:
+				var lay := func(m: Mesh, z0: float, z1: float, st: SurfaceTool) -> void:
+					st.append_from(m, 0, face * Transform3D(fwd, Vector3(bx, 0, -(z0 + z1) * 0.5)))
+				lay.call(_cyl(0.55, 0.62, 2.6, 14), 0.4, 3.0, metal)
+				lay.call(_cyl(0.3, 0.36, 10.5, 12), 3.0, 13.5, metal)
+				lay.call(_cyl(0.46, 0.46, 1.1, 12), 12.6, 13.7, metal)
+				lay.call(_cyl(0.24, 0.24, 0.06, 10), 13.7, 13.76, glow)
+		_meshes["turret_house"] = house.commit()
+		_meshes["turret_metal"] = metal.commit()
+		_meshes["turret_glow"] = glow.commit()
+	var top: float = (CruiserHull.HULL[2] as Vector2).y
+	(_mats["turret"] as ShaderMaterial).set_shader_parameter("turret_foot", top + CruiserHull.TURRET_BARBETTE * CruiserHull.TURRET_SCALE)
+	(_mats["turret"] as ShaderMaterial).set_shader_parameter("turret_band", CruiserHull.TURRET_HOUSE * 0.84 * CruiserHull.TURRET_SCALE)
+	var lit := _mesh(_meshes["turret_house"], _mats["turret"], Transform3D.IDENTITY)
+	lit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	lit.extra_cull_margin = 50.0
+	var dark := _mesh(_meshes["turret_metal"], _mats["trim"], Transform3D.IDENTITY)
+	dark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	dark.extra_cull_margin = 50.0
+	_mesh(_meshes["turret_glow"], _emissive(Color("#ff6a3a"), 2.6), Transform3D.IDENTITY).extra_cull_margin = 50.0
+
+
+static func _box_mesh(size: Vector3) -> BoxMesh:
+	var b := BoxMesh.new()
+	b.size = size
+	return b
 
 
 ## The sensor globes on the tower's roof, in the hull's own grey.
