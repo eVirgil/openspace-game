@@ -73,6 +73,7 @@ var shots := 0
 var lock = MissileLock.new()      ## its seekers' lock on your ship (the cockpit's seeker warning reads it)
 var seekers := 0                  ## seekers it has launched at you (traces, tests)
 var _seeker_gap := 0.0            ## seconds before it may launch another
+var _seekers: Array = []          ## issue #539: its seekers still in the air (pruned as they go)
 var times_taken := 0
 var times_wrecked := 0
 var log_events: Array = []
@@ -388,6 +389,7 @@ func _launch_seeker(s: Dictionary) -> void:
 	b.blast_size = float(s.get("blast_size", 0.0))
 	demo.add_child(b)
 	b.global_position = s.origin
+	_seekers.append(b)
 	seekers += 1
 	_seeker_gap = p("seeker_gap_s", 10.0)
 	lock.reset()
@@ -403,8 +405,12 @@ func seekers_on_player() -> Dictionary:
 		return out
 	if mode == Mode.HUNTING and target_up() and lock.is_locked():
 		out.locks = 1
-	for b in get_tree().get_nodes_in_group("bolts"):
-		if is_instance_valid(b) and "seek" in b and b.seek == pilot.hull:
+	# Issue #539: its own seekers, not a scan of every bolt in the world.
+	for i in range(_seekers.size() - 1, -1, -1):
+		var b = _seekers[i]
+		if not is_instance_valid(b) or not b.is_in_group("bolts"):
+			_seekers.remove_at(i)
+		elif b.seek == pilot.hull:
 			out.missiles += 1
 	return out
 

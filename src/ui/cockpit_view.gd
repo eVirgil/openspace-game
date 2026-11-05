@@ -77,6 +77,16 @@ var _dash_skin: ShaderMaterial      ## the dash's surface: a darker shade of the
 var _yoke_skin: Material            ## the yoke's darker shade of the skin
 var _skin_of: Material              ## the skin those two were made from
 var _yoke: Node3D
+## Issue #539: the dash's instruments are painted into their SubViewport DASH_HZ
+## times a second (a full repaint is hundreds of canvas commands), and at once when
+## the attitude moves more than DASH_TURN_DEG since the last paint, so the dials
+## keep up in a hard turn. Between paints the viewport keeps its last picture.
+const DASH_HZ := 30.0
+const DASH_TURN_DEG := 1.5
+var dash_paints := 0                ## repaints so far (tests)
+var _dash_left := 0.0
+var _dash_att := Vector3.INF         ## pitch, roll, heading at the last paint
+var _dash_lights := -1
 
 
 func _ready() -> void:
@@ -96,22 +106,41 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	var on := is_visible_in_tree()
-	_dash_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	if on:
 		_fit(get_viewport_rect().size)
 	_place_frame(on)
 	if not on:
+		_dash_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_dash_att = Vector3.INF          # paint at once when the view comes back
 		return
 	lights = gather_lights(dt)
-	dash.values = values
-	dash.vessel_name = vessel_name
-	dash.lights = lights
-	dash.queue_redraw()
+	_dash_left -= dt
+	var att := Vector3(_v("pitch"), _v("roll"), _v("heading"))
+	if _dash_left <= 0.0 or lights.size() != _dash_lights or _turned(att):
+		_dash_left = 1.0 / DASH_HZ
+		_dash_att = att
+		_dash_lights = lights.size()
+		dash.values = values
+		dash.vessel_name = vessel_name
+		dash.lights = lights
+		dash.queue_redraw()
+		_dash_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		dash_paints += 1
 	var want := Vector3(_v("stick_pitch"), _v("stick_yaw"), _v("stick_roll"))
 	if not yoke.is_equal_approx(want):
 		yoke = yoke.lerp(want, minf(1.0, dt * 10.0))
 	_pose_yoke()
 	queue_redraw()
+
+
+## The attitude has moved more than DASH_TURN_DEG on any axis since the last paint
+## (heading wraps at 360).
+func _turned(att: Vector3) -> bool:
+	if _dash_att == Vector3.INF:
+		return true
+	var d := (att - _dash_att).abs()
+	d.z = minf(d.z, 360.0 - d.z)
+	return maxf(d.x, maxf(d.y, d.z)) > DASH_TURN_DEG
 
 
 func _exit_tree() -> void:
