@@ -258,6 +258,39 @@ func test_height_fog_follows_the_ground_on_a_ball() -> void:
 	PlanetSphere.current = was
 
 
+## Issue #537: the grade LUT and the vignette follow the preset's post.grade and
+## post.vignette, and Low graphics' "No vignette" piece takes the vignette away.
+func test_grade_and_vignette_follow_the_preset() -> void:
+	var path := LookEnvironment.SETTINGS_PATH
+	var had := FileAccess.file_exists(path)
+	var saved := FileAccess.get_file_as_bytes(path) if had else PackedByteArray()
+	var was := LookEnvironment.cut("vignette")
+	var data := LookEnvironment.load_presets()
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.set_cut("vignette", false)
+	for id in ["golden", "noon", "dusk"]:
+		look.apply(id)
+		var post: Dictionary = data["presets"][id]["post"]
+		assert_eq(look.env.adjustment_color_correction, look.grade_lut, "%s: the grade LUT is in the adjustment pass" % id)
+		assert_true(look.grade.get_color(0).is_equal_approx(Color.html(post.grade.blacks)), "%s blacks" % id)
+		assert_true(look.grade.get_color(2).is_equal_approx(Color.html(post.grade.highlights)), "%s highlights" % id)
+		var k: float = (look.vignette.material as ShaderMaterial).get_shader_parameter("strength")
+		assert_almost_eq(k, float(post.vignette), 0.001, "%s vignette" % id)
+		assert_true(look.vignette.visible)
+	look.set_low_graphics(true)
+	assert_false(look.vignette.visible, "Low graphics: no vignette")
+	look.set_low_graphics(false)
+	assert_true(look.vignette.visible, "and back")
+	LookEnvironment.save_cut("vignette", was)
+	if had:
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(saved)
+		f.close()
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func _detail_cfg() -> Dictionary:
 	var f := FileAccess.open("res://content/core/planets/types.json", FileAccess.READ)
 	return (JSON.parse_string(f.get_as_text()) as Dictionary)["detail"]

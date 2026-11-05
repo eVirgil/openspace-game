@@ -8,6 +8,7 @@ extends Node3D
 
 const PRESETS_PATH := "res://content/look/time_of_day.json"
 const SKY_SHADER := preload("res://src/systems/look/shaders/desert_sky.gdshader")
+const VIGNETTE_SHADER := preload("res://src/systems/look/shaders/vignette.gdshader")
 const SETTINGS_PATH := "user://settings/graphics.cfg"
 
 ## The player's "Indirect light" setting (F11 > Options), 0..1: scales the sky's
@@ -171,6 +172,13 @@ var _shadow_target := 1.0
 var _tracked: Array[ShaderMaterial] = []
 var _lamps: Array[Light3D] = []
 var _lamp_mats: Array[StandardMaterial3D] = []
+## Issue #537: the art bible's grade and vignette. The grade is a 1D LUT (blacks,
+## mids, highlights per preset: post.grade) in the adjustment pass that already
+## runs; the vignette one full-screen rect under the HUD (post.vignette).
+var grade: Gradient
+var grade_lut: GradientTexture1D
+var vignette: ColorRect
+var vignette_strength := 0.0          ## the preset's, before Low graphics' "No vignette"
 
 
 static func load_presets(path: String = PRESETS_PATH) -> Dictionary:
@@ -249,6 +257,13 @@ func _init() -> void:
 	env.volumetric_fog_sky_affect = float(env_cfg.get("volumetric_sky_affect", 0.0))
 	env.volumetric_fog_gi_inject = float(env_cfg.get("volumetric_gi_inject", 0.6))
 	env.adjustment_enabled = true
+	grade = Gradient.new()
+	grade.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	grade.colors = PackedColorArray([Color.BLACK, Color(0.5, 0.5, 0.5), Color.WHITE])
+	grade_lut = GradientTexture1D.new()
+	grade_lut.gradient = grade
+	grade_lut.width = 256
+	env.adjustment_color_correction = grade_lut
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -258,6 +273,18 @@ func _init() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_blend_splits = true
 	add_child(sun)
+
+	var layer := CanvasLayer.new()
+	layer.name = "Vignette"
+	layer.layer = -1                 # over the 3D world, under every HUD layer
+	vignette = ColorRect.new()
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vm := ShaderMaterial.new()
+	vm.shader = VIGNETTE_SHADER
+	vignette.material = vm
+	layer.add_child(vignette)
+	add_child(layer)
 
 
 ## Issue #77: on the home planet's ball, turn the sky's gradient and clouds to
@@ -372,6 +399,7 @@ func set_cut(id: String, on: bool) -> void:
 
 ## Show the saved Low graphics pieces (after save_cut / save_low_graphics).
 func apply_low() -> void:
+	_apply_vignette()
 	if env != null:
 		env.ambient_light_energy = ambient_now()
 	_apply_quality()
@@ -561,6 +589,12 @@ func _apply_values(p: Dictionary) -> void:
 	env.adjustment_contrast = float(post["contrast"])
 	env.adjustment_saturation = float(post["saturation"])
 	env.adjustment_brightness = float(post["brightness"])
+	# Issue #537: warm highlights, cool shadows, a slight lift in the blacks.
+	var g: Dictionary = post.get("grade", {})
+	grade.colors = PackedColorArray([Color.html(str(g.get("blacks", "#000000"))),
+		Color.html(str(g.get("mids", "#808080"))), Color.html(str(g.get("highlights", "#ffffff")))])
+	vignette_strength = float(post.get("vignette", 0.0))
+	_apply_vignette()
 	_wanted = { "ssao": bool(post["ssao"]), "ssil": bool(post["ssil"]), "sdfgi": bool(post["sdfgi"]),
 		"volumetric": bool(vol["enabled"]), "shadows": true }
 	_apply_quality()
@@ -666,6 +700,14 @@ func _step_fades(dt: float) -> void:
 	if sun != null and _shadow_level != _shadow_target:
 		_shadow_level = move_toward(_shadow_level, _shadow_target, dt / maxf(float(env_cfg.get("shadow_fade_s", 0.4)), 0.001))
 		_show_shadows()
+
+
+func _apply_vignette() -> void:
+	if vignette == null:
+		return
+	var k := 0.0 if cut("vignette") else vignette_strength
+	(vignette.material as ShaderMaterial).set_shader_parameter("strength", k)
+	vignette.visible = k > 0.001
 
 
 ## Issue #458: a lamp or glow with a "min_level" meta (HangingLamp) never drops

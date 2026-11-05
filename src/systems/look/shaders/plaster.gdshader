@@ -12,6 +12,7 @@ uniform float dirt_height = 1.8;
 uniform float tile_size = 0.0;
 uniform float metallic_amount = 0.0;    // issue #45: town styles (metal walls)
 uniform float surface_roughness = 0.9;          // > 0: stone slabs on upward faces (paving)
+uniform float relief = 0.06;            // issue #537: metres of relief the noise stands for (0: flat)
 uniform vec4 sand_drift : source_color = vec4(0.79, 0.58, 0.35, 1.0);
 uniform sampler2D noise_tex : repeat_enable, filter_linear_mipmap;
 
@@ -49,7 +50,20 @@ void fragment() {
 		alb = mix(alb, sand_drift.rgb, drift * 0.85);
 	}
 	ALBEDO = alb;
-	ROUGHNESS = surface_roughness;
+	// Issue #537: relief, so a raking sun catches the walls instead of lighting a
+	// flat card. The normal tilts by the slope of the noise already sampled
+	// (screen-space derivatives, no new reads), on walls only (the noise runs
+	// along the wall, so on floors and roofs it would streak), fading out with
+	// distance; the roughness follows the same noise and the dirt.
+	vec3 dpdx = dFdx(VERTEX);
+	vec3 dpdy = dFdy(VERTEX);
+	vec3 r1 = cross(dpdy, NORMAL);
+	vec3 r2 = cross(NORMAL, dpdx);
+	float det = dot(dpdx, r1);
+	vec3 grad = sign(det) * (dFdx(n) * r1 + dFdy(n) * r2);
+	float near_k = (1.0 - smoothstep(25.0, 70.0, -VERTEX.z)) * (1.0 - smoothstep(0.3, 0.6, abs(wnorm.y)));
+	NORMAL = normalize(abs(det) * NORMAL - relief * near_k * grad);
+	ROUGHNESS = clamp(surface_roughness - 0.1 + 0.2 * n + 0.08 * dirt_k, 0.0, 1.0);
 	METALLIC = metallic_amount;
 	SPECULAR = 0.3;
 }
