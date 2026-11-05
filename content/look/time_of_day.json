@@ -21,7 +21,8 @@
     "volumetric_gi_inject": 0.6,
     "sdfgi": { "cascades": 5, "min_cell_size": 0.4, "bounce_feedback": 0.7, "use_occlusion": true },
     "shadow_fade_s": 0.4,
-    "shadow_altitude_max": 1500.0
+    "shadow_altitude_max": 1500.0,
+    "ball_fog": { "note": "Issue #536: on a ball planet the presets' height fog sits on the ground under the camera (fog.height metres from it, fog.ball_height_density when a preset gives one). It is a flat world-y plane, so it only fits near the top of the ball: full within full_deg of the top, gone by gone_deg (on the 5 km home ball, about 440 m and 1.7 km out).", "full_deg": 5.0, "gone_deg": 20.0 }
   },
   "full_graphics": {
     "note": "Issue #534: what the full look asks for that Low graphics does not. Read by src/systems/look/look_environment.gd. render_scale: with Temporal anti-aliasing on (F11 > Options > Graphics, the default) the 3D world is drawn at this share of the window and brought up by a temporal upscaler (MetalFX on a Mac that offers it, else FSR 2), which is also the anti-aliasing; 0.77 draws ~59% of the pixels. Off, the world is drawn at full size with FXAA. fsr_sharpness: 0 sharpest, 2 softest (Godot's default 0.2). Low graphics' resolution piece wins over both.",

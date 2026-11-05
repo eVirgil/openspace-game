@@ -226,6 +226,38 @@ func test_crossing_a_tier_fades_shadows_instead_of_snapping() -> void:
 	assert_eq(look.env.sdfgi_enabled, LookEnvironment.indirect_level() > 0.0 and not LookEnvironment.cut("gi"), "SDFGI back")
 
 
+## Issue #536: on a ball the presets' height fog is live again and its band sits
+## on the ground under the camera, moving with it; far round the ball it thins out.
+func test_height_fog_follows_the_ground_on_a_ball() -> void:
+	var was := PlanetSphere.current
+	var sp := PlanetSphere.new(5000.0)
+	PlanetSphere.current = sp
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.apply("golden")
+	var fog: Dictionary = LookEnvironment.load_presets()["presets"]["golden"]["fog"]
+	var want := float(fog.get("ball_height_density", fog.height_density))
+	assert_gt(want, 0.0)
+	assert_almost_eq(look.env.fog_height_density, want, 0.00001, "the preset's height fog is on")
+	var cam := Camera3D.new()
+	add_child_autofree(cam)
+	cam.make_current()
+	var top := sp.surface_at(0.0, 0.0)
+	cam.global_position = top + Vector3.UP * 2.0
+	look._process(0.0)
+	assert_almost_eq(look.env.fog_height, top.y + float(fog.height), 0.5, "the band sits on the sand where you stand")
+	var out := sp.surface_at(250.0, 0.0)
+	cam.global_position = out + sp.up_at(out) * 2.0
+	look._process(0.0)
+	assert_almost_eq(look.env.fog_height, out.y + float(fog.height), 0.5, "and follows the camera")
+	assert_almost_eq(look.env.fog_height_density, want, 0.00001, "full near the top")
+	var far := sp.surface_at(3000.0, 0.0)
+	cam.global_position = far + sp.up_at(far) * 2.0
+	look._process(0.0)
+	assert_almost_eq(look.env.fog_height_density, 0.0, 0.00001, "gone far round the ball, where a world-y plane would tilt")
+	PlanetSphere.current = was
+
+
 func _detail_cfg() -> Dictionary:
 	var f := FileAccess.open("res://content/core/planets/types.json", FileAccess.READ)
 	return (JSON.parse_string(f.get_as_text()) as Dictionary)["detail"]

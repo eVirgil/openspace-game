@@ -164,6 +164,8 @@ var _ambient_space := 1.0
 ## (SSAO, SSIL, SDFGI, fog volumes, how fast GI and shadows fade in and out).
 var env_cfg: Dictionary = {}
 var view_altitude := 0.0             ## metres above the ground (AltitudeDetail): the sun's shadows reach that much further
+var fog_height_offset := 0.0         ## issue #536: the preset's fog.height; on a ball, metres from the ground under the camera
+var fog_height_density := 0.0        ## the preset's height density (fog.ball_height_density on a ball)
 var _shadow_level := 1.0             ## the sun's shadow opacity now, fading to _shadow_target
 var _shadow_target := 1.0
 var _tracked: Array[ShaderMaterial] = []
@@ -278,6 +280,27 @@ func _process(dt: float) -> void:
 		var far: Basis = space_frame.call(cam.global_position)
 		frame = Basis(frame.get_rotation_quaternion().slerp(far.get_rotation_quaternion(), space_level))
 	sky_mat.set_shader_parameter("sky_frame", frame)
+	follow_ground_fog(cam.global_position)
+
+
+## Issue #536: height fog on a ball. Godot measures it on world y, so a fixed
+## fog_height drowned the planet a few hundred metres out, where the ground curves
+## below it; it was switched off on every ball. Now the band sits on the sand under
+## the camera (fog.height metres from it), so the ground falling away with the
+## curve reads as deeper haze and the mesas layer like stage flats. A world-y plane
+## only fits near the top of the ball: it thins out between environment
+## "ball_fog" full_deg and gone_deg round the ball from the top, and with the
+## altitude sky (space_level) on the way to space.
+func follow_ground_fog(at: Vector3) -> void:
+	var sp := PlanetSphere.current
+	if sp == null or env == null:
+		return
+	var dir := (at - sp.center).normalized()
+	var ground := sp.center + dir * (sp.radius + sp.elevation(dir))
+	var bf: Dictionary = env_cfg.get("ball_fog", {})
+	var keep := smoothstep(cos(deg_to_rad(float(bf.get("gone_deg", 20.0)))), cos(deg_to_rad(float(bf.get("full_deg", 5.0)))), dir.y)
+	env.fog_height = ground.y + fog_height_offset
+	env.fog_height_density = fog_height_density * keep * (1.0 - space_level)
 
 
 ## How vivid the ringed giant is (the preset's daylight value, AltitudeSky's lerp to
@@ -513,10 +536,14 @@ func _apply_values(p: Dictionary) -> void:
 	env.fog_sun_scatter = float(fog["sun_scatter"])
 	env.fog_light_color = Color.html(fog["color"])
 	env.fog_sky_affect = float(fog["sky_affect"])
-	env.fog_height = float(fog.get("height", 0.0))
-	# Issue #77: height fog is measured on world y; on the home planet's ball the
-	# ground falls below it a few hundred metres out and the whole planet drowns.
-	env.fog_height_density = 0.0 if PlanetSphere.current != null else float(fog.get("height_density", 0.0))
+	fog_height_offset = float(fog.get("height", 0.0))
+	fog_height_density = float(fog.get("height_density", 0.0))
+	env.fog_height = fog_height_offset
+	if PlanetSphere.current != null:
+		# Issue #536: on a ball, follow_ground_fog moves the band to the ground under
+		# the camera every frame (it was off on balls: issue #77).
+		fog_height_density = float(fog.get("ball_height_density", fog_height_density))
+	env.fog_height_density = fog_height_density
 
 	env.volumetric_fog_enabled = bool(vol["enabled"])
 	env.volumetric_fog_density = float(vol["density"])
