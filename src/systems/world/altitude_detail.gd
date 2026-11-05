@@ -7,6 +7,8 @@ extends Node
 ## which is what made flying laggy. Each tier switches render features off and
 ## hides groups of nodes once you are above it, and gives them back on the way
 ## down (`hysteresis` metres lower, so hovering at a boundary never flickers).
+## Issue #535: SDFGI and the sun's shadows fade out and in over a few tenths of a
+## second as a tier takes or gives them (LookEnvironment._apply_quality(true)).
 ##
 ## Tiers are data: the "detail" block of content/core/worlds/<id>.json.
 ##   off:  LookEnvironment features ("sdfgi", "ssil", "ssao", "volumetric", "shadows")
@@ -72,6 +74,8 @@ func tier_for(altitude: float, current: int) -> int:
 
 ## Call every frame with the viewer's altitude above sea level.
 func _set_tier_for(altitude: float) -> bool:
+	if look != null:
+		look.set_view_altitude(altitude)     # issue #535: the sun's shadows reach the ground below
 	var t := tier_for(altitude, tier)
 	if t == tier:
 		return false

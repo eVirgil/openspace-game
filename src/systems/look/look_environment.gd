@@ -160,6 +160,12 @@ var _ambient_energy_base := 1.0
 var space_presets: Dictionary = {}   ## the presets as loaded, before a planet lays its sky over them
 var space_level := 0.0
 var _ambient_space := 1.0
+## Issue #535: time_of_day.json "environment": the numbers every preset shares
+## (SSAO, SSIL, SDFGI, fog volumes, how fast GI and shadows fade in and out).
+var env_cfg: Dictionary = {}
+var view_altitude := 0.0             ## metres above the ground (AltitudeDetail): the sun's shadows reach that much further
+var _shadow_level := 1.0             ## the sun's shadow opacity now, fading to _shadow_target
+var _shadow_target := 1.0
 var _tracked: Array[ShaderMaterial] = []
 var _lamps: Array[Light3D] = []
 var _lamp_mats: Array[StandardMaterial3D] = []
@@ -213,6 +219,8 @@ func _init() -> void:
 	space_presets = presets.duplicate(true)
 	default_preset = data.get("default", "golden")
 	hours = data.get("hours", [])
+	env_cfg = data.get("environment", {})
+	var gi: Dictionary = env_cfg.get("sdfgi", {})
 
 	sky_mat = ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
@@ -228,16 +236,16 @@ func _init() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.glow_enabled = true
-	env.glow_hdr_threshold = 1.0
-	env.ssao_radius = 1.6
-	env.ssao_intensity = 1.6
-	env.ssil_radius = 6.0
-	env.sdfgi_use_occlusion = true
-	env.sdfgi_cascades = 6
-	env.sdfgi_min_cell_size = 0.4
+	env.ssao_radius = float(env_cfg.get("ssao_radius", 1.6))
+	env.ssao_intensity = float(env_cfg.get("ssao_intensity", 1.6))
+	env.ssil_radius = float(env_cfg.get("ssil_radius", 6.0))
+	env.sdfgi_use_occlusion = bool(gi.get("use_occlusion", true))
+	env.sdfgi_cascades = int(gi.get("cascades", 6))
+	env.sdfgi_min_cell_size = float(gi.get("min_cell_size", 0.4))
+	env.sdfgi_bounce_feedback = float(gi.get("bounce_feedback", 0.5))
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.volumetric_fog_sky_affect = 0.0
-	env.volumetric_fog_gi_inject = 0.6
+	env.volumetric_fog_sky_affect = float(env_cfg.get("volumetric_sky_affect", 0.0))
+	env.volumetric_fog_gi_inject = float(env_cfg.get("volumetric_gi_inject", 0.6))
 	env.adjustment_enabled = true
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
@@ -247,8 +255,6 @@ func _init() -> void:
 	sun.name = "Sun"
 	sun.shadow_enabled = true
 	sun.directional_shadow_blend_splits = true
-	sun.shadow_bias = 0.04
-	sun.shadow_normal_bias = 1.2
 	add_child(sun)
 
 
@@ -260,7 +266,8 @@ func _init() -> void:
 var space_frame: Callable = Callable()   ## world point -> Basis, or none (this ball's own up)
 
 
-func _process(_dt: float) -> void:
+func _process(dt: float) -> void:
+	_step_fades(dt)
 	if sky_mat == null or PlanetSphere.current == null or not is_inside_tree():
 		return
 	var cam := get_viewport().get_camera_3d()
@@ -467,6 +474,15 @@ func _apply_values(p: Dictionary) -> void:
 	sun.light_energy = float(s["energy"])
 	sun.light_angular_distance = float(s["angular_size"])
 	_shadow_distance = float(s["shadow_distance"])
+	# Issue #535: the cascades from data. Godot's 0.1 / 0.2 / 0.5 over 700-900 m
+	# made the first cascade 90 m deep, about 4 cm a texel: stair-step shadows.
+	var splits: Array = s.get("shadow_splits", [0.1, 0.2, 0.5])
+	sun.directional_shadow_split_1 = float(splits[0])
+	sun.directional_shadow_split_2 = float(splits[1])
+	sun.directional_shadow_split_3 = float(splits[2])
+	sun.directional_shadow_fade_start = float(s.get("shadow_fade", 0.8))
+	sun.shadow_bias = float(s.get("shadow_bias", 0.1))
+	sun.shadow_normal_bias = float(s.get("shadow_normal_bias", 1.0))
 	_apply_shadow_range()
 	sun.light_volumetric_fog_energy = float(s["fog_energy"])
 
@@ -511,6 +527,9 @@ func _apply_values(p: Dictionary) -> void:
 	env.tonemap_exposure = float(post["exposure"])
 	env.tonemap_white = float(post["white"])
 	env.glow_intensity = float(post["glow"])
+	# Issue #535: only things brighter than lit sand and plaster bloom (the sun,
+	# lamps, bolts); at 1.0 the whole sunlit ground glowed.
+	env.glow_hdr_threshold = float(post.get("glow_threshold", 1.0))
 	env.glow_bloom = float(post["glow_bloom"])
 	env.adjustment_contrast = float(post["contrast"])
 	env.adjustment_saturation = float(post["saturation"])
@@ -535,11 +554,11 @@ func set_suppressed(features: Array) -> void:
 	if next == suppressed:
 		return
 	suppressed = next
-	_apply_quality()
+	_apply_quality(true)
 
 
 ## Hold the sun's shadows to `metres` (0 gives the preset's range back). Indoors
-## under a low sun the preset's 700-900 m spreads the shadow map so thin that a
+## under a low sun the preset's 600 m spreads the shadow map so thin that a
 ## window frame's shadow comes out in stair-steps across the floor; the cruiser
 ## asks for a short range while you are aboard.
 func set_shadow_cap(metres: float) -> void:
@@ -549,16 +568,38 @@ func set_shadow_cap(metres: float) -> void:
 	_apply_shadow_range()
 
 
+## Issue #535: how high the viewer is above the ground (AltitudeDetail passes it on).
+## The sun's shadows reach that much further, so from up high the ground under
+## you stays inside the last cascade instead of beyond it. Steps of 25 m, so a
+## climb resizes the cascades a few times, not every frame.
+func set_view_altitude(metres: float) -> void:
+	var cap := float(env_cfg.get("shadow_altitude_max", 1500.0))
+	var q := snappedf(clampf(metres, 0.0, cap), 25.0)
+	if is_equal_approx(q, view_altitude):
+		return
+	view_altitude = q
+	_apply_shadow_range()
+
+
 func _apply_shadow_range() -> void:
 	if sun == null or _shadow_distance <= 0.0:
 		return
-	var d := minf(_shadow_distance, shadow_cap) if shadow_cap > 0.0 else _shadow_distance
+	var d := _shadow_distance
 	if cut("shadows"):
 		d = minf(d, float(low_cfg().get("shadow_m", d)))
+	d += view_altitude
+	if shadow_cap > 0.0:
+		d = minf(d, shadow_cap)
 	sun.directional_shadow_max_distance = d
 
 
-func _apply_quality() -> void:
+## `fade` (AltitudeDetail's tiers, issue #535): the sun's shadows ease out and in
+## over environment "shadow_fade_s". SDFGI just switches: its light replaces the
+## sky's fill, so fading its energy only dims the town. Coming back on (landing)
+## it starts black and builds up; project.godot has it converge in 10 frames
+## instead of Godot's 30, so that dark moment is a blink, not half a second.
+## A player's setting or a new preset switches everything at once.
+func _apply_quality(fade: bool = false) -> void:
 	if env == null:
 		return
 	var low := cut_features()
@@ -577,9 +618,27 @@ func _apply_quality() -> void:
 	env.ambient_light_sky_contribution = 1.0 - bounce
 	env.ambient_light_color = Color.html(str(low_cfg().get("bounce", "#000000"))) if bounce > 0.0 else Color.BLACK
 	if sun != null:
-		sun.shadow_enabled = on.call("shadows")
+		_shadow_target = 1.0 if on.call("shadows") else 0.0
+		if not fade or not is_inside_tree():
+			_shadow_level = _shadow_target
+		if _shadow_target > 0.0:
+			sun.shadow_enabled = true
+		_show_shadows()
 		sun.directional_shadow_mode = (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if cut("shadows")
 			else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
+
+
+func _show_shadows() -> void:
+	sun.shadow_opacity = _shadow_level
+	if _shadow_level <= 0.0 and _shadow_target <= 0.0:
+		sun.shadow_enabled = false
+
+
+## The fades _apply_quality(true) started, a frame at a time.
+func _step_fades(dt: float) -> void:
+	if sun != null and _shadow_level != _shadow_target:
+		_shadow_level = move_toward(_shadow_level, _shadow_target, dt / maxf(float(env_cfg.get("shadow_fade_s", 0.4)), 0.001))
+		_show_shadows()
 
 
 ## Issue #458: a lamp or glow with a "min_level" meta (HangingLamp) never drops

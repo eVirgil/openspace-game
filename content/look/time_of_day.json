@@ -12,13 +12,24 @@
     { "hour": 17.0, "preset": "golden" },
     { "hour": 19.5, "preset": "dusk" }
   ],
+  "environment": {
+    "note": "Issue #535: the environment numbers every preset shares, read by src/systems/look/look_environment.gd (it keeps no typed-in lighting constants). sdfgi: 5 cascades from 0.4 m reach about 400 m, as far as anyone sees bounce light through the fog (6 reached 1.6 km); bounce_feedback carries light over more than one bounce. shadow_fade_s: the sun's shadows fade out and in over this long when AltitudeDetail's tiers (content/core/planets/types.json 'detail') take or give them. (SDFGI coming back on when landing is quick because project.godot has it converge in 10 frames, not Godot's 30.) shadow_altitude_max: up to this many metres above the ground the sun's shadows reach that much further than the preset's shadow_distance, so the ground under a flying ship stays in the last cascade. Per preset, sun.shadow_* sets the cascades: 600 m in 4 splits at 4%, 12% and 35% (the first cascade 24 m deep), fading from 85%; post.glow_threshold: only what is brighter than this blooms (the sun, lamps and bolts, not lit sand and plaster).",
+    "ssao_radius": 1.6,
+    "ssao_intensity": 1.6,
+    "ssil_radius": 6.0,
+    "volumetric_sky_affect": 0.0,
+    "volumetric_gi_inject": 0.6,
+    "sdfgi": { "cascades": 5, "min_cell_size": 0.4, "bounce_feedback": 0.7, "use_occlusion": true },
+    "shadow_fade_s": 0.4,
+    "shadow_altitude_max": 1500.0
+  },
   "full_graphics": {
     "note": "Issue #534: what the full look asks for that Low graphics does not. Read by src/systems/look/look_environment.gd. render_scale: with Temporal anti-aliasing on (F11 > Options > Graphics, the default) the 3D world is drawn at this share of the window and brought up by a temporal upscaler (MetalFX on a Mac that offers it, else FSR 2), which is also the anti-aliasing; 0.77 draws ~59% of the pixels. Off, the world is drawn at full size with FXAA. fsr_sharpness: 0 sharpest, 2 softest (Godot's default 0.2). Low graphics' resolution piece wins over both.",
     "render_scale": 0.77,
     "fsr_sharpness": 0.2
   },
   "low_graphics": {
-    "note": "F11 > Options > Graphics > Low graphics, and its pieces one by one under it (saved per machine in user://settings/graphics.cfg). Read by src/systems/look/look_environment.gd, dust_wind.gd and draw_distance.gd. pieces: what Low graphics changes, each its own checkbox so one can be tried at a time (to find which one stops a glare on one PC). id: the saved key; label: the checkbox; off: render features it holds off (the worlds' 'detail' tier names: sdfgi, ssil, ssao, volumetric, plus glow); low: false for a piece Low graphics leaves alone (bloom is only there to try). The numbers below belong to one piece each. shadows: the sun's shadows end shadow_m metres out (the presets ask for 700-900), in 2 splits instead of 4. resolution: the 3D world is drawn at render_scale of the window and scaled up with FSR 1, with FXAA on top (0.75 draws ~56% of the pixels; the HUD stays sharp). fill: the sky's fill times ambient, and bounce_share of it from the bounce sand colour instead of the sky, standing in for the warm light SDFGI bounces off the ground. dust: the share of blowing sand still drawn. draw: every range in world.json 'draw_distance' times draw_scale; ranges a system set itself (the barge, the wreck field, the camps') stay as they are.",
+    "note": "F11 > Options > Graphics > Low graphics, and its pieces one by one under it (saved per machine in user://settings/graphics.cfg). Read by src/systems/look/look_environment.gd, dust_wind.gd and draw_distance.gd. pieces: what Low graphics changes, each its own checkbox so one can be tried at a time (to find which one stops a glare on one PC). id: the saved key; label: the checkbox; off: render features it holds off (the worlds' 'detail' tier names: sdfgi, ssil, ssao, volumetric, plus glow); low: false for a piece Low graphics leaves alone (bloom is only there to try). The numbers below belong to one piece each. shadows: the sun's shadows end shadow_m metres out (the presets ask for 600), in 2 splits instead of 4. resolution: the 3D world is drawn at render_scale of the window and scaled up with FSR 1, with FXAA on top (0.75 draws ~56% of the pixels; the HUD stays sharp). fill: the sky's fill times ambient, and bounce_share of it from the bounce sand colour instead of the sky, standing in for the warm light SDFGI bounces off the ground. dust: the share of blowing sand still drawn. draw: every range in world.json 'draw_distance' times draw_scale; ranges a system set itself (the barge, the wreck field, the camps') stay as they are.",
     "pieces": [
       { "id": "gi", "label": "No bounce light", "off": ["sdfgi", "ssil"] },
       { "id": "fill", "label": "Sand-coloured fill light" },
@@ -40,7 +51,7 @@
   },
   "presets": {
     "golden": {
-      "sun": { "elevation_deg": 8.0, "azimuth_deg": -58.0, "color": "#ffc48a", "energy": 2.9, "angular_size": 0.6, "shadow_distance": 900.0, "fog_energy": 0.8 },
+      "sun": { "elevation_deg": 8.0, "azimuth_deg": -58.0, "color": "#ffc48a", "energy": 2.9, "angular_size": 0.6, "shadow_distance": 600.0, "shadow_splits": [0.04, 0.12, 0.35], "shadow_fade": 0.85, "shadow_bias": 0.04, "shadow_normal_bias": 1.2, "fog_energy": 0.8 },
       "sky": {
         "zenith": "#4a6894", "horizon": "#f0b985", "ground": "#b88a5c",
         "sun_glow": "#ffa860", "sun_disk": "#fff0d8", "glow_strength": 1.0, "horizon_falloff": 0.42, "energy": 1.0,
@@ -51,12 +62,12 @@
       "ambient": { "energy": 0.6 },
       "fog": { "density": 0.00016, "aerial": 0.9, "sun_scatter": 0.1, "color": "#e6b58a", "sky_affect": 0.3, "height": -45.0, "height_density": 0.008 },
       "volumetric": { "enabled": true, "density": 0.003, "albedo": "#f2d3ae", "anisotropy": 0.5, "length": 160.0 },
-      "post": { "exposure": 1.0, "white": 6.0, "glow": 0.55, "glow_bloom": 0.04, "contrast": 1.12, "saturation": 1.1, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
+      "post": { "exposure": 1.0, "white": 6.0, "glow": 0.55, "glow_threshold": 2.5, "glow_bloom": 0.04, "contrast": 1.12, "saturation": 1.1, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
       "lamps": 0.0,
       "smoke": "#231c19"
     },
     "noon": {
-      "sun": { "elevation_deg": 64.0, "azimuth_deg": -20.0, "color": "#fff3e2", "energy": 3.0, "angular_size": 0.5, "shadow_distance": 700.0, "fog_energy": 0.6 },
+      "sun": { "elevation_deg": 64.0, "azimuth_deg": -20.0, "color": "#fff3e2", "energy": 3.0, "angular_size": 0.5, "shadow_distance": 600.0, "shadow_splits": [0.04, 0.12, 0.35], "shadow_fade": 0.85, "shadow_bias": 0.04, "shadow_normal_bias": 1.2, "fog_energy": 0.6 },
       "sky": {
         "zenith": "#3d74b8", "horizon": "#d9d4c8", "ground": "#c49a6c",
         "sun_glow": "#fff2dc", "sun_disk": "#ffffff", "glow_strength": 0.6, "horizon_falloff": 0.55, "energy": 1.1,
@@ -67,12 +78,12 @@
       "ambient": { "energy": 1.0 },
       "fog": { "density": 0.00012, "aerial": 0.95, "sun_scatter": 0.05, "color": "#e8dccb", "sky_affect": 0.3, "height": -20.0, "height_density": 0.02 },
       "volumetric": { "enabled": true, "density": 0.002, "albedo": "#f5ece0", "anisotropy": 0.3, "length": 140.0 },
-      "post": { "exposure": 0.8, "white": 6.0, "glow": 0.3, "glow_bloom": 0.02, "contrast": 1.1, "saturation": 0.95, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
+      "post": { "exposure": 0.8, "white": 6.0, "glow": 0.3, "glow_threshold": 2.5, "glow_bloom": 0.02, "contrast": 1.1, "saturation": 0.95, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
       "lamps": 0.0,
       "smoke": "#3a3532"
     },
     "dusk": {
-      "sun": { "elevation_deg": 1.5, "azimuth_deg": -40.0, "color": "#ff8a5c", "energy": 0.9, "angular_size": 1.0, "shadow_distance": 900.0, "fog_energy": 2.0 },
+      "sun": { "elevation_deg": 1.5, "azimuth_deg": -40.0, "color": "#ff8a5c", "energy": 0.9, "angular_size": 1.0, "shadow_distance": 600.0, "shadow_splits": [0.04, 0.12, 0.35], "shadow_fade": 0.85, "shadow_bias": 0.04, "shadow_normal_bias": 1.2, "fog_energy": 2.0 },
       "sky": {
         "zenith": "#1e2848", "horizon": "#d9785a", "ground": "#5a3e3a",
         "sun_glow": "#ff7a48", "sun_disk": "#ffc090", "glow_strength": 1.2, "horizon_falloff": 0.3, "energy": 0.8,
@@ -83,7 +94,7 @@
       "ambient": { "energy": 0.55 },
       "fog": { "density": 0.0002, "aerial": 0.9, "sun_scatter": 0.3, "color": "#7a5a6a", "sky_affect": 0.35, "height": -10.0, "height_density": 0.04 },
       "volumetric": { "enabled": true, "density": 0.008, "albedo": "#c8a0a0", "anisotropy": 0.6, "length": 160.0 },
-      "post": { "exposure": 1.25, "white": 5.0, "glow": 0.8, "glow_bloom": 0.08, "contrast": 1.05, "saturation": 1.1, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
+      "post": { "exposure": 1.25, "white": 5.0, "glow": 0.8, "glow_threshold": 2.0, "glow_bloom": 0.08, "contrast": 1.05, "saturation": 1.1, "brightness": 1.0, "ssao": true, "ssil": true, "sdfgi": true },
       "lamps": 1.0,
       "smoke": "#2a2228"
     }

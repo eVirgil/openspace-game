@@ -283,6 +283,8 @@ func test_detail_switches_render_features_off_and_back() -> void:
 	assert_true(look.env.sdfgi_enabled, "the preset wants GI")
 	look.set_suppressed(["sdfgi", "shadows"])
 	assert_false(look.env.sdfgi_enabled)
+	for i in 40:                     # issue #535: the shadows fade out over a few frames
+		look._step_fades(1.0 / 60.0)
 	assert_false(look.sun.shadow_enabled)
 	look.apply("dusk")
 	assert_false(look.env.sdfgi_enabled, "a new preset (L) does not bring it back mid-flight")

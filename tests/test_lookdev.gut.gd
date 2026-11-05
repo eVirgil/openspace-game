@@ -161,6 +161,76 @@ func test_render_scale_and_anti_aliasing_follow_the_settings() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
+## Issue #535: glow threshold, the sun's cascades and bias, and SDFGI come from
+## time_of_day.json, not from numbers in look_environment.gd.
+func test_lighting_numbers_come_from_the_json() -> void:
+	var data := LookEnvironment.load_presets()
+	var p: Dictionary = data["presets"]["golden"]
+	var gi: Dictionary = data["environment"]["sdfgi"]
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.apply("golden")
+	assert_almost_eq(look.env.glow_hdr_threshold, float(p.post.glow_threshold), 0.001, "glow threshold")
+	assert_gt(look.env.glow_hdr_threshold, 2.0, "lit sand (about 2.3) does not bloom")
+	var splits: Array = p.sun.shadow_splits
+	assert_almost_eq(look.sun.directional_shadow_split_1, float(splits[0]), 0.001)
+	assert_almost_eq(look.sun.directional_shadow_split_2, float(splits[1]), 0.001)
+	assert_almost_eq(look.sun.directional_shadow_split_3, float(splits[2]), 0.001)
+	assert_almost_eq(look.sun.directional_shadow_fade_start, float(p.sun.shadow_fade), 0.001)
+	assert_almost_eq(look.sun.shadow_bias, float(p.sun.shadow_bias), 0.001)
+	assert_almost_eq(look.sun.shadow_normal_bias, float(p.sun.shadow_normal_bias), 0.001)
+	assert_eq(look.env.sdfgi_cascades, int(gi.cascades))
+	assert_almost_eq(look.env.sdfgi_bounce_feedback, float(gi.bounce_feedback), 0.001)
+	look.set_view_altitude(300.0)
+	if not LookEnvironment.cut("shadows"):
+		assert_almost_eq(look.sun.directional_shadow_max_distance, float(p.sun.shadow_distance) + 300.0, 0.01,
+			"flying, the shadows reach the ground below")
+	look.set_view_altitude(0.0)
+
+
+## Issue #535: crossing AltitudeDetail's shadow tier fades the sun's shadows out
+## over several frames and back in; SDFGI, which replaces the sky's fill, switches,
+## and converges in 10 frames (project.godot) so coming back on is a blink.
+func test_crossing_a_tier_fades_shadows_instead_of_snapping() -> void:
+	assert_eq(int(ProjectSettings.get_setting("rendering/global_illumination/sdfgi/frames_to_converge")),
+		RenderingServer.ENV_SDFGI_CONVERGE_IN_10_FRAMES, "SDFGI converges in 10 frames")
+	var look := LookEnvironment.new()
+	add_child_autofree(look)
+	look.apply("golden")
+	var detail := AltitudeDetail.new()
+	add_child_autofree(detail)
+	var cfg := _detail_cfg()
+	detail.setup(cfg, look)
+	var high := 0.0
+	for t in cfg.tiers:
+		if (t.off as Array).has("shadows"):
+			high = float(t.above) + 10.0
+	assert_gt(high, 0.0, "a tier takes the shadows")
+	detail.update_for(high)
+	assert_true(look.sun.shadow_enabled, "still on the frame the tier is crossed")
+	assert_almost_eq(look.sun.shadow_opacity, 1.0, 0.001)
+	var levels: Array = []
+	for i in 40:
+		look._step_fades(1.0 / 60.0)
+		levels.append(look.sun.shadow_opacity)
+	assert_lt(levels[5], 1.0, "part way out after a few frames")
+	assert_gt(levels[5], 0.0)
+	assert_false(look.sun.shadow_enabled, "off once faded out")
+	assert_false(look.env.sdfgi_enabled, "SDFGI off up here")
+	detail.update_for(0.0)
+	assert_true(look.sun.shadow_enabled, "back on as you come down")
+	assert_lt(look.sun.shadow_opacity, 0.5, "starting faint")
+	for i in 40:
+		look._step_fades(1.0 / 60.0)
+	assert_almost_eq(look.sun.shadow_opacity, 1.0, 0.001, "and faded back in")
+	assert_eq(look.env.sdfgi_enabled, LookEnvironment.indirect_level() > 0.0 and not LookEnvironment.cut("gi"), "SDFGI back")
+
+
+func _detail_cfg() -> Dictionary:
+	var f := FileAccess.open("res://content/core/planets/types.json", FileAccess.READ)
+	return (JSON.parse_string(f.get_as_text()) as Dictionary)["detail"]
+
+
 func test_sun_direction_matches_elevation() -> void:
 	var d := LookEnvironment.direction(0.0, 90.0)
 	assert_almost_eq(d.y, 1.0, 0.0001, "90 degrees elevation points straight up")
