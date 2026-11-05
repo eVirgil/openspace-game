@@ -138,6 +138,9 @@ func remove_member(g: NpcBody) -> void:
 	claimed.erase(g)
 
 
+var _alarm_in := {}                  ## what TownAlarm.update reads each tick (it keeps nothing)
+
+
 func _physics_process(dt: float) -> void:
 	if alarm == null or player == null:
 		return
@@ -165,8 +168,11 @@ func _physics_process(dt: float) -> void:
 	if _attacked:
 		_raise("attacked")
 	_attacked = false
-	alarm.update(dt, { "seen": seen, "player_pos": seen_at if seen_at != Vector3.INF else ppos,
-		"nearest_dist": nearest, "alive": alive.size() })
+	_alarm_in["seen"] = seen                           # issue #540: one dictionary, filled each tick
+	_alarm_in["player_pos"] = seen_at if seen_at != Vector3.INF else ppos
+	_alarm_in["nearest_dist"] = nearest
+	_alarm_in["alive"] = alive.size()
+	alarm.update(dt, _alarm_in)
 	_handle(alarm.drain())
 	for g in alive:
 		var b: GuardBrain = brains[g]

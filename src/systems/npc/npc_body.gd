@@ -200,6 +200,7 @@ func setup(soldier: Dictionary, at: Vector3, yaw: float, materials: LookMaterial
 	perception = Perception.new(soldier.get("perception", {}))
 	var navc: Dictionary = soldier.get("nav", {})
 	locomotion = NpcLocomotion.new(navc)
+	locomotion.reuse_out = true          # issue #540: one result dict, read at once
 	_repath_s = float(navc.get("repath_s", 1.5))
 	_repath_move = float(navc.get("repath_move", 1.5))
 	if materials != null:
@@ -660,6 +661,10 @@ func _turn(dt: float, move: Vector3) -> void:
 
 
 var _was_crouched := false
+## Issue #540: what the senses and the animator are handed each tick, filled in
+## place (two dictionaries a body, not two new ones a tick).
+var _sense_in := {}
+var _anim_in := {}
 
 
 func _sense(dt: float) -> void:
@@ -683,11 +688,14 @@ func _sense(dt: float) -> void:
 		rays_cast += 1
 	elif not perception.in_cone:
 		_los_clear = false
-	perception.update(dt, {
-		"self_pos": global_position, "forward": forward(), "target_pos": tpos,
-		"crouched": crouched, "armed": armed, "los_clear": _los_clear,
-		"target_speed": _target_speed() if tpos != Vector3.INF else 0.0,
-	})
+	_sense_in["self_pos"] = global_position
+	_sense_in["forward"] = forward()
+	_sense_in["target_pos"] = tpos
+	_sense_in["crouched"] = crouched
+	_sense_in["armed"] = armed
+	_sense_in["los_clear"] = _los_clear
+	_sense_in["target_speed"] = _target_speed() if tpos != Vector3.INF else 0.0
+	perception.update(dt, _sense_in)
 	if perception.noticed and not _was_noticed:
 		noticed_target.emit()
 	elif _was_noticed and not perception.noticed:
@@ -957,13 +965,20 @@ func _animate(dt: float, move: Vector3) -> void:
 	var speed := flat.length()
 	var local := Basis(Vector3.UP, rotation.y).inverse() * flat
 	var move_local := Vector2(local.x, local.z) / maxf(speed, 0.001) if speed > 0.05 else Vector2(0, 1)
-	var out: Dictionary = anim.step(dt, {
-		"speed": speed, "move_local": move_local, "grounded": is_on_floor(), "vy": v.y,
-		"crouch": bool(command.crouch), "sprint": bool(command.sprint), "upper": str(profile.get("upper", BodyAnimatorT.UPPER_RIFLE)),
-		"aim_pitch": _aim_pitch(), "ready": carry.eased(),
-		"dance": bool(profile.get("dance_loop", false)),
-		"perform": perform, "bpm": float(profile.get("bpm", 110.0)),
-	})
+	anim.share_out = true                 # issue #540: read here at once, kept nowhere
+	_anim_in["speed"] = speed
+	_anim_in["move_local"] = move_local
+	_anim_in["grounded"] = is_on_floor()
+	_anim_in["vy"] = v.y
+	_anim_in["crouch"] = bool(command.crouch)
+	_anim_in["sprint"] = bool(command.sprint)
+	_anim_in["upper"] = str(profile.get("upper", BodyAnimatorT.UPPER_RIFLE))
+	_anim_in["aim_pitch"] = _aim_pitch()
+	_anim_in["ready"] = carry.eased()
+	_anim_in["dance"] = bool(profile.get("dance_loop", false))
+	_anim_in["perform"] = perform
+	_anim_in["bpm"] = float(profile.get("bpm", 110.0))
+	var out: Dictionary = anim.step(dt, _anim_in)
 	if bool(profile.get("dance_loop", false)):
 		rotation.y = post_facing + float(out.get("dance_yaw", 0.0))
 	for jn in out.joints:

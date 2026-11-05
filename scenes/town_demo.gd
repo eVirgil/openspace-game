@@ -1470,9 +1470,21 @@ func _build_ship() -> void:
 		gear.ground = pilot.ground      # issue #93: the fall guard, round the ball
 
 
+## Issue #540: the day's indoors check and the barracks' out-of-sight check run
+## SLOW_HZ times a second, not every tick (a quarter second late at most).
+const SLOW_HZ := 4.0
+var _slow_left := 0.0
+var _post_spots := PackedVector3Array()   ## the trooper posts' positions, read once
+var _post_spots_read := false
+
+
 func _physics_process(dt: float) -> void:
 	WorldState.tick(dt)
-	_tick_day()
+	_slow_left -= dt
+	var slow := _slow_left <= 0.0
+	if slow:
+		_slow_left = 1.0 / SLOW_HZ
+		_tick_day()
 	# A LAN guest in the host's town: the host's game runs the people and says who
 	# holds the barracks; this one only paints the town for them.
 	if lan_shared:
@@ -1481,12 +1493,13 @@ func _physics_process(dt: float) -> void:
 			_repaint_town(lan_holder)
 		return
 	# The barracks change hands out of sight (the first look, at load, is free).
-	var swap_now := not _town_synced or _barracks_unseen()
-	if not _town_withdrawn and not Story.town_garrison():
-		if swap_now:
+	# Issue #540: looked for only while a change waits, and SLOW_HZ times a second.
+	var withdraw := not _town_withdrawn and not Story.town_garrison()
+	var back := _town_withdrawn and Story.town_garrison()
+	if (withdraw or back) and (not _town_synced or (slow and _barracks_unseen())):
+		if withdraw:
 			_withdraw_town_remnant()
-	elif _town_withdrawn and Story.town_garrison():
-		if swap_now:
+		else:
 			_return_town_remnant()
 	_town_synced = true
 
@@ -1550,8 +1563,11 @@ func _barracks_unseen() -> bool:
 	var near := Territory.n("barracks_unseen_dist", 40.0)
 	var far := Territory.n("swap_dist", 110.0)
 	var me: Vector3 = (_player as Node3D).global_position
-	for m in town.markers_with_role("trooper_post"):
-		var at := town.marker_pos(str(m.id))
+	if not _post_spots_read:
+		_post_spots_read = true
+		for m in town.markers_with_role("trooper_post"):
+			_post_spots.append(town.marker_pos(str(m.id)))
+	for at in _post_spots:
 		var d := me.distance_to(at)
 		if d > far:
 			continue

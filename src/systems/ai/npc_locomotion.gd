@@ -58,9 +58,25 @@ func has_path() -> bool:
 ## Advance one frame. `ground_speed` is how fast the body is actually moving
 ## (m/s): a running body carries momentum, so it takes corners earlier.
 ## Returns { move: Vector3 (flat, unit or zero), speed: 0..1, arrived, stuck }.
+## Issue #540: with `reuse_out` the same dictionary comes back every call, filled in
+## (NpcBody reads it at once and keeps nothing); else a new one, as before.
+var reuse_out := false
+var _out := { "move": Vector3.ZERO, "speed": 0.0, "arrived": false, "stuck": false }
+
+
+func _result(move: Vector3, speed: float, arrived_now: bool, stuck_now: bool) -> Dictionary:
+	if not reuse_out:
+		return { "move": move, "speed": speed, "arrived": arrived_now, "stuck": stuck_now }
+	_out.move = move
+	_out.speed = speed
+	_out.arrived = arrived_now
+	_out.stuck = stuck_now
+	return _out
+
+
 func update(dt: float, pos: Vector3, ground_speed: float = 0.0) -> Dictionary:
 	if path.is_empty() or arrived:
-		return { "move": Vector3.ZERO, "speed": 0.0, "arrived": arrived, "stuck": false }
+		return _result(Vector3.ZERO, 0.0, arrived, false)
 
 	# Take every corner we are already on (paths often start under our feet).
 	var last := path.size() - 1
@@ -70,7 +86,7 @@ func update(dt: float, pos: Vector3, ground_speed: float = 0.0) -> Dictionary:
 	var to_goal := _flat(path[last] - pos).length()
 	if index >= last and to_goal <= arrive_radius:
 		arrived = true
-		return { "move": Vector3.ZERO, "speed": 0.0, "arrived": true, "stuck": false }
+		return _result(Vector3.ZERO, 0.0, true, false)
 
 	# Stuck: no progress ALONG THE PATH over a window. This catches a body pinned
 	# on a wall and also one circling a corner it keeps overshooting (it moves a
@@ -93,7 +109,7 @@ func update(dt: float, pos: Vector3, ground_speed: float = 0.0) -> Dictionary:
 	var speed := 1.0
 	if index >= last and slow_radius > 0.0:
 		speed = clampf(to_goal / slow_radius, 0.35, 1.0)
-	return { "move": move, "speed": speed, "arrived": false, "stuck": stuck }
+	return _result(move, speed, false, stuck)
 
 
 ## True when the legs into and out of corner `i` stay level. Only then may a
