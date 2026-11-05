@@ -24,6 +24,11 @@ Plain English, newest on top. One entry per milestone.
   your hand partway through.
 - **Your own droids don't set it off.** A grenade that hits one of your droids
   bounces off it instead of going off in your face.
+- **Grenades on LAN.** Everyone sees your grenade fly, bounce and go off where
+  it went off in your game, and sees your arm wind back and throw. Your game
+  says what it hit, as with your bolts. Guards and the town's droids take it
+  through the host's game, and the guards hear the bang. Another player in the
+  blast takes what you would (60), if friendly fire is on.
 
 ## The station's bay: six pads, a frigate and T-99 (issue #316, 2026-11-04)
 

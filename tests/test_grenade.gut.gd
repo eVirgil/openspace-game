@@ -164,6 +164,38 @@ func test_a_blast_kill_flings_harder_than_a_bolt() -> void:
 	assert_lt(edge.length(), fling.length(), "softer at the edge")
 
 
+# ---- LAN ----------------------------------------------------------------------
+
+class FakeRemote extends StaticBody3D:
+	var peer_id := 7
+	var took := 0.0
+	func apply_damage_from(amount: float, _shooter: Node) -> void:
+		took += amount
+	func apply_damage(_amount: float) -> void:
+		pass
+
+
+func test_another_players_grenade_is_only_a_picture() -> void:
+	var g := _thrown(Vector3(0, 1.5, 0), Vector3(4, 3, 0), _planes())
+	g.picture = true
+	g.is_target = func(_c): return true      # even what would set a real one off
+	var bursts := []
+	g.burst.connect(func(at, _h): bursts.append(at))
+	var t := 0.0
+	while not g.done and t < 10.0:
+		g.tick(1.0 / 60.0)
+		t += 1.0 / 60.0
+	assert_eq(bursts.size(), 0, "it never goes off by itself: the thrower's game says where")
+	assert_gt(t, float(cfg.fuse_s), "it lingers past the fuse waiting for word")
+
+
+func test_a_grenade_hurts_another_player_like_it_hurts_you() -> void:
+	var other := FakeRemote.new()
+	autofree(other)
+	assert_true(Blast.hit(other, Vector3.ZERO, cfg, null, null))
+	assert_eq(other.took, float(cfg.player_damage), "the player's damage, not a trooper's")
+
+
 # ---- the throw's pose -----------------------------------------------------------
 
 func test_the_arm_winds_back_then_swings_over_and_lets_go() -> void:

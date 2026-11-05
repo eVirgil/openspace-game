@@ -25,6 +25,9 @@ var bounces := 0
 var first_contact := Vector3.INF   ## where it first touched anything (the preview's landing)
 var resting := false
 var done := false
+## LAN: a picture of another player's grenade. It flies and bounces the same but
+## never bursts by itself; their game says where it went off (NetLink.grenade_burst).
+var picture := false
 var _look: Node3D
 
 
@@ -53,7 +56,12 @@ func tick(dt: float) -> bool:
 	if done:
 		return true
 	fuse_left -= dt
-	if fuse_left <= 0.0:
+	if picture and fuse_left <= -2.0:
+		done = true                   # the burst never came (lost): let it go
+		if is_inside_tree():
+			queue_free()
+		return true
+	if fuse_left <= 0.0 and not picture:
 		_burst(position)
 		return true
 	if resting:
@@ -83,6 +91,8 @@ func tick(dt: float) -> bool:
 
 
 func _bursts_on(c) -> bool:
+	if picture:
+		return false
 	if c == null or (shooter != null and c == shooter):
 		return false
 	if is_target.is_valid():
@@ -116,6 +126,16 @@ func _ray(a: Vector3, b: Vector3) -> Dictionary:
 	if not is_inside_tree():
 		return {}
 	return ray(get_world_3d().direct_space_state, a, b, shooter)
+
+
+## LAN: their game says it went off at `at`: the fireball and the boom here, no damage.
+func picture_burst(at: Vector3) -> void:
+	done = true
+	if is_inside_tree():
+		var into: Node = host if host != null else get_parent()
+		ExplosionFx.big(into, at, float(cfg.get("blast_size", 0.7)))
+		Sound.play("vehicle_boom", at)
+		queue_free()
 
 
 ## The ray the grenade and its preview both use: any body but the thrower (and

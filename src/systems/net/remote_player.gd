@@ -169,6 +169,7 @@ func _physics_process(dt: float) -> void:
 	avatar.sword_pose = _s.get("sword", {}) if weapon == "energy_blade" else {}
 	avatar.sword_trail_on = weapon == "energy_blade" and (flags & 256) != 0   # NetLink.F_CUTTING
 	avatar.reload = float(_s.get("reload", -1.0))
+	avatar.throw_hold = (flags & 1024) != 0        # NetLink.F_THROW_HOLD (issue #372)
 	avatar.animate(dt, {
 		"velocity": _s.vel,
 		"grounded": (flags & 1) != 0,

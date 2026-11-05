@@ -91,6 +91,10 @@ static func hit(t: Object, at: Vector3, cfg: Dictionary, shooter: Node, player: 
 			t.last_hit_from = at
 		t.apply_damage(float(cfg.get("player_damage", 60.0)))
 		return true
+	if "peer_id" in t and t.has_method("apply_damage_from"):
+		# Another player on LAN: what a grenade does to you (their game applies it).
+		t.apply_damage_from(float(cfg.get("player_damage", 60.0)), shooter)
+		return true
 	if t.has_method("apply_blast"):
 		t.apply_blast(dmg, at, shooter, wreck, float(cfg.get("blast_radius", 6.0)))
 		return true
