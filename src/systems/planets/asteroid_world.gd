@@ -66,28 +66,40 @@ var exterior_only := false             ## issue #99: seen from another planet's 
 ## or boulders. Coordinates are the station planet's own (place this node at its
 ## port's offset).
 func build_exterior(station: Dictionary, mats: LookMaterials) -> void:
+	for step in exterior_steps(station, mats):
+		(step as Callable).call()
+
+
+## Issue #573: build_exterior as pieces (each dome, the liner, the pit's shield,
+## each hallway), so a ball seen from open space can be built one a frame.
+func exterior_steps(station: Dictionary, mats: LookMaterials) -> Array:
 	exterior_only = true
 	name = "StationExterior"
 	_read_station(station)
 	if st.is_empty():
-		return
+		return []
 	var metal := mats.hull(-50.0, 3.0)
 	var panel := mats.hull(-50.0, 1.6)
 	var trim := mats.flat(Color("#899195"), 0.6, 0.7)
 	var dark := mats.flat(Color("#252a2d"), 0.88, 0.55)
 	var status := mats.glow(Color("#f0c77c"))
+	var steps: Array = []
 	for i in domes.size():
 		var dm: Dictionary = domes[i]
-		_mesh(_nm("RingWall", i), _cylinder(dm.c, dm.r, 0.0, wall_h, RING_SEG / 2, 1, _ring_gap.bind(dm)), metal, true)
-		_panelled_wall(_nm("RingWallExteriorPanels", i), dm.c, dm.r, wall_h, RING_SEG / 2, [dm.g], panel, trim, dark, status, 1)
-		var dome := _mesh(_nm("Dome", i), _dome_triangles(dm), _glass(), true)
-		dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_dome_ribs(dm, metal)
-	_mesh("Liner", _cylinder(pit_c, pit_r, 0.0, liner_h, LINER_SEG / 2, 1, _liner_gap), metal, true)
-	_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, _liner_doors(), panel, trim, dark, status, 1)
-	_pit_shield()
+		steps.append(func():
+			_mesh(_nm("RingWall", i), _cylinder(dm.c, dm.r, 0.0, wall_h, RING_SEG / 2, 1, _ring_gap.bind(dm)), metal, true)
+			_panelled_wall(_nm("RingWallExteriorPanels", i), dm.c, dm.r, wall_h, RING_SEG / 2, [dm.g], panel, trim, dark, status, 1)
+			var dome := _mesh(_nm("Dome", i), _dome_triangles(dm), _glass(), true)
+			dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_dome_ribs(dm, metal))
+	steps.append(func():
+		_mesh("Liner", _cylinder(pit_c, pit_r, 0.0, liner_h, LINER_SEG / 2, 1, _liner_gap), metal, true)
+		_panelled_wall("LinerExteriorPanels", pit_c, pit_r, liner_h, LINER_SEG / 2, _liner_doors(), panel, trim, dark, status, 1)
+		_pit_shield())
 	for i in halls.size():
-		_dress_hall(halls[i], i, metal, _glass(), null, mats)
+		var hl: Dictionary = halls[i]
+		steps.append(func(): _dress_hall(hl, i, metal, _glass(), null, mats))
+	return steps
 
 
 func _read_station(station: Dictionary) -> void:

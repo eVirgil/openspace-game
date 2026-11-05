@@ -185,6 +185,34 @@ built every other planet's look headless. Not flown on screen.
   it is the same banded ball and ring home's sky draws, about 20 degrees wide.
 - **Only planets round the same parent are listed.** Every planet today is near
   home; a moon of a moon would not see its grandparent's other children.
+  (Fixed by issue #573: every scene reads one system frame, to any depth.)
+
+## After open space (issue #573, 2026-11-05)
+
+**Checked:** `test_smoke`; the touched `test_planets` tests one by one (the
+station's neighbours, open space, bubbles never touch, every type builds, a new
+planet is only a config, the giant and the painting, every Oda, jobs off home);
+scratch probes (not in the repo), headless and rendered with the look on this
+Mac: moon → open space → giant, and home → open space → home. Two switches each
+way, the home scene never built on moon → giant, position, speed, basis and
+throttle carried with 0 error, up the same to 0.00001 degrees. Rendered: open
+space's switch frame ~40 ms, its frames after under 10 ms, the moon's way out
+(building its own real ball) under 26 ms a frame.
+
+**Not done, honestly:**
+- **`scenes/planets_trace.gd` was not changed or run.** It still flies port →
+  moon → home, which now goes through open space both ways; its own checks were
+  written for direct switches and may fail. The moon → giant route the issue
+  names was flown in a scratch probe instead.
+- **`test_handoff_seams` and the full suite were not run.** The sky frame in
+  open space is home's (as the moons used already), so it should match.
+- **Arriving is still slow:** the giant's first frame is ~270-330 ms rendered
+  (its station's parked ships' hulls in `_gather_berths` ~160 ms, the ground
+  ~40 ms), home's ~200 ms. That is #574.
+- **A cheap ball swaps for the real one at 6 km** (a far rock ball for the
+  moon's coarse rock and its station): a small pop, far off.
+- **Quitting in open space saves nothing** (no bar there): the save keeps the
+  last planet's.
 
 ## After the shields round the station's gaps (2026-11-04)
 

@@ -41,6 +41,8 @@ func new_game() -> void:
 ## spot on it (that planet's own coordinates). {} = never saved one (the home
 ## planet's spawn, as before).
 func set_where(planet_id: String, p: Vector3, has_pos: bool) -> void:
+	if PlanetGen.is_open_space(planet_id):
+		return            # issue #573: never saved as where you are: the last planet stands
 	var w := { "planet": planet_id }
 	if has_pos:
 		w["pos"] = [p.x, p.y, p.z]

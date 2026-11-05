@@ -319,10 +319,9 @@ static func system() -> Array:
 		return _system
 	var cc = PlanetGen._content()
 	var cfgs: Dictionary = cc.planets
-	var centres := {}
 	var out: Array = []
 	for id in cfgs:
-		var c = _centre(str(id), cfgs, cc, centres, 0)
+		var c = PlanetGen.system_centre(str(id), cc)     # issue #573: null for open space too
 		if c == null:
 			continue
 		var cfg: Dictionary = cfgs[id]
@@ -354,17 +353,26 @@ static func system_body(id: String) -> Dictionary:
 ## in the system): what SpaceTravel calls a neighbour's offset, for any two
 ## planets, so a pointer on a moon can lead to its sister moon too.
 static func port_from(id: String, here: String) -> Vector3:
-	var a := system_body(id)
-	var b := system_body(here)
-	if a.is_empty() or b.is_empty():
+	var a := _port(id)
+	var b := _port(here)
+	if a == Vector3.INF or b == Vector3.INF:
 		return Vector3.INF
-	return (a.port as Vector3) - (b.port as Vector3)
+	return a - b
 
 
-## A point in planet `here`'s scene, in the system frame (INF when it is not in it).
+## A point in place `here`'s scene, in the system frame (INF when it is not in it).
+## Issue #573: open space's scene is the system frame itself.
 static func to_system(p: Vector3, here: String) -> Vector3:
-	var b := system_body(here)
-	return (b.port as Vector3) + p if not b.is_empty() else Vector3.INF
+	var b := _port(here)
+	return b + p if b != Vector3.INF else Vector3.INF
+
+
+## A place's origin in the system frame: a planet's port, open space's origin.
+static func _port(id: String) -> Vector3:
+	if PlanetGen.is_open_space(id):
+		return Vector3.ZERO
+	var b := system_body(id)
+	return b.port if not b.is_empty() else Vector3.INF
 
 
 ## The Remnant cruiser in the system frame, over the planet whose world has it
@@ -378,25 +386,6 @@ static func system_cruiser() -> Vector3:
 			var r := float(b.radius)
 			return (b.centre as Vector3) + dir(Vector2(float(at[0]), float(at[2])), r) * (r + float(lm.get("altitude", 0.0)))
 	return Vector3.INF
-
-
-## A planet's centre in the system frame: the home planet's under its port, the
-## rest at their "at" from the port of the planet they are near. null when the
-## chain never reaches the home planet.
-static func _centre(id: String, cfgs: Dictionary, cc, memo: Dictionary, depth: int):
-	if memo.has(id):
-		return memo[id]
-	var cfg: Dictionary = cfgs.get(id, {})
-	var out = null
-	if id == PlanetGen.home_id():
-		out = Vector3(0, -PlanetGen.ball_radius(cfg, cc), 0)
-	elif depth < 8 and cfgs.has(str(cfg.get("near", ""))) and cfg.has("at"):
-		var near := str(cfg.near)
-		var pc = _centre(near, cfgs, cc, memo, depth + 1)
-		if pc != null:
-			out = (pc as Vector3) + Vector3(0, PlanetGen.ball_radius(cfgs[near], cc), 0) + GameFlow.vec(cfg.at)
-	memo[id] = out
-	return out
 
 
 ## A planet's name for the map's title and its lines.

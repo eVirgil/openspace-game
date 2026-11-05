@@ -214,6 +214,9 @@ func build_plan(staged_build: bool) -> Array:
 	var ground_kind := str(planet.get("ground", "terrain"))
 	var add := func(n: String, tier: String, fn: Callable, poll := false) -> void:
 		plan.append({ "name": n, "tier": tier, "fn": fn, "poll": poll })
+	if ground_kind == "none":
+		_open_space_plan(add)
+		return plan
 	if use_look:
 		# Issue #162: the outfit textures load on worker threads from here, so the
 		# people built over the next frames (or after the next handoff) never wait on disk.
@@ -388,6 +391,58 @@ func build_plan(staged_build: bool) -> Array:
 	if staged_build and ball_terrain:
 		add.call("terrain_far", LATER, func(left): return _terrain_far(left), true)
 	return plan
+
+
+## Issue #573: open space (ground "none"): only the flight shell. The sky, the
+## ship you flew in (parked on its hidden pad, then flown), its pilot with travel
+## and HUD, the altitude detail and the HUD's frame; no town, people, ground,
+## bar or save (a save never records open space).
+func _open_space_plan(add: Callable) -> void:
+	if use_look:
+		add.call("look", SHELL, func(): _build_look(); return true)
+		add.call("park", SHELL, func():
+			decor = TownDecor.new()
+			decor.style = style
+			decor.location_id = str(planet.get("town_id", ""))
+			add_child(decor)
+			decor.park_only(town, look)
+			return true)
+	else:
+		add.call("light_and_sky", SHELL, func(): _add_light_and_sky(); return true)
+	if lookdev_mode:
+		return
+	add.call("ui_scale", SHELL, func(): RetroUI.apply_scale(get_tree()); return true)
+	if use_look:
+		add.call("retro_skin", SHELL, func(): add_child(RetroSkin.new()); return true)
+	add.call("music", SHELL, func(): Sound.start_music(); return true)
+	add.call("player", SHELL, func(): _spawn_player(); return true)
+	add.call("pads", SHELL, func(): _build_launch_pads(); return true)
+	if with_ship:
+		add.call("ship", SHELL, func(): _build_ship(); return true)
+	add.call("detail", SHELL, func(): _build_detail(); return true)
+	if use_look:
+		add.call("retro_hud", SHELL, func():
+			retro_hud = RetroHud.new()
+			retro_hud.demo = self
+			add_child(retro_hud)
+			return true)
+	add.call("dev_settings", LATER, func():
+		dev_settings = DevSettingsPanel.new()
+		dev_settings.name = "DevSettings"
+		dev_settings.demo = self
+		add_child(dev_settings)
+		return true)
+	if use_look:
+		add.call("objective_hud", LATER, func():
+			objective_hud = ObjectiveHud.new()
+			objective_hud.demo = self
+			add_child(objective_hud)
+			return true)
+
+
+## True in open space (issue #573): no town, no ground.
+func open_space() -> bool:
+	return str(planet.get("ground", "")) == "none"
 
 
 ## Issue #121: the town's own collider, from its worker thread (a poll step).
@@ -1493,6 +1548,8 @@ func _physics_process(dt: float) -> void:
 	if slow:
 		_slow_left = 1.0 / SLOW_HZ
 		_tick_day()
+	if open_space():
+		return                 # issue #573: no town to run out here
 	# A LAN guest in the host's town: the host's game runs the people and says who
 	# holds the barracks; this one only paints the town for them.
 	if lan_shared:

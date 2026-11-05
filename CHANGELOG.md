@@ -20,6 +20,20 @@ Plain English, newest on top. One entry per milestone.
   KNOWN_ISSUES.md marks a section as replaced, or if the render rules page
   loses its links.
 
+## The IP scan reads the whole repo (2026-11-05, issue #548)
+
+- **Every file is scanned, and every file name.** The franchise-name check used
+  to read only `.gd .json .txt .tscn .cfg` under five folders. It now reads
+  every text file in the repo (docs, the root markdown, the skills, tools,
+  shaders, `project.godot`, the export presets) and every file name, models
+  and sounds included. Only `addons/`, build and test output, and the two files
+  that quote the list on purpose are left out.
+- **Commit messages are checked.** `scripts/check_commit_messages.sh` reads
+  every commit a branch adds over `origin/main` against the same list, and
+  `ci.sh` runs it first.
+- **Two old hits reworded:** a changelog line that named the three ship names
+  it added to the list, and the outside review page quoting the list.
+
 ## The cruiser outside: flush bay, better guns, step out into space (2026-11-04)
 
 - **The bay sits flush in the hull.** The bay's port wall and ceiling used to
@@ -3279,7 +3293,7 @@ Fixed along the way:
 - **The IP-neutrality scan skipped every top-level file** in the folders it scans
   (`scenes/*.gd`, `content/core/manifest.json`, `scripts/*`, `tests/*`): it joined
   the folder and file names without a slash. Fixed; the guard file itself is the one
-  exclusion. Added "x-wing", "tie fighter" and "millennium falcon" to the list.
+  exclusion. Added three franchise ship names to the list.
 - **CI on a fresh checkout ran no tests but still passed.** Without an import step GUT
   could not load, printed an error, and `ci.sh` exited 0. `ci.sh` now imports first.
 
