@@ -171,9 +171,37 @@ func _l(key: String) -> String:
 
 # ------------------------------------------------------------------ frame
 
+## Issue #538: physics rays this controller has cast (clear shots and ground
+## points), for probes counting them.
+var rays := 0
+## Issue #538: who you are fighting, rebuilt every ENEMIES_EVERY_S and shared by
+## every companion that tick (enemies() walks every NPC, local and pack member).
+const ENEMIES_EVERY_S := 0.25
+## How often a companion looks again for the nearest enemy it can hit (a target
+## keeps its clear shot until then), and how many of the nearest it ray-checks.
+const AIM_EVERY_S := 0.2
+const AIM_RAYS := 3
+var _enemies: Array = []
+var _enemies_left := 0.0
+var _aim_left := {}                  ## companion uid -> seconds to its next look
+var _player_off_index := false       ## the player stands on something the height index does not know (a deck, a hull)
+
+
+## Issue #538: true once every `every` seconds, by a countdown the caller keeps
+## in `timers[key]` (the pattern for the other per-tick systems to copy).
+static func _tick_every(timers: Dictionary, key, every: float, dt: float) -> bool:
+	var left := float(timers.get(key, 0.0)) - dt
+	if left > 0.0:
+		timers[key] = left
+		return false
+	timers[key] = left + every if left > -every else every
+	return true
+
+
 func _physics_process(dt: float) -> void:
 	if player == null:
 		return
+	_player_off_index = _off_index(player.global_position)
 	if player.piloting:
 		_despawn_companions()          # they wait while you fly
 		_trail.clear()
@@ -1132,14 +1160,21 @@ func _separation(u: DroidUnit, at: Vector3) -> Vector3:
 ## Your assassin droid (deadly aim) and floating droid (a smaller gun): each kind's
 ## "gun" block, at whoever you are fighting. A kind with no gun (cargo) never shoots.
 func _companion_guns(dt: float) -> void:
-	var cands := enemies()
+	_enemies_left -= dt
+	if _enemies_left <= 0.0:
+		_enemies_left = ENEMIES_EVERY_S
+		_enemies = enemies()
+	var cands := _enemies
 	for uid in companions:
 		var u: DroidUnit = companions[uid]
 		var gun: Dictionary = DroidRoster.kind_cfg(u.kind).get("gun", {})
 		if gun.is_empty() or u.dead:
 			continue
 		u.gun_cd -= dt
-		u.target = _enemy_near(u, float(gun.get("range", 30.0)), cands)
+		var reach := float(gun.get("range", 30.0))
+		# Issue #538: look again a few times a second, or at once when the target is gone.
+		if _tick_every(_aim_left, uid, AIM_EVERY_S, dt) or not _still_target(u, reach, cands):
+			u.target = _enemy_near(u, reach, cands)
 		_engage(u, cands)
 		if u.target == null:
 			continue
@@ -1200,15 +1235,31 @@ static func by_player(shooter, player: Node) -> bool:
 
 
 ## The nearest of `cands` (enemies()) within `reach` with nothing in the way.
+## Issue #538: only the AIM_RAYS nearest are ray-checked, nearest first (it was
+## every candidate in reach, unsorted, every tick).
 func _enemy_near(u: DroidUnit, reach: float, cands: Array) -> Node3D:
-	var best: Node3D = null
-	var best_d := reach
+	var near: Array = []
 	for c in cands:
+		if not _alive(c):
+			continue
 		var d: float = u.global_position.distance_to(c.global_position)
-		if d < best_d and _clear_shot(u, c):
-			best = c
-			best_d = d
-	return best
+		if d < reach:
+			near.append([d, c])
+	near.sort_custom(func(a, b): return a[0] < b[0])
+	for i in mini(near.size(), AIM_RAYS):
+		if _clear_shot(u, near[i][1]):
+			return near[i][1]
+	return null
+
+
+## u's target is still worth shooting at: alive, still in the fight, in reach.
+func _still_target(u: DroidUnit, reach: float, cands: Array) -> bool:
+	var t = u.target
+	return t != null and _alive(t) and cands.has(t) and u.global_position.distance_to(t.global_position) < reach
+
+
+static func _alive(c) -> bool:
+	return is_instance_valid(c) and not ("dead" in c and c.dead)
 
 
 # ------------------------------------------------------------------ the pit's hauler (issue #64)
@@ -1522,7 +1573,10 @@ func _still_posted(u: DroidUnit) -> bool:
 ## A destroyed Remnant droid comes back: in town behind the barracks a minute
 ## later while the garrison holds the town, at its outpost after a few minutes.
 func _tick_remnant_respawns(dt: float) -> void:
-	for u in remnant.duplicate():
+	# Issue #538: backwards over the list, not a copy of it every tick (a respawn
+	# erases its droid and appends the new one, past where this has been).
+	for i in range(remnant.size() - 1, -1, -1):
+		var u: DroidUnit = remnant[i]
 		if not u.dead or u.respawn_left < 0.0:
 			continue
 		u.respawn_left -= dt
@@ -1864,6 +1918,7 @@ func _clear_shot(u: DroidUnit, target: Node3D, at := Vector3.INF) -> bool:
 	if not is_inside_tree():
 		return true
 	var q := PhysicsRayQueryParameters3D.create(u.muzzle(), at if at != Vector3.INF else _chest(target))
+	rays += 1
 	q.exclude = [u.get_rid()]
 	q.collide_with_areas = false
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
@@ -1939,16 +1994,23 @@ func _on_ball() -> bool:
 	return ground != null and ground.sphere() != null
 
 
-## The ground point under p, along the ground's up: the first physics surface (the town's
-## floors and roofs, the desert's collider) seen from just over the player's feet, else the
-## world's ground (WorldGround.surface_below on the ball), else the flat sand height.
-func _ground_point(p: Vector3, max_lift := INF) -> Vector3:
+## The ground point under p, along the ground's up, seen from just over the player's
+## feet. Issue #538: on the ball, WorldGround's height index answers (the town's
+## floors and roofs, the outposts, the desert: about 7 us, where this was a 60 m ray
+## per droid per tick). The ray is still cast where the index does not know the
+## floor: `ray` (a droid aboard a wreck, your droids while you stand on a deck or a
+## hull), inside a gravity zone (the cruiser, a station), and on flat worlds. Then
+## WorldGround.surface_below, else the flat sand height.
+func _ground_point(p: Vector3, max_lift := INF, ray := false) -> Vector3:
 	var up := _up(p)
 	var lift := 1.0
 	if player != null:
 		lift = minf(maxf((player.global_position - p).dot(up) + 2.5, 1.0), max_lift)
 	var top := p + up * lift
+	if not ray and not _off_index(top, false):
+		return ground.surface_below(top)
 	if is_inside_tree():
+		rays += 1
 		var q := PhysicsRayQueryParameters3D.create(top, top - up * 60.0, 1)
 		if player != null:
 			q.exclude = [player.get_rid()]
@@ -1964,6 +2026,19 @@ func _ground_point(p: Vector3, max_lift := INF) -> Vector3:
 	return p
 
 
+## Issue #538: whether the height index can stand in for a ray at p: only on the
+## ball, and not inside a gravity zone. With `standing`, also whether someone at p
+## stands on something the index does not know (a barge's deck, a ship's hull):
+## the index puts the ground well below their feet.
+func _off_index(p: Vector3, standing := true) -> bool:
+	if not _on_ball():
+		return true
+	for z in ground.sphere().gravity_zones:
+		if p.distance_squared_to(z.center) < z.reach and (z.box as AABB).has_point((z.inv as Transform3D) * p):
+			return true
+	return standing and player != null and player.is_on_floor() and ground.height_above(p) > 0.6
+
+
 ## The sand height under p on a flat world (kept for callers that want a number).
 func _ground_y(p: Vector3) -> float:
 	return _ground_point(p).y
@@ -1973,7 +2048,9 @@ func _ground_y(p: Vector3) -> float:
 ## Issue #148: a droid aboard the wreck looks for its floor just over its feet,
 ## never from the player's height (that would find a deck or the hull above it).
 func _put(u: DroidUnit, p: Vector3) -> void:
-	u.global_position = _ground_point(p, 1.5 if u.spec.has("site") else INF)
+	var site := u.spec.has("site")
+	var ray: bool = site or (_player_off_index and u.uid >= 0 and companions.get(u.uid) == u)
+	u.global_position = _ground_point(p, 1.5 if site else INF, ray)
 	_orient(u)
 
 
@@ -2002,16 +2079,22 @@ func _face(u: DroidUnit, dir: Vector3) -> void:
 
 ## Idle chatter: each droid near the player beeps in its own voice now and then.
 func _chirps(dt: float) -> void:
-	for u in companions.values() + remnant:
-		if not is_instance_valid(u) or u.dead:
-			continue
-		u.chirp_cd -= dt
-		if u.chirp_cd <= 0.0:
-			var ch: Array = DroidRoster.kind_cfg(u.kind).get("chirp_s", [9.0, 20.0])   # issue #80: slow, per-kind rates, per-droid spread
-			var t := rng.randf_range(float(ch[0]), float(ch[1]))   # per-droid spread so no two beep in step
-			u.chirp_cd = t * (0.8 + u.quirk().x * 0.4)
-			if u.global_position.distance_to(player.global_position) <= 25.0:
-				_beep(u)
+	for u in companions.values():    # issue #538: no companions + remnant array every tick
+		_chirp(u, dt)
+	for u in remnant:
+		_chirp(u, dt)
+
+
+func _chirp(u, dt: float) -> void:
+	if not is_instance_valid(u) or u.dead:
+		return
+	u.chirp_cd -= dt
+	if u.chirp_cd <= 0.0:
+		var ch: Array = DroidRoster.kind_cfg(u.kind).get("chirp_s", [9.0, 20.0])   # issue #80: slow, per-kind rates, per-droid spread
+		var t := rng.randf_range(float(ch[0]), float(ch[1]))   # per-droid spread so no two beep in step
+		u.chirp_cd = t * (0.8 + u.quirk().x * 0.4)
+		if u.global_position.distance_to(player.global_position) <= 25.0:
+			_beep(u)
 
 
 func _beep(u) -> void:
