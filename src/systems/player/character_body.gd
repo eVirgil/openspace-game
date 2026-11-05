@@ -92,6 +92,13 @@ var tilt := Basis.IDENTITY
 ## hands its thrust to the controller.
 var jetpack = null
 
+## Out in space round a ship (RemnantCruiser sets these while you float outside
+## its hull): gravity this strong instead of the controller's own, and the jetpack
+## refuels in the air at this rate. Below 0: as everywhere else.
+var space_gravity := -1.0
+var space_recharge := -1.0
+var _ground_gravity := -1.0
+
 ## Capsule dimensions. The body origin is at the feet (the camera's fpv_offset of
 ## 1.6 assumes that), so the capsule is lifted by half its height.
 @export var capsule_radius := 0.4
@@ -176,6 +183,9 @@ func _physics_process(delta: float) -> void:
 	controller.velocity = made_in.inverse() * velocity
 	if grounded and controller.velocity.y < 0.0:
 		controller.velocity.y = 0.0
+	if _ground_gravity < 0.0:
+		_ground_gravity = controller.gravity
+	controller.gravity = space_gravity if space_gravity >= 0.0 else _ground_gravity
 	_step_jetpack(delta, grounded)
 	# A ground height far below the world disables the controller's flat-floor
 	# clamp, so landing is decided by collision instead of a hardcoded y = 0.
@@ -404,6 +414,7 @@ func _step_jetpack(delta: float, grounded: bool) -> void:
 		controller.max_rise = 0.0
 		return
 	var was: bool = jetpack.thrusting
+	jetpack.air_recharge_override = space_recharge
 	var held: bool = bool(controller.command.jump_held) and not locked
 	controller.lift = jetpack.step(delta, held, grounded)
 	controller.max_rise = jetpack.max_rise()

@@ -33,6 +33,11 @@
     "fight_back_radius": 1300.0,
     "note": "Flying to it. The ball curves away under the straight line from the edge of space to the cruiser, so that line dips below the edge: a fight running is not broken off by that while the nose is within cone_deg of the cruiser and you are no more than floor metres under the edge. Within calm_radius of it normal flight is held to the ship's space-fight speed (its 'flight' block: 48 m/s for an interceptor, not 680 at the edge of space), so flying in through the bay's mouth (which takes you out of the fight, not ends it) does not hand you a ship you cannot line up with the bay; full speed again by calm_out. Within fight_off_radius of it the fight lets go of her and normal flight has her for the bay (the fight goes on without her, as in the bay); she is back in it past fight_back_radius, further out so the edge does not flicker. The escort's fight is never broken off by diving: more than floor metres under the edge you are out of it until you climb back. Any fight in the cruiser's sky follows you (Dogfight.arena_follow): both sides come along instead of turning back to where it started."
   },
+  "outside": {
+    "gravity": 4.0,
+    "jet_recharge": 0.9,
+    "note": "Out through the bay's shield on foot (the shield lets you through; it still holds the crew in). Off the decks but within the cruiser's own gravity (CruiserHull.GRAVITY_BOX: the hull and about 110 m round it) you float: gravity is this many m/s/s instead of 20, and the jetpack refuels in the air at jet_recharge seconds of fuel a second (after its usual pause), so you can fly round the hull and land on it. Drift out of the box and you are pulled back aboard by the dock pad."
+  },
   "wake_distance": 2600.0,
   "sleep_distance": 460.0,
   "aboard_shadow_distance": 150.0,

@@ -26,6 +26,9 @@ var thrusting := false
 var _held_for := 0.0        ## seconds jump has been held this press
 var _since_thrust := 1000.0
 var _was_held := false
+## Out in space (character_body.space_recharge): refuel in the air at this rate
+## instead of recharge_air(). Below 0: the item's own.
+var air_recharge_override := -1.0
 
 ## Totals for traces and the HUD.
 var burns := 0              ## times the pack lit
@@ -117,7 +120,8 @@ func step(dt: float, jump_held: bool, on_ground: bool) -> float:
 	thrusting = false
 	_since_thrust += dt
 	if _since_thrust >= recharge_delay():
-		var rate := recharge_ground() if on_ground else recharge_air()
+		var air := air_recharge_override if air_recharge_override >= 0.0 else recharge_air()
+		var rate := recharge_ground() if on_ground else air
 		fuel = minf(fuel_max(), fuel + rate * dt)
 	return 0.0
 
