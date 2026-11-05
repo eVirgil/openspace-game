@@ -87,6 +87,9 @@ it runs, stop it and start again from the new commit.
 
 Check before going on: no `ERROR` in the log, both `package:` lines with a
 size, and the Mac signature verifies (the script stops otherwise).
+Each zip should be about 0.6 GB. Much bigger means something that should not
+ship is in the pack (docs stills, raw models in a `source/` folder): see
+"What ships" in `docs/SHARING.md` before sending it.
 
 ## 4. Put them on the Desktop
 
