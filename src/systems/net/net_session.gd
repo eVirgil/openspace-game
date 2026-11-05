@@ -273,6 +273,18 @@ static func in_game(id: int) -> bool:
 	return active() and link.roster.has(id)
 
 
+## Issue #552: `shooter` is player `p` (your game's own): their body, or the hull
+## of the ship or speeder they are in (its cannons and lasers fire as that hull).
+## NetWorld (your hits on the host's people) and RemotePlayer (on a friend) both ask.
+static func fired_by(shooter, p) -> bool:
+	if shooter == null or p == null or not is_instance_valid(shooter) or not is_instance_valid(p):
+		return false
+	if shooter == p:
+		return true
+	var v = p.get("vehicle")
+	return v != null and is_instance_valid(v) and v.has_method("hull_body") and shooter == v.hull_body()
+
+
 static func mark_color() -> Color:
 	return Color(str(cfg().get("mark_color", "#4da6ff")))
 
