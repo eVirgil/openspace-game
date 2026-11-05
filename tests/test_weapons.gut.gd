@@ -83,3 +83,22 @@ func test_reload_progress_runs_zero_to_one() -> void:
 	assert_almost_eq(w.reload_progress(), 0.25, 0.001)
 	w.start_firing(0.8, false)
 	assert_eq(w.reload_progress(), -1.0, "done")
+
+
+## Issue #546: a held trigger fires at the data's rate. The cooldown used to drop
+## the part of the tick past zero, so every rate rounded up to whole 60 Hz ticks
+## (the pistol's 0.12 s fired every 0.133 s, 10% slow).
+func test_held_trigger_fires_at_the_data_rate() -> void:
+	var content = load("res://src/systems/dataload/core_content.gd").new()
+	content.load_from()
+	var Weapon = load("res://src/systems/combat/weapon.gd")
+	for id in ["pistol_blaster", "rifle_blaster", "ship_cannon"]:
+		var cfg: Dictionary = content.get_weapon(id).duplicate()
+		cfg["mag"] = 100000   # no reloads in the window
+		var w = Weapon.new(cfg)
+		var shots := 0
+		for i in 600:   # 10 s at 60 Hz
+			if w.start_firing(1.0 / 60.0, true) == int(w.Result.SHOT):
+				shots += 1
+		var want: float = 10.0 / float(cfg["rate"])
+		assert_almost_eq(float(shots), want, 1.0, "%s: %d shots in 10 s, data says %.1f" % [id, shots, want])
