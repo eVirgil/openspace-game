@@ -97,6 +97,17 @@
     "sound_pitch": 0.6,
     "slot": 4
   },
+  "throw": {
+    "wind": [-0.26, 0.36, -0.32],
+    "over": [-0.22, 0.50, 0.06],
+    "release": [-0.12, 0.30, 0.50],
+    "follow": [0.04, -0.10, 0.36],
+    "left": [0.10, 0.10, 0.50],
+    "swing_s": 0.32,
+    "release_at": 0.4,
+    "blend_s": 0.15,
+    "note": "Issue #372: the overarm grenade throw (src/systems/anim/throw_pose.gd). Hands in chest space, metres (+X the body's left, +Y up, +Z ahead; the right shoulder is at -0.22, 0.18, 0). Holding F the right hand waits at 'wind' (behind and above the shoulder, the grenade in it) and the left points ahead at 'left'. Letting go swings the right hand over 'over', through 'release' and down to 'follow' in swing_s seconds; the grenade leaves the hand release_at of the way through. The arms ease in and out over blend_s; the gun is tucked away while the hand is busy."
+  },
   "wheel": {
     "note": "The Tab weapon wheel (issue #410). hold_time: seconds of Tab before it opens (shorter is a tap that cycles). dead_zone: fraction of the radius that is the middle. mouse_pixels: mouse travel from the middle to the rim. radius and inner are on-screen pixels.",
     "hold_time": 0.2,

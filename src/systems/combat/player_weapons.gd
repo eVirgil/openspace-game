@@ -61,6 +61,9 @@ var grenade_cfg: Dictionary = {}    ## issue #372: content/core/weapons/grenade.
 var throw_aiming := false           ## the throw key is held with a grenade to throw
 var grenades_thrown := 0
 var last_arc: Dictionary = {}       ## the preview's GrenadeArc.trace, while aiming
+var last_grenade: Node              ## the last one thrown
+var _release_left := -1.0           ## seconds until the swinging hand lets go (< 0: none)
+var _release_aim: Array = []        ## [origin, velocity] as the key was let go
 
 var blade_extent := 0.0
 var aiming := false
@@ -242,22 +245,32 @@ func release_fire() -> void:
 
 ## Issue #372: the throw key down: aim, if there is a grenade to throw.
 func press_throw() -> void:
-	if not enabled or wheel.is_open or sprinting or grenades() <= 0 or player.get("is_downed") == true:
+	if not enabled or wheel.is_open or sprinting or grenades() <= 0 or player.get("is_downed") == true \
+			or _release_left >= 0.0:
 		return
 	throw_aiming = true
 	_fire_held = false
 
 
-## Let go: throw one along the arc shown. Returns the grenade, or null.
-func release_throw() -> Node:
+## Let go: the arm swings over (ThrowPose) and the grenade leaves the hand
+## part way through, along the arc shown then. Returns whether a throw started.
+func release_throw() -> bool:
 	if not throw_aiming:
-		return null
+		return false
 	throw_aiming = false
 	if _arc_view != null:
 		_arc_view.hide_arc()
 	if not enabled or grenades() <= 0:
-		return null
-	return throw_grenade(throw_origin(), throw_velocity())
+		return false
+	var delay := ThrowPose.release_delay(ThrowPose.spec(avatar.look if avatar != null else look))
+	if avatar != null:
+		avatar.start_throw_swing()
+	if delay <= 0.0 or avatar == null:
+		throw_grenade(throw_origin(), throw_velocity())
+		return true
+	_release_left = delay
+	_release_aim = [throw_origin(), throw_velocity()]
+	return true
 
 
 ## How many grenades the player carries.
@@ -278,6 +291,7 @@ func throw_grenade(at: Vector3, v: Vector3) -> Node:
 		into.add_child(g)
 		g.global_position = at
 	grenades_thrown += 1
+	last_grenade = g
 	_play("blade_swing")
 	threw.emit(g)
 	return g
@@ -324,7 +338,15 @@ func _view() -> Transform3D:
 	return avatar.global_transform.rotated_local(Vector3.UP, PI) if avatar != null else Transform3D.IDENTITY
 
 
-func _tick_throw() -> void:
+func _tick_throw(dt: float) -> void:
+	if _release_left >= 0.0:
+		_release_left -= dt
+		if _release_left < 0.0:
+			# Along the arc shown when the key came up (the view may have moved since):
+			# from where the hand is now, at the speed and heading the dots promised.
+			throw_grenade(throw_origin(), _release_aim[1] if _release_aim.size() == 2 else throw_velocity())
+	if avatar != null:
+		avatar.throw_hold = throw_aiming
 	if throw_aiming and (not enabled or grenades() <= 0 or player.get("is_downed") == true or wheel.is_open):
 		throw_aiming = false
 	if not throw_aiming:
@@ -362,6 +384,7 @@ func set_enabled(on: bool) -> void:
 		_fire_held = false
 		_alt_on = false
 		throw_aiming = false
+		_release_left = -1.0
 		if _arc_view != null:
 			_arc_view.hide_arc()
 		combo.set_block(false)
@@ -400,7 +423,7 @@ func _physics_process(dt: float) -> void:
 			_hum.stop()
 
 	_tick_sprint(dt)
-	_tick_throw()
+	_tick_throw(dt)
 
 	# Guns tick every frame (cooldowns, reloads) whether or not the trigger is down.
 	# Issue #87: in third person a resting gun comes up first, then fires.
@@ -410,7 +433,7 @@ func _physics_process(dt: float) -> void:
 	for id in guns:
 		var g: Weapon = guns[id]
 		var trigger: bool = enabled and id == cur and holder.is_ready() and _fire_held and avatar.gun_up() \
-			and not sprinting and not throw_aiming
+			and not sprinting and not throw_aiming and not (avatar != null and avatar.throwing())
 		var r: int = g.start_firing(dt, trigger)
 		if r == Weapon.Result.SHOT:
 			_shoot(id)

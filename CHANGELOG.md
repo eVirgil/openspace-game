@@ -18,6 +18,12 @@ Plain English, newest on top. One entry per milestone.
 - **Where to get them.** Every gear trader and fence sells them, 40 cr each,
   from day 1 in story and free play, and never runs out. Remnant troopers
   sometimes drop one. The count shows on the HUD under the ammo and is saved.
+- **An overarm throw.** Holding F, your right hand winds back behind your
+  shoulder with the grenade in it and your left points ahead; your gun is
+  tucked away. Letting go swings the arm over the top, and the grenade leaves
+  your hand partway through.
+- **Your own droids don't set it off.** A grenade that hits one of your droids
+  bounces off it instead of going off in your face.
 
 ## The station's bay: six pads, a frigate and T-99 (issue #316, 2026-11-04)
 
