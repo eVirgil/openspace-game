@@ -232,4 +232,5 @@ flight_radio={
 
 [rendering]
 
+global_illumination/sdfgi/frames_to_converge=1
 textures/vram_compression/import_etc2_astc=true

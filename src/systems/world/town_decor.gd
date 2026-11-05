@@ -634,6 +634,7 @@ func _lamp_at(parent: Node3D, pos: Vector3) -> void:
 	l.position = pos + Vector3(0.3, 0, 0)
 	l.light_color = Color("#ffb46a")
 	l.omni_range = 9.0
+	l.omni_attenuation = 1.5           # issue #535: tighter pools, so the bar's lamps do not merge into one orange wash
 	l.set_meta("base_energy", 2.2)
 	l.shadow_enabled = false
 	parent.add_child(l)
