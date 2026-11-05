@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.6.3 (2026-11-04)
+
+- Share builds are now **OpenSpace V1.6.3**. Everything below, down to "New
+  version is 1.6.2", is in it.
+
 ## Grenades: hold F to aim, let go to throw (issue #372, 2026-11-04)
 
 - **Hold F to aim a grenade.** The view zooms in a little and a dotted arc runs
