@@ -2,6 +2,40 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## The station's rooms: textured and filled (2026-11-05)
+
+Every room aboard the ringed giant's station except the favela has new surfaces
+and more in it. All of it is drawn by the station's own shader, so there is
+nothing new to load or compile, and each floor draws only a few more meshes.
+
+- **The upper homes' suites.** A marble foyer and plank floors, wood panelling
+  with a brass rail under a fabric wall, tufted velvet booths and sofas, rugs
+  with borders, marble bar and table tops, lit water in the aquarium. New in
+  each: a dining table under pendant lamps, a sofa round a wall screen,
+  bookcases, a reading nook, pictures on the walls, plants, statues round the
+  dance floor, a hot tub and loungers by the window, drapes at the glass. The
+  chandeliers hang lower, and the walkway has a carpet runner.
+- **The engine deck.** Tread plate floors with hazard lines, pipe runs along
+  the walls and a railed catwalk with a ladder in every room. The reactors have
+  coolant tanks piped to their crowns. The cargo holds have pallet racks, a
+  loader, a gantry crane and drums. The pump rooms have tanks along the walls
+  and a manifold up the window. The workshops have tool cabinets, a lathe, a
+  drill press, a welding cart, a parts rack, and a speeder up on a lift. Crates
+  and drums stand along the walkway.
+- **The Remnant's deck.** Each room has its own floor: tread plate, rubber
+  matting, carpet or tile. The bunk rooms gain card tables, reading lights and
+  a rifle rack, with their lockers now round the window. The armouries have
+  armour on stands and ammunition racks in the cage. The commander's office has
+  bookcases, a conference table, a drinks cabinet, a globe and armchairs. The
+  mess has four long tables with trays, a serving counter with hot food under
+  glass, and a kitchen behind it. The control room has computer racks along its
+  walls.
+- **The markets.** Stone flags underfoot, dark tiles round the walkway, stock
+  piled behind the stalls, lamp posts and planters along the walkway, and
+  banners hung from the ceiling.
+- **Fixed:** the suites' wall panelling and the bunk rooms' lockers used to run
+  out through the window glass at the rooms' far corners.
+
 ## The cruiser outside: flush bay, better guns, step out into space (2026-11-04)
 
 - **The bay sits flush in the hull.** The bay's port wall and ceiling used to

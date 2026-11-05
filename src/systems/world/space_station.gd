@@ -26,7 +26,11 @@ extends Node3D
 
 const SHADER := preload("res://src/systems/look/shaders/cruiser_metal.gdshader")
 const FINISHES := { "hull": 0, "trim": 1, "deck": 2, "wall": 3, "grate": 4, "cargo": 6, "console": 7, "rail": 8,
-	"bridge": 9, "pad": 10, "beacon": 11, "screen": 12 }
+	"bridge": 9, "pad": 10, "beacon": 11, "screen": 12,
+	# The rooms' finishes (StationFill._t: tinted, in the room's own frame).
+	"carpet": 14, "rug": 15, "tile": 16, "plate": 17, "rubber": 18, "marble": 19, "velvet": 20, "cloth": 21,
+	"brass": 22, "veneer": 23, "woodfloor": 24, "locker": 25, "books": 26, "foliage": 27, "water": 28,
+	"hazard": 29, "barrel": 30, "art": 31, "pavers": 32 }
 const StationFill := preload("res://src/systems/world/station_fill.gd")
 const TownBuildings := preload("res://src/systems/world/town_buildings.gd")
 const StationCrowd := preload("res://src/systems/world/station_crowd.gd")

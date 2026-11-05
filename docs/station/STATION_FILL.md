@@ -7,11 +7,11 @@ from the config's `"fill"` block: one entry per floor id, by `use`.
 | use | Floors | What is in it |
 |---|---|---|
 | `favela` | `homes` (main tower, the lower homes) | Open from the walkway to the glass and packed like a favela: nine rings of shacks, booths and the town's huts back to back in pairs with an alley between each pair, 8 radial alleys out from the walkway and a lane to the tunnel door. A third of the shacks have a second one built on top, with a ladder. Cables strung with bulbs and washing lines cross the alleys. About 355 shacks, 120 booths and 20 huts. |
-| `suites` | `homes_2` (second tower's top floor, the upper homes) | 8 big suites (10 rooms; the two by the tunnel's corridor have no door), all open, dressed like the cantina's club and the party barge: dark wood floors and panelling with a gold rail, neon lines, a bar with lit bottles, an aquarium, two velvet booths under chandeliers, a light-up dance floor ringed by cocktail tables, a long sofa, a grand piano in every other suite, a round bed under a gold canopy by the window. |
+| `suites` | `homes_2` (second tower's top floor, the upper homes) | 8 big suites (10 rooms; the two by the tunnel's corridor have no door), all open, dressed like the cantina's club and the party barge: a marble foyer, lacquered plank floors, veneer panelling with a brass rail under a fabric wall, neon lines, a bar with lit bottles, a lit aquarium, two tufted velvet booths on rugs under chandeliers, a light-up dance floor ringed by cocktail tables and statues, a long sofa with side lamps, a grand piano in every other suite, a dining table under pendants, a sofa round a wall screen, bookcases, a reading nook, pictures, plants, a hot tub and loungers by the window, drapes at the glass, a round bed under a gold canopy. A carpet runner round the walkway. |
 | `homes` | (none today) | Long studios in a floor's open rooms (lounge, kitchen, partition, bedroom by the window), the rest locked with a shut door and an amber lock light. |
-| `market` | `markets`, `markets_2` | Rings of the town's market stalls (`TownMarket`: tables, canopies, wares), and an outer ring packed with shacks and booths like the favela's (`pack`). A lane is kept clear to every tunnel door. |
-| `remnant` | `outpost` (second tower's middle floor) | The Remnant's deck (issue #314): its rooms by turn are the cruiser's control room (`OutpostRoom.inside`, the planet map over its holo table, built near), bunk rooms, armouries, the commander's office and a mess; red stripes, banners and lamps down the walkway, and a staggered barricade with a lit checkpoint at the tunnel from the favela. Its reds are faction materials (`faction_mats`): taken, the deck is repainted in the locals' colours in place. The people are `StationRemnant`. |
-| `engines` | `engines` | Its 8 rooms by turn: reactors, cargo holds (one has the drop hatch in its floor, sealed until the wrecks below exist, #317), pump rooms, workshops. Pipes run round the walkway's ceiling. |
+| `market` | `markets`, `markets_2` | Rings of the town's market stalls (`TownMarket`: tables, canopies, wares), and an outer ring packed with shacks and booths like the favela's (`pack`). A lane is kept clear to every tunnel door. Stone flags underfoot, dark tiles round the walkway, stock (crates, drums, sacks, tarped heaps) in the gap behind back-to-back rings, lamp posts and planters round the walkway's edge, banners hung from the ceiling. |
+| `remnant` | `outpost` (second tower's middle floor) | The Remnant's deck (issue #314): its rooms by turn are the cruiser's control room (`OutpostRoom.inside`, the planet map over its holo table, built near; computer racks along its walls), bunk rooms (rubber matting, card tables, reading lights, lockers round the window), armouries (tread plate, armour on stands, ammunition racks in the cage), the commander's office (carpet, veneer panelling, bookcases, a conference table, a drinks cabinet, armchairs) and a mess (tiles, four long tables with trays, a serving counter, the kitchen behind it); red stripes, banners and lamps down the walkway, and a staggered barricade with a lit checkpoint at the tunnel from the favela. Its reds are faction materials (`faction_mats`): taken, the deck is repainted in the locals' colours in place. The people are `StationRemnant`. |
+| `engines` | `engines` | Its 8 rooms by turn: reactors (coolant tanks piped to the crown, a hazard ring, consoles), cargo holds (one has the drop hatch in its floor, sealed until the wrecks below exist, #317; pallet racks, a loader, a gantry crane, drums), pump rooms (tanks along the walls, a manifold up the window), workshops (tool cabinets, a lathe, a drill press, a welding cart, a parts rack, a speeder on a lift). Every room: tread plate, pipe runs and a railed catwalk with a ladder along the walls, a cable tray with lamps. Pipes run round the walkway's ceiling, stock stands against its wall between the doors. |
 
 The top floor is still empty (the cantina comes with #314's rest).
 
@@ -62,7 +62,22 @@ runtime).
 9. **Few colliders.** Only what you would walk into (couches, counters, beds,
    tables, stall tables, huts, machines, crates) gets a box, all in one `Props`
    body a floor. Wares, canopies and trim are only drawn.
-10. **Look layer only.** With `use_look = false` there is no fill, and the
+10. **Room finishes, not textures.** What the rooms are made of (carpet, rugs,
+   tile, tread plate, rubber, marble, velvet, cloth, brass, veneer, plank floors,
+   lockers, book spines, leaves, lit water, hazard stripes, drums, pictures, stone
+   flags) are finishes 14 to 32 of the station's own shader (`cruiser_metal`),
+   drawn in the shader from its noise: no image files, nothing to compile aboard.
+   `StationFill._t(finish, tint)` makes one material a finish, colour and floor,
+   laid out in the frame of the room it is in (the tower's middle and room count:
+   `room_c`, `room_n`), so tiles and planks run with a room's walls. Keep the
+   colours to a short list a floor: each is a mesh. A floor's covering is strips cut
+   to the room's shape (`_cover`), and anything along a wall goes through `_liner`
+   or `_corner`, which stop where the side walls meet the window's arc (a box run
+   to the room's full depth pokes out through the glass). Fine stripes fade to
+   their average where a pixel covers more than a few centimetres (`aa`), so floors
+   do not shimmer. A material that would merge past `mesh_verts` vertices (a
+   market's paving) is cut into several meshes, so no commit is a long tick.
+11. **Look layer only.** With `use_look = false` there is no fill, and the
    station plays as before.
 
 ## The crowd (`StationCrowd`, `src/systems/world/station_crowd.gd`)
