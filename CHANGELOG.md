@@ -2,6 +2,18 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Sniper rifle balance, and the weapon keys move (2026-11-04)
+
+- **The sniper rifle fires half as fast.** 0.24 s between shots instead of
+  0.12, so it is now slower than the rifle blaster.
+- **Scope it to snipe.** Scoped in, it still lands dead on the crosshair.
+  Not scoped in, each shot can wander up to 3 degrees, enough to miss a
+  trooper at range.
+- **New weapon keys.** 1 pistol, 2 rifle, **3 sniper rifle**, **8 energy
+  sword**. Keys 4 to 7 are empty, kept free for guns to come. The weapon wheel
+  matches: the sniper is at slot 3 and the sword at slot 8 (up and to the left).
+  The mouse wheel and Tab skip the empty slots.
+
 ## Grenades throw about 3x farther (2026-11-04)
 
 - **A longer throw.** A grenade now leaves your hand faster and a little
