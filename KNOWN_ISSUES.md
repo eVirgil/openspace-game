@@ -199,14 +199,26 @@ out, and the same over the moon), twice clean, 0 script errors, 0 crashes.
   cost ~240 ms entering the tree; one now lives under the root all session.
 - SceneReaper no longer blocks a frame on a terrain's running worker jobs.
 
+**Part 2 (same trace, same Mac):**
+- Arriving: home ~377 → ~176-206 ms, the moon ~211 → ~156-164 ms. The first
+  frame builds only the ship on its pad; the town's decor comes in over the
+  frames after, one piece a step (`TownDecor.town_steps`), the box town hidden
+  until its materials are on; the bays' ships and the mesas follow and join the
+  berths and the ground then (`ShipPilot.town_built_late`).
+- The 0.5 s frames at ~6 km were not the steps: every garrison checked its
+  cover spots against the navmesh on the same frames, and a nearest-point query
+  costs more once the outposts' ground is in the map. One 2 ms budget a frame
+  for all of them (`Garrison.SPOT_BUDGET_MS`): npc_brains' frame 546 → 168 ms,
+  the interceptor's and speeders' (~515-545) back under budget.
+
 **Not done, honestly (still over the issue's budget):**
-- **Arriving is still long:** home ~377 ms (decor ~170, ship ~114: berths and
-  ground, boxes ~24, landforms ~36), the moon ~210. Moving the town's decor,
-  boxes, landforms and parked ships out of the shell is the next step.
-- **The staged build on the way down still has 0.4-0.6 s frames** around
-  5.8-6.5 km (npc_brains, interceptor, speeders, droids, barge, cruiser), more
-  than the steps' own times; likely first-draw pipeline compiles. Building
-  people and outposts by altitude, one body a step, is not done.
+- The arrival frame is still ~180-200 ms at home: the ship's own setup (~120 ms:
+  ShipPilot._ready, not split yet) and the boxes (~24).
+- Staged steps that are one big piece: the barge (~280 ms), the droids (~200),
+  the club's look (~50-70); the cruiser's frame is ~165 (first-draw pipelines).
+  Two ~220 ms frames near 5.1-5.4 km have no step on them; not found yet.
+- `test_town_decor` fails (yard containers, the gate lintel, the light count)
+  on this branch's base as well; not from these changes.
 - The descent trace has no GUT test reading it; its budgets are constants in it.
 
 ## After open space (issue #573, 2026-11-05)
