@@ -103,17 +103,21 @@ func _open() -> void:
 
 ## _input, not _unhandled_input: the menu is modal, and nothing behind it may
 ## take Enter or the arrow keys first.
+##
+## The key is marked handled before it acts: picking reloads the town, which
+## takes the scene (this menu with it) out of the tree at once, and then
+## get_viewport() is null. A debug build only logged that; the exported game
+## (a release build) crashed on it, on a first launch, as Enter picked a game.
 func _input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey) or not event.pressed:
 		return
 	var k := (event as InputEventKey).keycode
 	if k in [KEY_UP, KEY_W, KEY_DOWN, KEY_S]:
+		get_viewport().set_input_as_handled()
 		_select(posmod(selected + (-1 if k in [KEY_UP, KEY_W] else 1), CHOICES.size()))
 	elif k in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE] and not event.echo:
+		get_viewport().set_input_as_handled()
 		pick(CHOICES[selected][0])
-	else:
-		return
-	get_viewport().set_input_as_handled()
 
 
 ## Light choice `i`: the one Enter picks.
