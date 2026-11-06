@@ -2,6 +2,11 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## New version is 1.6.4 (2026-11-05)
+
+- Share builds are now **OpenSpace V1.6.4**. Everything below, down to "New
+  version is 1.6.3", is in it.
+
 ## Bug fix: share builds carry Oda's persona again (2026-11-05)
 
 - **With AI characters on, the cantina owner talks like herself in a
