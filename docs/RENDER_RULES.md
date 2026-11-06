@@ -7,7 +7,7 @@ per-frame code. They apply as much as "What can not change" in the
 says why in its body.
 
 Lifted from four places, which keep the detail and the history:
-[`docs/station/STATION_FILL.md`](station/STATION_FILL.md) (the station's ten
+[`docs/station/STATION_FILL.md`](station/STATION_FILL.md) (the station's eleven
 rules and the crowd's five), DECISIONS "Draw distance" (2026-11-02),
 [`docs/ART_DIRECTION.md`](ART_DIRECTION.md) (the budget) and
 [`docs/performance-traces.md`](performance-traces.md) (how to measure).
@@ -28,7 +28,8 @@ a frame, with headroom left for the local LLM.
    120 triangles). A model is for what the player looks at up close.
 4. **No new shaders in a dressing.** A shader compiles on first use, 60 to
    70 ms on the Mac. Reuse one from `src/systems/look/shaders/` through
-   `LookMaterials`.
+   `LookMaterials`. A new surface is a new finish in a shader already
+   compiled (the station's rooms: `cruiser_metal` 14 to 32, `StationFill._t`).
 5. **Never read a mesh back** from the renderer (`append_from`,
    `surface_get_arrays`, `PrimitiveMesh.get_mesh_arrays`): about 8 ms a mesh
    waiting on the GPU. Build triangles from your own numbers

@@ -23,6 +23,28 @@ shader_type spatial;
 //              bar chart, a radar sweep, a trace (a face of the box is the screen)
 //  13 turret   the dorsal gun houses: riveted gunmetal panels, grimed low, a
 //              red accent line under the roof
+// The station's rooms (StationFill; tinted by `tint`, laid out in the room's own
+// frame: room_c is the tower's middle and room_n its rooms, so tiles and planks
+// run with a room's walls; room_n 0 keeps the station's axes, for open floors):
+//  14 carpet   wall-to-wall pile, a faint diamond lattice woven in
+//  15 rug      a rug: pile, a dark border with two light lines, a medallion
+//  16 tile     glazed tiles with grout, each a shade apart
+//  17 plate    diamond tread plate in welded sheets, grimed
+//  18 rubber   ribbed rubber matting
+//  19 marble   polished stone, veined (light veins on dark stone)
+//  20 velvet   button-tufted upholstery with a sheen at grazing angles
+//  21 cloth    plain woven cloth, a little creased (bedding, mattresses)
+//  22 brass    brushed brass
+//  23 veneer   wood panelling: framed panels, the grain running up
+//  24 woodfloor lacquered planks in staggered rows
+//  25 locker   a steel locker door: a bezel, vent slots, a handle
+//  26 books    rows of book spines in a shelf's front, 40 cm a shelf
+//  27 foliage  leaves
+//  28 water    lit water: moving caustics and rising bubbles (an aquarium, a pool)
+//  29 hazard   yellow and black floor stripes (tint the yellow)
+//  30 barrel   a painted drum: ribs and a pale band round its middle
+//  31 art      a framed canvas, colour fields from the noise, gilded frame
+//  32 pavers   stone flags in running bond, worn and dirty at the joins
 
 uniform int finish = 0;
 uniform vec4 hull_color : source_color = vec4(0.55, 0.58, 0.62, 1.0);
@@ -40,17 +62,36 @@ uniform float screen_energy = 1.6;
 uniform float turret_foot = 43.8;
 uniform float turret_band = 2.35;
 uniform sampler2D noise_tex : repeat_enable, filter_linear_mipmap;
+// The room finishes (14 up): their colour, and the frame they are laid out in.
+uniform vec4 tint : source_color = vec4(1.0);
+uniform vec2 room_c = vec2(0.0);
+uniform float room_n = 0.0;
 
 #include "res://src/systems/look/shaders/pad_metal.gdshaderinc"
 
 varying vec3 lpos;
 varying vec3 lnorm;
 varying vec2 fuv;
+varying vec3 rpos;
+varying vec3 rnorm;
 
 void vertex() {
 	lpos = VERTEX;
 	lnorm = NORMAL;
 	fuv = UV;
+	rpos = VERTEX;
+	rnorm = NORMAL;
+	if (room_n > 0.5) {
+		// Into the frame of the room this vertex is in: x out from the tower's
+		// middle along the room, z across it (StationFill.radial).
+		vec2 d = VERTEX.xz - room_c;
+		float sa = 6.2831853 / room_n;
+		float a = (floor(atan(d.y, d.x) / sa) + 0.5) * sa;
+		vec2 x = vec2(cos(a), sin(a));
+		vec2 z = vec2(-x.y, x.x);
+		rpos = vec3(dot(d, x), VERTEX.y, dot(d, z));
+		rnorm = vec3(dot(NORMAL.xz, x), NORMAL.y, dot(NORMAL.xz, z));
+	}
 }
 
 float hash2(vec2 p) {
@@ -127,6 +168,170 @@ vec3 screen_image(vec2 f, float kind, float h, vec3 c1, vec3 c2) {
 	return col * scan * frame_;
 }
 
+// A room finish (14 up) at g (metres across the face, in the room's frame), f
+// (0..1 on a box's face), rp / rn (position and normal in the room's frame), uv0
+// (the mesh's UV), n (coarse noise), rim (0 facing, 1 grazing), aa (0 near, 1 where a
+// centimetre pattern would shimmer: fine stripes fade to their average there).
+void room_finish(vec2 g, vec2 f, vec3 rp, vec3 rn, vec2 uv0, float n, float rim, float aa, out vec3 col, out float rough, out float metal, out vec3 emit) {
+	vec3 t = tint.rgb;
+	col = t;
+	rough = 0.8;
+	metal = 0.0;
+	emit = vec3(0.0);
+	vec2 e2 = min(f, 1.0 - f);
+	float edge = min(e2.x, e2.y);
+	if (finish == 14 || finish == 15) {
+		float pile = texture(noise_tex, g * 0.7).r * 0.6 + texture(noise_tex, g * 2.9 + 0.3).r * 0.4;
+		col = t * (0.78 + pile * 0.32);
+		rough = 0.97;
+		if (finish == 14) {
+			vec2 q = abs(fract(g / 0.8) - 0.5);
+			col *= 1.0 - 0.16 * (1.0 - smoothstep(0.015, 0.04, abs(q.x + q.y - 0.42)));
+		} else {
+			vec2 m = (f - 0.5) * 2.0;
+			float md = abs(m.x) + abs(m.y);
+			float border = step(edge, 0.09);
+			float lines = step(0.11, edge) * step(edge, 0.125) + step(0.025, edge) * step(edge, 0.04)
+				+ step(abs(md - 0.55), 0.05) * (1.0 - border) + step(md, 0.16);
+			vec3 hi = mix(t * 1.8 + 0.08, vec3(0.86, 0.72, 0.46), 0.5);
+			col = mix(col, t * 0.5, border);
+			col = mix(col, hi * (0.85 + pile * 0.2), clamp(lines, 0.0, 1.0));
+		}
+	} else if (finish == 16) {
+		vec2 cell = floor(g / 0.6);
+		float tone = hash2(cell + 5.0);
+		float gr = seam(g, vec2(0.6), 0.012) * (1.0 - aa * 0.7);
+		col = mix(t * (0.88 + tone * 0.14) * (0.95 + n * 0.1), t * 0.4 + 0.03, gr);
+		rough = mix(0.18 + tone * 0.06, 0.85, gr);
+	} else if (finish == 17) {
+		vec2 c4 = floor(g * 4.0);
+		vec2 d = fract(g * 4.0);
+		d = mod(c4.x + c4.y, 2.0) > 0.5 ? d : vec2(d.y, 1.0 - d.x);
+		float bump = step(abs(d.x - d.y), 0.12) * step(abs(d.x + d.y - 1.0), 0.32) * (1.0 - aa);
+		float grime = smoothstep(0.35, 0.75, texture(noise_tex, g * 0.06).r);
+		col = t * (0.8 + n * 0.25) * (1.0 - grime * 0.35) + bump * 0.07;
+		col *= 1.0 - 0.5 * seam(g, vec2(1.5, 1.0), 0.02);
+		rough = 0.5 - bump * 0.15 + grime * 0.25;
+		metal = 0.75;
+	} else if (finish == 18) {
+		float rib = mix(smoothstep(0.15, 0.4, abs(fract(g.x * 2.5) - 0.5)), 0.5, aa);
+		col = t * (0.9 + 0.1 * rib) * (0.9 + n * 0.2);
+		col *= 1.0 - 0.4 * seam(g, vec2(1.2), 0.015);
+		rough = 0.92;
+	} else if (finish == 19) {
+		vec2 w = g * 0.45 + vec2(texture(noise_tex, g * 0.04).r, texture(noise_tex, g * 0.04 + 0.37).r) * 4.0;
+		float v1 = 1.0 - smoothstep(0.0, 0.08, abs(sin(w.x * 2.3 + w.y * 1.1)));
+		float v2 = 1.0 - smoothstep(0.0, 0.04, abs(sin(w.x * 5.1 - w.y * 3.7 + 1.3)));
+		vec3 vein = dot(t, vec3(0.3, 0.59, 0.11)) > 0.45 ? t * 0.45 : vec3(0.78, 0.7, 0.55);
+		col = mix(t * (0.94 + n * 0.08), vein, clamp(v1 * 0.75 + v2 * 0.35, 0.0, 1.0));
+		col *= 1.0 - 0.3 * seam(g, vec2(1.2), 0.006);
+		rough = 0.1;
+	} else if (finish == 20) {
+		vec2 q = g / 0.28;
+		vec2 hf = fract(vec2(q.x + q.y, q.x - q.y) * 0.5) - 0.5;
+		float btn = 1.0 - smoothstep(0.035, 0.07, length(hf));
+		float crease = 1.0 - smoothstep(0.0, 0.05, min(0.5 - abs(hf.x), 0.5 - abs(hf.y)));
+		col = t * (0.72 + 0.4 * (1.0 - length(hf) * 1.3)) * (0.92 + n * 0.12);
+		col *= 1.0 - 0.35 * btn - 0.25 * crease;
+		col += t * rim * 0.7;
+		rough = 0.72;
+	} else if (finish == 21) {
+		float wr = texture(noise_tex, g * vec2(0.35, 0.9)).r;
+		col = t * (0.82 + wr * 0.3) * (0.95 + texture(noise_tex, g * 6.0).r * 0.08);
+		rough = 0.95;
+	} else if (finish == 22) {
+		float streak = texture(noise_tex, vec2(g.x * 0.03, g.y * 4.0)).r;
+		col = t * (0.8 + streak * 0.35);
+		metal = 0.95;
+		rough = 0.25 + streak * 0.12;
+	} else if (finish == 23) {
+		vec2 sz = vec2(1.2, 1.6);
+		vec2 pf = fract(g / sz);
+		float frame_ = 1.0 - step(0.06, pf.x) * step(pf.x, 0.94) * step(0.05, pf.y) * step(pf.y, 0.95);
+		float grain = mix(sin(g.x * 38.0 + texture(noise_tex, g * vec2(0.08, 0.015)).r * 14.0) * 0.5 + 0.5, 0.5, aa);
+		col = t * (0.78 + grain * 0.16 + hash2(floor(g / sz)) * 0.08);
+		col = mix(col, t * 0.62, frame_);
+		col *= 1.0 - 0.5 * seam(g, sz, 0.012);
+		rough = 0.4;
+	} else if (finish == 24) {
+		float row = floor(g.y / 0.18);
+		float along = g.x + hash2(vec2(row, 3.0)) * 2.0;
+		float tone = hash2(vec2(row, floor(along / 1.8)));
+		float sr = 1.0 - smoothstep(0.0, 0.012, min(fract(g.y / 0.18), 1.0 - fract(g.y / 0.18)) * 0.18);
+		float sj = 1.0 - smoothstep(0.0, 0.01, min(fract(along / 1.8), 1.0 - fract(along / 1.8)) * 1.8);
+		float grain = mix(sin(g.y * 140.0 + texture(noise_tex, vec2(along * 0.05, g.y * 0.6)).r * 12.0) * 0.5 + 0.5, 0.5, aa);
+		sr *= 1.0 - aa * 0.6;
+		col = t * (0.8 + tone * 0.25) * (0.9 + grain * 0.12);
+		col *= 1.0 - 0.6 * max(sr, sj);
+		rough = 0.35;
+	} else if (finish == 25) {
+		float bez = 1.0 - step(0.05, e2.x) * step(0.03, e2.y);
+		float vent = step(0.08, f.y) * step(f.y, 0.2) * step(0.25, f.x) * step(f.x, 0.75) * step(0.5, fract(f.y * 40.0));
+		float handle = step(abs(f.x - 0.82), 0.03) * step(abs(f.y - 0.5), 0.07);
+		col = t * (0.85 + n * 0.2) * (1.0 - 0.45 * bez - 0.5 * vent);
+		col = mix(col, vec3(0.7), handle);
+		metal = 0.5;
+		rough = 0.5;
+	} else if (finish == 26) {
+		float yin = fract(rp.y / 0.4);
+		float cell = floor(g.x / 0.045);
+		float hb = hash2(vec2(cell, floor(rp.y / 0.4)));
+		float tall = 0.55 + hb * 0.35;
+		float book = step(yin, tall) * step(0.04, yin) * step(0.06, fract(g.x / 0.045));
+		float k = floor(hb * 6.0);
+		vec3 bc = k < 1.0 ? vec3(0.45, 0.1, 0.08) : k < 2.0 ? vec3(0.1, 0.2, 0.35) : k < 3.0 ? vec3(0.15, 0.3, 0.16)
+			: k < 4.0 ? vec3(0.5, 0.42, 0.3) : k < 5.0 ? vec3(0.08, 0.08, 0.09) : vec3(0.55, 0.35, 0.12);
+		bc *= 0.8 + hash2(vec2(cell, 7.0)) * 0.35;
+		bc = mix(bc, vec3(0.8, 0.65, 0.3), step(abs(yin - tall * 0.8), 0.012));
+		col = mix(t * 0.25, bc, book);
+		rough = 0.8;
+	} else if (finish == 27) {
+		float leaf = smoothstep(0.35, 0.65, texture(noise_tex, g * 1.7).r * 0.6 + texture(noise_tex, g * 5.3 + 0.4).r * 0.5);
+		col = mix(t * 0.35, t * 1.15, leaf);
+		rough = 0.7;
+	} else if (finish == 28) {
+		float c1 = sin(g.x * 3.1 + TIME * 0.9 + sin(g.y * 2.3 + TIME * 0.6) * 1.5);
+		float c2 = sin(g.y * 3.7 - TIME * 0.7 + sin(g.x * 1.9 - TIME * 0.5) * 1.5);
+		float caus = pow(clamp(1.0 - abs(c1 + c2) * 0.5, 0.0, 1.0), 4.0);
+		vec2 bq = vec2(g.x * 6.0, rp.y * 6.0 - TIME * 1.2);
+		float bub = step(0.93, hash2(floor(bq))) * (1.0 - smoothstep(0.15, 0.3, length(fract(bq) - 0.5)));
+		col = t * 0.25;
+		emit = t * (0.5 + caus * 1.2) + vec3(0.6, 0.9, 1.0) * bub * 0.8;
+		rough = 0.05;
+	} else if (finish == 29) {
+		col = mix(vec3(0.05), t, mix(stripes(g.x + g.y, 0.5), 0.5, aa * 0.8)) * (0.85 + n * 0.2);
+		rough = 0.7;
+	} else if (finish == 30) {
+		float v = uv0.y;
+		float rib = step(abs(v - 0.33), 0.025) + step(abs(v - 0.66), 0.025);
+		col = t * (0.85 + n * 0.2) * (1.0 - rib * 0.4);
+		col = mix(col, vec3(0.85, 0.8, 0.7), step(abs(v - 0.5), 0.07) * 0.6 * step(abs(rn.y), 0.5));
+		col *= 1.0 - 0.3 * step(0.5, abs(rn.y)) * step(0.8, length(uv0 - 0.5) * 2.0);
+		metal = 0.5;
+		rough = 0.5;
+	} else if (finish == 31) {
+		float frame_ = step(edge, 0.06);
+		vec2 q = f * vec2(3.0, 2.0) + hash2(floor(rp.xz * 0.5) + floor(rp.y)) * 7.0;
+		float a = texture(noise_tex, q * 0.08).r;
+		float b = texture(noise_tex, q * 0.21 + 0.5).r;
+		col = mix(mix(vec3(0.1, 0.2, 0.35), t, smoothstep(0.35, 0.6, a)), vec3(0.95, 0.85, 0.6), smoothstep(0.55, 0.75, b));
+		col = mix(col, vec3(0.75, 0.6, 0.25), frame_);
+		metal = frame_ * 0.9;
+		rough = mix(0.8, 0.3, frame_);
+		emit = col * 0.12 * (1.0 - frame_);
+	} else if (finish == 32) {
+		float row = floor(g.y / 0.45);
+		float along = g.x + mod(row, 2.0) * 0.45;
+		vec2 st = vec2(along, g.y);
+		float tone = hash2(vec2(floor(along / 0.9), row));
+		float j = seam(st, vec2(0.9, 0.45), 0.03);
+		float dirt = smoothstep(0.4, 0.8, texture(noise_tex, g * 0.09).r);
+		col = t * (0.82 + tone * 0.22) * (0.92 + n * 0.12) * (1.0 - dirt * 0.25);
+		col = mix(col, t * 0.35, j);
+		rough = 0.85;
+	}
+}
+
 void fragment() {
 	vec2 uv = face_uv(lpos, lnorm);
 	float n = texture(noise_tex, uv * 0.013).r;
@@ -134,7 +339,12 @@ void fragment() {
 	float rough = 0.55;
 	float metal = 0.55;
 	vec3 emit = vec3(0.0);
-	if (finish == 0) {
+	if (finish >= 14) {
+		vec2 g = face_uv(rpos, rnorm);
+		float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+		float aa = smoothstep(0.02, 0.08, max(fwidth(g.x), fwidth(g.y)));
+		room_finish(g, face01(fuv), rpos, rnorm, fuv, texture(noise_tex, g * 0.05).r, rim, aa, col, rough, metal, emit);
+	} else if (finish == 0) {
 		// Staggered armour plates, each its own tone, seams between them.
 		vec2 size = vec2(6.0, 3.2);
 		vec2 st = uv;
