@@ -2,6 +2,22 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: share builds carry Oda's persona again (2026-11-05)
+
+- **With AI characters on, the cantina owner talks like herself in a
+  downloaded build.** Her persona text
+  (`content/core/dialogue/cantina_owner_persona.txt`) was left out of the V1.6.3
+  share builds. Godot packs resources and imported files by itself, but a plain
+  `.txt` ships only when the export preset's `include_filter` names it, and both
+  presets had none. So her AI prompt was built without the persona, and every
+  log repeated "missing text". Both presets now include `content/*.txt`.
+- **Checked:** a pack exported from the macOS Share preset has the file, and
+  booting the town from it logs no missing text (the V1.6.3 pack logged it
+  dozens of times a boot). Nothing else the game reads was missing: every other
+  file in `content/` is JSON, which ships as a resource.
+- **`tests/test_share_build.gut.gd`** fails if a file under `content/` that Godot
+  does not pack by itself is not covered by both presets' `include_filter`.
+
 ## Bug fix: the first launch no longer crashes when you pick a game (2026-11-05)
 
 - **Picking Story or Free Roam with Enter or Space on a first launch crashed

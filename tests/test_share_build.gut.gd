@@ -65,6 +65,39 @@ func test_both_presets_exclude_docs_and_sources() -> void:
 	assert_eq(presets, 2, "the Windows and macOS share presets")
 
 
+## The other way round: a data file Godot does not pack by itself (not a
+## resource, nothing imported from it, e.g. Oda's persona .txt) is only in a
+## build when the preset's include_filter names it. V1.6.3 left the persona out,
+## and the cantina owner's AI talked without it.
+func test_both_presets_ship_every_plain_content_file() -> void:
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(PRESETS), OK)
+	var files := PackedStringArray()
+	_walk("res://content/", files)
+	var plain := PackedStringArray()
+	for path in files:
+		# A resource (the .json data too) or an imported file ships on its own.
+		if path.get_extension() in ["import", "uid"] or ResourceLoader.exists(path) or FileAccess.file_exists(path + ".import"):
+			continue
+		plain.append(path.trim_prefix("res://"))
+	assert_true(plain.has("content/core/dialogue/cantina_owner_persona.txt"), "the persona text was found")
+	var presets := 0
+	for section in cfg.get_sections():
+		if not cfg.has_section_key(section, "include_filter"):
+			continue
+		presets += 1
+		var filters := PackedStringArray()
+		for f in str(cfg.get_value(section, "include_filter")).split(","):
+			if f.strip_edges() != "":
+				filters.append(f.strip_edges())
+		for path in plain:
+			var shipped := false
+			for f in filters:
+				shipped = shipped or path.matchn(f)
+			assert_true(shipped, "%s ships %s (include_filter)" % [cfg.get_value(section, "name"), path])
+	assert_eq(presets, 2, "the Windows and macOS share presets")
+
+
 ## Every "res://..." string in a JSON value, with its key and its parent's key.
 func _paths(v, key: String, parent: String, out: Array) -> void:
 	if v is Dictionary:
