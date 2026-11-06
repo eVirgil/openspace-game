@@ -1,9 +1,9 @@
 class_name ObjectiveHud
 extends CanvasLayer
 ## The objective pointer: what to do next (Objective.current) on a line under
-## the banner's left end, with how far it is, an arrow before it turning towards
-## it, and a diamond over the place itself while it is on screen. Left, not
-## centred: the middle of the top is where arrival titles and toasts go.
+## the banner's middle, with how far it is, an arrow under it turning towards
+## it, and a diamond over the place itself while it is on screen. Top centre:
+## toasts (CheckpointHud, StandingToast) start at BELOW, under the arrow.
 ##
 ## It only reads. `demo` (town_demo.gd) turns the objective's target word into a
 ## place: live bodies, town markers, the smuggling drop (near it, issue #251),
@@ -21,7 +21,9 @@ const AMBER := Color("#e0a050")
 const INK := Color(0.95, 0.92, 0.85, 0.95)
 const TOP := 48.0                     ## below RetroHud's 40 px banner
 const EDGE := 36.0                    ## the diamond stays this far inside the screen
-const LEFT := 26.0                    ## the arrow's centre from the left edge; the text starts after it
+const ARROW_Y := TOP + 44.0           ## the arrow's centre, under the line
+const BELOW := TOP + 70.0             ## the first free row under the arrow, for toasts
+const DIAMOND := 15.0                 ## the diamond's half-width over the target
 
 var demo                              ## town_demo.gd
 var label: Label
@@ -45,12 +47,12 @@ func _ready() -> void:
 	marks.draw.connect(_draw_marks)
 	add_child(marks)
 	label = Label.new()
-	label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	label.offset_left = LEFT + 20.0
-	label.offset_right = LEFT + 760.0
+	label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	label.offset_left = -400.0
+	label.offset_right = 400.0
 	label.offset_top = TOP
 	label.offset_bottom = TOP + 28
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", INK)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -213,7 +215,7 @@ func _marker(id: String) -> Vector3:
 
 # ------------------------------------------------------------------ drawing
 
-## The arrow before the line (the target's bearing from where the camera looks),
+## The arrow under the line (the target's bearing from where the camera looks),
 ## and the diamond over the target while it is in front of the camera. Another
 ## LAN player as the waypoint: both in the players' blue (NetSession.mark_color).
 func _draw_marks() -> void:
@@ -228,12 +230,12 @@ func _draw_marks() -> void:
 	# Bearing in the camera's frame (works round a ball planet too): 0 = straight
 	# ahead, + = to the right, PI = behind.
 	var bearing := atan2(to.dot(cam.global_basis.x), to.dot(-cam.global_basis.z))
-	var c := Vector2(LEFT, TOP + 14.0)
+	var c := Vector2(size.x * 0.5, ARROW_Y)
 	var tip := Vector2(sin(bearing), -cos(bearing))
 	var side := Vector2(-tip.y, tip.x)
-	var pts := PackedVector2Array([c + tip * 11.0, c - tip * 7.0 + side * 8.0, c - tip * 3.0, c - tip * 7.0 - side * 8.0])
+	var pts := PackedVector2Array([c + tip * 14.0, c - tip * 9.0 + side * 10.0, c - tip * 4.0, c - tip * 9.0 - side * 10.0])
 	marks.draw_colored_polygon(pts, col)
-	marks.draw_polyline(pts + PackedVector2Array([pts[0]]), Color.BLACK, 1.5)
+	marks.draw_polyline(pts + PackedVector2Array([pts[0]]), Color.BLACK, 2.0)
 	var player := col != AMBER
 	var over := NetSession.n("name_height", 2.15) if player else 2.0
 	if cam.is_position_behind(target_pos + Vector3.UP * over):
@@ -241,9 +243,9 @@ func _draw_marks() -> void:
 	var at := cam.unproject_position(target_pos + Vector3.UP * over)
 	if player:
 		at.y -= 22.0                       # over their name, which is the same size at any distance
-	at = at.clamp(Vector2(EDGE, TOP + 50.0), size - Vector2(EDGE, EDGE + 40.0))
-	var r := 9.0
+	var r := DIAMOND
+	at = at.clamp(Vector2(EDGE, BELOW + r), size - Vector2(EDGE, EDGE + 40.0))
 	var dia := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
 	marks.draw_colored_polygon(dia, Color(col, 0.85))
-	marks.draw_polyline(dia + PackedVector2Array([dia[0]]), Color.BLACK, 1.5)
+	marks.draw_polyline(dia + PackedVector2Array([dia[0]]), Color.BLACK, 2.0)
 

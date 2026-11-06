@@ -35,7 +35,7 @@ func _init() -> void:
 func _ready() -> void:
 	subtitle = _label(Control.PRESET_CENTER_BOTTOM, -118.0, 22)
 	subtitle.visible = false
-	toast_label = _label(Control.PRESET_CENTER_TOP, 90.0, 20)
+	toast_label = _label(Control.PRESET_CENTER_TOP, ObjectiveHud.BELOW + 6.0, 20)   # under the objective arrow
 	toast_label.visible = false
 
 	card = PanelContainer.new()
