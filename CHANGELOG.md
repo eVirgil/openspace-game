@@ -2,6 +2,22 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: the first launch no longer crashes when you pick a game (2026-11-05)
+
+- **Picking Story or Free Roam with Enter or Space on a first launch crashed
+  the downloaded game.** Picking reloads the town, which takes the New game
+  menu out of the scene at once. The menu then asked for its viewport (now
+  null) to mark the key as used. The editor and debug builds only logged
+  that, but the exported game is a release build and segfaulted. A restart
+  worked because the save from the first try was there, so the menu did not
+  open again. The menu now marks the key as used before it picks
+  (`src/ui/new_game_menu.gd`).
+- **Checked on the real build.** With the V1.6.3 Mac release template and an
+  empty save folder, choosing Free Roam with Down and Enter crashed every run
+  with the V1.6.3 pack. With a pack exported from this branch, 3 of 3 runs
+  reached Free Roam and kept running. Clicking a choice with the mouse never
+  crashed.
+
 ## The station's rooms: textured and filled (2026-11-05)
 
 Every room aboard the ringed giant's station except the favela has new surfaces
