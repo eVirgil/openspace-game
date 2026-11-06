@@ -66,6 +66,13 @@ func _process(_dt: float) -> void:
 			n = n.get_child(n.get_child_count() - 1)
 		if n == root:
 			_queue.pop_back()
+		if n.has_method("jobs_busy") and n.jobs_busy():
+			# Issue #574: a terrain whose worker jobs are still running: waiting for
+			# them here stalled the frame after a switch (a mid ring is hundreds of ms
+			# of worker time). Try again next frame; they finish on their own.
+			if n == root:
+				_queue.push_back(root)
+			break
 		var t1 := Time.get_ticks_usec()
 		var what := "%s(%s)" % [n.name, n.get_class()]
 		if n.has_method("finish_jobs"):

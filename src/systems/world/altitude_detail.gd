@@ -25,6 +25,10 @@ var changes := 0                     ## tier changes so far (tests, traces)
 var motion_cfg: Dictionary = {}
 var motion_active := false
 var motion_changes := 0               ## motion override transitions (tests, traces)
+## Issue #574: flying fast at any height (the motion block's enter_speed, back off
+## at exit_speed): the ground's mid ring drops to its fast quality, so it keeps up
+## low over the dunes too. Nothing else changes with it.
+var fast_ground := false
 var _motion_enter_s := 0.0
 var _motion_restore_s := 0.0
 
@@ -104,6 +108,12 @@ func update_motion(dt: float, altitude: float, speed: float, turn_rate: float, f
 	var exit_turn := float(motion_cfg.get("exit_turn_deg_s", 30.0))
 	var enter_hold := float(motion_cfg.get("enter_s", 0.1))
 	var restore_hold := float(motion_cfg.get("restore_s", 0.75))
+	if not flying or not enabled:
+		fast_ground = false
+	elif fast_ground:
+		fast_ground = speed > exit_speed
+	else:
+		fast_ground = speed >= enter_speed
 	if not flying or not enabled:
 		motion_active = false
 		_motion_enter_s = 0.0

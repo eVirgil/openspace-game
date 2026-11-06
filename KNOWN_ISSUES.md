@@ -187,6 +187,46 @@ built every other planet's look headless. Not flown on screen.
   home; a moon of a moon would not see its grandparent's other children.
   (Fixed by issue #573: every scene reads one system frame, to any depth.)
 
+## After the descent fixes (issue #574, 2026-11-05)
+
+**Checked:** `test_smoke`; the new rendered trace `scenes/descent_trace.tscn`
+(open space → home's bubble → 30 m over the dunes for 60 s with boost → climb
+out, and the same over the moon), twice clean, 0 script errors, 0 crashes.
+
+**Fixed, with the trace's numbers (this Mac, Vulkan):**
+- Low pass over home: ~172 ms every frame → p50 15 ms, worst 32. The 1 m
+  walkable ground (`prefetch`) was being built under a 300 m/s ship (~9 ms a
+  physics tick, so ticks overran and frames spiralled). Now only when slow or
+  landing (`prefetch_speed`, flow data). The mid ring keeps its finished
+  meshes and drops to fast quality by speed at any height.
+- Home arrival: ~3.98 s → ~377 ms. The wreck field read ~2,500 plate meshes
+  back from the GPU; now CPU arrays, merged meshes kept for the session.
+- Leaving a planet: ~190-300 ms → ~65-72 ms. A fresh cockpit-dash SubViewport
+  cost ~240 ms entering the tree; one now lives under the root all session.
+- SceneReaper no longer blocks a frame on a terrain's running worker jobs.
+
+**Part 2 (same trace, same Mac):**
+- Arriving: home ~377 → ~176-206 ms, the moon ~211 → ~156-164 ms. The first
+  frame builds only the ship on its pad; the town's decor comes in over the
+  frames after, one piece a step (`TownDecor.town_steps`), the box town hidden
+  until its materials are on; the bays' ships and the mesas follow and join the
+  berths and the ground then (`ShipPilot.town_built_late`).
+- The 0.5 s frames at ~6 km were not the steps: every garrison checked its
+  cover spots against the navmesh on the same frames, and a nearest-point query
+  costs more once the outposts' ground is in the map. One 2 ms budget a frame
+  for all of them (`Garrison.SPOT_BUDGET_MS`): npc_brains' frame 546 → 168 ms,
+  the interceptor's and speeders' (~515-545) back under budget.
+
+**Not done, honestly (still over the issue's budget):**
+- The arrival frame is still ~180-200 ms at home: the ship's own setup (~120 ms:
+  ShipPilot._ready, not split yet) and the boxes (~24).
+- Staged steps that are one big piece: the barge (~280 ms), the droids (~200),
+  the club's look (~50-70); the cruiser's frame is ~165 (first-draw pipelines).
+  Two ~220 ms frames near 5.1-5.4 km have no step on them; not found yet.
+- `test_town_decor` fails (yard containers, the gate lintel, the light count)
+  on this branch's base as well; not from these changes.
+- The descent trace has no GUT test reading it; its budgets are constants in it.
+
 ## After open space (issue #573, 2026-11-05)
 
 **Checked:** `test_smoke`; the touched `test_planets` tests one by one (the

@@ -183,6 +183,7 @@ var call_to := Vector3.ZERO       ## the ground she sets down on
 var call_yaw := 0.0               ## her heading there (towards where you called from)
 var calls := 0                    ## times a call brought her down (traces, tests)
 var _eject_hold := 0.0            ## seconds B has been held
+var _prefetch_speed := 45.0       ## issue #574: the walkable ground is built under her only slower than this (flow data)
 
 
 func setup(town_scene) -> void:
@@ -201,6 +202,7 @@ func _ready() -> void:
 		ground.setup(world, demo.town, content, desert.height_at, desert.extent)
 		# The mesas and hoodoos on screen are solid to the ship too.
 		if demo.landforms != null:
+			_late_landforms = true
 			ground.add_landforms(demo.landforms.data, demo.desert_site().floor)
 			ground.add_boulders(demo.landforms.boulders)      # issue #93: solid rocks, speeder ramps
 		scenery = WorldScenery.new()
@@ -227,6 +229,7 @@ func _ready() -> void:
 	atmo = AtmoFlight.new()
 	atmo.setup(ship_cfg, ground)
 	space_exit_margin = GameFlow.setting("space_exit_margin", space_exit_margin)
+	_prefetch_speed = GameFlow.setting("prefetch_speed", _prefetch_speed)
 	seeker_warning.configure(GameFlow.setting("seeker_alarm_secs", seeker_warning.alarm_secs),
 		GameFlow.setting("seeker_alarm_rest", seeker_warning.rest_secs),
 		GameFlow.setting("seeker_lamp_hz", seeker_warning.flash_hz))
@@ -274,6 +277,8 @@ func _ready() -> void:
 ## it). Each berth's greybox box stops being solid: the ship carries its own hull, and
 ## the static box would stay behind as an invisible wall when the ship leaves.
 func _gather_berths() -> void:
+	if not berths.is_empty() and (demo.decor == null or demo.decor.parked_ships.is_empty()):
+		return
 	var parked: Array = demo.decor.parked_ships if demo.decor != null else []
 	var c: Vector3 = pad.get("center", Vector3.ZERO)
 	if parked.is_empty():
@@ -285,11 +290,24 @@ func _gather_berths() -> void:
 		parked = [v]
 	for i in parked.size():
 		var v: Node3D = parked[i]
+		if berths.any(func(b): return b.visual == v):
+			continue                         # issue #574: a handoff parks the bays' ships after the pad's: gathered again then
 		var id := ship_id if i == 0 else str(v.get_meta("ship_id", ship_id))
 		var box_id := str(pad.get("town_box", "ship")) if i == 0 else str(v.get_meta("box_id", ""))
 		var bi := add_berth(v, id, box_id, pit_key if i == 0 else "")
 		if i > 0 and bool(demo.town.get_box(box_id).get("free", false)):
 			berths[bi]["free"] = true        # issue #316: the station's frigate, anyone's to fly
+
+
+## Issue #574: a handoff builds the bays' ships and the landforms after its
+## first frame; they join the ground and the berths here.
+func town_built_late() -> void:
+	_gather_berths()
+	if demo.landforms != null and not _late_landforms:
+		_late_landforms = true
+		ground.add_landforms(demo.landforms.data, demo.desert_site().floor)
+		ground.add_boulders(demo.landforms.boulders)
+var _late_landforms := false
 
 
 ## A parked ship becomes one you can board: its data, model, hull and home bay.
@@ -1056,8 +1074,8 @@ func arrive_handoff(a: Dictionary) -> void:
 	hud.visible = true
 	_update_hud(atmo.agl())       # its numbers on the first frame too, not one later
 	_sync_visual()
-	if demo.terrain != null:
-		demo.terrain.prefetch(at)
+	if demo.terrain != null and atmo.agl() < 60.0:
+		demo.terrain.prefetch(at)       # issue #574: only when there is ground near to step out on
 	if sky != null:
 		sky.update_for(atmo.altitude(), at)
 
@@ -1352,8 +1370,8 @@ func _seated(dt: float) -> void:
 	var agl_now := atmo.agl()
 	player().global_position = s
 	if demo.terrain != null and atmo.state != AtmoFlight.State.CRASHED \
-			and (atmo.state == AtmoFlight.State.LANDING or agl_now < 60.0):
-		demo.terrain.prefetch(s)           # ground to step out onto, built in the background
+			and (atmo.state == AtmoFlight.State.LANDING or (agl_now < 60.0 and atmo.speed() <= _prefetch_speed)):
+		demo.terrain.prefetch(s)           # ground to step out onto, built in the background (issue #574: not at speed)
 	if sky != null:
 		sky.update_for(atmo.altitude(), s)
 	if demo.detail != null:
@@ -1366,7 +1384,7 @@ func _seated(dt: float) -> void:
 		_motion_basis_valid = true
 		var in_flight := atmo.state in [AtmoFlight.State.LIFTOFF, AtmoFlight.State.FLYING, AtmoFlight.State.LANDING]
 		demo.detail.update_motion(dt, atmo.altitude(), atmo.speed(), turn_rate, in_flight)
-		_set_flight_terrain_quality(demo.detail.motion_active)
+		_set_flight_terrain_quality(demo.detail.motion_active or demo.detail.fast_ground)
 	if demo._rig != null:
 		chase.up = atmo.up()
 		demo._rig.set_override(chase.update(dt, atmo.transform()), 72.0)

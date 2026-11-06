@@ -40,41 +40,61 @@ var _rng := RandomNumberGenerator.new()
 
 
 func dress(town, look_env: LookEnvironment) -> void:
+	park_pit(town, look_env)
+	for step in town_steps(town):
+		step.call()
+
+
+## Issue #574: the first part of dress(): the materials and the ship on each
+## launch pad (the one a ship flying in is). The rest is town_steps(), which a
+## handoff builds over the frames after its first.
+func park_pit(town, look_env: LookEnvironment) -> void:
 	name = "TownDecor"
 	look = look_env
 	mats = LookMaterials.new()
 	mats.style = style
 	_rng.seed = 9001                      # fixed seed: same town every run
-	_apply_materials(town)
-	kit = TownBuildings.new(mats, look)
-	kit.town = town
-	_build_buildings(town)
-	if not BarracksHall.halls(town.boxes()).is_empty():
-		barracks = BarracksLook.new()              # issue #321: before the flush, its bunks and doors batch with the town's
-		add_child(barracks)
-		barracks.dress(town, kit, mats, get_parent())
-	_dress_cantina(town)
-	_light_stair_tower(town)
-	_dress_spaceport(town)
-	_dress_market(town)
-	_add_alley_cables(town)
-	_add_street_lamps(town)
-	var parts := Node3D.new()
-	parts.name = "Buildings"
-	add_child(parts)
-	kit.flush(parts)
-	_add_lamps(town)
-	_add_banners(town)
-	_park_ships(town)
+	_park_pads(town)
+
+
+## The rest of dress(), in order, one piece a call: each is a few to tens of ms.
+const TOWN_STEPS := 10                ## town_steps().size()
+func town_steps(town) -> Array:
+	return [
+		func():
+			_apply_materials(town)
+			kit = TownBuildings.new(mats, look)
+			kit.town = town,
+		_build_buildings.bind(town),
+		func():
+			if not BarracksHall.halls(town.boxes()).is_empty():
+				barracks = BarracksLook.new()              # issue #321: before the flush, its bunks and doors batch with the town's
+				add_child(barracks)
+				barracks.dress(town, kit, mats, get_parent()),
+		_dress_cantina.bind(town),
+		func():
+			_light_stair_tower(town)
+			_dress_spaceport(town),
+		_dress_market.bind(town),
+		func():
+			_add_alley_cables(town)
+			_add_street_lamps(town),
+		func():
+			var parts := Node3D.new()
+			parts.name = "Buildings"
+			add_child(parts)
+			kit.flush(parts),
+		func():
+			_add_lamps(town)
+			_add_banners(town),
+		_park_bays.bind(town),
+	]
 
 
 ## Issue #573: open space: no town to dress, only the ship you fly on its (hidden) pad.
 func park_only(town, look_env: LookEnvironment) -> void:
-	name = "TownDecor"
-	look = look_env
-	mats = LookMaterials.new()
-	mats.style = style
-	_park_ships(town)
+	park_pit(town, look_env)
+	_park_bays(town)
 
 
 # ---------------------------------------------------------------- materials
@@ -726,12 +746,11 @@ func _add_banners(town) -> void:
 ## by the same ShipKit from the same look id (pad encounter -> player ship -> look).
 ## The box keeps its collision; only its greybox mesh is hidden. The box in
 ## port_town.json is sized to this model (tests/test_town_decor checks the fit).
-func _park_ships(town) -> void:
-	var scene_path := "res://scenes/town_demo.tscn"
+func _park_pads(town) -> void:
 	var content = preload("res://src/systems/dataload/core_content.gd").new()
 	content.load_from()
 	var ship_kit := ShipKit.new()
-	for p in GameFlow.pads_for_scene(scene_path):
+	for p in GameFlow.pads_for_scene("res://scenes/town_demo.tscn"):
 		var box: Dictionary = town.get_box(str(p.get("town_box", "")))
 		var enc: Dictionary = content.encounters.get(str(p.get("encounter", "")), {})
 		# Issue #45: the one you flew in on; issue #368: else your primary ship (Fleet).
@@ -741,9 +760,15 @@ func _park_ships(town) -> void:
 			push_warning("TownDecor: pad %s has no ship to park" % str(p.get("id", "")))
 			continue
 		_park(ship_kit, look_id, "Parked_" + str(p.id), float(p.get("parked_yaw_deg", 0.0)), box, ship_id)
-	# Issue #43: the other bays hold the other ships you can fly. Each "ship" box
-	# with a `ship` (an id in content/core/ships) gets that ship's look; ShipPilot
-	# lets you board any of them.
+
+
+## Issue #43: the other bays hold the other ships you can fly. Each "ship" box
+## with a `ship` (an id in content/core/ships) gets that ship's look; ShipPilot
+## lets you board any of them.
+func _park_bays(town) -> void:
+	var content = preload("res://src/systems/dataload/core_content.gd").new()
+	content.load_from()
+	var ship_kit := ShipKit.new()
 	for b in town.boxes():
 		if str(b.kind) == "ship" and b.has("ship"):
 			if str(b.ship) == GameFlow.flown_ship:

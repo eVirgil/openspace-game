@@ -117,6 +117,9 @@ var _spots_checked := false
 var _spot_i := 0
 var _spots_ok: Array = []
 const SPOTS_PER_FRAME := 150
+const SPOT_BUDGET_MS := 2.0       ## issue #574: all garrisons' spot checks together, a frame
+static var _spot_frame := -1
+static var _spot_usec_left := 0
 var _last_key := ""
 var _last_key_t := -100.0
 var _clock := 0.0
@@ -634,13 +637,28 @@ static func town_spots(t, bounds: AABB) -> Array:
 func _check_spots() -> void:
 	if _spots_checked or demo.nav == null or not demo.nav.is_ready:
 		return
+	# Issue #574: every garrison (the town's, each outpost's) checks on the same
+	# frames, and a query costs more the bigger the map is (the outposts' ground):
+	# one budget a frame for all of them, not SPOTS_PER_FRAME each.
+	var f := Engine.get_process_frames()
+	if f != _spot_frame:
+		_spot_frame = f
+		_spot_usec_left = int(SPOT_BUDGET_MS * 1000.0)
+	if _spot_usec_left <= 0:
+		return
+	var t0 := Time.get_ticks_usec()
 	var end := mini(_spot_i + SPOTS_PER_FRAME, spots.size())
-	for k in range(_spot_i, end):
+	var k := _spot_i
+	while k < end:
 		var s: Dictionary = spots[k]
 		var c: Vector3 = demo.nav.closest(s.pos)
 		if c != Vector3.INF and Vector2(c.x - s.pos.x, c.z - s.pos.z).length() < 0.5:
 			_spots_ok.append(s)
-	_spot_i = end
+		k += 1
+		if k % 8 == 0 and Time.get_ticks_usec() - t0 > _spot_usec_left:
+			break
+	_spot_usec_left -= Time.get_ticks_usec() - t0
+	_spot_i = k
 	if _spot_i >= spots.size():
 		spots = _spots_ok
 		_spots_ok = []

@@ -94,14 +94,26 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	_dash_vp = SubViewport.new()
-	_dash_vp.name = "DashView"
-	_dash_vp.transparent_bg = true
-	_dash_vp.disable_3d = true
+	# Issue #574: a dash viewport entering the tree costs ~240 ms (rendered) the
+	# frame it does, which was every scene switch. One lives under the root for the
+	# session instead, outside every scene, and each cockpit paints into it.
+	if not is_instance_valid(_shared_vp):
+		_shared_vp = SubViewport.new()
+		_shared_vp.name = "CockpitDashView"
+		_shared_vp.transparent_bg = true
+		_shared_vp.disable_3d = true
+		_shared_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_shared_dash = CockpitDash.new()
+		_shared_dash.name = "Dash"
+		_shared_vp.add_child(_shared_dash)
+		get_tree().root.add_child.call_deferred(_shared_vp)
+	_dash_vp = _shared_vp
+	dash = _shared_dash
 	_dash_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(_dash_vp)
-	dash = CockpitDash.new()
-	_dash_vp.add_child(dash)
+
+
+static var _shared_vp: SubViewport
+static var _shared_dash: CockpitDash
 
 
 func _process(dt: float) -> void:
