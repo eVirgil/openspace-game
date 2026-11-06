@@ -46,6 +46,13 @@ a source folder loses its `.gdignore`, a preset loses either filter, or the game
 loads a path from either place. Leaving the docs stills out took the game pack
 from 742 MB to 566 MB (issue #533); the zips were about 750 MB each at V1.6.3.
 
+The other way round, Godot packs resources and imported files by itself, but a
+plain data file (the cantina owner's persona, `content/core/dialogue/*.txt`)
+ships only because both presets' `include_filter` names it (`content/*.txt`).
+V1.6.3 had no include filter, so Oda's AI talked without her persona. The same
+test fails if a file under `content/` that Godot does not pack by itself is not
+covered by both presets' `include_filter`.
+
 The Mac build is one universal app (Apple Silicon and Intel), signed ad hoc only:
 there is no Apple Developer ID, so it is not notarized and macOS warns about it
 the first time (below).
