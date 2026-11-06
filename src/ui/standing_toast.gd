@@ -69,7 +69,7 @@ func _place() -> void:
 	stack.reset_size()
 	var sz := stack.get_combined_minimum_size()
 	stack.size = sz
-	stack.position = Vector2((view.x - sz.x) * 0.5, view.y * Y)
+	stack.position = Vector2((view.x - sz.x) * 0.5, maxf(view.y * Y, ObjectiveHud.BELOW))  # under the objective arrow
 
 
 ## One faction's panel: "Remnant standing" and the change, over the gauge.
