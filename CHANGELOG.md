@@ -2,6 +2,15 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Bug fix: taking a job moves the waypoint to it (2026-11-05)
+
+- **After a waypoint was set on the story in the Ledger, taking a smuggling run
+  left the pointer on "Ask Oda about the drop"** and never moved it to the drop.
+  A Ledger pin holds the pointer for as long as its job has something to point
+  at, and the story always does on the home planet. Taking any job now clears
+  the pin, so the pointer goes back to the most urgent job (the drop comes
+  before the story).
+
 ## New version is 1.6.4 (2026-11-05)
 
 - Share builds are now **OpenSpace V1.6.4**. Everything below, down to "New

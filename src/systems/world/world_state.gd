@@ -424,6 +424,8 @@ static func current_town_id() -> String:
 
 
 ## Takes job `id`, with a banner (QuestNews): "New Job", or "New Target" for a bounty.
+## A job taken hands the pointer back to the most urgent (Objective.AUTO): a
+## Ledger pin (the story's, say) would otherwise hold it off the new job's drop.
 static func accept_job(id: String) -> bool:
 	var j := job(id)
 	var ok := false
@@ -441,6 +443,8 @@ static func accept_job(id: String) -> bool:
 			if ok:
 				jobs_taken[id] = "active"
 				log_event("Took the job: " + str(j.get("title", id)))
+	if ok:
+		objective_pin = ""
 	if ok and str(j.get("kind", "")) == "bounty":
 		QuestNews.push("target_new", str(bounty.name))
 	elif ok:
