@@ -176,7 +176,7 @@ func test_the_link_opens_github_with_the_file() -> void:
 	var n := _good()
 	var link := CommunityNpc.pr_url(n)
 	assert_true(bool(link.full))
-	assert_string_starts_with(str(link.url), "https://github.com/wr-max52/dune-game/new/main?filename=content%2Fcommunity%2Fnpcs%2Fdorrin_vale.json&value=")
+	assert_string_starts_with(str(link.url), "https://github.com/wr-max52/openspace-game/new/main?filename=content%2Fcommunity%2Fnpcs%2Fdorrin_vale.json&value=")
 	var value := str(link.url).get_slice("&value=", 1).uri_decode()
 	assert_eq(value, CommunityNpc.to_json(n))
 

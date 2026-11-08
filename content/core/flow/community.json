@@ -1,7 +1,7 @@
 {
   "note": "Issue #147: the NPC builder. Player-made stall keepers live one file each in 'folder' (CommunityNpc). 'repo' and 'branch' are where 'Open pull request' sends the file: GitHub's new-file page with the path and the file filled in ('new_file_url'); a player without write access is offered a fork and a pull request from their own account. A file bigger than 'max_url_chars' once in the link goes as a blank page with the path only, and the file is on the clipboard to paste. 'drafts' is where the builder keeps what you are making (one file each, kept between sessions). 'export_dir': 'desktop' or a user:// folder for 'Export file'. 'merchant_profile': a marker with this soldier profile and no vendor of its own is a free stall a player can claim. 'towns': the towns (planet town_id) with stalls to claim; V1 is the port only, since the town briefing (world_briefing.json) describes the port. 'limits': the checks every file must pass (the builder shows them, tests/test_community_npc.gut.gd runs them on every file). 'look': the kit pieces a stall keeper may wear (CharacterKit, the player's builder's catalog) and the height and build sliders. 'base_height': the local body's height, metres (content/look/characters.json 'local').",
   "folder": "res://content/community/npcs",
-  "repo": "wr-max52/dune-game",
+  "repo": "wr-max52/openspace-game",
   "branch": "main",
   "repo_folder": "content/community/npcs",
   "new_file_url": "https://github.com/%s/new/%s?filename=%s&value=%s",
