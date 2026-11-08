@@ -104,7 +104,8 @@ generated, unique name (`docs/names/NAMING.md`). P1 is the planet generator: a p
 config file (type, town size 1-100, style), and Grit Station, an asteroid you can
 fly to from the port's sky, is the first one (`docs/planets/PLANETS.md`). `LAUNCH.md` is how to run and
 record the slice, fly the ship, fight in space and use the jetpack. `docs/ADDING_SHIPS.md` is how to add ships, guns, AI pilots and fights
-from data; `docs/ADDING_ITEMS.md` is the same for items, vendors and pickups.
+from data; `docs/ADDING_ITEMS.md` is the same for items, vendors and pickups. `docs/ADDING_STALL_KEEPERS.md` is how players make stall keepers in
+the NPC builder and send them in as pull requests.
 
 ## Layout
 

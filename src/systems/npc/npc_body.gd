@@ -98,6 +98,7 @@ var turn_rate := deg_to_rad(260.0)
 ## Look (null in the greybox: a plain capsule mesh stands in).
 var kit: CharacterKit
 var look_body: Node3D
+var look_scale := Vector3.ZERO ## issue #147: a size kept through _stand_on_ground's tilt (a stall keeper's height and build); ZERO = none, as before
 var joints: Dictionary = {}
 ## Issue #261: a club performer's set ("dj", "drum", "bass"; ClubMoves), from the
 ## profile's "perform"; "" for everyone else.
@@ -257,6 +258,37 @@ func setup(soldier: Dictionary, at: Vector3, yaw: float, materials: LookMaterial
 	add_child(_speech)
 	_build_sounds()
 	_build_health_bar()
+
+
+## Issue #147: the look's size (a stall keeper's height and build).
+func set_look_scale(v: Vector3) -> void:
+	look_scale = v
+	if look_body != null and is_instance_valid(look_body):
+		look_body.scale = v
+
+
+## Issue #147: dress the body again in `outfit` (CharacterKit's), at `scale` (a
+## stall keeper being tried out in the NPC builder). Keeps its sidearm. No-op in
+## the greybox (no kit).
+func redress(archetype: String, outfit: Dictionary, scale: Vector3) -> void:
+	if kit == null or look_body == null or not is_instance_valid(look_body):
+		return
+	var old := look_body
+	remove_child(old)
+	old.queue_free()
+	look_body = kit.build(archetype, "", outfit)
+	look_body.scale = scale
+	look_scale = scale
+	look_body.name = "Look"
+	add_child(look_body)
+	joints = look_body.get_meta("joints")
+	if bool(profile.get("sidearm", false)) and not look_body.has_meta("weapon"):
+		kit.pistol(look_body, false)
+		sidearm = look_body.has_meta("weapon")
+	if look_body.has_meta("weapon"):
+		_rifle_aim_xf = (look_body.get_meta("weapon") as Node3D).transform
+		(look_body.get_meta("weapon") as Node3D).visible = drawn
+	_look_rest = Vector3.INF
 
 
 static func sound_cfg() -> Dictionary:
@@ -682,7 +714,11 @@ func _stand_on_ground() -> void:
 	if look_body == null or not is_instance_valid(look_body):
 		return
 	var yaw := Basis(Vector3.UP, rotation.y)
-	look_body.basis = Basis.IDENTITY if tilt == Basis.IDENTITY else yaw.inverse() * tilt * yaw
+	var stand := Basis.IDENTITY if tilt == Basis.IDENTITY else yaw.inverse() * tilt * yaw
+	# Issue #147: a stall keeper keeps their size. Every other body's kit scale (its
+	# archetype's height and bulk, a pack child's look_scale) is dropped here, as
+	# since issue #77: KNOWN_ISSUES.md.
+	look_body.basis = stand if look_scale == Vector3.ZERO else stand * Basis.from_scale(look_scale)
 
 
 func _turn(dt: float, move: Vector3) -> void:

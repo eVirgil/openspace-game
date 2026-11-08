@@ -2,6 +2,26 @@
 
 Plain English, newest on top. One entry per milestone.
 
+## Make your own stall keeper and send it in (issue #147, 2026-11-08)
+
+- **8 of the port market's 12 stall keepers can be made yours.** The ones who
+  sell nothing show **[E] Make this stall keeper yours**. It opens the NPC
+  builder (the game pauses): their look from the kit (the same pieces as the
+  player's character builder, no Remnant armour), height, build, voice, what is
+  on the counter, their name or just a trade, temperament, how much they say,
+  their side in the war, who they are, their past, how they speak, who in town
+  they know, a secret, and the lines they say with no AI model.
+- **Try them out** puts them behind the counter to talk to. **Back to the
+  builder** over the chat box goes back. Nothing of a try-out is saved; what you
+  make is kept as a draft for that stall.
+- **Open pull request on GitHub** opens GitHub with their file filled in: sign
+  in, Propose new file, Create pull request. **Export file** saves it to the
+  Desktop. Once merged, everyone meets them at that stall in the next build.
+- **They just talk.** They see the same town as everyone (the briefing, the
+  market's news at once, the rest by gossip), give no jobs and sell nothing.
+- **The first one is in:** Marla Teague, a potter, at one of the market's stalls.
+- How it works and the file's fields: `docs/ADDING_STALL_KEEPERS.md`.
+
 ## Bug fix: taking a job moves the waypoint to it (2026-11-05)
 
 - **After a waypoint was set on the story in the Ledger, taking a smuggling run

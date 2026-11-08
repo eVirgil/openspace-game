@@ -73,6 +73,7 @@ var training_range: TrainingRange
 var cantina_owner: Node3D                 ## M12 (null in the CI greybox)
 var bar: Node
 var gear: GearController              ## M13
+var community: CommunityStalls        ## issue #147: player-made stall keepers and the NPC builder
 var pilot: ShipPilot                  ## M14
 var interceptor: AtmoFighter          ## issue #76: the Remnant's dark interceptor on the barracks pad
 var hijack: Node                      ## E by a ship or speeder someone else sits in: take it (Hijack)
@@ -344,6 +345,10 @@ func build_plan(staged_build: bool) -> Array:
 	add.call("fence", LATER, func():
 		if bar != null and gear != null and townsfolk != null:
 			_build_fence()
+		return true)
+	add.call("community", LATER, func():
+		if bar != null and townsfolk != null:
+			_community().attach(bar, townsfolk)       # issue #147: player-made stall keepers
 		return true)
 	add.call("mechanic", LATER, func():
 		if speeder_post != null and gear != null:
@@ -883,9 +888,11 @@ func _build_npc(m: Dictionary) -> void:
 	var face := town.marker_pos("gate") if m.role == "trooper_post" else town.marker_pos("cantina_door")
 	if m.has("face"):
 		face = Vector3(float(m.face[0]), float(m.face[1]), float(m.face[2]))
-	var npc := make_soldier(soldier, here, atan2(face.x - here.x, face.z - here.z), str(m.id), key)
+	var npc := make_soldier(soldier, here, atan2(face.x - here.x, face.z - here.z), str(m.id), key, null,
+		_community().look_for(str(m.id)))
 	if npc == null:
 		return
+	_community().dressed(str(m.id), npc)          # issue #147: a player-made stall keeper's name and build
 	characters[str(m.id)] = npc.look_body if npc.look_body != null else npc
 	built_markers += 1
 	if barracks_post != "":
@@ -1092,13 +1099,18 @@ func garrison_for(n: Node) -> Garrison:
 ## One NpcBody from a soldier profile, standing at `here` facing `yaw`, its senses
 ## on the player, named by `name_key`. It joins `npcs` (the Remnant) or `locals`
 ## by its faction; the caller hands a Remnant body to the Garrison if it is up.
+## `extra` (issue #147): fields laid over the profile (a stall keeper's archetype,
+## outfit and look_scale).
 func make_soldier(soldier_id: String, here: Vector3, yaw: float, post_id: String, name_key: String,
-		parent: Node = null) -> NpcBody:
+		parent: Node = null, extra: Dictionary = {}) -> NpcBody:
 	var cc := _content()
 	var soldier: Dictionary = cc.get_soldier(soldier_id)
 	if soldier.is_empty():
 		push_error("TownDemo: unknown soldier profile " + soldier_id)
 		return null
+	if not extra.is_empty():
+		soldier = soldier.duplicate(true)
+		soldier.merge(extra, true)
 	var npc := make_npc(soldier, here, yaw, post_id, name_key, parent)
 	if bool(soldier.get("ambient", false)):
 		stage_performers.append(npc)
@@ -1423,6 +1435,17 @@ func _build_dark_master() -> void:
 	add_child(dark_master)
 	if bar != null:
 		dark_master.attach_host(bar)
+
+
+## Issue #147: the market's player-made stall keepers (content/community/npcs),
+## and the NPC builder at every free stall. Made the first time a body asks.
+func _community() -> CommunityStalls:
+	if community == null:
+		community = CommunityStalls.new()
+		community.name = "CommunityStalls"
+		add_child(community)
+		community.setup(self, town, str(planet.get("town_id", "port_town")), _content())
+	return community
 
 
 ## Issue #188: the fence talks: an AI character on the bar's host from his own card

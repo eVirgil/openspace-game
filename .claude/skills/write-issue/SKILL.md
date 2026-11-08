@@ -147,6 +147,7 @@ free" and where to start reading.
 | **Names** | Everything that spawns is named by the name engine, never by hand. | `src/systems/names/`, `docs/names/NAMING.md` |
 | **Droids** | Assassin, cargo and floating models, tinted per variant. | `content/core/droids/`, `src/systems/droids/` |
 | **Items, vendors, pickups** | A new item, shop or drop is data. | `content/core/items/`, `vendors/`, `pickups/`, `docs/ADDING_ITEMS.md` |
+| **Player-made stall keepers** | The NPC builder: a free market stall's keeper made in the game, one file each, sent in as a pull request; talk only, the town briefing as their world. | `content/community/npcs/`, `src/systems/npc/community_npc.gd`, `docs/ADDING_STALL_KEEPERS.md` |
 | **Ships, guns, pilots, fights** | Data-driven ships, weapons, AI pilots and encounters; one flight model for all. Speeders and the barge drive on `hover_model.gd`. | `content/core/ships/`, `src/systems/flight/`, `src/systems/vehicles/`, `docs/ADDING_SHIPS.md` |
 | **Story, jobs, rumors, state** | Chapters and quests, the job board, rumors; `WorldState` is what is true now and is saved with the world. | `content/core/story/`, `content/core/board/`, `content/core/rumors/`, `src/systems/world/world_state.gd` |
 | **Sound and effects** | Playlists, moods, NPC sounds, explosions, materials. | `content/look/sound.json`, `src/systems/audio/`, `src/systems/look/` |
