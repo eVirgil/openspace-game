@@ -1,0 +1,38 @@
+{
+  "note": "Issue #147: the NPC builder. Player-made stall keepers live one file each in 'folder' (CommunityNpc). 'repo' and 'branch' are where 'Open pull request' sends the file: GitHub's new-file page with the path and the file filled in ('new_file_url'); a player without write access is offered a fork and a pull request from their own account. A file bigger than 'max_url_chars' once in the link goes as a blank page with the path only, and the file is on the clipboard to paste. 'drafts' is where the builder keeps what you are making (one file each, kept between sessions). 'export_dir': 'desktop' or a user:// folder for 'Export file'. 'merchant_profile': a marker with this soldier profile and no vendor of its own is a free stall a player can claim. 'towns': the towns (planet town_id) with stalls to claim; V1 is the port only, since the town briefing (world_briefing.json) describes the port. 'limits': the checks every file must pass (the builder shows them, tests/test_community_npc.gut.gd runs them on every file). 'look': the kit pieces a stall keeper may wear (CharacterKit, the player's builder's catalog) and the height and build sliders. 'base_height': the local body's height, metres (content/look/characters.json 'local').",
+  "folder": "res://content/community/npcs",
+  "repo": "wr-max52/openspace-game",
+  "branch": "main",
+  "repo_folder": "content/community/npcs",
+  "new_file_url": "https://github.com/%s/new/%s?filename=%s&value=%s",
+  "blank_file_url": "https://github.com/%s/new/%s?filename=%s",
+  "max_url_chars": 7500,
+  "drafts": "user://community_npcs/drafts",
+  "export_dir": "desktop",
+  "merchant_profile": "local_merchant",
+  "towns": ["port_town"],
+  "schema": 1,
+  "limits": {
+    "id": { "min": 3, "max": 40 },
+    "author": { "min": 1, "max": 39 },
+    "name": { "min": 2, "max": 30 },
+    "label": { "min": 2, "max": 24 },
+    "identity": { "min": 20, "max": 300 },
+    "backstory": { "min": 0, "max": 600 },
+    "speech": { "min_lines": 1, "max_lines": 5, "max": 140 },
+    "knows": { "max": 140 },
+    "secret": { "max": 240 },
+    "greetings_stranger": { "min_lines": 1, "max_lines": 3, "max": 140 },
+    "greetings_regular": { "min_lines": 0, "max_lines": 3, "max": 140 },
+    "small_talk": { "min_lines": 2, "max_lines": 5, "max": 140 },
+    "bye": { "min_lines": 1, "max_lines": 3, "max": 140 }
+  },
+  "look": {
+    "archetype": "local",
+    "pieces": ["local", "player", "cantina_owner", "goggles", "nomad"],
+    "height": { "min": 1.6, "max": 1.9, "default": 1.72 },
+    "build": { "min": 0.9, "max": 1.15, "default": 1.0 }
+  },
+  "base_height": 1.72,
+  "default_voice": "man_casual"
+}

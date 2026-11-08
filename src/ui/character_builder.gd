@@ -6,6 +6,10 @@ extends HBoxContainer
 ## (PlayerOutfit) and sent out as outfit_changed, so the player wears it live.
 ## In free roam the guard's pieces show once the player has had its armour
 ## (PlayerOutfit.unlocked); the lists are filled again each time it is shown.
+##
+## Issue #147: `CharacterBuilder.new(true)` is the NPC builder's Look page: a
+## stall keeper's pieces (CommunityNpc.look_catalog), on the local body, nothing
+## saved (the panel keeps the outfit), and `body_scale` for height and build.
 
 signal outfit_changed(outfit: Dictionary)
 
@@ -20,9 +24,13 @@ var _turntable: Node3D
 var _pieces: Dictionary = {}   ## part -> OptionButton
 var _colours: Dictionary = {}  ## part -> OptionButton
 var _locked_note: Label        ## which item opens the pieces still locked
+var for_npc := false           ## issue #147: a stall keeper's look, not the player's
+var body_scale := Vector3.ONE  ## issue #147: the preview's height and build
+var controls: VBoxContainer    ## the column of pickers beside the preview (the NPC builder adds its own)
 
 
-func _init() -> void:
+func _init(npc := false) -> void:
+	for_npc = npc
 	add_theme_constant_override("separation", 14)
 	_kit = CharacterKit.new(LookMaterials.new(), -1000.0)
 	add_child(_viewport())
@@ -30,6 +38,7 @@ func _init() -> void:
 	v.add_theme_constant_override("separation", 8)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(v)
+	controls = v
 	for part in PlayerOutfit.PARTS:
 		var title := Label.new()
 		title.text = LABELS[part]
@@ -48,21 +57,30 @@ func _init() -> void:
 		_pieces[part] = piece
 		_colours[part] = colour
 	var buttons := HBoxContainer.new()
-	for b in [["Random", randomize_outfit], ["Default", func(): _commit({})]]:
+	for b in [["Random", randomize_outfit], ["Default", func(): _commit(_default())]]:
 		var btn := Button.new()
 		btn.text = b[0]
 		btn.pressed.connect(b[1])
 		buttons.add_child(btn)
 	v.add_child(buttons)
 	var note := Label.new()
-	note.text = "Saved as you pick; worn at once."
+	note.text = "Worn by your stall keeper." if for_npc else "Saved as you pick; worn at once."
 	note.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
 	v.add_child(note)
 	_locked_note = Label.new()
 	_locked_note.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
 	_locked_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_locked_note)
-	show_outfit(PlayerOutfit.load_outfit())
+	show_outfit(_default() if for_npc else PlayerOutfit.load_outfit())
+
+
+func _default() -> Dictionary:
+	return { "head": "local", "torso": "local", "legs": "local" } if for_npc else {}
+
+
+## What can be picked: the player's (PlayerOutfit.pickable) or a stall keeper's.
+func _catalog() -> Dictionary:
+	return CommunityNpc.look_catalog() if for_npc else PlayerOutfit.pickable()
 
 
 func _process(dt: float) -> void:
@@ -72,7 +90,7 @@ func _process(dt: float) -> void:
 
 ## Put an outfit in the controls and on the preview (without saving it).
 func show_outfit(o: Dictionary) -> void:
-	_rebuild(PlayerOutfit.sanitize(o))
+	_rebuild(o if for_npc else PlayerOutfit.sanitize(o))
 	_fill_pieces()
 	for part in PlayerOutfit.PARTS:
 		var pc := PlayerOutfit.split(str(outfit.get(part, "")))
@@ -90,7 +108,7 @@ func show_outfit(o: Dictionary) -> void:
 func randomize_outfit() -> void:
 	var o := {}
 	for part in PlayerOutfit.PARTS:
-		var pieces: Dictionary = PlayerOutfit.pickable().get(part, {})
+		var pieces: Dictionary = _catalog().get(part, {})
 		if pieces.is_empty():
 			continue
 		var piece: String = pieces.keys().pick_random()
@@ -111,7 +129,8 @@ func _pick(part: String, new_piece: bool) -> void:
 
 
 func _commit(o: Dictionary) -> void:
-	PlayerOutfit.save_outfit(o)
+	if not for_npc:
+		PlayerOutfit.save_outfit(o)
 	show_outfit(o)
 	outfit_changed.emit(outfit)
 
@@ -119,7 +138,7 @@ func _commit(o: Dictionary) -> void:
 ## Each part's pieces from what can be picked now (a locked piece may have opened),
 ## and a line naming the item that opens any still locked.
 func _fill_pieces() -> void:
-	var cat := PlayerOutfit.pickable()
+	var cat := _catalog()
 	for part in PlayerOutfit.PARTS:
 		var piece: OptionButton = _pieces[part]
 		piece.clear()
@@ -127,7 +146,7 @@ func _fill_pieces() -> void:
 			piece.add_item(str(p).capitalize())
 			piece.set_item_metadata(piece.item_count - 1, p)
 	var needs: Array = []
-	for item in PlayerOutfit.locked_items():
+	for item in ([] if for_npc else PlayerOutfit.locked_items()):
 		needs.append(str(WorldState._item(item).get("label", item)))
 	_locked_note.text = "More pieces open once you have: %s." % ", ".join(needs) if not needs.is_empty() else ""
 	_locked_note.visible = not needs.is_empty()
@@ -138,7 +157,7 @@ func _fill_colours(part: String, piece: String) -> void:
 	colour.clear()
 	colour.add_item("Original")
 	colour.set_item_metadata(0, "")
-	for c in PlayerOutfit.pickable().get(part, {}).get(piece, []):
+	for c in _catalog().get(part, {}).get(piece, []):
 		colour.add_item(str(c).capitalize())
 		colour.set_item_metadata(colour.item_count - 1, c)
 	colour.select(0)
@@ -147,7 +166,8 @@ func _fill_colours(part: String, piece: String) -> void:
 func _rebuild(o: Dictionary) -> void:
 	if preview != null:
 		preview.free()
-	preview = _kit.build(PlayerOutfit.ARCHETYPE, "idle", o)
+	preview = _kit.build(str(CommunityNpc.config().get("look", {}).get("archetype", "local")) if for_npc else PlayerOutfit.ARCHETYPE, "idle", o)
+	preview.scale = body_scale
 	_turntable.add_child(preview)
 	outfit = preview.get_meta("outfit", {})
 
@@ -191,3 +211,10 @@ func _viewport() -> Control:
 	_turntable.name = "Turntable"
 	vp.add_child(_turntable)
 	return box
+
+
+## Issue #147: the preview's height and build (the stall keeper's sliders).
+func set_body_scale(v: Vector3) -> void:
+	body_scale = v
+	if preview != null:
+		preview.scale = v

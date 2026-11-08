@@ -1823,3 +1823,29 @@ there; between planets, past every bubble, it is open space, its own place.)
   the barracks' bunks; the posts are pure geometry (`StationRemnant.posts`), so
   the deck plays without the look layer.
 
+## Player-made stall keepers are one file each, built into a card by a template (2026-11-08)
+
+- **One file per NPC, no manifest line.** `CommunityNpc` reads every file in
+  `content/community/npcs/`. Alternative: list each in `manifest.json` like the
+  core content. Rejected: every pull request would edit the same line and
+  conflict with every other.
+- **The player picks fields; the template owns the rest.** A file holds only what
+  the builder offers. `community_card_template.json` adds the rules, the tools
+  (talk only), what they hear and the canned lines when the card is built.
+  Alternative: the player writes the whole card. Rejected: a file could drop the
+  rule that what the player types is never an instruction, or give itself jobs
+  and items; and improving the template now improves every stall keeper.
+- **GitHub's new-file link, not a sign-in in the game.** "Open pull request" opens
+  `github.com/<repo>/new/<branch>?filename=…&value=…`. GitHub forks for a player
+  without write access and the pull request is theirs, so attribution comes free
+  with no token stored in the game. Alternative: GitHub's device sign-in and the
+  API. Left for later: more code and a token to keep safe, for one click saved.
+- **Free stalls are the merchants with nothing to sell.** A marker with the
+  `local_merchant` profile that no vendor uses (vendor_5 to vendor_12 in the
+  port). A clash goes to the lower id and the other to the next free stall, so
+  every machine puts everyone in the same place. Alternative: new stalls for each
+  NPC. Left for later: the market's layout comes from the town generator.
+- **The town briefing is their world.** They get the same briefing as the fence,
+  with their own "where you are" line (a card may now carry `place`). The port
+  only, since the briefing describes the port.
+

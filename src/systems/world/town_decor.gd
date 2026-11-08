@@ -269,10 +269,16 @@ func _stall_trades(town, stalls: Array) -> Dictionary:
 		var droid_vendor: Dictionary = DroidRoster.config().get(key, {})
 		if not droid_vendor.is_empty():
 			vendors.append(droid_vendor)
+	# Issue #147: the player-made stall keepers' wares, at the stalls they keep.
+	var keep := CommunityNpc.assign(CommunityNpc.in_town(location_id), CommunityNpc.free_stalls(town, location_id, cc))
+	for marker in keep:
+		vendors.append({ "id": "", "marker": marker, "community_wares": str(keep[marker].get("wares", "")) })
 	var out := {}
 	for v in vendors:
 		var marker: Dictionary = town.get_marker(str(v.get("marker", "")))
 		var look: Dictionary = looks.get(str(v.get("id", "")), {})
+		if v.has("community_wares"):
+			look = { "wares": v.community_wares }
 		if marker.is_empty() or look.is_empty():
 			continue
 		var at := _v3(marker.pos)

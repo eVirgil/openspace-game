@@ -134,8 +134,10 @@ func briefing(world: Dictionary, rel, rumors: Array, jobs: Array) -> Dictionary:
 			now.append(str(ft[f]))
 	now.append(str(world_text.get("time", {}).get(str(world.get("time", "")), "")))
 	var place: Dictionary = world.get("place", {})
-	if str(place.get("town", "")) != "" and world_text.has("place"):
-		L.append(str(world_text.place) % [place.town, place.get("planet", "")])
+	# Issue #147: a card may say where it works in its own words (a stall, not the bar).
+	var place_line := str(card.get("place", world_text.get("place", "")))
+	if str(place.get("town", "")) != "" and place_line != "":
+		L.append(place_line % [place.town, place.get("planet", "")])
 	L.append("TOWN NOW: " + " ".join(now).strip_edges())
 	var people: Array = world.get("people", [])
 	if not people.is_empty() and world_text.has("people"):

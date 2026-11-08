@@ -21,6 +21,8 @@ var near_voice := false            ## true: heard as if beside them, however far
 var shortcuts := Callable()        ## issue #305: valid: () -> [{ id, label }], the keyword row over the chat box, always shown ("Ships", "Upgrades"); ids are node names (no ":")
 var on_shortcut := Callable()      ## issue #305: (id) a keyword was picked: the character puts up a price card, or ends the talk and opens their menu
 var opener := Callable()           ## valid: asked as the talk opens for { say, sale } (Skrugs's ship offer): "say" replaces the greeting, "sale" goes up on the chat box at once; {} = greet as usual
+var available := Callable()        ## issue #147: valid: () -> bool, false hides their prompt (a stall keeper who is dead or whose locals are fighting)
+var remember := true              ## issue #147: false: what they think of the player is never loaded from or written to the save (a stall keeper tried out in the NPC builder)
 
 
 func _init(npc_brain: NpcBrain = null, npc_body: Node3D = null, stand_at: Vector3 = Vector3.ZERO) -> void:

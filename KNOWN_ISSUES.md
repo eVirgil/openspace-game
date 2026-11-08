@@ -8,6 +8,34 @@ desert) moved to [`docs/KNOWN_ISSUES_ARCHIVE.md`](docs/KNOWN_ISSUES_ARCHIVE.md).
 When a section here stops being true, move it there rather than marking it;
 `tests/test_docs.gut.gd` fails if this file marks a section as replaced.
 
+## After the NPC builder (2026-11-08)
+
+**Checked:** `tests/test_community_npc.gut.gd` (18: the folder's files pass
+every check and build a card that only talks; the checks catch blanks, franchise
+words, taken names, Remnant armour and unknown fields; the port has 8 free
+stalls; clashes settle by id; the GitHub link carries the file and a long one
+falls back to a blank page). `test_smoke`, `test_ip_neutral`, `test_share_build`.
+A headless town boot with the look layer: the sample keeper stands at her stall,
+named, at her height and build, with a talk spot; the builder opens paused on a
+free stall, fills, and a try-out re-dresses the stall's body with a talk spot
+that is not saved. All under a scratch HOME, so no real save was read or written.
+Not done: nothing was played on screen, no AI chat was had with one, and the
+GitHub link was not opened in a browser.
+
+- **The port only.** The town briefing describes the port, so other towns'
+  stalls can not be claimed yet (`community.json` `towns`).
+- **8 stalls.** Once 8 are merged the next ones wait (by id) for a free stall.
+- **A try-out's wares do not change on the counter** until the file is merged
+  (the stalls are drawn when the town is built).
+- **No voice sample** in the builder, and no "write it for me" from the AI model.
+- **Attribution is the pull request's GitHub account** and the typed handle; the
+  game itself does not sign in to GitHub.
+- **Found on the way, not fixed:** since issue #77 every NPC body's kit scale is
+  dropped each tick (`NpcBody._stand_on_ground` sets the look's basis), so
+  archetype heights and bulk and the desert packs' children (`child_scale` 0.6)
+  all show at the base size. Stall keepers keep theirs (`look_scale`); fixing it
+  for everyone resizes characters across the game, so it is left for its own issue.
+
 ## After the station's bay (2026-11-04)
 
 **Checked:** `test_station` (19, four new: the six pads fit and the front row
