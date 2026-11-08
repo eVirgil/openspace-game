@@ -133,7 +133,9 @@ write which one you chose into the issue.
 ## The parts
 
 Check paths before citing them; things move. Each row is "what you get for
-free" and where to start reading.
+free" and where to start reading. To build a planet, an NPC or a ship rather
+than write the issue, the `add-planet`, `add-npc` and `add-ship` skills have
+the steps.
 
 | Part | What it gives you | Start here |
 |---|---|---|
